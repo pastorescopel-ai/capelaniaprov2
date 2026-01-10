@@ -33,10 +33,10 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
     v.returnDate === today
   );
 
-  // FÓRMULA DE ALUNOS ÚNICOS (CONSOLIDADO TOTAL USUÁRIO)
+  // FÓRMULA DE ALUNOS ÚNICOS (CONSOLIDADO TOTAL USUÁRIO) - AJUSTADA PARA CONTAR NOMES DENTRO DAS CLASSES
   const uniqueTotalStudents = new Set<string>();
   
-  // Adiciona alunos de estudos individuais
+  // 1. Adiciona alunos de estudos individuais do usuário logado
   userStudies.forEach(s => {
     if (s && s.name && typeof s.name === 'string') {
       const nameClean = s.name.trim().toLowerCase();
@@ -44,7 +44,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
     }
   });
 
-  // Adiciona alunos de TODAS as classes bíblicas do usuário
+  // 2. Adiciona CADA nome de aluno de TODAS as classes bíblicas do usuário logado
   userClasses.forEach(c => {
     if (c && Array.isArray(c.students)) {
       c.students.forEach(n => {

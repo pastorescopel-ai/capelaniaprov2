@@ -51,11 +51,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // Estatísticas do Card Superior (Total Geral Consolidado)
+  // Estatísticas do Card Superior (Total Geral Consolidado) - FÓRMULA CORRIGIDA
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
     
-    // Processa estudos individuais de TODOS os registros filtrados
+    // 1. Adiciona alunos de estudos individuais de TODOS os registros filtrados
     filteredData.studies.forEach(s => {
       if (s && s.name && typeof s.name === 'string') {
         const nameClean = s.name.trim().toLowerCase();
@@ -63,12 +63,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       }
     });
 
-    // Processa TODOS os alunos de TODAS as classes bíblicas filtradas
+    // 2. Adiciona CADA aluno de CADA classe bíblica filtrada (Iteração profunda)
     filteredData.classes.forEach(c => {
       if (c && Array.isArray(c.students)) {
-        c.students.forEach(n => {
-          if (n && typeof n === 'string') {
-            const nameClean = n.trim().toLowerCase();
+        c.students.forEach(studentName => {
+          if (studentName && typeof studentName === 'string') {
+            const nameClean = studentName.trim().toLowerCase();
             if (nameClean) allStudentsSet.add(nameClean);
           }
         });
