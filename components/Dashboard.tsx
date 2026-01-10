@@ -18,49 +18,51 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
   const [isEditingMural, setIsEditingMural] = useState(false);
   const [muralDraft, setMuralDraft] = useState(config?.muralText || "");
 
-  // Filtros de dados protegidos - No painel mostramos o somatório TOTAL (HAB + HABA) do usuário logado
-  const visibleStudies = (studies || []).filter(s => s && s.userId === currentUser?.id);
-  const visibleClasses = (classes || []).filter(c => c && c.userId === currentUser?.id);
-  const visibleGroups = (groups || []).filter(g => g && g.userId === currentUser?.id);
-  const visibleVisits = (visits || []).filter(v => v && v.userId === currentUser?.id);
+  // No painel mostramos SEMPRE o somatório TOTAL (HAB + HABA) do usuário logado para informação completa
+  const userStudies = (studies || []).filter(s => s && s.userId === currentUser?.id);
+  const userClasses = (classes || []).filter(c => c && c.userId === currentUser?.id);
+  const userGroups = (groups || []).filter(g => g && g.userId === currentUser?.id);
+  const userVisits = (visits || []).filter(v => v && v.userId === currentUser?.id);
 
   const today = new Date().toISOString().split('T')[0];
 
-  const pendingReturns = visibleVisits.filter(v => v.requiresReturn && !v.returnCompleted);
-  const todaysReturns = visibleVisits.filter(v => 
+  const pendingReturns = userVisits.filter(v => v.requiresReturn && !v.returnCompleted);
+  const todaysReturns = userVisits.filter(v => 
     v.requiresReturn && 
     !v.returnCompleted && 
     v.returnDate === today
   );
 
-  // Regra de Alunos Únicos: Processa todos os estudos e classes do usuário (sem filtro de unidade)
+  // FÓRMULA DE ALUNOS ÚNICOS (CONSOLIDADO TOTAL USUÁRIO)
   const uniqueTotalStudents = new Set<string>();
   
   // Adiciona alunos de estudos individuais
-  visibleStudies.forEach(s => {
+  userStudies.forEach(s => {
     if (s && s.name && typeof s.name === 'string') {
-      uniqueTotalStudents.add(s.name.trim().toLowerCase());
+      const nameClean = s.name.trim().toLowerCase();
+      if (nameClean) uniqueTotalStudents.add(nameClean);
     }
   });
 
-  // Adiciona CADA aluno de CADA classe bíblica (Corrigido para percorrer o array interno de students)
-  visibleClasses.forEach(c => {
+  // Adiciona alunos de TODAS as classes bíblicas do usuário
+  userClasses.forEach(c => {
     if (c && Array.isArray(c.students)) {
       c.students.forEach(n => {
-        if (n && typeof n === 'string' && n.trim() !== "") {
-          uniqueTotalStudents.add(n.trim().toLowerCase());
+        if (n && typeof n === 'string') {
+          const nameClean = n.trim().toLowerCase();
+          if (nameClean) uniqueTotalStudents.add(nameClean);
         }
       });
     }
   });
 
-  const totalActions = visibleStudies.length + visibleClasses.length + visibleGroups.length + visibleVisits.length;
+  const totalActions = userStudies.length + userClasses.length + userGroups.length + userVisits.length;
 
   const stats = [
     { label: 'Meus Alunos (HAB+HABA)', value: uniqueTotalStudents.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
-    { label: 'Meus PGs', value: visibleGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-500' },
+    { label: 'Meus PGs', value: userGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-500' },
     { label: 'Minhas Ações', value: totalActions, icon: <i className="fas fa-bolt"></i>, color: 'bg-amber-500' },
-    { label: 'Minhas Visitas', value: visibleVisits.length, icon: <i className="fas fa-hands-helping"></i>, color: 'bg-rose-500' },
+    { label: 'Minhas Visitas', value: userVisits.length, icon: <i className="fas fa-hands-helping"></i>, color: 'bg-rose-500' },
   ];
 
   const handleSaveMural = () => {
@@ -181,15 +183,15 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
 
       <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
         <h3 className="text-xl font-black text-slate-800 mb-8 flex items-center gap-2">
-          <i className="fas fa-chart-bar text-blue-600"></i> Meu Desempenho (Consolidado)
+          <i className="fas fa-chart-bar text-blue-600"></i> Meu Desempenho (Consolidado HAB+HABA)
         </h3>
         <div className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={[
-              { name: 'Estudos', val: visibleStudies.length },
-              { name: 'Classes', val: visibleClasses.length },
-              { name: 'PGs', val: visibleGroups.length },
-              { name: 'Visitas', val: visibleVisits.length },
+              { name: 'Estudos', val: userStudies.length },
+              { name: 'Classes', val: userClasses.length },
+              { name: 'PGs', val: userGroups.length },
+              { name: 'Visitas', val: userVisits.length },
             ]}>
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 800}} />
               <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '1.5rem', border: 'none'}} />

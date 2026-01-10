@@ -55,10 +55,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
     
-    // Processa estudos individuais de TODOS os capelães filtrados
+    // Processa estudos individuais de TODOS os registros filtrados
     filteredData.studies.forEach(s => {
-      if (s && s.name) {
-        allStudentsSet.add(String(s.name).trim().toLowerCase());
+      if (s && s.name && typeof s.name === 'string') {
+        const nameClean = s.name.trim().toLowerCase();
+        if (nameClean) allStudentsSet.add(nameClean);
       }
     });
 
@@ -66,8 +67,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     filteredData.classes.forEach(c => {
       if (c && Array.isArray(c.students)) {
         c.students.forEach(n => {
-          if (n && typeof n === 'string' && n.trim() !== "") {
-            allStudentsSet.add(n.trim().toLowerCase());
+          if (n && typeof n === 'string') {
+            const nameClean = n.trim().toLowerCase();
+            if (nameClean) allStudentsSet.add(nameClean);
           }
         });
       }
@@ -78,7 +80,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       classes: filteredData.classes.length,
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,
-      totalUniqueStudents: allStudentsSet.size
+      totalStudents: allStudentsSet.size
     };
   }, [filteredData]);
 
@@ -96,15 +98,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       
       // Soma nomes dos estudos individuais
       uStudies.forEach(s => {
-        if(s.name) studentsSet.add(String(s.name).trim().toLowerCase());
+        if(s.name && typeof s.name === 'string') {
+          const nameClean = s.name.trim().toLowerCase();
+          if (nameClean) studentsSet.add(nameClean);
+        }
       });
 
       // Soma nomes de cada aluno dentro de cada classe
       uClasses.forEach(c => {
         if (Array.isArray(c.students)) {
           c.students.forEach(n => {
-            if (n && typeof n === 'string' && n.trim() !== "") {
-              studentsSet.add(n.trim().toLowerCase());
+            if (n && typeof n === 'string') {
+              const nameClean = n.trim().toLowerCase();
+              if (nameClean) studentsSet.add(nameClean);
             }
           });
         }
@@ -127,11 +133,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     }).sort((a, b) => b.totalActions - a.totalActions);
   }, [users, filteredData, selectedChaplain]);
 
-  // Detalhes do Modal: Devem respeitar a unidade selecionada no filtro do topo
+  // Detalhes do Modal: Respeitam rigorosamente o filtro de unidade selecionado no topo
   const activeDetails = useMemo(() => {
     if (!selectedDetailUser) return { items: [] };
     
-    // Usa o filteredData que já contém apenas a unidade selecionada (HAB, HABA ou Ambas)
+    // Filtra detalhes respeitando a unidade selecionada (HAB, HABA ou Ambas)
     const sList = filteredData.studies.filter(s => s.userId === selectedDetailUser.id);
     const cList = filteredData.classes.filter(c => c.userId === selectedDetailUser.id);
 
@@ -200,7 +206,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         <div className="relative z-10 space-y-8">
           <h2 className="text-3xl font-black tracking-tighter uppercase tracking-tight italic">Total Geral Consolidado</h2>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
-            <div className="bg-white/10 p-6 rounded-3xl border border-white/20 backdrop-blur-sm"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Alunos Únicos</p><p className="text-4xl font-black">{totalStats.totalUniqueStudents}</p></div>
+            <div className="bg-white/10 p-6 rounded-3xl border border-white/20 backdrop-blur-sm">
+              <p className="text-[9px] font-black text-white/70 uppercase mb-2">Total de Alunos</p>
+              <p className="text-4xl font-black">{totalStats.totalStudents}</p>
+            </div>
             <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Estudos</p><p className="text-3xl font-black">{totalStats.studies}</p></div>
             <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Classes</p><p className="text-3xl font-black">{totalStats.classes}</p></div>
             <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">PGs</p><p className="text-3xl font-black">{totalStats.groups}</p></div>
@@ -249,6 +258,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 <div>
                   <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Atendimentos Ativos</h3>
                   <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Capelão: {selectedDetailUser.name}</p>
+                  <p className="text-[9px] text-blue-500 font-bold uppercase">Unidade Selecionada: {selectedUnit === 'all' ? 'Ambas' : selectedUnit}</p>
                 </div>
               </div>
               <button onClick={() => setSelectedDetailUser(null)} className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm">
@@ -280,7 +290,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-4">
                   <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 text-4xl"><i className="fas fa-folder-open"></i></div>
-                  <h4 className="text-xl font-black text-slate-400 uppercase tracking-tighter">Nenhum atendimento ativo</h4>
+                  <h4 className="text-xl font-black text-slate-400 uppercase tracking-tighter">Nenhum atendimento ativo nesta unidade/período</h4>
                 </div>
               )}
             </div>
@@ -303,10 +313,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     <h1 style={{fontSize: `${config.fontSize1}px`, color: '#005a9c'}} className="font-black uppercase leading-none">{config.headerLine1}</h1>
                     <h2 style={{fontSize: `${config.fontSize2}px`}} className="font-bold text-slate-600 uppercase mt-4">{config.headerLine2}</h2>
                     <p className="text-[10px] font-bold mt-2">Período: {startDate.split('-').reverse().join('/')} até {endDate.split('-').reverse().join('/')}</p>
+                    <p className="text-[9px] font-bold text-blue-600 mt-1 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
                   </div>
                 </header>
                 <table className="w-full text-left text-[10px] border-collapse shadow-sm">
-                  <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Atendimentos</th><th className="p-3 text-center">Alunos Únicos</th></tr></thead>
+                  <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Atendimentos</th><th className="p-3 text-center">Total de Alunos</th></tr></thead>
                   <tbody className="divide-y divide-slate-100">
                     {chaplainStats.map((stat, idx) => (
                       <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
@@ -317,6 +328,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     ))}
                   </tbody>
                 </table>
+                <div className="mt-8 grid grid-cols-3 gap-4 border-t border-slate-100 pt-6">
+                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[8px] font-black text-slate-400 uppercase">Total Estudos</p><p className="text-xl font-black text-[#005a9c]">{totalStats.studies}</p></div>
+                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[8px] font-black text-slate-400 uppercase">Total Classes</p><p className="text-xl font-black text-[#005a9c]">{totalStats.classes}</p></div>
+                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[8px] font-black text-slate-400 uppercase">Total Geral Alunos</p><p className="text-xl font-black text-indigo-600">{totalStats.totalStudents}</p></div>
+                </div>
                 <footer className="mt-auto border-t border-slate-200 pt-4 flex justify-between text-[8px] font-bold text-slate-400 uppercase"><span>Gerado em: {new Date().toLocaleString('pt-BR')}</span><span>Sistema Capelania Pro</span></footer>
               </div>
             </div>
