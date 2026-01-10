@@ -1,0 +1,5 @@
+{
+  "name": "Capelania Hospitalar Pro",
+  "description": "Sistema de gestão para capelães hospitalares com sincronização em nuvem via Google Sheets, suporte offline e relatórios avançados.",
+  "requestFramePermissions": []
+}
