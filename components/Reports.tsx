@@ -10,9 +10,10 @@ interface ReportsProps {
   visits: StaffVisit[];
   users: User[];
   config: Config;
+  onRefresh?: () => Promise<void>;
 }
 
-const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, users, config }) => {
+const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, users, config, onRefresh }) => {
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [selectedDetailUser, setSelectedDetailUser] = useState<User | null>(null);
   
@@ -177,9 +178,21 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <h1 className="text-3xl font-black text-slate-800">Painel de Relatórios</h1>
-          <button onClick={() => setShowPdfPreview(true)} className="px-8 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95">
-            <i className="fas fa-file-pdf"></i> Imprimir Relatório Analítico
-          </button>
+          <div className="flex flex-wrap gap-3">
+            {/* Novo botão de Sincronizar Banco */}
+            <button 
+              onClick={() => onRefresh && onRefresh()} 
+              className="px-8 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95 hover:bg-emerald-700 transition-colors"
+            >
+              <i className="fas fa-sync-alt"></i> Sincronizar Banco
+            </button>
+            <button 
+              onClick={() => setShowPdfPreview(true)} 
+              className="px-8 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95"
+            >
+              <i className="fas fa-file-pdf"></i> Imprimir Relatório Analítico
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
