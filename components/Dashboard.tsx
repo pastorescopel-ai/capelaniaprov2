@@ -33,33 +33,23 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
     v.returnDate === today
   );
 
-  // FÓRMULA DE ALUNOS ÚNICOS (CONSOLIDADO TOTAL USUÁRIO) - AJUSTADA PARA CONTAR NOMES DENTRO DAS CLASSES
-  const uniqueTotalStudents = new Set<string>();
+  // FÓRMULA DE SOMA TOTAL DE ALUNOS (HAB+HABA)
+  let totalStudentCount = 0;
   
-  // 1. Adiciona alunos de estudos individuais do usuário logado
-  userStudies.forEach(s => {
-    if (s && s.name && typeof s.name === 'string') {
-      const nameClean = s.name.trim().toLowerCase();
-      if (nameClean) uniqueTotalStudents.add(nameClean);
-    }
-  });
+  // 1. Cada estudo individual conta como 1 aluno
+  totalStudentCount += userStudies.length;
 
-  // 2. Adiciona CADA nome de aluno de TODAS as classes bíblicas do usuário logado
+  // 2. Soma a quantidade de alunos dentro de cada classe bíblica do usuário
   userClasses.forEach(c => {
     if (c && Array.isArray(c.students)) {
-      c.students.forEach(n => {
-        if (n && typeof n === 'string') {
-          const nameClean = n.trim().toLowerCase();
-          if (nameClean) uniqueTotalStudents.add(nameClean);
-        }
-      });
+      totalStudentCount += c.students.length;
     }
   });
 
   const totalActions = userStudies.length + userClasses.length + userGroups.length + userVisits.length;
 
   const stats = [
-    { label: 'Meus Alunos (HAB+HABA)', value: uniqueTotalStudents.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
+    { label: 'Meus Alunos (HAB+HABA)', value: totalStudentCount, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
     { label: 'Meus PGs', value: userGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-500' },
     { label: 'Minhas Ações', value: totalActions, icon: <i className="fas fa-bolt"></i>, color: 'bg-amber-500' },
     { label: 'Minhas Visitas', value: userVisits.length, icon: <i className="fas fa-hands-helping"></i>, color: 'bg-rose-500' },

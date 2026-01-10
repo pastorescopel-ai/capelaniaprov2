@@ -36,7 +36,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const dateMatch = item.date >= startDate && item.date <= endDate;
       const chaplainMatch = selectedChaplain === 'all' || item.userId === selectedChaplain;
       
-      // REGRA DE OURO: Se não houver unit no registro antigo, assume-se HAB para não zerar
+      // REGRA: Se não houver unit no registro antigo, assume-se HAB para não zerar
       const itemUnit = item.unit || Unit.HAB;
       const unitMatch = selectedUnit === 'all' || itemUnit === selectedUnit;
       
@@ -51,27 +51,17 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // Estatísticas do Card Superior (Total Geral Consolidado) - FÓRMULA CORRIGIDA
+  // Estatísticas do Card Superior (Total Geral Consolidado) - FÓRMULA DE SOMA TOTAL
   const totalStats = useMemo(() => {
-    const allStudentsSet = new Set<string>();
+    let studentCount = 0;
     
-    // 1. Adiciona alunos de estudos individuais de TODOS os registros filtrados
-    filteredData.studies.forEach(s => {
-      if (s && s.name && typeof s.name === 'string') {
-        const nameClean = s.name.trim().toLowerCase();
-        if (nameClean) allStudentsSet.add(nameClean);
-      }
-    });
+    // 1. Cada estudo individual conta como 1 aluno
+    studentCount += filteredData.studies.length;
 
-    // 2. Adiciona CADA aluno de CADA classe bíblica filtrada (Iteração profunda)
+    // 2. Soma a quantidade de alunos dentro de cada classe bíblica
     filteredData.classes.forEach(c => {
       if (c && Array.isArray(c.students)) {
-        c.students.forEach(studentName => {
-          if (studentName && typeof studentName === 'string') {
-            const nameClean = studentName.trim().toLowerCase();
-            if (nameClean) allStudentsSet.add(nameClean);
-          }
-        });
+        studentCount += c.students.length;
       }
     });
 
@@ -80,39 +70,24 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       classes: filteredData.classes.length,
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,
-      totalStudents: allStudentsSet.size
+      totalStudents: studentCount
     };
   }, [filteredData]);
 
-  // Estatísticas por Capelão (Cards Individuais)
+  // Estatísticas por Capelão (Cards Individuais) - FÓRMULA DE SOMA TOTAL POR USUÁRIO
   const chaplainStats = useMemo(() => {
     const uList = Array.isArray(users) ? users : [];
 
     return uList.map(user => {
-      // Filtra atividades do usuário dentro do conjunto já filtrado por unidade e período
       const uStudies = filteredData.studies.filter(s => s.userId === user.id);
       const uClasses = filteredData.classes.filter(c => c.userId === user.id);
       const uVisits = filteredData.visits.filter(v => v.userId === user.id);
       
-      const studentsSet = new Set<string>();
-      
-      // Soma nomes dos estudos individuais
-      uStudies.forEach(s => {
-        if(s.name && typeof s.name === 'string') {
-          const nameClean = s.name.trim().toLowerCase();
-          if (nameClean) studentsSet.add(nameClean);
-        }
-      });
-
-      // Soma nomes de cada aluno dentro de cada classe
+      let userStudents = 0;
+      userStudents += uStudies.length;
       uClasses.forEach(c => {
         if (Array.isArray(c.students)) {
-          c.students.forEach(n => {
-            if (n && typeof n === 'string') {
-              const nameClean = n.trim().toLowerCase();
-              if (nameClean) studentsSet.add(nameClean);
-            }
-          });
+          userStudents += c.students.length;
         }
       });
 
@@ -121,7 +96,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       return { 
         user, 
         name: user.name || "Sem Nome", 
-        students: studentsSet.size, 
+        students: userStudents, 
         studies: uStudies.length, 
         classes: uClasses.length, 
         visits: uVisits.length, 
@@ -133,11 +108,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     }).sort((a, b) => b.totalActions - a.totalActions);
   }, [users, filteredData, selectedChaplain]);
 
-  // Detalhes do Modal: Respeitam rigorosamente o filtro de unidade selecionado no topo
+  // Detalhes do Modal
   const activeDetails = useMemo(() => {
     if (!selectedDetailUser) return { items: [] };
     
-    // Filtra detalhes respeitando a unidade selecionada (HAB, HABA ou Ambas)
     const sList = filteredData.studies.filter(s => s.userId === selectedDetailUser.id);
     const cList = filteredData.classes.filter(c => c.userId === selectedDetailUser.id);
 
