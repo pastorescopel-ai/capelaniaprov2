@@ -81,7 +81,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       uStudies.forEach(s => { if (s.name) uniqueNames.add(s.name.trim().toLowerCase()); });
       uClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
 
-      // Dados específicos por unidade para o PDF
+      // Dados específicos por unidade para as tabelas do PDF
       const getUnitStats = (unit: Unit) => {
           const unitStudies = uStudies.filter(s => s.unit === unit);
           const unitClasses = uClasses.filter(c => c.unit === unit);
@@ -430,7 +430,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                           <Tooltip isAnimationActive={false} />
                           <Bar dataKey="totalActions" fill="#005a9c" radius={[4, 4, 0, 0]} isAnimationActive={false}>
                              {chaplainStats.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#005a9c' : '#3b82f6'} />
+                                <Cell key={`cell-${index}`} fill="#005a9c" />
                               ))}
                           </Bar>
                         </BarChart>
@@ -440,7 +440,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </section>
 
                 <div className="mt-auto grid grid-cols-5 gap-3 border-t border-slate-200 pt-6">
-                    <div className="bg-[#005a9c] p-3 rounded-xl text-center text-white"><p className="text-[7px] font-black text-white/70 uppercase">Total Estudantes</p><p className="text-xl font-black">{totalStats.totalStudents}</p></div>
+                    <div className="bg-[#005a9c] p-3 rounded-xl text-center text-white shadow-sm"><p className="text-[7px] font-black text-white/70 uppercase">Total Estudantes</p><p className="text-xl font-black">{totalStats.totalStudents}</p></div>
                     <div className="bg-slate-50 p-3 rounded-xl text-center border border-slate-100"><p className="text-[7px] font-black text-slate-400 uppercase">Estudos Bíblicos</p><p className="text-xl font-black text-blue-600">{totalStats.studies}</p></div>
                     <div className="bg-slate-50 p-3 rounded-xl text-center border border-slate-100"><p className="text-[7px] font-black text-slate-400 uppercase">Classes Bíblicas</p><p className="text-xl font-black text-indigo-600">{totalStats.classes}</p></div>
                     <div className="bg-slate-50 p-3 rounded-xl text-center border border-slate-100"><p className="text-[7px] font-black text-slate-400 uppercase">PGs Assistidos</p><p className="text-xl font-black text-emerald-600">{totalStats.groups}</p></div>
