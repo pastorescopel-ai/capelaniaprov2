@@ -18,7 +18,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers })
     
     setIsProcessing(true);
     try {
-      await onUpdateUsers([...users, { ...newUser, id: crypto.randomUUID() }]);
+      // Garante que o novo usuário tenha todos os campos preenchidos antes de enviar para a nuvem
+      const userToAdd: User = {
+        id: crypto.randomUUID(),
+        name: newUser.name,
+        email: newUser.email,
+        password: newUser.password,
+        role: newUser.role,
+        profilePic: ''
+      };
+
+      await onUpdateUsers([...users, userToAdd]);
       setNewUser({ name: '', email: '', password: '', role: UserRole.CHAPLAIN });
     } finally {
       setIsProcessing(false);
@@ -31,7 +41,19 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers })
     
     setIsProcessing(true);
     try {
-      const updatedUsers = users.map(u => u.id === editingUser.id ? editingUser : u);
+      const updatedUsers = users.map(u => {
+        if (u.id === editingUser.id) {
+          // Busca a senha original caso o campo de edição esteja vazio
+          const originalUser = users.find(usr => usr.id === editingUser.id);
+          return {
+            ...editingUser,
+            password: editingUser.password && editingUser.password.trim() !== '' 
+              ? editingUser.password 
+              : (originalUser?.password || '')
+          };
+        }
+        return u;
+      });
       await onUpdateUsers(updatedUsers);
       setEditingUser(null);
     } finally {

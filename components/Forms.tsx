@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Unit, RecordStatus, VisitReason, BibleStudy, BibleClass, SmallGroup, StaffVisit, UserRole } from '../types';
 import { STATUS_OPTIONS, VISIT_REASONS } from '../constants';
@@ -39,19 +38,30 @@ const Autocomplete: React.FC<{ options: string[], value: string, onChange: (v: s
         onChange={(e) => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onBlur={() => {
+           // Pequeno delay para permitir que o onMouseDown da opção seja processado
            setTimeout(() => {
              setOpen(false);
-             if (isStrict && !options.includes(value)) {
+             if (isStrict && value && !options.includes(value)) {
                onChange("");
              }
-           }, 200);
+           }, 250);
         }}
         className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-800"
       />
       {open && filtered.length > 0 && (
         <div className="absolute z-[100] w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 max-h-48 overflow-y-auto no-scrollbar">
           {filtered.map(o => (
-            <button key={o} type="button" className="w-full text-left p-4 hover:bg-slate-50 text-sm font-bold text-slate-700 transition-colors border-b border-slate-50 last:border-none" onClick={() => { onChange(o); setOpen(false); }}>
+            <button 
+              key={o} 
+              type="button" 
+              className="w-full text-left p-4 hover:bg-slate-50 text-sm font-bold text-slate-700 transition-colors border-b border-slate-50 last:border-none" 
+              onMouseDown={(e) => { 
+                // Usamos onMouseDown porque ele ocorre antes do onBlur do input
+                e.preventDefault(); 
+                onChange(o); 
+                setOpen(false); 
+              }}
+            >
               {o}
             </button>
           ))}
