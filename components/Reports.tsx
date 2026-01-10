@@ -421,18 +421,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-[10px] font-black uppercase text-slate-500 mb-4 text-center">Desempenho da Equipe (Ações)</h3>
-                    <div className="h-[200px] w-full">
+                    <h3 className="text-[10px] font-black uppercase text-slate-500 mb-4 text-center">Desempenho da Equipe</h3>
+                    <div className="h-[240px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chaplainStats} margin={{top: 5, right: 20, left: 0, bottom: 5}}>
-                          <XAxis dataKey="name" tick={{fontSize: 8, fontWeight: 'bold'}} interval={0} axisLine={false} tickLine={false} />
-                          <YAxis tick={{fontSize: 8}} axisLine={false} tickLine={false} />
-                          <Tooltip isAnimationActive={false} />
-                          <Bar dataKey="totalActions" fill="#005a9c" radius={[4, 4, 0, 0]} isAnimationActive={false}>
-                             {chaplainStats.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill="#005a9c" />
-                              ))}
-                          </Bar>
+                        <BarChart data={chaplainStats} margin={{top: 5, right: 10, left: -20, bottom: 5}}>
+                          <XAxis dataKey="name" tick={{fontSize: 7, fontWeight: 'bold'}} interval={0} axisLine={false} tickLine={false} />
+                          <YAxis tick={{fontSize: 7}} axisLine={false} tickLine={false} />
+                          <Tooltip isAnimationActive={false} contentStyle={{borderRadius: '8px', fontSize: '10px'}} />
+                          <Legend verticalAlign="bottom" wrapperStyle={{fontSize: '7px', fontWeight: 'bold', paddingTop: '10px'}} iconSize={8} />
+                          <Bar dataKey="students" name="Alunos" fill="#005a9c" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                          <Bar dataKey="studies" name="Estudos" fill="#3b82f6" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                          <Bar dataKey="classes" name="Classes" fill="#6366f1" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                          <Bar dataKey="groups" name="PGs" fill="#10b981" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                          <Bar dataKey="visits" name="Visitas" fill="#f43f5e" radius={[2, 2, 0, 0]} isAnimationActive={false} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
