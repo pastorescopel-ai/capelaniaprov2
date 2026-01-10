@@ -219,10 +219,35 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                         </div>
                         <div>
                           <h4 className="font-black text-slate-800 text-base leading-tight uppercase">{item.type === 'class' ? 'Classe Bíblica' : (item.name || 'Sem Nome')}</h4>
-                          <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{item.status}</span>
+                          <div className="flex items-center gap-2">
+                             <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{item.status}</span>
+                             {item.type === 'study' && item.whatsapp && (
+                               <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600">
+                                 <i className="fab fa-whatsapp"></i> {item.whatsapp}
+                               </span>
+                             )}
+                          </div>
                         </div>
                       </div>
                       <div className="space-y-3">
+                        {item.type === 'class' && (
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] font-black text-slate-400 uppercase">Setor:</span>
+                              <span className="text-[10px] font-black text-slate-700 uppercase">{item.sector}</span>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[9px] font-black text-slate-400 uppercase">Alunos ({item.students?.length || 0}):</span>
+                              <div className="flex flex-wrap gap-1">
+                                {(item.students || []).map((s: string, idx: number) => (
+                                  <span key={idx} className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded-lg text-slate-600">
+                                    {s.split(' ')[0]}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                         <div className="flex flex-col"><span className="text-[9px] font-black text-slate-400 uppercase">Guia:</span><span className="text-sm font-bold text-[#005a9c]">{item.guide || 'Não informado'}</span></div>
                         <div className="flex flex-col bg-slate-50 p-4 rounded-2xl border border-slate-100"><span className="text-[9px] font-black text-slate-400 uppercase">Lição Atual:</span><span className="text-sm font-black italic text-slate-700">"{item.lesson || 'Início do curso'}"</span></div>
                         <div className="flex items-center gap-3 text-slate-400 pt-2 border-t border-slate-100"><span className="text-[10px] font-black uppercase tracking-widest">{item.sector} • {item.unit}</span></div>
