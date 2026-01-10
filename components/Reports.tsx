@@ -302,8 +302,17 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             {`
               @media print {
                 @page { size: A4; margin: 0; }
-                body * { visibility: hidden !important; }
-                #pdf-modal-container, #pdf-modal-container * { visibility: visible !important; }
+                body * { 
+                  visibility: hidden !important; 
+                }
+                /* Força a impressão de cores de fundo (background-color) */
+                * {
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                #pdf-modal-container, #pdf-modal-container * { 
+                  visibility: visible !important; 
+                }
                 #pdf-modal-container {
                   position: fixed !important;
                   left: 0 !important;
@@ -326,8 +335,14 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   max-height: 297mm !important;
                   overflow: hidden !important;
                   box-sizing: border-box !important;
+                  background: white !important;
                 }
                 .recharts-responsive-container { min-width: 100% !important; }
+                
+                /* Garante que o azul do sistema apareça nas barras de cabeçalho das tabelas */
+                .bg-\\[\\#005a9c\\] {
+                  background-color: #005a9c !important;
+                }
               }
             `}
           </style>
