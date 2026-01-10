@@ -174,16 +174,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const activeDetails = useMemo(() => {
     if (!selectedDetailUser) return { items: [] };
     
+    // Agrupar estudos individuais por nome do aluno
     const studyMap: Record<string, any> = {};
     (studies || []).forEach(s => {
-      if (s && s.userId === selectedDetailUser.id) {
-        const key = (s.name && typeof s.name === 'string') ? s.name.trim().toLowerCase() : s.id;
+      if (s && s.userId === selectedDetailUser.id && s.name) {
+        const key = s.name.trim().toLowerCase();
+        // Manter sempre o registro mais recente (maior createdAt)
         if (!studyMap[key] || s.createdAt > studyMap[key].createdAt) {
           studyMap[key] = { ...s, type: 'study' };
         }
       }
     });
 
+    // Agrupar classes bíblicas por Guia e Setor
     const classMap: Record<string, any> = {};
     (classes || []).forEach(c => {
       if (c && c.userId === selectedDetailUser.id) {
@@ -194,6 +197,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       }
     });
 
+    // Filtrar apenas o que NÃO é término para exibição no card de acompanhamento
     const activeStudies = Object.values(studyMap).filter((s: any) => s.status !== RecordStatus.TERMINO);
     const activeClasses = Object.values(classMap).filter((c: any) => c.status !== RecordStatus.TERMINO);
 
