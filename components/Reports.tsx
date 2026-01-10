@@ -85,11 +85,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       
       const unitStudentsSet = new Set<string>();
       (studies || []).filter(x => x.unit === u && (selectedChaplain === 'all' || x.userId === selectedChaplain))
-        .forEach(item => { if (item.name && item.name.trim()) unitStudentsSet.add(item.name.trim().toLowerCase()); });
+        .forEach(item => { 
+          if (item.name && typeof item.name === 'string' && item.name.trim()) {
+            unitStudentsSet.add(item.name.trim().toLowerCase()); 
+          }
+        });
       (classes || []).filter(x => x.unit === u && (selectedChaplain === 'all' || x.userId === selectedChaplain))
         .forEach(item => { 
           if (item.students && Array.isArray(item.students)) {
-            item.students.forEach(n => { if (n && n.trim()) unitStudentsSet.add(n.trim().toLowerCase()); }); 
+            item.students.forEach(n => { 
+              if (n && typeof n === 'string' && n.trim()) {
+                unitStudentsSet.add(n.trim().toLowerCase()); 
+              }
+            }); 
           }
         });
       
@@ -113,11 +121,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       
       const studentsSet = new Set<string>();
       (studies || []).filter(s => s.userId === user.id && (selectedUnit === 'all' || s.unit === selectedUnit))
-        .forEach(s => { if (s.name && s.name.trim()) studentsSet.add(s.name.trim().toLowerCase()); });
+        .forEach(s => { 
+          if (s.name && typeof s.name === 'string' && s.name.trim()) {
+            studentsSet.add(s.name.trim().toLowerCase()); 
+          }
+        });
       (classes || []).filter(c => c.userId === user.id && (selectedUnit === 'all' || c.unit === selectedUnit))
         .forEach(c => { 
           if (c.students && Array.isArray(c.students)) {
-            c.students.forEach(n => { if (n && n.trim()) studentsSet.add(n.trim().toLowerCase()); }); 
+            c.students.forEach(n => { 
+              if (n && typeof n === 'string' && n.trim()) {
+                studentsSet.add(n.trim().toLowerCase()); 
+              }
+            }); 
           }
         });
 
@@ -135,11 +151,23 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   }, [users, studies, classes, groups, visits, startDate, endDate, selectedUnit, selectedChaplain]);
 
   const chartData = useMemo(() => {
-    const activities = [{ name: 'Estudos', value: filteredData.studies.length }, { name: 'Classes', value: filteredData.classes.length }, { name: 'PGs', value: filteredData.groups.length }, { name: 'Visitas', value: filteredData.visits.length }];
-    const byChaplain = chaplainStats.map(s => ({ name: (s.name || "").split(' ')[0], total: s.totalActions }));
+    const activities = [
+      { name: 'Estudos', value: filteredData.studies.length }, 
+      { name: 'Classes', value: filteredData.classes.length }, 
+      { name: 'PGs', value: filteredData.groups.length }, 
+      { name: 'Visitas', value: filteredData.visits.length }
+    ];
+    const byChaplain = chaplainStats.map(s => ({ 
+      name: typeof s.name === 'string' ? s.name.split(' ')[0] : "Capelão", 
+      total: s.totalActions 
+    }));
     const monthlyMap: Record<string, any> = {};
     const allItems = [...filteredData.studies, ...filteredData.classes, ...filteredData.groups, ...filteredData.visits];
-    allItems.forEach(item => { const month = item.date.substring(0, 7); if (!monthlyMap[month]) monthlyMap[month] = { month, total: 0 }; monthlyMap[month].total++; });
+    allItems.forEach(item => { 
+      const month = item.date.substring(0, 7); 
+      if (!monthlyMap[month]) monthlyMap[month] = { month, total: 0 }; 
+      monthlyMap[month].total++; 
+    });
     const monthlyProgress = Object.values(monthlyMap).sort((a, b) => a.month.localeCompare(b.month));
     return { activities, byChaplain, monthlyProgress };
   }, [filteredData, chaplainStats]);
@@ -150,7 +178,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     const studyMap: Record<string, any> = {};
     (studies || []).forEach(s => {
       if (s.userId === selectedDetailUser.id) {
-        const key = (s.name || "").trim().toLowerCase();
+        const key = typeof s.name === 'string' ? s.name.trim().toLowerCase() : s.id;
         if (!studyMap[key] || s.createdAt > studyMap[key].createdAt) {
           studyMap[key] = { ...s, type: 'study' };
         }
@@ -441,7 +469,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     <tbody className="divide-y divide-slate-100">
                       {chaplainStats.map((stat, idx) => (
                         <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                          <td className="p-3 font-bold text-slate-700">{stat.name}</td>
+                          <td className="p-3 font-bold text-slate-700">{typeof stat.name === 'string' ? stat.name : "Capelão"}</td>
                           <td className="p-3 text-center font-bold text-blue-600">{stat.studies + stat.classes}</td>
                           <td className="p-3 text-center font-bold text-indigo-600">{stat.students}</td>
                           <td className="p-3 text-center font-bold text-emerald-600">{stat.visits}</td>
