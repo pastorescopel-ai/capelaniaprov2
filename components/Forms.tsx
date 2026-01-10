@@ -115,6 +115,8 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, hist
   const [showContinuity, setShowContinuity] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const studySuggestions = ["Ouvindo a voz de Deus", "Verdade e Vida", "Apocalipse", "Daniel"];
+
   useEffect(() => {
     if (editingItem) {
       setFormData({
@@ -135,17 +137,27 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, hist
         latestByStudent[h.name] = h;
       }
     });
-    // Remove alunos que já terminaram o curso
     return Object.values(latestByStudent).filter(h => h.status !== RecordStatus.TERMINO);
   }, [allHistory]);
 
   const handleSelectHistorical = (last: BibleStudy) => {
-    // Ao selecionar do histórico, usamos onEdit para atualizar o registro existente
+    const selectedDate = formData.date;
+    if (selectedDate <= last.date) {
+      setErrorMsg(`Atenção: Não é possível registrar uma continuação na mesma data ou em data anterior ao último atendimento (${last.date.split('-').reverse().join('/')}). Escolha uma data futura.`);
+      setTimeout(() => setErrorMsg(null), 6000);
+      return;
+    }
+
+    // Tenta extrair o número da lição e incrementar
+    const lastLessonNum = parseInt(last.lesson.replace(/\D/g, '')) || 0;
+    const nextLesson = (lastLessonNum + 1).toString();
+
     if (onEdit) {
       onEdit({ 
         ...last, 
         status: RecordStatus.CONTINUACAO, 
-        date: new Date().toISOString().split('T')[0] 
+        date: selectedDate,
+        lesson: nextLesson
       });
       setShowContinuity(false);
       setErrorMsg(null);
@@ -187,8 +199,8 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, hist
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Selecione o setor..." /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Aluno *</label><input required placeholder="Nome completo" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">WhatsApp *</label><input required placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-mono" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Guia de Estudo *</label><input required placeholder="Guia" value={formData.guide} onChange={e => setFormData({...formData, guide: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada *</label><input required placeholder="Lição" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Guia de Estudo *</label><Autocomplete options={studySuggestions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Selecione ou digite o guia..." /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada (Número) *</label><input required type="number" placeholder="Somente números" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Status *</label>
             <div className="flex gap-2">
               {STATUS_OPTIONS.map(opt => (
@@ -208,7 +220,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, hist
             icon="📖" 
             color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-blue-600"} 
             title={item.name} 
-            subtitle={`${item.sector} • ${item.lesson} • ${item.status}`} 
+            subtitle={`${item.sector} • Lição ${item.lesson} • ${item.status}`} 
             chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
             onEdit={() => onEdit?.(item)} 
             onDelete={() => onDelete(item.id)} 
@@ -225,6 +237,8 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, hist
   const [newStudent, setNewStudent] = useState('');
   const [showClassSearch, setShowClassSearch] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const studySuggestions = ["Ouvindo a voz de Deus", "Verdade e Vida", "Apocalipse", "Daniel"];
 
   useEffect(() => {
     if (editingItem) {
@@ -253,11 +267,23 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, hist
   const addStudent = () => { if (newStudent.trim()) { setFormData({...formData, students: [...formData.students, newStudent.trim()]}); setNewStudent(''); } };
 
   const handleSelectHistorical = (last: BibleClass) => {
+    const selectedDate = formData.date;
+    if (selectedDate <= last.date) {
+      setErrorMsg(`Atenção: Não é possível registrar uma continuação na mesma data ou em data anterior à última aula (${last.date.split('-').reverse().join('/')}). Escolha uma data futura.`);
+      setTimeout(() => setErrorMsg(null), 6000);
+      return;
+    }
+
+    // Tenta extrair o número da lição e incrementar
+    const lastLessonNum = parseInt(last.lesson.replace(/\D/g, '')) || 0;
+    const nextLesson = (lastLessonNum + 1).toString();
+
     if (onEdit) {
       onEdit({ 
         ...last, 
         status: RecordStatus.CONTINUACAO, 
-        date: new Date().toISOString().split('T')[0] 
+        date: selectedDate,
+        lesson: nextLesson
       });
       setShowClassSearch(false);
       setErrorMsg(null);
@@ -310,8 +336,8 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, hist
               ))}
             </div>
           </div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Guia de Estudo *</label><input required placeholder="Nome do guia" value={formData.guide} onChange={e => setFormData({...formData, guide: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada *</label><input required placeholder="Título da lição" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Guia de Estudo *</label><Autocomplete options={studySuggestions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Selecione ou digite o guia..." /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada (Número) *</label><input required type="number" placeholder="Somente números" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Status da Classe *</label>
             <div className="flex gap-2">
               {STATUS_OPTIONS.map(opt => (
