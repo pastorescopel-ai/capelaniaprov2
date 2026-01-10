@@ -88,7 +88,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           
           const unitUniqueNames = new Set<string>();
           unitStudies.forEach(s => { if (s.name) unitUniqueNames.add(s.name.trim().toLowerCase()); });
-          unitClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => unitUniqueNames.add(n.trim().toLowerCase())); });
+          unitClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
 
           return {
               students: unitUniqueNames.size,
@@ -301,23 +301,18 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <style>
             {`
               @media print {
-                @page { size: A4; margin: 0; }
+                @page { 
+                  size: A4; 
+                  margin: 0mm !important; 
+                }
                 
-                /* Esconde tudo, inclusive o que estiver fora do modal */
-                html, body {
-                  height: 100%;
-                  margin: 0 !important;
-                  padding: 0 !important;
-                  overflow: hidden !important;
-                }
-
-                body * { 
-                  visibility: hidden !important; 
-                }
-
-                /* Força o container do modal a ser o único visível e ocupar o topo */
+                /* Esconde tudo no fundo */
+                body * { visibility: hidden !important; }
+                #root { display: none !important; }
+                
+                /* Garante que o container de impressão apareça e ocupe a folha */
                 #pdf-modal-container, #pdf-modal-container * { 
-                  visibility: visible !important;
+                  visibility: visible !important; 
                   display: block !important;
                 }
 
@@ -326,24 +321,14 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   left: 0 !important;
                   top: 0 !important;
                   width: 100% !important;
+                  height: auto !important;
                   margin: 0 !important;
                   padding: 0 !important;
                   background: white !important;
-                  z-index: 99999 !important;
-                }
-
-                /* Reseta o fundo e as cores para impressão exata */
-                * {
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  color-adjust: exact !important;
                   box-shadow: none !important;
-                  filter: none !important;
-                  backdrop-filter: none !important;
                 }
 
                 #pdf-content {
-                  display: block !important;
                   width: 210mm !important;
                   min-height: 297mm !important;
                   padding: 10mm !important;
@@ -351,37 +336,40 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   background: white !important;
                   box-sizing: border-box !important;
                   overflow: visible !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  box-shadow: none !important;
                 }
 
-                /* Força o azul das barras de tabelas e cores do sistema */
-                .bg-\\[\\#005a9c\\], 
-                #pdf-content table thead tr,
-                #pdf-content .bg-blue-600,
-                #pdf-content .bg-indigo-600 {
+                /* Força o navegador a imprimir cores de fundo e barras azuis */
+                * {
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                  backdrop-filter: none !important;
+                  filter: none !important;
+                }
+
+                /* Garante as barras azuis nas tabelas */
+                table thead tr {
                   background-color: #005a9c !important;
-                  fill: #005a9c !important;
                 }
-
-                th {
+                
+                table thead th {
                   background-color: #005a9c !important;
                   color: white !important;
+                  border: none !important;
                 }
 
-                .no-print { 
-                  display: none !important; 
-                  height: 0 !important;
-                  width: 0 !important;
-                }
-
-                /* Gráficos Recharts: garante que apareçam */
+                /* Esconde botões da interface na impressão */
+                .no-print { display: none !important; }
+                
+                /* Mantém o gráfico visível */
                 .recharts-responsive-container {
                   width: 100% !important;
                   height: auto !important;
                 }
-                
-                svg {
-                  max-width: 100% !important;
-                }
+                svg { max-width: 100% !important; }
               }
             `}
           </style>
@@ -389,12 +377,18 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <div id="pdf-modal-container" className="bg-white w-full max-w-5xl h-[95vh] rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
               <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Relatório PDF</h2>
-              <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500"><i className="fas fa-times"></i></button>
+              <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all">
+                <i className="fas fa-times"></i>
+              </button>
             </div>
-            <div className="flex-1 overflow-y-auto bg-slate-100 p-10 no-scrollbar no-print">
+            <div className="flex-1 overflow-y-auto bg-slate-100 p-10 no-scrollbar">
               <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[10mm] flex flex-col gap-4 text-slate-900">
                 <header className="relative flex items-start border-b-4 border-[#005a9c] pb-4 min-h-[120px]" style={{ paddingTop: `${config.headerPaddingTop}px` }}>
-                  {config.reportLogo && <div className="absolute" style={{ left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px` }}><img src={config.reportLogo} style={{ width: `${config.reportLogoWidth}px`, height: 'auto' }} alt="Logo" /></div>}
+                  {config.reportLogo && (
+                    <div className="absolute" style={{ left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px` }}>
+                      <img src={config.reportLogo} style={{ width: `${config.reportLogoWidth}px`, height: 'auto' }} alt="Logo" />
+                    </div>
+                  )}
                   <div className="w-full" style={{ textAlign: config.headerTextAlign }}>
                     <h1 style={{fontSize: `${config.fontSize1}px`, color: '#005a9c'}} className="font-black uppercase leading-none">{config.headerLine1}</h1>
                     <h2 style={{fontSize: `${config.fontSize2}px`}} className="font-bold text-slate-600 uppercase mt-2">{config.headerLine2}</h2>
@@ -408,7 +402,16 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     <div>
                       <h3 className="text-[10px] font-black uppercase text-[#005a9c] mb-2 border-b border-slate-100 pb-0.5 italic">Resumo de Atividades por Capelão - Unidade HAB</h3>
                       <table className="w-full text-left text-[7px] border-collapse shadow-sm mb-2">
-                        <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-1">Capelão</th><th className="p-1 text-center">Total Estudantes</th><th className="p-1 text-center">Estudos</th><th className="p-1 text-center">Classes</th><th className="p-1 text-center">PGs</th><th className="p-1 text-center">Visitas</th></tr></thead>
+                        <thead>
+                          <tr className="bg-[#005a9c] text-white uppercase">
+                            <th className="p-1">Capelão</th>
+                            <th className="p-1 text-center">Total Estudantes</th>
+                            <th className="p-1 text-center">Estudos</th>
+                            <th className="p-1 text-center">Classes</th>
+                            <th className="p-1 text-center">PGs</th>
+                            <th className="p-1 text-center">Visitas</th>
+                          </tr>
+                        </thead>
                         <tbody className="divide-y divide-slate-100">
                           {chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
                             <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
@@ -429,7 +432,16 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     <div>
                       <h3 className="text-[10px] font-black uppercase text-[#005a9c] mb-2 border-b border-slate-100 pb-0.5 italic">Resumo de Atividades por Capelão - Unidade HABA</h3>
                       <table className="w-full text-left text-[7px] border-collapse shadow-sm">
-                        <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-1">Capelão</th><th className="p-1 text-center">Total Estudantes</th><th className="p-1 text-center">Estudos</th><th className="p-1 text-center">Classes</th><th className="p-1 text-center">PGs</th><th className="p-1 text-center">Visitas</th></tr></thead>
+                        <thead>
+                          <tr className="bg-[#005a9c] text-white uppercase">
+                            <th className="p-1">Capelão</th>
+                            <th className="p-1 text-center">Total Estudantes</th>
+                            <th className="p-1 text-center">Estudos</th>
+                            <th className="p-1 text-center">Classes</th>
+                            <th className="p-1 text-center">PGs</th>
+                            <th className="p-1 text-center">Visitas</th>
+                          </tr>
+                        </thead>
                         <tbody className="divide-y divide-slate-100">
                           {chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
                             <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
@@ -517,12 +529,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </footer>
               </div>
             </div>
-            {/* O conteúdo duplicado abaixo é essencial para o motor de impressão ver o HTML enquanto o original está escondido via CSS no @media print */}
-            <div className="hidden print-block" aria-hidden="true">
-               {/* Este div será preenchido via CSS se necessário, mas o seletor #pdf-modal-container * já resolve */}
-            </div>
-            <div className="p-8 bg-white border-t border-slate-100 flex justify-end no-print">
-              <button onClick={() => window.print()} className="px-12 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest">Imprimir / Salvar PDF</button>
+            <div className="p-8 bg-white border-t border-slate-100 flex justify-end no-print gap-4">
+              <button onClick={() => setShowPdfPreview(false)} className="px-8 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
+              <button onClick={() => window.print()} className="px-12 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Imprimir / Salvar PDF</button>
             </div>
           </div>
         </div>
