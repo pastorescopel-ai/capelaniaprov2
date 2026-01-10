@@ -84,7 +84,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           const unitStudies = uStudies.filter(s => s.unit === unit);
           const unitClasses = uClasses.filter(c => c.unit === unit);
           const unitGroups = uGroups.filter(g => g.unit === unit);
-          const unitVisits = uVisits.filter(v => v.unit === unit);
+          const unitVisits = uVisits.filter(v => v.userId === user.id && v.unit === unit);
           
           const unitUniqueNames = new Set<string>();
           unitStudies.forEach(s => { if (s.name) unitUniqueNames.add(s.name.trim().toLowerCase()); });
@@ -157,15 +157,15 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
-          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 ml-2 uppercase">Início</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs" /></div>
-          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 ml-2 uppercase">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs" /></div>
-          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 ml-2 uppercase">Capelão</label>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Início</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Capelão</label>
             <select value={selectedChaplain} onChange={e => setSelectedChaplain(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs">
               <option value="all">Todos</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
-          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 ml-2 uppercase">Unidade</label>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Unidade</label>
             <select value={selectedUnit} onChange={e => setSelectedUnit(e.target.value as any)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs">
               <option value="all">Ambas</option>
               <option value={Unit.HAB}>HAB</option>
@@ -303,49 +303,70 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               @media print {
                 @page { size: A4; margin: 0; }
                 
-                /* Esconde tudo exceto o modal de PDF */
+                /* Reset global para esconder elementos indesejados */
                 body * { display: none !important; }
-                #pdf-modal-container, #pdf-modal-container * { display: block !important; }
                 
-                /* Reseta o container do modal para ocupar a página toda sem ser fixo */
+                /* Forçar renderização de cores e fundos */
+                * {
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                }
+
+                /* Container Principal do PDF para Impressão */
+                #pdf-modal-container, #pdf-modal-container * { 
+                  display: block !important; 
+                }
+
                 #pdf-modal-container {
-                  position: absolute !important;
-                  left: 0 !important;
-                  top: 0 !important;
-                  width: 100vw !important;
+                  position: static !important;
+                  width: 100% !important;
                   height: auto !important;
                   margin: 0 !important;
                   padding: 0 !important;
                   background: white !important;
                   box-shadow: none !important;
-                  display: block !important;
                 }
 
-                /* Garante que o conteúdo interno seja renderizado como vetor/texto e não imagem */
+                /* Área de Conteúdo A4 */
                 #pdf-content {
+                  display: flex !important;
+                  flex-direction: column !important;
                   width: 210mm !important;
                   min-height: 297mm !important;
                   padding: 10mm !important;
                   margin: 0 auto !important;
                   background: white !important;
-                  display: flex !important;
-                  flex-direction: column !important;
-                  box-sizing: border-box !important;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
                   box-shadow: none !important;
+                  box-sizing: border-box !important;
+                  overflow: visible !important;
                 }
 
-                /* Força o conteúdo a não ser rasterizado (evita o efeito de "imagem") */
-                * {
+                /* Forçar cor nas barras de cabeçalho das tabelas */
+                #pdf-content table thead tr {
+                  background-color: #005a9c !important;
                   -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  backdrop-filter: none !important;
-                  filter: none !important;
+                }
+                
+                #pdf-content table thead th {
+                  color: white !important;
+                  background-color: #005a9c !important;
+                }
+
+                /* Garantir que gráficos Recharts apareçam corretamente */
+                .recharts-responsive-container {
+                  width: 100% !important;
+                  height: auto !important;
+                  min-width: 300px !important;
                 }
 
                 .no-print { display: none !important; }
-                .recharts-responsive-container { min-width: 100% !important; }
+                
+                /* Ajuste de filtros que podem bugar a impressão */
+                * {
+                  backdrop-filter: none !important;
+                  filter: none !important;
+                }
               }
             `}
           </style>
