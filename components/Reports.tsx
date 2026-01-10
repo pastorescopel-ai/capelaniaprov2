@@ -268,8 +268,40 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
       {showPdfPreview && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[800] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-5xl h-[95vh] rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center">
+          {/* Estilos para garantir impressão correta e idêntica ao preview */}
+          <style>
+            {`
+              @media print {
+                @page { size: A4; margin: 0; }
+                body * { visibility: hidden !important; }
+                #pdf-modal-container, #pdf-modal-container * { visibility: visible !important; }
+                #pdf-modal-container {
+                  position: fixed !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 100vw !important;
+                  height: 100vh !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background: white !important;
+                  z-index: 9999 !important;
+                }
+                .no-print { display: none !important; }
+                #pdf-content {
+                  box-shadow: none !important;
+                  margin: 0 auto !important;
+                  border: none !important;
+                  padding: 20mm !important;
+                  width: 210mm !important;
+                  min-height: 297mm !important;
+                }
+                .backdrop-blur-xl { backdrop-filter: none !important; background: white !important; }
+              }
+            `}
+          </style>
+
+          <div id="pdf-modal-container" className="bg-white w-full max-w-5xl h-[95vh] rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
               <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Relatório PDF</h2>
               <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500"><i className="fas fa-times"></i></button>
             </div>
@@ -304,7 +336,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 <footer className="mt-auto border-t border-slate-200 pt-4 flex justify-between text-[8px] font-bold text-slate-400 uppercase"><span>Gerado em: {new Date().toLocaleString('pt-BR')}</span><span>Sistema Capelania Pro</span></footer>
               </div>
             </div>
-            <div className="p-8 bg-white border-t border-slate-100 flex justify-end"><button onClick={() => window.print()} className="px-12 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest">Imprimir / Salvar PDF</button></div>
+            <div className="p-8 bg-white border-t border-slate-100 flex justify-end no-print">
+              <button onClick={() => window.print()} className="px-12 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest">Imprimir / Salvar PDF</button>
+            </div>
           </div>
         </div>
       )}
