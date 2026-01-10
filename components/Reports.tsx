@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config } from '../types';
 
 interface ReportsProps {
@@ -63,7 +63,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       classes: filteredData.classes.length,
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,
-      totalStudents: uniqueStudents.size
+      totalStudents: uniqueStudents.size,
+      totalAll: filteredData.studies.length + filteredData.classes.length + filteredData.groups.length + filteredData.visits.length
     };
   }, [filteredData]);
 
@@ -74,12 +75,13 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const uStudies = filteredData.studies.filter(s => s.userId === user.id);
       const uClasses = filteredData.classes.filter(c => c.userId === user.id);
       const uVisits = filteredData.visits.filter(v => v.userId === user.id);
+      const uGroups = filteredData.groups.filter(g => g.userId === user.id);
       
       const uniqueNames = new Set<string>();
       uStudies.forEach(s => { if (s.name) uniqueNames.add(s.name.trim().toLowerCase()); });
       uClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
 
-      const totalActions = uStudies.length + uClasses.length + uVisits.length;
+      const totalActions = uStudies.length + uClasses.length + uVisits.length + uGroups.length;
 
       return { 
         user, 
@@ -88,6 +90,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         studies: uStudies.length, 
         classes: uClasses.length, 
         visits: uVisits.length, 
+        groups: uGroups.length,
         totalActions 
       };
     }).filter(s => {
@@ -110,6 +113,14 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
     return { items };
   }, [filteredData, selectedDetailUser]);
+
+  // Dados para os gráficos do PDF
+  const activityPieData = [
+    { name: 'Estudos', value: totalStats.studies, color: '#3b82f6' },
+    { name: 'Classes', value: totalStats.classes, color: '#6366f1' },
+    { name: 'PGs', value: totalStats.groups, color: '#10b981' },
+    { name: 'Visitas', value: totalStats.visits, color: '#f43f5e' }
+  ].filter(d => d.value > 0);
 
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
@@ -268,7 +279,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
       {showPdfPreview && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[800] flex items-center justify-center p-4">
-          {/* Estilos para garantir impressão correta e idêntica ao preview */}
           <style>
             {`
               @media print {
@@ -291,11 +301,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   box-shadow: none !important;
                   margin: 0 auto !important;
                   border: none !important;
-                  padding: 20mm !important;
+                  padding: 15mm !important;
                   width: 210mm !important;
                   min-height: 297mm !important;
                 }
-                .backdrop-blur-xl { backdrop-filter: none !important; background: white !important; }
+                .recharts-responsive-container { min-width: 100% !important; }
               }
             `}
           </style>
@@ -306,8 +316,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500"><i className="fas fa-times"></i></button>
             </div>
             <div className="flex-1 overflow-y-auto bg-slate-100 p-10 no-scrollbar">
-              <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[20mm] flex flex-col gap-10 text-slate-900">
-                <header className="relative flex items-start border-b-4 border-[#005a9c] pb-10 min-h-[140px]" style={{ paddingTop: `${config.headerPaddingTop}px` }}>
+              <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-8 text-slate-900">
+                <header className="relative flex items-start border-b-4 border-[#005a9c] pb-8 min-h-[140px]" style={{ paddingTop: `${config.headerPaddingTop}px` }}>
                   {config.reportLogo && <div className="absolute" style={{ left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px` }}><img src={config.reportLogo} style={{ width: `${config.reportLogoWidth}px`, height: 'auto' }} alt="Logo" /></div>}
                   <div className="w-full" style={{ textAlign: config.headerTextAlign }}>
                     <h1 style={{fontSize: `${config.fontSize1}px`, color: '#005a9c'}} className="font-black uppercase leading-none">{config.headerLine1}</h1>
@@ -316,24 +326,78 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     <p className="text-[9px] font-bold text-blue-600 mt-1 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
                   </div>
                 </header>
-                <table className="w-full text-left text-[10px] border-collapse shadow-sm">
-                  <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Atendimentos</th><th className="p-3 text-center">Alunos Únicos</th></tr></thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {chaplainStats.map((stat, idx) => (
-                      <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                        <td className="p-3 font-bold text-slate-700">{stat.name}</td>
-                        <td className="p-3 text-center font-bold text-blue-600">{stat.studies + stat.classes}</td>
-                        <td className="p-3 text-center font-bold text-indigo-600">{stat.students}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="mt-8 grid grid-cols-3 gap-4 border-t border-slate-100 pt-6">
-                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[8px] font-black text-slate-400 uppercase">Ações Estudos</p><p className="text-xl font-black text-[#005a9c]">{totalStats.studies}</p></div>
-                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[8px] font-black text-slate-400 uppercase">Ações Classes</p><p className="text-xl font-black text-[#005a9c]">{totalStats.classes}</p></div>
-                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[8px] font-black text-slate-400 uppercase">Alunos Únicos (Geral)</p><p className="text-xl font-black text-indigo-600">{totalStats.totalStudents}</p></div>
+
+                <section>
+                  <h3 className="text-xs font-black uppercase text-[#005a9c] mb-4 border-b border-slate-100 pb-2 italic">Resumo de Atividades por Equipe</h3>
+                  <table className="w-full text-left text-[9px] border-collapse shadow-sm">
+                    <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-2">Capelão</th><th className="p-2 text-center">Total Registros</th><th className="p-2 text-center">Alunos Únicos</th><th className="p-2 text-center">Visitas</th></tr></thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {chaplainStats.map((stat, idx) => (
+                        <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                          <td className="p-2 font-bold text-slate-700">{stat.name}</td>
+                          <td className="p-2 text-center font-bold text-blue-600">{stat.totalActions}</td>
+                          <td className="p-2 text-center font-bold text-indigo-600">{stat.students}</td>
+                          <td className="p-2 text-center font-bold text-rose-600">{stat.visits}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </section>
+
+                <section className="grid grid-cols-2 gap-8 mt-4">
+                  <div>
+                    <h3 className="text-[10px] font-black uppercase text-slate-500 mb-4 text-center">Distribuição de Atividades</h3>
+                    <div className="h-[200px] w-full flex items-center justify-center">
+                      <PieChart width={300} height={200}>
+                        <Pie
+                          data={activityPieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={70}
+                          paddingAngle={5}
+                          dataKey="value"
+                          isAnimationActive={false}
+                        >
+                          {activityPieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip isAnimationActive={false} />
+                        <Legend wrapperStyle={{fontSize: '9px', fontWeight: 'bold'}} />
+                      </PieChart>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-[10px] font-black uppercase text-slate-500 mb-4 text-center">Desempenho da Equipe (Ações)</h3>
+                    <div className="h-[200px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chaplainStats} margin={{top: 5, right: 20, left: 0, bottom: 5}}>
+                          <XAxis dataKey="name" tick={{fontSize: 8, fontWeight: 'bold'}} interval={0} axisLine={false} tickLine={false} />
+                          <YAxis tick={{fontSize: 8}} axisLine={false} tickLine={false} />
+                          <Tooltip isAnimationActive={false} />
+                          <Bar dataKey="totalActions" fill="#005a9c" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                             {chaplainStats.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#005a9c' : '#3b82f6'} />
+                              ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </section>
+
+                <div className="mt-auto grid grid-cols-4 gap-4 border-t border-slate-200 pt-6">
+                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[7px] font-black text-slate-400 uppercase">Estudos Bíblicos</p><p className="text-xl font-black text-blue-600">{totalStats.studies}</p></div>
+                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[7px] font-black text-slate-400 uppercase">Classes Bíblicas</p><p className="text-xl font-black text-indigo-600">{totalStats.classes}</p></div>
+                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[7px] font-black text-slate-400 uppercase">Total Estudantes</p><p className="text-xl font-black text-emerald-600">{totalStats.totalStudents}</p></div>
+                    <div className="bg-[#005a9c] p-4 rounded-xl text-center text-white"><p className="text-[7px] font-black text-white/70 uppercase">Total Geral Período</p><p className="text-xl font-black">{totalStats.totalAll}</p></div>
                 </div>
-                <footer className="mt-auto border-t border-slate-200 pt-4 flex justify-between text-[8px] font-bold text-slate-400 uppercase"><span>Gerado em: {new Date().toLocaleString('pt-BR')}</span><span>Sistema Capelania Pro</span></footer>
+
+                <footer className="mt-4 border-t border-slate-100 pt-2 flex justify-between text-[7px] font-bold text-slate-300 uppercase italic">
+                  <span>Gerado eletronicamente em: {new Date().toLocaleString('pt-BR')}</span>
+                  <span>Sistema Capelania Pro - Gestão Eficiente</span>
+                </footer>
               </div>
             </div>
             <div className="p-8 bg-white border-t border-slate-100 flex justify-end no-print">
