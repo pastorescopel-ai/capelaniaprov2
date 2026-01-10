@@ -38,7 +38,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // Lógica de Soma de alunos únicos (Mantida conforme solicitação anterior)
+  // Lógica de Soma de alunos únicos (Contabiliza indivíduos distintos)
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
     
@@ -131,24 +131,36 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     return { activities, byChaplain, monthlyProgress };
   }, [filteredData, chaplainStats]);
 
-  // Lógica de Detalhamento: Agrupa Estudos e Classes Ativas do Capelão Selecionado
+  // Lógica de Detalhamento: Exibe apenas o registro ativo MAIS RECENTE de cada aluno ou classe
   const activeDetails = useMemo(() => {
     if (!selectedDetailUser) return { items: [] };
     
-    // Filtrar Estudos Ativos
-    const activeStudies = studies.filter(s => 
-      s.userId === selectedDetailUser.id && 
-      (s.status === RecordStatus.INICIO || s.status === RecordStatus.CONTINUACAO)
-    ).map(item => ({ ...item, type: 'study' }));
+    // 1. Filtrar e Agrupar Estudos Ativos (Início/Continuação) por Nome do Aluno
+    const studyMap: Record<string, any> = {};
+    studies.forEach(s => {
+      if (s.userId === selectedDetailUser.id && (s.status === RecordStatus.INICIO || s.status === RecordStatus.CONTINUACAO)) {
+        const key = s.name.trim().toLowerCase();
+        // Se não existir ou se este for mais recente que o armazenado, substitui
+        if (!studyMap[key] || s.createdAt > studyMap[key].createdAt) {
+          studyMap[key] = { ...s, type: 'study' };
+        }
+      }
+    });
 
-    // Filtrar Classes Ativas
-    const activeClasses = classes.filter(c => 
-      c.userId === selectedDetailUser.id && 
-      (c.status === RecordStatus.INICIO || c.status === RecordStatus.CONTINUACAO)
-    ).map(item => ({ ...item, type: 'class' }));
+    // 2. Filtrar e Agrupar Classes Ativas por Guia + Setor (Identificador da Classe)
+    const classMap: Record<string, any> = {};
+    classes.forEach(c => {
+      if (c.userId === selectedDetailUser.id && (c.status === RecordStatus.INICIO || c.status === RecordStatus.CONTINUACAO)) {
+        const key = `${c.guide}-${c.sector}`.trim().toLowerCase();
+        if (!classMap[key] || c.createdAt > classMap[key].createdAt) {
+          classMap[key] = { ...c, type: 'class' };
+        }
+      }
+    });
 
-    // Unificar e ordenar por data de criação (mais recentes primeiro)
-    const combined = [...activeStudies, ...activeClasses].sort((a, b) => b.createdAt - a.createdAt);
+    // Unificar resultados e ordenar por data de criação
+    const combined = [...Object.values(studyMap), ...Object.values(classMap)]
+      .sort((a, b) => b.createdAt - a.createdAt);
 
     return {
       items: combined
@@ -166,7 +178,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
-          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 uppercase ml-2">Início</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-4 rounded-xl border-none text-xs font-bold" /></div>
+          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 uppercase ml-2">Início</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 uppercase ml-2">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-xl border-none text-xs font-bold" /></div>
           <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 uppercase ml-2">Capelão</label><select value={selectedChaplain} onChange={e => setSelectedChaplain(e.target.value)} className="w-full p-4 rounded-xl border-none text-xs font-bold"><option value="all">Todos os Capelães</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
           <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 uppercase ml-2">Unidade</label><select value={selectedUnit} onChange={e => setSelectedUnit(e.target.value as any)} className="w-full p-4 rounded-xl border-none text-xs font-bold"><option value="all">Ambas Unidades</option><option value={Unit.HAB}>HAB</option><option value={Unit.HABA}>HABA</option></select></div>
