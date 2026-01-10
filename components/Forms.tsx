@@ -116,8 +116,14 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, hist
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (editingItem) setFormData(editingItem);
-    else setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+    if (editingItem) {
+      setFormData({
+        ...editingItem,
+        date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0]
+      });
+    } else {
+      setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+    }
   }, [editingItem]);
 
   const activeStudentsInHistory = React.useMemo(() => {
@@ -218,8 +224,14 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, hist
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (editingItem) setFormData(editingItem);
-    else setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+    if (editingItem) {
+      setFormData({
+        ...editingItem,
+        date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0]
+      });
+    } else {
+      setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+    }
   }, [editingItem]);
 
   const activeClassesInHistory = React.useMemo(() => {
@@ -329,10 +341,18 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, hist
 
 export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, groupsList = [], history, editingItem, onSubmit, onDelete, onEdit }) => {
   const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' });
+  
   useEffect(() => {
-    if (editingItem) setFormData(editingItem);
-    else setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+    if (editingItem) {
+      setFormData({
+        ...editingItem,
+        date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0]
+      });
+    } else {
+      setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+    }
   }, [editingItem]);
+
   return (
     <div className="space-y-10 pb-20">
       <form onSubmit={(e) => { e.preventDefault(); onSubmit({...formData, unit}); setFormData({ date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
@@ -380,11 +400,15 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, staf
   });
 
   useEffect(() => {
-    if (editingItem) setFormData({
-      ...editingItem,
-      returnDate: editingItem.returnDate || new Date().toISOString().split('T')[0]
-    });
-    else setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+    if (editingItem) {
+      setFormData({
+        ...editingItem,
+        date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0],
+        returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : new Date().toISOString().split('T')[0]
+      });
+    } else {
+      setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+    }
   }, [editingItem]);
 
   return (
