@@ -194,7 +194,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       }
     });
 
-    // Filtra removendo o que já está com status de Término no registro mais recente
     const activeStudies = Object.values(studyMap)
       .filter(s => s.status !== RecordStatus.TERMINO)
       .map(s => ({ ...s, type: 'study' }));
