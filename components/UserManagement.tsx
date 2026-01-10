@@ -1,13 +1,13 @@
-
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
 
 interface UserManagementProps {
   users: User[];
+  currentUser: User;
   onUpdateUsers: (newUsers: User[]) => Promise<void>;
 }
 
-const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers }) => {
+const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onUpdateUsers }) => {
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: UserRole.CHAPLAIN });
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -18,11 +18,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers })
     
     setIsProcessing(true);
     try {
-      // Garante que o novo usuário tenha todos os campos preenchidos antes de enviar para a nuvem
       const userToAdd: User = {
         id: crypto.randomUUID(),
         name: newUser.name,
-        email: newUser.email,
+        email: newUser.email.toLowerCase().trim(),
         password: newUser.password,
         role: newUser.role,
         profilePic: ''
@@ -43,10 +42,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers })
     try {
       const updatedUsers = users.map(u => {
         if (u.id === editingUser.id) {
-          // Busca a senha original caso o campo de edição esteja vazio
           const originalUser = users.find(usr => usr.id === editingUser.id);
           return {
             ...editingUser,
+            email: editingUser.email.toLowerCase().trim(),
             password: editingUser.password && editingUser.password.trim() !== '' 
               ? editingUser.password 
               : (originalUser?.password || '')
@@ -63,6 +62,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers })
 
   const confirmDelete = async () => {
     if (!userToDelete) return;
+    if (userToDelete.id === currentUser.id) return alert('Você não pode excluir sua própria conta enquanto estiver logado.');
     
     setIsProcessing(true);
     try {
@@ -80,7 +80,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers })
         <p className="text-slate-500 font-medium">Controle de acessos e permissões da equipe</p>
       </header>
 
-      {/* Overlay de Sincronização Interno para Ações de Usuário */}
       {isProcessing && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[700] flex items-center justify-center p-4">
           <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full text-center">
@@ -93,10 +92,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers })
         </div>
       )}
 
-      {/* Modal de Confirmação de Exclusão */}
       {userToDelete && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
-          <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-md w-full animate-in zoom-in duration-200 text-center space-y-6">
+          <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-md w-full animate-in zoom-in duration-200 text-center space-y-6">
             <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-[2rem] flex items-center justify-center text-3xl mx-auto">
               <i className="fas fa-user-times"></i>
             </div>
@@ -122,7 +120,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers })
         </div>
       )}
 
-      {/* Modal de Edição */}
       {editingUser && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
           <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl max-w-lg w-full animate-in zoom-in duration-200 space-y-6">
@@ -214,8 +211,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers })
                 </div>
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setEditingUser(u)} title="Editar" className="w-12 h-12 bg-white text-blue-500 rounded-xl shadow-sm hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center border border-slate-100"><i className="fas fa-edit"></i></button>
-                <button onClick={() => setUserToDelete(u)} title="Excluir" className="w-12 h-12 bg-white text-rose-500 rounded-xl shadow-sm hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center border border-slate-100"><i className="fas fa-trash-alt"></i></button>
+                <button onClick={() => setEditingUser(u)} title="Editar" className="w-12 h-12 bg-white text-blue-50 rounded-xl shadow-sm hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center border border-slate-100"><i className="fas fa-edit"></i></button>
+                {/* Oculta botão excluir se for o próprio usuário logado */}
+                {u.id !== currentUser.id && (
+                  <button onClick={() => setUserToDelete(u)} title="Excluir" className="w-12 h-12 bg-white text-rose-500 rounded-xl shadow-sm hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center border border-slate-100"><i className="fas fa-trash-alt"></i></button>
+                )}
               </div>
             </div>
           ))}

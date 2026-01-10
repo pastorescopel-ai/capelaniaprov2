@@ -11,6 +11,16 @@ import { User, UserRole, Unit, BibleStudy, BibleClass, SmallGroup, StaffVisit, M
 import { syncService } from './services/syncService';
 import { INITIAL_CONFIG, GOOGLE_SCRIPT_URL, APP_LOGO_BASE64, REPORT_LOGO_BASE64 } from './constants';
 
+// Funções de auxílio para Ofuscação de Dados Sensíveis
+const encodeData = (str: string) => btoa(unescape(encodeURIComponent(str)));
+const decodeData = (str: string) => {
+  try {
+    return decodeURIComponent(escape(atob(str)));
+  } catch (e) {
+    return str; // Fallback para dados antigos não codificados
+  }
+};
+
 const App: React.FC = () => {
   // Estados de Autenticação
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -99,7 +109,16 @@ const App: React.FC = () => {
       syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
       const cloudData = await syncService.syncFromCloud();
       if (cloudData) {
-        if (cloudData.users && Array.isArray(cloudData.users)) setUsers(cloudData.users);
+        // Decodificação de segurança para usuários
+        if (cloudData.users && Array.isArray(cloudData.users)) {
+          const decodedUsers = cloudData.users.map((u: User) => ({
+            ...u,
+            email: decodeData(u.email),
+            password: decodeData(u.password || '')
+          }));
+          setUsers(decodedUsers);
+        }
+
         if (cloudData.bibleStudies && Array.isArray(cloudData.bibleStudies)) setBibleStudies(cloudData.bibleStudies);
         if (cloudData.bibleClasses && Array.isArray(cloudData.bibleClasses)) setBibleClasses(cloudData.bibleClasses);
         if (cloudData.smallGroups && Array.isArray(cloudData.smallGroups)) setSmallGroups(cloudData.smallGroups);
@@ -132,8 +151,16 @@ const App: React.FC = () => {
     setIsSyncing(true);
     syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
     
+    // Codificação de segurança antes de enviar para a nuvem
+    const targetUsers = overrides?.users !== undefined ? overrides.users : users;
+    const securedUsers = targetUsers.map((u: User) => ({
+      ...u,
+      email: encodeData(u.email),
+      password: encodeData(u.password || '')
+    }));
+
     const payload = {
-      users: overrides?.users !== undefined ? overrides.users : users,
+      users: securedUsers,
       bibleStudies: overrides?.bibleStudies !== undefined ? overrides.bibleStudies : bibleStudies,
       bibleClasses: overrides?.bibleClasses !== undefined ? overrides.bibleClasses : bibleClasses,
       smallGroups: overrides?.smallGroups !== undefined ? overrides.smallGroups : smallGroups,
@@ -157,12 +184,21 @@ const App: React.FC = () => {
 
   const handleLogin = async (email: string, pass: string) => {
     setLoginError(null);
-    const lowerEmail = email.toLowerCase();
+    const lowerEmail = email.toLowerCase().trim();
     
-    let existingUser = users.find(u => u.email.toLowerCase() === lowerEmail && u.password === pass);
+    // Procura o usuário decodificado na lista local (que já foi decodificada no loadFromCloud)
+    let existingUser = users.find(u => u.email.toLowerCase().trim() === lowerEmail && u.password === pass);
     
+    // Fallback Admin de Recuperação
     if (!existingUser && lowerEmail === 'pastorescopel@gmail.com' && pass === 'admin') {
-      existingUser = { id: 'admin-root', name: 'Administrador Geral', email: lowerEmail, role: UserRole.ADMIN, password: 'admin' };
+      existingUser = { 
+        id: 'admin-root', 
+        name: 'Administrador Geral', 
+        email: lowerEmail, 
+        role: UserRole.ADMIN, 
+        password: 'admin' 
+      };
+      // Se ele não existir na lista, adiciona para garantir persistência futura
       if (!users.find(u => u.email.toLowerCase() === lowerEmail)) {
         const updatedUsers = [...users, existingUser];
         setUsers(updatedUsers);
@@ -226,18 +262,13 @@ const App: React.FC = () => {
 
   const getVisibleHistory = (list: any[]) => {
     if (!currentUser) return [];
-    
-    // Função auxiliar para considerar nulos/indefinidos como Unit.HAB
     const matchUnit = (item: any) => {
-      // Ajuste crucial: dados legados (sem unit) são atribuídos ao HAB para evitar sumiço
       const itemUnit = item.unit || Unit.HAB;
       return itemUnit === currentUnit;
     };
-
     if (currentUser.role === UserRole.ADMIN) {
       return list.filter(item => item && matchUnit(item));
     }
-    
     return list.filter(item => item && matchUnit(item) && item.userId === currentUser.id);
   };
 
@@ -263,6 +294,7 @@ const App: React.FC = () => {
       config={config} 
       onLogout={handleLogout}
     >
+      {/* ... (resto do JSX inalterado) ... */}
       {isSyncing && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[999] flex items-center justify-center p-4">
           <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full text-center border border-white/20">
@@ -292,12 +324,10 @@ const App: React.FC = () => {
                 const { type, id } = itemToDelete;
                 let updatedList: any[] = [];
                 let payloadKey = "";
-
                 if (type === 'study') { updatedList = bibleStudies.filter(s => s.id !== id); setBibleStudies(updatedList); payloadKey = "bibleStudies"; }
                 if (type === 'class') { updatedList = bibleClasses.filter(c => c.id !== id); setBibleClasses(updatedList); payloadKey = "bibleClasses"; }
                 if (type === 'visit') { updatedList = staffVisits.filter(v => v.id !== id); setStaffVisits(updatedList); payloadKey = "staffVisits"; }
                 if (type === 'pg') { updatedList = smallGroups.filter(g => g.id !== id); setSmallGroups(updatedList); payloadKey = "smallGroups"; }
-                
                 await saveToCloud({ [payloadKey]: updatedList });
                 setItemToDelete(null);
               }} className="py-4 rounded-2xl bg-rose-500 text-white font-bold uppercase text-xs shadow-lg shadow-rose-100">Excluir</button>
@@ -322,7 +352,7 @@ const App: React.FC = () => {
         {activeTab === 'smallGroup' && <SmallGroupForm groupsList={currentUnit === Unit.HAB ? masterLists.groupsHAB : masterLists.groupsHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(smallGroups).slice(0, 15)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />}
         {activeTab === 'staffVisit' && <StaffVisitForm onToggleReturn={id => { const up = staffVisits.map(x=>x.id===id?{...x, returnCompleted: !x.returnCompleted}:x); setStaffVisits(up); saveToCloud({staffVisits: up}); }} staffList={currentUnit === Unit.HAB ? masterLists.staffHAB : masterLists.staffHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(staffVisits).slice(0, 15)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />}
         {activeTab === 'reports' && <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} config={config} onRefresh={loadFromCloud} />}
-        {activeTab === 'users' && <UserManagement users={users} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
+        {activeTab === 'users' && <UserManagement users={users} currentUser={currentUser} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
         {activeTab === 'profile' && currentUser && <Profile user={currentUser} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
         {activeTab === 'admin' && <AdminPanel config={config} masterLists={masterLists} users={users} onUpdateConfig={async c => { setConfig(c); await saveToCloud({ config: c }); }} onUpdateLists={async l => { setMasterLists(l); await saveToCloud({ masterLists: l }); }} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
       </div>
