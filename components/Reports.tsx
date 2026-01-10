@@ -23,7 +23,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
   const COLORS = ['#3b82f6', '#6366f1', '#10b981', '#f43f5e'];
 
-  // Dados filtrados com proteção
+  // Dados filtrados base - Fonte única de verdade para os cálculos abaixo
   const filteredData = useMemo(() => {
     const sList = Array.isArray(studies) ? studies : [];
     const cList = Array.isArray(classes) ? classes : [];
@@ -46,20 +46,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // Estatísticas com proteção total
+  // Estatísticas do Card Superior - Agora totalmente reativo à Unidade e Data
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
-    const sList = Array.isArray(studies) ? studies : [];
-    const cList = Array.isArray(classes) ? classes : [];
-
-    sList.forEach(s => {
-      if (s && s.name && (selectedChaplain === 'all' || s.userId === selectedChaplain)) {
+    
+    // Calcula alunos únicos apenas dos dados já filtrados (respeita Unidade e Data)
+    filteredData.studies.forEach(s => {
+      if (s && s.name) {
         allStudentsSet.add(String(s.name).trim().toLowerCase());
       }
     });
 
-    cList.forEach(c => {
-      if (c && Array.isArray(c.students) && (selectedChaplain === 'all' || c.userId === selectedChaplain)) {
+    filteredData.classes.forEach(c => {
+      if (c && Array.isArray(c.students)) {
         c.students.forEach(n => n && allStudentsSet.add(String(n).trim().toLowerCase()));
       }
     });
@@ -71,23 +70,21 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       visits: filteredData.visits.length,
       totalUniqueStudents: allStudentsSet.size
     };
-  }, [filteredData, studies, classes, selectedChaplain]);
+  }, [filteredData]);
 
+  // Estatísticas por Capelão - Agora reativo à Unidade selecionada
   const chaplainStats = useMemo(() => {
     const uList = Array.isArray(users) ? users : [];
-    const sList = Array.isArray(studies) ? studies : [];
-    const cList = Array.isArray(classes) ? classes : [];
-    const gList = Array.isArray(groups) ? groups : [];
-    const vList = Array.isArray(visits) ? visits : [];
 
     return uList.map(user => {
-      const uStudies = sList.filter(s => s && s.userId === user.id && s.date >= startDate && s.date <= endDate);
-      const uClasses = cList.filter(c => c && c.userId === user.id && c.date >= startDate && c.date <= endDate);
-      const uVisits = vList.filter(v => v && v.userId === user.id && v.date >= startDate && v.date <= endDate);
+      // Filtra as ações do capelão específico dentro dos dados que já passaram pelo filtro global
+      const uStudies = filteredData.studies.filter(s => s.userId === user.id);
+      const uClasses = filteredData.classes.filter(c => c.userId === user.id);
+      const uVisits = filteredData.visits.filter(v => v.userId === user.id);
       
       const studentsSet = new Set<string>();
-      sList.filter(s => s && s.userId === user.id).forEach(s => s.name && studentsSet.add(String(s.name).trim().toLowerCase()));
-      cList.filter(c => c && c.userId === user.id).forEach(c => Array.isArray(c.students) && c.students.forEach(n => n && studentsSet.add(String(n).trim().toLowerCase())));
+      uStudies.forEach(s => s.name && studentsSet.add(String(s.name).trim().toLowerCase()));
+      uClasses.forEach(c => Array.isArray(c.students) && c.students.forEach(n => n && studentsSet.add(String(n).trim().toLowerCase())));
 
       return { 
         user, 
@@ -98,18 +95,20 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         visits: uVisits.length, 
         totalActions: uStudies.length + uClasses.length + uVisits.length 
       };
-    }).filter(s => selectedChaplain === 'all' ? s.totalActions > 0 || s.students > 0 : s.user.id === selectedChaplain)
-      .sort((a, b) => b.totalActions - a.totalActions);
-  }, [users, studies, classes, groups, visits, startDate, endDate, selectedChaplain]);
+    }).filter(s => {
+        // Se um capelão específico for selecionado, mostra apenas ele
+        if (selectedChaplain !== 'all') return s.user.id === selectedChaplain;
+        // Caso contrário, mostra apenas quem teve atividade na unidade/período selecionado
+        return s.totalActions > 0 || s.students > 0;
+    }).sort((a, b) => b.totalActions - a.totalActions);
+  }, [users, filteredData, selectedChaplain]);
 
-  // LÓGICA DO CARD (ONDE OCORRE O ERRO)
   const activeDetails = useMemo(() => {
     if (!selectedDetailUser) return { items: [] };
     
     const sList = Array.isArray(studies) ? studies : [];
     const cList = Array.isArray(classes) ? classes : [];
 
-    // Agrupar Estudos: Apenas o mais recente por nome
     const studyMap: Record<string, any> = {};
     sList.forEach(s => {
       if (s && s.userId === selectedDetailUser.id && s.name) {
@@ -120,7 +119,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       }
     });
 
-    // Agrupar Classes: Apenas o mais recente por Guia/Setor
     const classMap: Record<string, any> = {};
     cList.forEach(c => {
       if (c && c.userId === selectedDetailUser.id) {
@@ -131,7 +129,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       }
     });
 
-    // Filtrar: Remover quem já terminou
     const finalStudies = Object.values(studyMap).filter((s: any) => s.status !== RecordStatus.TERMINO);
     const finalClasses = Object.values(classMap).filter((c: any) => c.status !== RecordStatus.TERMINO);
 
