@@ -186,7 +186,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   {stat.user.profilePic ? <img src={stat.user.profilePic} className="w-full h-full object-cover" alt="Foto" /> : stat.name[0]}
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-black text-slate-800 truncate text-lg">{stat.name}</h3>
+                  <h3 className="font-bold text-slate-800 truncate text-lg">{stat.name}</h3>
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{stat.user.role}</p>
                 </div>
               </div>
@@ -328,15 +328,16 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </header>
 
                 <section>
-                  <h3 className="text-xs font-black uppercase text-[#005a9c] mb-4 border-b border-slate-100 pb-2 italic">Resumo de Atividades por Equipe</h3>
+                  <h3 className="text-xs font-black uppercase text-[#005a9c] mb-4 border-b border-slate-100 pb-2 italic">Resumo de Atividades por Capelão</h3>
                   <table className="w-full text-left text-[9px] border-collapse shadow-sm">
-                    <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-2">Capelão</th><th className="p-2 text-center">Total Registros</th><th className="p-2 text-center">Alunos Únicos</th><th className="p-2 text-center">Visitas</th></tr></thead>
+                    <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-2">Capelão</th><th className="p-2 text-center">Total Estudantes</th><th className="p-2 text-center">PG</th><th className="p-2 text-center">Classes</th><th className="p-2 text-center">Visitas</th></tr></thead>
                     <tbody className="divide-y divide-slate-100">
                       {chaplainStats.map((stat, idx) => (
                         <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                           <td className="p-2 font-bold text-slate-700">{stat.name}</td>
-                          <td className="p-2 text-center font-bold text-blue-600">{stat.totalActions}</td>
-                          <td className="p-2 text-center font-bold text-indigo-600">{stat.students}</td>
+                          <td className="p-2 text-center font-bold text-slate-700">{stat.students}</td>
+                          <td className="p-2 text-center font-bold text-blue-600">{stat.groups}</td>
+                          <td className="p-2 text-center font-bold text-indigo-600">{stat.classes}</td>
                           <td className="p-2 text-center font-bold text-rose-600">{stat.visits}</td>
                         </tr>
                       ))}
@@ -388,10 +389,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </section>
 
                 <div className="mt-auto grid grid-cols-4 gap-4 border-t border-slate-200 pt-6">
+                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[7px] font-black text-slate-400 uppercase">Total Estudantes</p><p className="text-xl font-black text-emerald-600">{totalStats.totalStudents}</p></div>
                     <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[7px] font-black text-slate-400 uppercase">Estudos Bíblicos</p><p className="text-xl font-black text-blue-600">{totalStats.studies}</p></div>
                     <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[7px] font-black text-slate-400 uppercase">Classes Bíblicas</p><p className="text-xl font-black text-indigo-600">{totalStats.classes}</p></div>
-                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[7px] font-black text-slate-400 uppercase">Total Estudantes</p><p className="text-xl font-black text-emerald-600">{totalStats.totalStudents}</p></div>
-                    <div className="bg-[#005a9c] p-4 rounded-xl text-center text-white"><p className="text-[7px] font-black text-white/70 uppercase">Total Geral Período</p><p className="text-xl font-black">{totalStats.totalAll}</p></div>
+                    <div className="bg-[#005a9c] p-4 rounded-xl text-center text-white"><p className="text-[7px] font-black text-white/70 uppercase">Total de PGs Assistidos</p><p className="text-xl font-black">{totalStats.groups}</p></div>
                 </div>
 
                 <footer className="mt-4 border-t border-slate-100 pt-2 flex justify-between text-[7px] font-bold text-slate-300 uppercase italic">
