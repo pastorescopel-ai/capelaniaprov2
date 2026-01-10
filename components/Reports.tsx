@@ -55,18 +55,20 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
     
-    // Processa estudos individuais do conjunto filtrado
+    // Processa estudos individuais de TODOS os capelães filtrados
     filteredData.studies.forEach(s => {
       if (s && s.name) {
         allStudentsSet.add(String(s.name).trim().toLowerCase());
       }
     });
 
-    // Processa todos os alunos das classes do conjunto filtrado
+    // Processa TODOS os alunos de TODAS as classes bíblicas filtradas
     filteredData.classes.forEach(c => {
       if (c && Array.isArray(c.students)) {
         c.students.forEach(n => {
-          if (n) allStudentsSet.add(String(n).trim().toLowerCase());
+          if (n && typeof n === 'string' && n.trim() !== "") {
+            allStudentsSet.add(n.trim().toLowerCase());
+          }
         });
       }
     });
@@ -91,11 +93,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const uVisits = filteredData.visits.filter(v => v.userId === user.id);
       
       const studentsSet = new Set<string>();
-      uStudies.forEach(s => s.name && studentsSet.add(String(s.name).trim().toLowerCase()));
+      
+      // Soma nomes dos estudos individuais
+      uStudies.forEach(s => {
+        if(s.name) studentsSet.add(String(s.name).trim().toLowerCase());
+      });
+
+      // Soma nomes de cada aluno dentro de cada classe
       uClasses.forEach(c => {
         if (Array.isArray(c.students)) {
           c.students.forEach(n => {
-            if (n) studentsSet.add(String(n).trim().toLowerCase());
+            if (n && typeof n === 'string' && n.trim() !== "") {
+              studentsSet.add(n.trim().toLowerCase());
+            }
           });
         }
       });

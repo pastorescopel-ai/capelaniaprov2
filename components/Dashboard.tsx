@@ -47,7 +47,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
   visibleClasses.forEach(c => {
     if (c && Array.isArray(c.students)) {
       c.students.forEach(n => {
-        if (n && typeof n === 'string') {
+        if (n && typeof n === 'string' && n.trim() !== "") {
           uniqueTotalStudents.add(n.trim().toLowerCase());
         }
       });
