@@ -303,69 +303,84 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               @media print {
                 @page { size: A4; margin: 0; }
                 
-                /* Reset global para esconder elementos indesejados */
-                body * { display: none !important; }
-                
-                /* Forçar renderização de cores e fundos */
+                /* Esconde tudo, inclusive o que estiver fora do modal */
+                html, body {
+                  height: 100%;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  overflow: hidden !important;
+                }
+
+                body * { 
+                  visibility: hidden !important; 
+                }
+
+                /* Força o container do modal a ser o único visível e ocupar o topo */
+                #pdf-modal-container, #pdf-modal-container * { 
+                  visibility: visible !important;
+                  display: block !important;
+                }
+
+                #pdf-modal-container {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 100% !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background: white !important;
+                  z-index: 99999 !important;
+                }
+
+                /* Reseta o fundo e as cores para impressão exata */
                 * {
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
                   color-adjust: exact !important;
-                }
-
-                /* Container Principal do PDF para Impressão */
-                #pdf-modal-container, #pdf-modal-container * { 
-                  display: block !important; 
-                }
-
-                #pdf-modal-container {
-                  position: static !important;
-                  width: 100% !important;
-                  height: auto !important;
-                  margin: 0 !important;
-                  padding: 0 !important;
-                  background: white !important;
                   box-shadow: none !important;
+                  filter: none !important;
+                  backdrop-filter: none !important;
                 }
 
-                /* Área de Conteúdo A4 */
                 #pdf-content {
-                  display: flex !important;
-                  flex-direction: column !important;
+                  display: block !important;
                   width: 210mm !important;
                   min-height: 297mm !important;
                   padding: 10mm !important;
                   margin: 0 auto !important;
                   background: white !important;
-                  box-shadow: none !important;
                   box-sizing: border-box !important;
                   overflow: visible !important;
                 }
 
-                /* Forçar cor nas barras de cabeçalho das tabelas */
-                #pdf-content table thead tr {
+                /* Força o azul das barras de tabelas e cores do sistema */
+                .bg-\\[\\#005a9c\\], 
+                #pdf-content table thead tr,
+                #pdf-content .bg-blue-600,
+                #pdf-content .bg-indigo-600 {
                   background-color: #005a9c !important;
-                  -webkit-print-color-adjust: exact !important;
-                }
-                
-                #pdf-content table thead th {
-                  color: white !important;
-                  background-color: #005a9c !important;
+                  fill: #005a9c !important;
                 }
 
-                /* Garantir que gráficos Recharts apareçam corretamente */
+                th {
+                  background-color: #005a9c !important;
+                  color: white !important;
+                }
+
+                .no-print { 
+                  display: none !important; 
+                  height: 0 !important;
+                  width: 0 !important;
+                }
+
+                /* Gráficos Recharts: garante que apareçam */
                 .recharts-responsive-container {
                   width: 100% !important;
                   height: auto !important;
-                  min-width: 300px !important;
                 }
-
-                .no-print { display: none !important; }
                 
-                /* Ajuste de filtros que podem bugar a impressão */
-                * {
-                  backdrop-filter: none !important;
-                  filter: none !important;
+                svg {
+                  max-width: 100% !important;
                 }
               }
             `}
@@ -376,7 +391,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Relatório PDF</h2>
               <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500"><i className="fas fa-times"></i></button>
             </div>
-            <div className="flex-1 overflow-y-auto bg-slate-100 p-10 no-scrollbar">
+            <div className="flex-1 overflow-y-auto bg-slate-100 p-10 no-scrollbar no-print">
               <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[10mm] flex flex-col gap-4 text-slate-900">
                 <header className="relative flex items-start border-b-4 border-[#005a9c] pb-4 min-h-[120px]" style={{ paddingTop: `${config.headerPaddingTop}px` }}>
                   {config.reportLogo && <div className="absolute" style={{ left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px` }}><img src={config.reportLogo} style={{ width: `${config.reportLogoWidth}px`, height: 'auto' }} alt="Logo" /></div>}
@@ -501,6 +516,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   <span>Sistema Capelania Pro - Gestão Eficiente</span>
                 </footer>
               </div>
+            </div>
+            {/* O conteúdo duplicado abaixo é essencial para o motor de impressão ver o HTML enquanto o original está escondido via CSS no @media print */}
+            <div className="hidden print-block" aria-hidden="true">
+               {/* Este div será preenchido via CSS se necessário, mas o seletor #pdf-modal-container * já resolve */}
             </div>
             <div className="p-8 bg-white border-t border-slate-100 flex justify-end no-print">
               <button onClick={() => window.print()} className="px-12 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest">Imprimir / Salvar PDF</button>
