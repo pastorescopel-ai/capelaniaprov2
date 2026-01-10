@@ -18,7 +18,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
   const [isEditingMural, setIsEditingMural] = useState(false);
   const [muralDraft, setMuralDraft] = useState(config?.muralText || "");
 
-  // Filtros de dados protegidos contra nulos
+  // Filtros de dados protegidos - No painel mostramos o somatório TOTAL (HAB + HABA) do usuário logado
   const visibleStudies = (studies || []).filter(s => s && s.userId === currentUser?.id);
   const visibleClasses = (classes || []).filter(c => c && c.userId === currentUser?.id);
   const visibleGroups = (groups || []).filter(g => g && g.userId === currentUser?.id);
@@ -33,6 +33,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
     v.returnDate === today
   );
 
+  // Regra de Alunos Únicos: Processa todos os estudos e classes do usuário (sem filtro de unidade)
   const uniqueTotalStudents = new Set<string>();
   visibleStudies.forEach(s => {
     if (s && s.name && typeof s.name === 'string') {
@@ -52,7 +53,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
   const totalActions = visibleStudies.length + visibleClasses.length + visibleGroups.length + visibleVisits.length;
 
   const stats = [
-    { label: 'Meus Alunos', value: uniqueTotalStudents.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
+    { label: 'Meus Alunos (HAB+HABA)', value: uniqueTotalStudents.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
     { label: 'Meus PGs', value: visibleGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-500' },
     { label: 'Minhas Ações', value: totalActions, icon: <i className="fas fa-bolt"></i>, color: 'bg-amber-500' },
     { label: 'Minhas Visitas', value: visibleVisits.length, icon: <i className="fas fa-hands-helping"></i>, color: 'bg-rose-500' },
@@ -176,7 +177,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
 
       <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
         <h3 className="text-xl font-black text-slate-800 mb-8 flex items-center gap-2">
-          <i className="fas fa-chart-bar text-blue-600"></i> Meu Desempenho
+          <i className="fas fa-chart-bar text-blue-600"></i> Meu Desempenho (Consolidado)
         </h3>
         <div className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height="100%">

@@ -226,8 +226,19 @@ const App: React.FC = () => {
 
   const getVisibleHistory = (list: any[]) => {
     if (!currentUser) return [];
-    if (currentUser.role === UserRole.ADMIN) return list.filter(item => item && item.unit === currentUnit);
-    return list.filter(item => item && item.unit === currentUnit && item.userId === currentUser.id);
+    
+    // Função auxiliar para considerar nulos/indefinidos como Unit.HAB
+    const matchUnit = (item: any) => {
+      // Ajuste crucial: dados legados (sem unit) são atribuídos ao HAB para evitar sumiço
+      const itemUnit = item.unit || Unit.HAB;
+      return itemUnit === currentUnit;
+    };
+
+    if (currentUser.role === UserRole.ADMIN) {
+      return list.filter(item => item && matchUnit(item));
+    }
+    
+    return list.filter(item => item && matchUnit(item) && item.userId === currentUser.id);
   };
 
   if (!isAuthenticated || !currentUser) {
