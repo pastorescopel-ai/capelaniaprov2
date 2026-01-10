@@ -51,20 +51,23 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // Estatísticas do Card Superior (Total Geral)
+  // Estatísticas do Card Superior (Total Geral Consolidado)
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
     
-    // Pega nomes apenas dos dados que já passaram pelo filtro de Unidade/Data
+    // Processa estudos individuais do conjunto filtrado
     filteredData.studies.forEach(s => {
       if (s && s.name) {
         allStudentsSet.add(String(s.name).trim().toLowerCase());
       }
     });
 
+    // Processa todos os alunos das classes do conjunto filtrado
     filteredData.classes.forEach(c => {
       if (c && Array.isArray(c.students)) {
-        c.students.forEach(n => n && allStudentsSet.add(String(n).trim().toLowerCase()));
+        c.students.forEach(n => {
+          if (n) allStudentsSet.add(String(n).trim().toLowerCase());
+        });
       }
     });
 
@@ -82,14 +85,20 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     const uList = Array.isArray(users) ? users : [];
 
     return uList.map(user => {
-      // Filtra atividades do usuário dentro do conjunto já filtrado por unidade
+      // Filtra atividades do usuário dentro do conjunto já filtrado por unidade e período
       const uStudies = filteredData.studies.filter(s => s.userId === user.id);
       const uClasses = filteredData.classes.filter(c => c.userId === user.id);
       const uVisits = filteredData.visits.filter(v => v.userId === user.id);
       
       const studentsSet = new Set<string>();
       uStudies.forEach(s => s.name && studentsSet.add(String(s.name).trim().toLowerCase()));
-      uClasses.forEach(c => Array.isArray(c.students) && c.students.forEach(n => n && studentsSet.add(String(n).trim().toLowerCase())));
+      uClasses.forEach(c => {
+        if (Array.isArray(c.students)) {
+          c.students.forEach(n => {
+            if (n) studentsSet.add(String(n).trim().toLowerCase());
+          });
+        }
+      });
 
       const totalActions = uStudies.length + uClasses.length + uVisits.length;
 
@@ -108,10 +117,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     }).sort((a, b) => b.totalActions - a.totalActions);
   }, [users, filteredData, selectedChaplain]);
 
+  // Detalhes do Modal: Devem respeitar a unidade selecionada no filtro do topo
   const activeDetails = useMemo(() => {
     if (!selectedDetailUser) return { items: [] };
     
-    // Ajuste: Filtra detalhes respeitando a unidade selecionada no painel de relatórios
+    // Usa o filteredData que já contém apenas a unidade selecionada (HAB, HABA ou Ambas)
     const sList = filteredData.studies.filter(s => s.userId === selectedDetailUser.id);
     const cList = filteredData.classes.filter(c => c.userId === selectedDetailUser.id);
 

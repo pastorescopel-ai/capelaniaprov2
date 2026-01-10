@@ -35,13 +35,17 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
 
   // Regra de Alunos Únicos: Processa todos os estudos e classes do usuário (sem filtro de unidade)
   const uniqueTotalStudents = new Set<string>();
+  
+  // Adiciona alunos de estudos individuais
   visibleStudies.forEach(s => {
     if (s && s.name && typeof s.name === 'string') {
       uniqueTotalStudents.add(s.name.trim().toLowerCase());
     }
   });
+
+  // Adiciona CADA aluno de CADA classe bíblica (Corrigido para percorrer o array interno de students)
   visibleClasses.forEach(c => {
-    if (c && c.students && Array.isArray(c.students)) {
+    if (c && Array.isArray(c.students)) {
       c.students.forEach(n => {
         if (n && typeof n === 'string') {
           uniqueTotalStudents.add(n.trim().toLowerCase());
