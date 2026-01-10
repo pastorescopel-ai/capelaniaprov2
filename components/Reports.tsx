@@ -88,7 +88,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           
           const unitUniqueNames = new Set<string>();
           unitStudies.forEach(s => { if (s.name) unitUniqueNames.add(s.name.trim().toLowerCase()); });
-          unitClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
+          unitClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => unitUniqueNames.add(n.trim().toLowerCase())); });
 
           return {
               students: unitUniqueNames.size,
@@ -306,31 +306,40 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   margin: 0mm !important; 
                 }
                 
-                /* Esconde ABSOLUTAMENTE tudo o que não for o container do PDF */
-                body * { 
-                  visibility: hidden !important; 
-                  opacity: 0 !important;
-                }
-                
-                #pdf-modal-container, #pdf-modal-container * { 
-                  visibility: visible !important; 
-                  opacity: 1 !important;
-                  display: block !important;
+                /* Reset absoluto para evitar páginas em branco */
+                html, body {
+                  height: auto !important;
+                  overflow: visible !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
                 }
 
-                /* Reseta o modal para ser uma página estática no topo */
+                /* Esconde ABSOLUTAMENTE tudo o que não for o container do PDF */
+                body > *:not(#pdf-modal-container) {
+                  display: none !important;
+                }
+
+                #root {
+                  display: none !important;
+                }
+                
                 #pdf-modal-container {
-                  position: absolute !important;
-                  left: 0 !important;
-                  top: 0 !important;
+                  position: relative !important;
+                  display: block !important;
+                  visibility: visible !important;
                   width: 100% !important;
                   height: auto !important;
                   margin: 0 !important;
                   padding: 0 !important;
                   background: white !important;
                   box-shadow: none !important;
-                  z-index: 999999 !important;
+                  border: none !important;
+                  inset: auto !important;
                   transform: none !important;
+                }
+
+                #pdf-modal-container * {
+                  visibility: visible !important;
                 }
 
                 #pdf-content {
@@ -339,10 +348,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   padding: 10mm !important;
                   margin: 0 auto !important;
                   background: white !important;
-                  box-sizing: border-box !important;
                   display: block !important;
                   overflow: visible !important;
-                  box-shadow: none !important;
+                  box-sizing: border-box !important;
                 }
 
                 /* FORÇAR AS BARRAS AZUIS E CORES */
@@ -352,18 +360,17 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   color-adjust: exact !important;
                 }
 
-                .bg-\\[\\#005a9c\\] {
+                .bg-\\[\\#005a9c\\], 
+                table thead tr,
+                .bg-blue-600 {
                   background-color: #005a9c !important;
+                  -webkit-print-color-adjust: exact !important;
                 }
 
-                table thead tr {
-                  background-color: #005a9c !important;
-                  color: white !important;
-                }
-                
                 table thead th {
                   background-color: #005a9c !important;
                   color: white !important;
+                  border: none !important;
                 }
 
                 /* Esconde os botões e o background cinza do preview */
@@ -374,9 +381,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 .flex-1.overflow-y-auto.bg-slate-100 {
                   background: white !important;
                   padding: 0 !important;
+                  overflow: visible !important;
+                  height: auto !important;
                 }
 
-                /* Garantir que os gráficos apareçam sem animação */
+                /* Gráficos sem animação */
                 .recharts-responsive-container {
                   width: 100% !important;
                   height: auto !important;
@@ -392,10 +401,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <div id="pdf-modal-container" className="bg-white w-full max-w-5xl h-[95vh] rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
               <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Relatório PDF</h2>
-              <div className="flex gap-4">
-                <button onClick={() => window.print()} className="px-8 py-3 bg-[#005a9c] text-white font-black rounded-xl shadow-lg uppercase text-[10px] tracking-widest active:scale-95 transition-all">Imprimir / Salvar</button>
-                <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all"><i className="fas fa-times"></i></button>
-              </div>
+              <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all">
+                <i className="fas fa-times"></i>
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto bg-slate-100 p-10 no-scrollbar">
               <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[10mm] flex flex-col gap-4 text-slate-900">
