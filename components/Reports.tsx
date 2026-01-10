@@ -81,6 +81,27 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       uStudies.forEach(s => { if (s.name) uniqueNames.add(s.name.trim().toLowerCase()); });
       uClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
 
+      // Dados específicos por unidade para o PDF
+      const getUnitStats = (unit: Unit) => {
+          const unitStudies = uStudies.filter(s => s.unit === unit);
+          const unitClasses = uClasses.filter(c => c.unit === unit);
+          const unitGroups = uGroups.filter(g => g.unit === unit);
+          const unitVisits = uVisits.filter(v => v.unit === unit);
+          
+          const unitUniqueNames = new Set<string>();
+          unitStudies.forEach(s => { if (s.name) unitUniqueNames.add(s.name.trim().toLowerCase()); });
+          unitClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => unitUniqueNames.add(n.trim().toLowerCase())); });
+
+          return {
+              students: unitUniqueNames.size,
+              studies: unitStudies.length,
+              classes: unitClasses.length,
+              groups: unitGroups.length,
+              visits: unitVisits.length,
+              total: unitStudies.length + unitClasses.length + unitGroups.length + unitVisits.length
+          };
+      };
+
       const totalActions = uStudies.length + uClasses.length + uVisits.length + uGroups.length;
 
       return { 
@@ -91,6 +112,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         classes: uClasses.length, 
         visits: uVisits.length, 
         groups: uGroups.length,
+        hab: getUnitStats(Unit.HAB),
+        haba: getUnitStats(Unit.HABA),
         totalActions 
       };
     }).filter(s => {
@@ -168,7 +191,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Estudos</p><p className="text-3xl font-black">{totalStats.studies}</p></div>
             <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Classes</p><p className="text-3xl font-black">{totalStats.classes}</p></div>
             <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">PGs</p><p className="text-3xl font-black">{totalStats.groups}</p></div>
-            <div className="bg-emerald-500/20 p-6 rounded-3xl border border-emerald-500/30"><p className="text-[9px] font-black text-emerald-300 uppercase mb-2">Visitas Colab.</p><p className="text-3xl font-black text-emerald-300">{totalStats.visits}</p></div>
+            <div className="bg-emerald-500/20 p-6 rounded-3xl border border-emerald-500/30"><p className="text-[9px] font-black text-emerald-300 uppercase mb-2">Visitas Colab.</p><p className="text-3xl font-black">{totalStats.visits}</p></div>
           </div>
         </div>
       </section>
@@ -327,22 +350,50 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   </div>
                 </header>
 
-                <section>
-                  <h3 className="text-xs font-black uppercase text-[#005a9c] mb-4 border-b border-slate-100 pb-2 italic">Resumo de Atividades por Capelão</h3>
-                  <table className="w-full text-left text-[9px] border-collapse shadow-sm">
-                    <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-2">Capelão</th><th className="p-2 text-center">Total Estudantes</th><th className="p-2 text-center">PG</th><th className="p-2 text-center">Classes</th><th className="p-2 text-center">Visitas</th></tr></thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {chaplainStats.map((stat, idx) => (
-                        <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                          <td className="p-2 font-bold text-slate-700">{stat.name}</td>
-                          <td className="p-2 text-center font-bold text-slate-700">{stat.students}</td>
-                          <td className="p-2 text-center font-bold text-blue-600">{stat.groups}</td>
-                          <td className="p-2 text-center font-bold text-indigo-600">{stat.classes}</td>
-                          <td className="p-2 text-center font-bold text-rose-600">{stat.visits}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <section className="space-y-6">
+                  {/* TABELA HAB */}
+                  {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
+                    <div>
+                      <h3 className="text-xs font-black uppercase text-[#005a9c] mb-3 border-b border-slate-100 pb-1 italic">Resumo de Atividades por Capelão - Unidade HAB</h3>
+                      <table className="w-full text-left text-[8px] border-collapse shadow-sm mb-4">
+                        <thead><tr className="bg-slate-700 text-white uppercase"><th className="p-1.5">Capelão</th><th className="p-1.5 text-center">Total Estudantes</th><th className="p-1.5 text-center">Estudos</th><th className="p-1.5 text-center">Classes</th><th className="p-1.5 text-center">PGs</th><th className="p-1.5 text-center">Visitas</th></tr></thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
+                            <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                              <td className="p-1.5 font-bold text-slate-700">{stat.name}</td>
+                              <td className="p-1.5 text-center font-bold text-slate-800">{stat.hab.students}</td>
+                              <td className="p-1.5 text-center font-bold text-blue-600">{stat.hab.studies}</td>
+                              <td className="p-1.5 text-center font-bold text-indigo-600">{stat.hab.classes}</td>
+                              <td className="p-1.5 text-center font-bold text-emerald-600">{stat.hab.groups}</td>
+                              <td className="p-1.5 text-center font-bold text-rose-600">{stat.hab.visits}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* TABELA HABA */}
+                  {(selectedUnit === 'all' || selectedUnit === Unit.HABA) && (
+                    <div>
+                      <h3 className="text-xs font-black uppercase text-[#005a9c] mb-3 border-b border-slate-100 pb-1 italic">Resumo de Atividades por Capelão - Unidade HABA</h3>
+                      <table className="w-full text-left text-[8px] border-collapse shadow-sm">
+                        <thead><tr className="bg-slate-700 text-white uppercase"><th className="p-1.5">Capelão</th><th className="p-1.5 text-center">Total Estudantes</th><th className="p-1.5 text-center">Estudos</th><th className="p-1.5 text-center">Classes</th><th className="p-1.5 text-center">PGs</th><th className="p-1.5 text-center">Visitas</th></tr></thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
+                            <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                              <td className="p-1.5 font-bold text-slate-700">{stat.name}</td>
+                              <td className="p-1.5 text-center font-bold text-slate-800">{stat.haba.students}</td>
+                              <td className="p-1.5 text-center font-bold text-blue-600">{stat.haba.studies}</td>
+                              <td className="p-1.5 text-center font-bold text-indigo-600">{stat.haba.classes}</td>
+                              <td className="p-1.5 text-center font-bold text-emerald-600">{stat.haba.groups}</td>
+                              <td className="p-1.5 text-center font-bold text-rose-600">{stat.haba.visits}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </section>
 
                 <section className="grid grid-cols-2 gap-8 mt-4">
@@ -388,11 +439,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   </div>
                 </section>
 
-                <div className="mt-auto grid grid-cols-4 gap-4 border-t border-slate-200 pt-6">
-                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[7px] font-black text-slate-400 uppercase">Total Estudantes</p><p className="text-xl font-black text-emerald-600">{totalStats.totalStudents}</p></div>
-                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[7px] font-black text-slate-400 uppercase">Estudos Bíblicos</p><p className="text-xl font-black text-blue-600">{totalStats.studies}</p></div>
-                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[7px] font-black text-slate-400 uppercase">Classes Bíblicas</p><p className="text-xl font-black text-indigo-600">{totalStats.classes}</p></div>
-                    <div className="bg-[#005a9c] p-4 rounded-xl text-center text-white"><p className="text-[7px] font-black text-white/70 uppercase">Total de PGs Assistidos</p><p className="text-xl font-black">{totalStats.groups}</p></div>
+                <div className="mt-auto grid grid-cols-5 gap-3 border-t border-slate-200 pt-6">
+                    <div className="bg-[#005a9c] p-3 rounded-xl text-center text-white"><p className="text-[7px] font-black text-white/70 uppercase">Total Estudantes</p><p className="text-xl font-black">{totalStats.totalStudents}</p></div>
+                    <div className="bg-slate-50 p-3 rounded-xl text-center border border-slate-100"><p className="text-[7px] font-black text-slate-400 uppercase">Estudos Bíblicos</p><p className="text-xl font-black text-blue-600">{totalStats.studies}</p></div>
+                    <div className="bg-slate-50 p-3 rounded-xl text-center border border-slate-100"><p className="text-[7px] font-black text-slate-400 uppercase">Classes Bíblicas</p><p className="text-xl font-black text-indigo-600">{totalStats.classes}</p></div>
+                    <div className="bg-slate-50 p-3 rounded-xl text-center border border-slate-100"><p className="text-[7px] font-black text-slate-400 uppercase">PGs Assistidos</p><p className="text-xl font-black text-emerald-600">{totalStats.groups}</p></div>
+                    <div className="bg-slate-50 p-3 rounded-xl text-center border border-slate-100"><p className="text-[7px] font-black text-slate-400 uppercase">Visitas Colab.</p><p className="text-xl font-black text-rose-600">{totalStats.visits}</p></div>
                 </div>
 
                 <footer className="mt-4 border-t border-slate-100 pt-2 flex justify-between text-[7px] font-bold text-slate-300 uppercase italic">
