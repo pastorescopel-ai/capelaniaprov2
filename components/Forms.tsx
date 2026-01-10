@@ -19,7 +19,7 @@ interface FormProps {
 }
 
 const formatWhatsApp = (value: string) => {
-  const nums = value.replace(/\D/g, "");
+  const nums = String(value || "").replace(/\D/g, "");
   if (nums.length === 0) return "";
   if (nums.length <= 2) return `(${nums}`;
   if (nums.length <= 7) return `(${nums.slice(0, 2)}) ${nums.slice(2)}`;
@@ -28,7 +28,7 @@ const formatWhatsApp = (value: string) => {
 
 const Autocomplete: React.FC<{ options: string[], value: string, onChange: (v: string) => void, placeholder: string, isStrict?: boolean }> = ({ options, value, onChange, placeholder, isStrict }) => {
   const [open, setOpen] = useState(false);
-  const filtered = options.filter(o => o.toLowerCase().includes(value.toLowerCase()));
+  const filtered = options.filter(o => o.toLowerCase().includes(String(value || "").toLowerCase()));
 
   return (
     <div className="relative">
@@ -148,8 +148,9 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, hist
       return;
     }
 
-    // Tenta extrair o número da lição e incrementar
-    const lastLessonNum = parseInt(last.lesson.replace(/\D/g, '')) || 0;
+    // Tenta extrair o número da lição e incrementar - FIX: use String() to avoid replace error if lesson is a number
+    const lastLessonStr = String(last.lesson || "");
+    const lastLessonNum = parseInt(lastLessonStr.replace(/\D/g, '')) || 0;
     const nextLesson = (lastLessonNum + 1).toString();
 
     if (onEdit) {
@@ -274,8 +275,9 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, hist
       return;
     }
 
-    // Tenta extrair o número da lição e incrementar
-    const lastLessonNum = parseInt(last.lesson.replace(/\D/g, '')) || 0;
+    // Tenta extrair o número da lição e incrementar - FIX: use String() to avoid replace error
+    const lastLessonStr = String(last.lesson || "");
+    const lastLessonNum = parseInt(lastLessonStr.replace(/\D/g, '')) || 0;
     const nextLesson = (lastLessonNum + 1).toString();
 
     if (onEdit) {
