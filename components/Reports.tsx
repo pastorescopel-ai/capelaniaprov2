@@ -176,8 +176,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     
     const studyMap: Record<string, any> = {};
     (studies || []).forEach(s => {
-      if (s.userId === selectedDetailUser.id) {
-        const key = (s && typeof s.name === 'string') ? s.name.trim().toLowerCase() : (s?.id || Math.random().toString());
+      if (s && s.userId === selectedDetailUser.id) {
+        const key = (s.name && typeof s.name === 'string') ? s.name.trim().toLowerCase() : s.id;
         if (!studyMap[key] || s.createdAt > studyMap[key].createdAt) {
           studyMap[key] = { ...s, type: 'study' };
         }
@@ -186,7 +186,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
     const classMap: Record<string, any> = {};
     (classes || []).forEach(c => {
-      if (c.userId === selectedDetailUser.id) {
+      if (c && c.userId === selectedDetailUser.id) {
         const key = `${c.guide || ""}-${c.sector || ""}`.trim().toLowerCase();
         if (!classMap[key] || c.createdAt > classMap[key].createdAt) {
           classMap[key] = { ...c, type: 'class' };
