@@ -356,7 +356,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     <div>
                       <h3 className="text-xs font-black uppercase text-[#005a9c] mb-3 border-b border-slate-100 pb-1 italic">Resumo de Atividades por Capelão - Unidade HAB</h3>
                       <table className="w-full text-left text-[8px] border-collapse shadow-sm mb-4">
-                        <thead><tr className="bg-slate-700 text-white uppercase"><th className="p-1.5">Capelão</th><th className="p-1.5 text-center">Total Estudantes</th><th className="p-1.5 text-center">Estudos</th><th className="p-1.5 text-center">Classes</th><th className="p-1.5 text-center">PGs</th><th className="p-1.5 text-center">Visitas</th></tr></thead>
+                        <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-1.5">Capelão</th><th className="p-1.5 text-center">Total Estudantes</th><th className="p-1.5 text-center">Estudos</th><th className="p-1.5 text-center">Classes</th><th className="p-1.5 text-center">PGs</th><th className="p-1.5 text-center">Visitas</th></tr></thead>
                         <tbody className="divide-y divide-slate-100">
                           {chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
                             <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
@@ -378,7 +378,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     <div>
                       <h3 className="text-xs font-black uppercase text-[#005a9c] mb-3 border-b border-slate-100 pb-1 italic">Resumo de Atividades por Capelão - Unidade HABA</h3>
                       <table className="w-full text-left text-[8px] border-collapse shadow-sm">
-                        <thead><tr className="bg-slate-700 text-white uppercase"><th className="p-1.5">Capelão</th><th className="p-1.5 text-center">Total Estudantes</th><th className="p-1.5 text-center">Estudos</th><th className="p-1.5 text-center">Classes</th><th className="p-1.5 text-center">PGs</th><th className="p-1.5 text-center">Visitas</th></tr></thead>
+                        <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-1.5">Capelão</th><th className="p-1.5 text-center">Total Estudantes</th><th className="p-1.5 text-center">Estudos</th><th className="p-1.5 text-center">Classes</th><th className="p-1.5 text-center">PGs</th><th className="p-1.5 text-center">Visitas</th></tr></thead>
                         <tbody className="divide-y divide-slate-100">
                           {chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
                             <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
