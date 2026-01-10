@@ -132,13 +132,14 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   }, [filteredData, chaplainStats]);
 
   // Lógica de Detalhamento: Agrupa por Aluno/Classe e mantém apenas o registro MAIS RECENTE
+  // Se o registro mais recente for 'Término', ele sai da lista de ativos.
   const activeDetails = useMemo(() => {
     if (!selectedDetailUser) return { items: [] };
     
-    // Mapa para consolidar estudos por nome do aluno
+    // Mapa para consolidar estudos por nome do aluno (Busca no histórico completo do usuário)
     const studyMap: Record<string, any> = {};
     studies.forEach(s => {
-      if (s.userId === selectedDetailUser.id && (s.status === RecordStatus.INICIO || s.status === RecordStatus.CONTINUACAO)) {
+      if (s.userId === selectedDetailUser.id) {
         const key = s.name.trim().toLowerCase();
         // Se já existe, substitui apenas se for mais recente (createdAt maior)
         if (!studyMap[key] || s.createdAt > studyMap[key].createdAt) {
@@ -150,7 +151,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     // Mapa para consolidar classes por Guia + Setor (identidade da classe)
     const classMap: Record<string, any> = {};
     classes.forEach(c => {
-      if (c.userId === selectedDetailUser.id && (c.status === RecordStatus.INICIO || c.status === RecordStatus.CONTINUACAO)) {
+      if (c.userId === selectedDetailUser.id) {
         const key = `${c.guide}-${c.sector}`.trim().toLowerCase();
         if (!classMap[key] || c.createdAt > classMap[key].createdAt) {
           classMap[key] = { ...c, type: 'class' };
@@ -158,8 +159,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       }
     });
 
+    // Filtra para remover aqueles cujo status final é 'Término'
+    const activeStudies = Object.values(studyMap).filter(s => s.status !== RecordStatus.TERMINO);
+    const activeClasses = Object.values(classMap).filter(c => c.status !== RecordStatus.TERMINO);
+
     // Combina ambos e ordena por data de criação decrescente
-    const combined = [...Object.values(studyMap), ...Object.values(classMap)]
+    const combined = [...activeStudies, ...activeClasses]
       .sort((a, b) => b.createdAt - a.createdAt);
 
     return {
