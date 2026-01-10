@@ -38,18 +38,16 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // LÓGICA CORRIGIDA: Soma de alunos únicos garantindo que nomes em Classes e Estudos sejam contabilizados corretamente
+  // Lógica de Soma de alunos únicos (Mantida conforme solicitação anterior)
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
     
-    // Adiciona nomes dos estudos individuais
     filteredData.studies.forEach(item => { 
       if (item.name && item.name.trim()) { 
         allStudentsSet.add(item.name.trim().toLowerCase()); 
       } 
     });
     
-    // Adiciona nomes das classes coletivas
     filteredData.classes.forEach(item => { 
       if (item.students && Array.isArray(item.students)) { 
         item.students.forEach(name => { 
@@ -133,23 +131,29 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     return { activities, byChaplain, monthlyProgress };
   }, [filteredData, chaplainStats]);
 
+  // Lógica de Detalhamento: Agrupa Estudos e Classes Ativas do Capelão Selecionado
   const activeDetails = useMemo(() => {
-    if (!selectedDetailUser) return { students: [] };
+    if (!selectedDetailUser) return { items: [] };
+    
+    // Filtrar Estudos Ativos
     const activeStudies = studies.filter(s => 
       s.userId === selectedDetailUser.id && 
       (s.status === RecordStatus.INICIO || s.status === RecordStatus.CONTINUACAO)
-    );
-    const uniqueActive: Record<string, BibleStudy> = {};
-    activeStudies.forEach(s => {
-      const key = s.name.trim().toLowerCase();
-      if (!uniqueActive[key] || s.createdAt > uniqueActive[key].createdAt) {
-        uniqueActive[key] = s;
-      }
-    });
+    ).map(item => ({ ...item, type: 'study' }));
+
+    // Filtrar Classes Ativas
+    const activeClasses = classes.filter(c => 
+      c.userId === selectedDetailUser.id && 
+      (c.status === RecordStatus.INICIO || c.status === RecordStatus.CONTINUACAO)
+    ).map(item => ({ ...item, type: 'class' }));
+
+    // Unificar e ordenar por data de criação (mais recentes primeiro)
+    const combined = [...activeStudies, ...activeClasses].sort((a, b) => b.createdAt - a.createdAt);
+
     return {
-      students: Object.values(uniqueActive).sort((a, b) => a.name.localeCompare(b.name))
+      items: combined
     };
-  }, [studies, selectedDetailUser]);
+  }, [studies, classes, selectedDetailUser]);
 
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
@@ -225,7 +229,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               </div>
 
               <div className="mt-6 flex items-center justify-center gap-2 text-slate-300 group-hover:text-[#005a9c] transition-colors">
-                <span className="text-[10px] font-black uppercase tracking-widest">Ver Alunos Ativos</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Ver Detalhes Ativos</span>
                 <i className="fas fa-arrow-right text-xs"></i>
               </div>
             </div>
@@ -239,10 +243,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             <div className="p-8 bg-white border-b border-slate-100 flex justify-between items-center">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg">
-                  <i className="fas fa-users"></i>
+                  <i className="fas fa-users-cog"></i>
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Alunos Ativos</h3>
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Atendimentos Ativos</h3>
                   <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Capelão: {selectedDetailUser.name}</p>
                 </div>
               </div>
@@ -255,42 +259,68 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
-              {activeDetails.students.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {activeDetails.students.map((student) => (
-                    <div key={student.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-4 group hover:border-blue-300 transition-all">
+              {activeDetails.items.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {activeDetails.items.map((item: any) => (
+                    <div key={item.id} className={`bg-white p-6 rounded-[2rem] border-2 shadow-sm flex flex-col gap-4 group transition-all ${item.type === 'class' ? 'border-indigo-100 hover:border-indigo-300' : 'border-blue-100 hover:border-blue-300'}`}>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-                            <i className="fas fa-user"></i>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.type === 'class' ? 'bg-indigo-50 text-indigo-600' : 'bg-blue-50 text-blue-600'}`}>
+                            <i className={`fas ${item.type === 'class' ? 'fa-users' : 'fa-user'}`}></i>
                           </div>
                           <div>
-                            <h4 className="font-black text-slate-800 text-base leading-tight uppercase">{student.name}</h4>
-                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${student.status === RecordStatus.INICIO ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                              {student.status}
-                            </span>
+                            <h4 className="font-black text-slate-800 text-base leading-tight uppercase">
+                              {item.type === 'class' ? 'Classe Bíblica' : item.name}
+                            </h4>
+                            <div className="flex gap-2 mt-1">
+                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${item.status === RecordStatus.INICIO ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {item.status}
+                                </span>
+                                <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+                                    {item.type === 'class' ? 'Coletivo' : 'Individual'}
+                                </span>
+                            </div>
                           </div>
                         </div>
                       </div>
 
                       <div className="space-y-3">
-                        <div className="flex items-center gap-3 text-slate-500">
-                          <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-xs">
-                            <i className="fab fa-whatsapp"></i>
+                        {item.type === 'class' ? (
+                          <div className="space-y-2">
+                             <div className="flex items-start gap-3 text-slate-600">
+                                <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-xs text-indigo-500 flex-shrink-0">
+                                    <i className="fas fa-graduation-cap"></i>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase">Alunos na Classe:</span>
+                                    <span className="text-xs font-bold">{item.students.join(', ')}</span>
+                                </div>
+                             </div>
                           </div>
-                          <span className="text-sm font-bold">{student.whatsapp || 'Não informado'}</span>
-                        </div>
+                        ) : (
+                          <div className="flex items-center gap-3 text-slate-500">
+                            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-xs text-blue-500">
+                              <i className="fab fa-whatsapp"></i>
+                            </div>
+                            <span className="text-sm font-bold">{item.whatsapp || 'Não informado'}</span>
+                          </div>
+                        )}
+
                         <div className="flex items-center gap-3 text-slate-500">
                           <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-xs">
                             <i className="fas fa-book-reader"></i>
                           </div>
-                          <span className="text-sm font-bold italic">"{student.lesson || 'Nenhuma lição registrada'}"</span>
+                          <div className="flex flex-col">
+                             <span className="text-[9px] font-black text-slate-400 uppercase">Lição Atual:</span>
+                             <span className="text-sm font-bold italic">"{item.lesson || 'Nenhuma lição registrada'}"</span>
+                          </div>
                         </div>
+
                         <div className="flex items-center gap-3 text-slate-400">
                           <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-[10px]">
                             <i className="fas fa-hospital"></i>
                           </div>
-                          <span className="text-[10px] font-black uppercase tracking-widest">{student.sector} • {student.unit}</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest">{item.sector} • {item.unit}</span>
                         </div>
                       </div>
                     </div>
@@ -301,8 +331,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 text-4xl">
                     <i className="fas fa-folder-open"></i>
                   </div>
-                  <h4 className="text-xl font-black text-slate-400 uppercase tracking-tighter">Nenhum aluno ativo encontrado</h4>
-                  <p className="text-slate-400 max-w-xs mx-auto">Este capelão não possui estudos bíblicos com status "Início" ou "Continuação" no momento.</p>
+                  <h4 className="text-xl font-black text-slate-400 uppercase tracking-tighter">Nenhum atendimento ativo</h4>
+                  <p className="text-slate-400 max-w-xs mx-auto">Este capelão não possui estudos ou classes bíblicas em andamento no momento.</p>
                 </div>
               )}
             </div>
