@@ -13,22 +13,33 @@ import { syncService } from './services/syncService';
 import { INITIAL_CONFIG, GOOGLE_SCRIPT_URL, APP_LOGO_BASE64, REPORT_LOGO_BASE64 } from './constants';
 
 const App: React.FC = () => {
+  // Estados de Autenticação
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Estados de Sincronização
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [itemToDelete, setItemToDelete] = useState<{type: string, id: string} | null>(null);
-  const [loginError, setLoginError] = useState<string | null>(null);
   
-  const [users, setUsers] = useState<User[]>(syncService.getLocal('users') || []);
-  const [bibleStudies, setBibleStudies] = useState<BibleStudy[]>(syncService.getLocal('bibleStudies') || []);
-  const [bibleClasses, setBibleClasses] = useState<BibleClass[]>(syncService.getLocal('bibleClasses') || []);
-  const [smallGroups, setSmallGroups] = useState<SmallGroup[]>(syncService.getLocal('smallGroups') || []);
-  const [staffVisits, setStaffVisits] = useState<StaffVisit[]>(syncService.getLocal('staffVisits') || []);
-  const [masterLists, setMasterLists] = useState<MasterLists>(syncService.getLocal('masterLists') || {
+  // Dados do Sistema com Fallback Seguro
+  const [users, setUsers] = useState<User[]>(() => {
+    try {
+      return syncService.getLocal<User[]>('users') || [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [bibleStudies, setBibleStudies] = useState<BibleStudy[]>(() => syncService.getLocal('bibleStudies') || []);
+  const [bibleClasses, setBibleClasses] = useState<BibleClass[]>(() => syncService.getLocal('bibleClasses') || []);
+  const [smallGroups, setSmallGroups] = useState<SmallGroup[]>(() => syncService.getLocal('smallGroups') || []);
+  const [staffVisits, setStaffVisits] = useState<StaffVisit[]>(() => syncService.getLocal('staffVisits') || []);
+  const [masterLists, setMasterLists] = useState<MasterLists>(() => syncService.getLocal('masterLists') || {
     sectorsHAB: [], sectorsHABA: [], staffHAB: [], staffHABA: [], groupsHAB: [], groupsHABA: []
   });
 
@@ -44,6 +55,7 @@ const App: React.FC = () => {
     return applySystemOverrides(local || INITIAL_CONFIG);
   });
 
+  // Funções de Sincronização
   const loadFromCloud = useCallback(async () => {
     if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('URL_EXEMPLO')) return;
     setIsSyncing(true);
@@ -61,7 +73,7 @@ const App: React.FC = () => {
         setIsConnected(true);
       }
     } catch (e) {
-      console.error("Erro na sincronização inicial:", e);
+      console.error("Sync failure (Offline mode enabled):", e);
     } finally {
       setIsSyncing(false);
     }
@@ -72,12 +84,6 @@ const App: React.FC = () => {
     setIsSyncing(true);
     syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
     
-    const cleanConfig = applySystemOverrides(overrides?.config || config);
-    const configToCloud = { ...cleanConfig };
-    delete (configToCloud as any).appLogo;
-    delete (configToCloud as any).reportLogo;
-    delete (configToCloud as any).googleSheetUrl;
-
     const payload = {
       users: overrides?.users || users,
       bibleStudies: overrides?.bibleStudies || bibleStudies,
@@ -85,7 +91,7 @@ const App: React.FC = () => {
       smallGroups: overrides?.smallGroups || smallGroups,
       staffVisits: overrides?.staffVisits || staffVisits,
       masterLists: overrides?.masterLists || masterLists,
-      config: configToCloud,
+      config: overrides?.config || config,
     };
 
     const success = await syncService.saveToCloud(payload);
@@ -94,7 +100,7 @@ const App: React.FC = () => {
     return success;
   }, [config, users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists]);
 
-  useEffect(() => { loadFromCloud(); }, []);
+  useEffect(() => { loadFromCloud(); }, [loadFromCloud]);
 
   useEffect(() => {
     syncService.setLocal('users', users);
@@ -108,26 +114,38 @@ const App: React.FC = () => {
 
   const handleLogin = async (email: string, pass: string) => {
     setLoginError(null);
-    let existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
+    const lowerEmail = email.toLowerCase();
     
-    if (!existingUser && email.toLowerCase() === 'pastorescopel@gmail.com' && pass === 'admin') {
-      existingUser = { id: 'admin-root', name: 'Administrador Geral', email: email.toLowerCase(), role: UserRole.ADMIN, password: 'admin' };
-      if (!users.find(u => u.email === existingUser?.email)) {
+    let existingUser = users.find(u => u.email.toLowerCase() === lowerEmail && u.password === pass);
+    
+    // Login Mestre de Emergência (Admin)
+    if (!existingUser && lowerEmail === 'pastorescopel@gmail.com' && pass === 'admin') {
+      existingUser = { id: 'admin-root', name: 'Administrador Geral', email: lowerEmail, role: UserRole.ADMIN, password: 'admin' };
+      if (!users.find(u => u.email.toLowerCase() === lowerEmail)) {
         const updatedUsers = [...users, existingUser];
         setUsers(updatedUsers);
-        await saveToCloud({ users: updatedUsers });
       }
     }
 
     if (existingUser) {
       setCurrentUser(existingUser);
       setIsAuthenticated(true);
-      return;
+    } else {
+      setLoginError('E-mail ou senha incorretos!');
     }
-    setLoginError('E-mail ou senha incorretos!');
   };
 
-  const handleLogout = () => { setIsAuthenticated(false); setCurrentUser(null); setActiveTab('dashboard'); };
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    setActiveTab('dashboard');
+  };
+
+  // Utilitário para ID Único (Resiliência para contextos não-HTTPS)
+  const generateId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+  };
 
   const handleSaveItem = async (type: string, data: any) => {
     let update: any = {};
@@ -137,7 +155,7 @@ const App: React.FC = () => {
       if (type === 'visit') { update.staffVisits = staffVisits.map(v => v.id === editingItem.id ? { ...data, id: editingItem.id } : v); setStaffVisits(update.staffVisits); }
       if (type === 'pg') { update.smallGroups = smallGroups.map(g => g.id === editingItem.id ? { ...data, id: editingItem.id } : g); setSmallGroups(update.smallGroups); }
     } else {
-      const newItem = { ...data, userId: currentUser?.id, id: crypto.randomUUID(), createdAt: Date.now() };
+      const newItem = { ...data, userId: currentUser?.id, id: generateId(), createdAt: Date.now() };
       if (type === 'study') { update.bibleStudies = [newItem, ...bibleStudies]; setBibleStudies(update.bibleStudies); }
       if (type === 'class') { update.bibleClasses = [newItem, ...bibleClasses]; setBibleClasses(update.bibleClasses); }
       if (type === 'visit') { update.staffVisits = [newItem, ...staffVisits]; setStaffVisits(update.staffVisits); }
@@ -147,19 +165,13 @@ const App: React.FC = () => {
     setEditingItem(null);
   };
 
-  const handleToggleReturn = async (id: string) => {
-    const updatedVisits = staffVisits.map(v => v.id === id ? { ...v, returnCompleted: !v.returnCompleted } : v);
-    setStaffVisits(updatedVisits);
-    await saveToCloud({ staffVisits: updatedVisits });
-  };
-
   const getVisibleHistory = (list: any[]) => {
     if (!currentUser) return [];
     if (currentUser.role === UserRole.ADMIN) return list.filter(item => item.unit === currentUnit);
     return list.filter(item => item.unit === currentUnit && item.userId === currentUser.id);
   };
 
-  // Se não estiver autenticado, a tela de login é SEMPRE a prioridade
+  // --- RENDERIZAÇÃO PRIORITÁRIA DA TELA DE LOGIN ---
   if (!isAuthenticated || !currentUser) {
     return (
       <Login 
@@ -172,8 +184,18 @@ const App: React.FC = () => {
     );
   }
 
+  // --- RENDERIZAÇÃO DO SISTEMA PÓS-LOGIN ---
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab} userRole={currentUser.role} isSyncing={isSyncing} isConnected={isConnected} config={config} onLogout={handleLogout}>
+    <Layout 
+      activeTab={activeTab} 
+      setActiveTab={setActiveTab} 
+      userRole={currentUser.role} 
+      isSyncing={isSyncing} 
+      isConnected={isConnected} 
+      config={config} 
+      onLogout={handleLogout}
+    >
+      {/* Overlay Global de Sincronização */}
       {isSyncing && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[999] flex items-center justify-center p-4">
           <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full text-center border border-white/20 animate-in zoom-in duration-300">
@@ -184,22 +206,20 @@ const App: React.FC = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Sincronizando Dados</h3>
-              <p className="text-slate-500 text-sm font-medium leading-relaxed">Mantendo o sistema atualizado com a nuvem.</p>
-            </div>
-            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-blue-600 h-full w-2/3 animate-progress"></div>
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Sincronizando</h3>
+              <p className="text-slate-500 text-sm font-medium">Aguarde um momento...</p>
             </div>
           </div>
         </div>
       )}
 
+      {/* Modal de Exclusão */}
       {itemToDelete && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[510] flex items-center justify-center p-4">
           <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-sm w-full animate-in zoom-in duration-200 text-center">
             <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6"><i className="fas fa-trash-alt"></i></div>
-            <h3 className="text-2xl font-black text-slate-800 mb-2">Excluir dado?</h3>
-            <p className="text-slate-500 mb-8 font-medium">Esta ação será refletida na nuvem.</p>
+            <h3 className="text-2xl font-black text-slate-800 mb-2">Excluir Registro?</h3>
+            <p className="text-slate-500 mb-8 font-medium">Esta ação não poderá ser desfeita na nuvem.</p>
             <div className="grid grid-cols-2 gap-4">
               <button onClick={() => setItemToDelete(null)} className="py-4 rounded-2xl bg-slate-50 text-slate-400 font-bold uppercase text-xs">Voltar</button>
               <button onClick={async () => {
@@ -218,19 +238,22 @@ const App: React.FC = () => {
       )}
 
       <div className="max-w-7xl mx-auto px-4 md:px-0">
+        {/* Seletor de Unidade */}
         <div className="mb-8">
           {['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab) && (
             <div className="flex bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 max-w-fit">
-              <button onClick={() => setCurrentUnit(Unit.HAB)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HAB ? 'bg-[#005a9c] text-white shadow-lg' : 'text-slate-400'}`}>HAB</button>
-              <button onClick={() => setCurrentUnit(Unit.HABA)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HABA ? 'bg-[#005a9c] text-white shadow-lg' : 'text-slate-400'}`}>HABA</button>
+              <button onClick={() => setCurrentUnit(Unit.HAB)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HAB ? 'bg-[#005a9c] text-white shadow-lg' : 'text-slate-400'}`}>Unidade HAB</button>
+              <button onClick={() => setCurrentUnit(Unit.HABA)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HABA ? 'bg-[#005a9c] text-white shadow-lg' : 'text-slate-400'}`}>Unidade HABA</button>
             </div>
           )}
         </div>
+
+        {/* Mapeamento de Abas */}
         {activeTab === 'dashboard' && <Dashboard studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} currentUser={currentUser} config={config} onGoToTab={setActiveTab} onUpdateConfig={c => {setConfig(c); saveToCloud({config: c});}} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
         {activeTab === 'bibleStudy' && <BibleStudyForm editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleStudies).slice(0, 10)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} />}
         {activeTab === 'bibleClass' && <BibleClassForm editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleClasses).slice(0, 10)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} />}
         {activeTab === 'smallGroup' && <SmallGroupForm groupsList={currentUnit === Unit.HAB ? masterLists.groupsHAB : masterLists.groupsHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(smallGroups).slice(0, 10)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />}
-        {activeTab === 'staffVisit' && <StaffVisitForm onToggleReturn={handleToggleReturn} staffList={currentUnit === Unit.HAB ? masterLists.staffHAB : masterLists.staffHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(staffVisits).slice(0, 10)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />}
+        {activeTab === 'staffVisit' && <StaffVisitForm onToggleReturn={id => { const v = staffVisits.find(x=>x.id===id); if(v) { const up = staffVisits.map(x=>x.id===id?{...x, returnCompleted: !x.returnCompleted}:x); setStaffVisits(up); saveToCloud({staffVisits: up}); } }} staffList={currentUnit === Unit.HAB ? masterLists.staffHAB : masterLists.staffHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(staffVisits).slice(0, 10)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />}
         {activeTab === 'reports' && <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} config={config} />}
         {activeTab === 'users' && <UserManagement users={users} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
         {activeTab === 'profile' && <Profile user={currentUser} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
