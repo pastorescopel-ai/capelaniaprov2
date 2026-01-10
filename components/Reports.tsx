@@ -301,59 +301,54 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <style>
             {`
               @media print {
+                /* RESET RADICAL */
+                html, body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  height: auto !important;
+                  overflow: visible !important;
+                }
+
                 @page { 
                   size: A4; 
                   margin: 0mm !important; 
                 }
                 
-                /* Reset absoluto para evitar páginas em branco */
-                html, body {
-                  height: auto !important;
-                  overflow: visible !important;
-                  margin: 0 !important;
-                  padding: 0 !important;
+                /* ESCONDE TUDO E SÓ MOSTRA O CONTAINER DO PDF */
+                body * { 
+                  visibility: hidden !important; 
                 }
 
-                /* Esconde ABSOLUTAMENTE tudo o que não for o container do PDF */
-                body > *:not(#pdf-modal-container) {
-                  display: none !important;
-                }
-
-                #root {
-                  display: none !important;
-                }
-                
-                #pdf-modal-container {
-                  position: relative !important;
-                  display: block !important;
+                #pdf-modal-container, #pdf-modal-container * { 
                   visibility: visible !important;
-                  width: 100% !important;
+                }
+
+                #pdf-modal-container {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 210mm !important; /* Largura A4 */
                   height: auto !important;
+                  display: block !important;
                   margin: 0 !important;
                   padding: 0 !important;
                   background: white !important;
                   box-shadow: none !important;
-                  border: none !important;
-                  inset: auto !important;
-                  transform: none !important;
-                }
-
-                #pdf-modal-container * {
-                  visibility: visible !important;
+                  z-index: 9999999 !important;
                 }
 
                 #pdf-content {
                   width: 210mm !important;
                   min-height: 297mm !important;
                   padding: 10mm !important;
-                  margin: 0 auto !important;
+                  margin: 0 !important;
                   background: white !important;
+                  box-sizing: border-box !important;
                   display: block !important;
                   overflow: visible !important;
-                  box-sizing: border-box !important;
                 }
 
-                /* FORÇAR AS BARRAS AZUIS E CORES */
+                /* FORÇAR CORES E BARRAS AZUIS */
                 * {
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
@@ -361,10 +356,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 }
 
                 .bg-\\[\\#005a9c\\], 
-                table thead tr,
-                .bg-blue-600 {
+                .bg-blue-600,
+                table thead tr {
                   background-color: #005a9c !important;
-                  -webkit-print-color-adjust: exact !important;
+                  box-shadow: inset 0 0 0 1000px #005a9c !important; /* Truque extra para forçar cor */
                 }
 
                 table thead th {
@@ -373,24 +368,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   border: none !important;
                 }
 
-                /* Esconde os botões e o background cinza do preview */
                 .no-print { 
                   display: none !important; 
                 }
 
-                .flex-1.overflow-y-auto.bg-slate-100 {
-                  background: white !important;
-                  padding: 0 !important;
-                  overflow: visible !important;
-                  height: auto !important;
-                }
-
-                /* Gráficos sem animação */
-                .recharts-responsive-container {
-                  width: 100% !important;
-                  height: auto !important;
-                  min-height: 150px !important;
-                }
+                /* Gráficos sem animação para captura imediata */
                 svg {
                   display: block !important;
                 }
@@ -400,7 +382,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
           <div id="pdf-modal-container" className="bg-white w-full max-w-5xl h-[95vh] rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
-              <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Relatório PDF</h2>
+              <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Relatório PDF Final</h2>
               <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all">
                 <i className="fas fa-times"></i>
               </button>
