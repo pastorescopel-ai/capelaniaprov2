@@ -47,19 +47,24 @@ const App: React.FC = () => {
   const loadFromCloud = useCallback(async () => {
     if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('URL_EXEMPLO')) return;
     setIsSyncing(true);
-    syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
-    const cloudData = await syncService.syncFromCloud();
-    if (cloudData) {
-      if (cloudData.users && cloudData.users.length > 0) setUsers(cloudData.users);
-      if (cloudData.bibleStudies) setBibleStudies(cloudData.bibleStudies);
-      if (cloudData.bibleClasses) setBibleClasses(cloudData.bibleClasses);
-      if (cloudData.smallGroups) setSmallGroups(cloudData.smallGroups);
-      if (cloudData.staffVisits) setStaffVisits(cloudData.staffVisits);
-      if (cloudData.masterLists) setMasterLists(cloudData.masterLists);
-      if (cloudData.config) setConfig(applySystemOverrides(cloudData.config));
-      setIsConnected(true);
+    try {
+      syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
+      const cloudData = await syncService.syncFromCloud();
+      if (cloudData) {
+        if (cloudData.users && cloudData.users.length > 0) setUsers(cloudData.users);
+        if (cloudData.bibleStudies) setBibleStudies(cloudData.bibleStudies);
+        if (cloudData.bibleClasses) setBibleClasses(cloudData.bibleClasses);
+        if (cloudData.smallGroups) setSmallGroups(cloudData.smallGroups);
+        if (cloudData.staffVisits) setStaffVisits(cloudData.staffVisits);
+        if (cloudData.masterLists) setMasterLists(cloudData.masterLists);
+        if (cloudData.config) setConfig(applySystemOverrides(cloudData.config));
+        setIsConnected(true);
+      }
+    } catch (e) {
+      console.error("Erro na sincronização inicial:", e);
+    } finally {
+      setIsSyncing(false);
     }
-    setTimeout(() => setIsSyncing(false), 800);
   }, []);
 
   const saveToCloud = useCallback(async (overrides?: any) => {
@@ -67,9 +72,7 @@ const App: React.FC = () => {
     setIsSyncing(true);
     syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
     
-    // Preparar Configuração Limpa para Envio
     const cleanConfig = applySystemOverrides(overrides?.config || config);
-    // Garantir que logos e URL não viajem para a planilha
     const configToCloud = { ...cleanConfig };
     delete (configToCloud as any).appLogo;
     delete (configToCloud as any).reportLogo;
@@ -87,7 +90,7 @@ const App: React.FC = () => {
 
     const success = await syncService.saveToCloud(payload);
     setIsConnected(success);
-    setTimeout(() => setIsSyncing(false), 800);
+    setIsSyncing(false);
     return success;
   }, [config, users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists]);
 
@@ -156,12 +159,23 @@ const App: React.FC = () => {
     return list.filter(item => item.unit === currentUnit && item.userId === currentUser.id);
   };
 
-  if (!isAuthenticated || !currentUser) return <Login logo={config.appLogo} onLogin={handleLogin} isSyncing={isSyncing} errorMsg={loginError} isConnected={isConnected} />;
+  // Se não estiver autenticado, a tela de login é SEMPRE a prioridade
+  if (!isAuthenticated || !currentUser) {
+    return (
+      <Login 
+        logo={config.appLogo} 
+        onLogin={handleLogin} 
+        isSyncing={isSyncing} 
+        errorMsg={loginError} 
+        isConnected={isConnected} 
+      />
+    );
+  }
 
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab} userRole={currentUser.role} isSyncing={isSyncing} isConnected={isConnected} config={config} onLogout={handleLogout}>
       {isSyncing && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[999] flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[999] flex items-center justify-center p-4">
           <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full text-center border border-white/20 animate-in zoom-in duration-300">
             <div className="relative">
               <div className="w-20 h-20 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
