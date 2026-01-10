@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole, Config, RecordStatus } from '../types';
 
@@ -35,12 +35,16 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
 
   const uniqueTotalStudents = new Set<string>();
   visibleStudies.forEach(s => {
-    if (s && s.name) uniqueTotalStudents.add(s.name.trim().toLowerCase());
+    if (s && s.name && typeof s.name === 'string') {
+      uniqueTotalStudents.add(s.name.trim().toLowerCase());
+    }
   });
   visibleClasses.forEach(c => {
     if (c && c.students && Array.isArray(c.students)) {
       c.students.forEach(n => {
-        if (n) uniqueTotalStudents.add(n.trim().toLowerCase());
+        if (n && typeof n === 'string') {
+          uniqueTotalStudents.add(n.trim().toLowerCase());
+        }
       });
     }
   });

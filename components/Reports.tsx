@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config } from '../types';
@@ -39,6 +38,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
+  // Alunos Únicos consideram o HISTÓRICO GLOBAL (Ignoram filtro de data do relatório)
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
     
@@ -52,13 +52,17 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     );
 
     fullStudies.forEach(item => { 
-      if (item.name && item.name.trim()) allStudentsSet.add(item.name.trim().toLowerCase()); 
+      if (item.name && typeof item.name === 'string' && item.name.trim()) {
+        allStudentsSet.add(item.name.trim().toLowerCase()); 
+      }
     });
     
     fullClasses.forEach(item => { 
       if (item.students && Array.isArray(item.students)) { 
         item.students.forEach(name => { 
-          if (name && name.trim()) allStudentsSet.add(name.trim().toLowerCase()); 
+          if (name && typeof name === 'string' && name.trim()) {
+            allStudentsSet.add(name.trim().toLowerCase()); 
+          }
         }); 
       } 
     });
