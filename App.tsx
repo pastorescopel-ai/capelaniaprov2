@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -61,11 +60,11 @@ const App: React.FC = () => {
         const localLists = syncService.getLocal<MasterLists>('masterLists');
         const localConfig = syncService.getLocal<Config>('config');
 
-        if (localUsers) setUsers(localUsers);
-        if (localStudies) setBibleStudies(localStudies);
-        if (localClasses) setBibleClasses(localClasses);
-        if (localGroups) setSmallGroups(localGroups);
-        if (localVisits) setStaffVisits(localVisits);
+        if (localUsers && Array.isArray(localUsers)) setUsers(localUsers);
+        if (localStudies && Array.isArray(localStudies)) setBibleStudies(localStudies);
+        if (localClasses && Array.isArray(localClasses)) setBibleClasses(localClasses);
+        if (localGroups && Array.isArray(localGroups)) setSmallGroups(localGroups);
+        if (localVisits && Array.isArray(localVisits)) setStaffVisits(localVisits);
         if (localLists) setMasterLists(prev => ({ ...prev, ...localLists }));
         if (localConfig) setConfig(applySystemOverrides(localConfig));
 
@@ -227,8 +226,8 @@ const App: React.FC = () => {
 
   const getVisibleHistory = (list: any[]) => {
     if (!currentUser) return [];
-    if (currentUser.role === UserRole.ADMIN) return list.filter(item => item.unit === currentUnit);
-    return list.filter(item => item.unit === currentUnit && item.userId === currentUser.id);
+    if (currentUser.role === UserRole.ADMIN) return list.filter(item => item && item.unit === currentUnit);
+    return list.filter(item => item && item.unit === currentUnit && item.userId === currentUser.id);
   };
 
   if (!isAuthenticated || !currentUser) {
@@ -306,14 +305,14 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {activeTab === 'dashboard' && <Dashboard studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} currentUser={currentUser} config={config} onGoToTab={setActiveTab} onUpdateConfig={c => {setConfig(c); saveToCloud({config: c});}} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
+        {activeTab === 'dashboard' && currentUser && <Dashboard studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} currentUser={currentUser} config={config} onGoToTab={setActiveTab} onUpdateConfig={c => {setConfig(c); saveToCloud({config: c});}} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
         {activeTab === 'bibleStudy' && <BibleStudyForm editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleStudies).slice(0, 15)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} />}
         {activeTab === 'bibleClass' && <BibleClassForm editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleClasses).slice(0, 15)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} />}
         {activeTab === 'smallGroup' && <SmallGroupForm groupsList={currentUnit === Unit.HAB ? masterLists.groupsHAB : masterLists.groupsHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(smallGroups).slice(0, 15)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />}
         {activeTab === 'staffVisit' && <StaffVisitForm onToggleReturn={id => { const up = staffVisits.map(x=>x.id===id?{...x, returnCompleted: !x.returnCompleted}:x); setStaffVisits(up); saveToCloud({staffVisits: up}); }} staffList={currentUnit === Unit.HAB ? masterLists.staffHAB : masterLists.staffHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(staffVisits).slice(0, 15)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />}
         {activeTab === 'reports' && <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} config={config} onRefresh={loadFromCloud} />}
         {activeTab === 'users' && <UserManagement users={users} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
-        {activeTab === 'profile' && <Profile user={currentUser} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
+        {activeTab === 'profile' && currentUser && <Profile user={currentUser} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
         {activeTab === 'admin' && <AdminPanel config={config} masterLists={masterLists} users={users} onUpdateConfig={async c => { setConfig(c); await saveToCloud({ config: c }); }} onUpdateLists={async l => { setMasterLists(l); await saveToCloud({ masterLists: l }); }} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
       </div>
     </Layout>

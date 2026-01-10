@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole, Config, RecordStatus } from '../types';
@@ -17,21 +16,17 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits, currentUser, config, onGoToTab, onUpdateConfig, onUpdateUser }) => {
   const [isEditingMural, setIsEditingMural] = useState(false);
-  const [muralDraft, setMuralDraft] = useState(config.muralText);
+  const [muralDraft, setMuralDraft] = useState(config?.muralText || "");
 
-  // Filtros de dados: No Dashboard, mostramos apenas os totais do PRÓPRIO usuário (Capelão ou Admin)
-  // O Admin pode ver o consolidado geral na aba "Relatórios"
-  const visibleStudies = studies.filter(s => s.userId === currentUser.id);
-  const visibleClasses = classes.filter(c => c.userId === currentUser.id);
-  const visibleGroups = groups.filter(g => g.userId === currentUser.id);
-  const visibleVisits = visits.filter(v => v.userId === currentUser.id);
+  // Filtros de dados protegidos contra nulos
+  const visibleStudies = (studies || []).filter(s => s && s.userId === currentUser?.id);
+  const visibleClasses = (classes || []).filter(c => c && c.userId === currentUser?.id);
+  const visibleGroups = (groups || []).filter(g => g && g.userId === currentUser?.id);
+  const visibleVisits = (visits || []).filter(v => v && v.userId === currentUser?.id);
 
   const today = new Date().toISOString().split('T')[0];
 
-  // Retornos pendentes do usuário logado
   const pendingReturns = visibleVisits.filter(v => v.requiresReturn && !v.returnCompleted);
-  
-  // Retornos específicos para HOJE do usuário logado
   const todaysReturns = visibleVisits.filter(v => 
     v.requiresReturn && 
     !v.returnCompleted && 
@@ -39,8 +34,16 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
   );
 
   const uniqueTotalStudents = new Set<string>();
-  visibleStudies.forEach(s => uniqueTotalStudents.add(s.name.trim().toLowerCase()));
-  visibleClasses.forEach(c => c.students.forEach(n => uniqueTotalStudents.add(n.trim().toLowerCase())));
+  visibleStudies.forEach(s => {
+    if (s && s.name) uniqueTotalStudents.add(s.name.trim().toLowerCase());
+  });
+  visibleClasses.forEach(c => {
+    if (c && c.students && Array.isArray(c.students)) {
+      c.students.forEach(n => {
+        if (n) uniqueTotalStudents.add(n.trim().toLowerCase());
+      });
+    }
+  });
 
   const totalActions = visibleStudies.length + visibleClasses.length + visibleGroups.length + visibleVisits.length;
 
@@ -56,9 +59,10 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
     setIsEditingMural(false);
   };
 
+  if (!currentUser) return null;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-24">
-      {/* Saudação Superior */}
       <header className="flex items-center justify-between bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
         <div className="flex items-center gap-4 w-full">
           <div className="w-12 h-12 bg-[#005a9c] rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-blue-100">
@@ -79,7 +83,6 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
         </div>
       </header>
 
-      {/* Alerta de Retornos para HOJE */}
       {todaysReturns.length > 0 && (
         <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-[2.5rem] flex items-center justify-between shadow-xl shadow-amber-100/20 group animate-bounce">
           <div className="flex items-center gap-5">
@@ -100,7 +103,6 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
         </div>
       )}
 
-      {/* Notificação de Retornos Pendentes Gerais do Usuário */}
       {pendingReturns.length > 0 && todaysReturns.length === 0 && (
         <div 
           onClick={() => onGoToTab('staffVisit')}
@@ -121,7 +123,6 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
         </div>
       )}
 
-      {/* Mural de Avisos */}
       <section className="bg-[#005a9c] p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
         <div className="relative z-10 space-y-4">
@@ -151,13 +152,12 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
             </div>
           ) : (
             <p className="text-white/90 leading-relaxed font-medium text-base italic">
-              "{config.muralText || "Nenhum comunicado oficial registrado."}"
+              "{config?.muralText || "Nenhum comunicado oficial registrado."}"
             </p>
           )}
         </div>
       </section>
 
-      {/* Cards de Estatísticas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {stats.map((stat) => (
           <div key={stat.label} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center text-center group hover:scale-[1.02] transition-all">
@@ -185,7 +185,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 800}} />
               <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '1.5rem', border: 'none'}} />
               <Bar dataKey="val" radius={[10, 10, 0, 0]} barSize={40}>
-                <Cell fill="#3b82f6" /><Cell fill="#6366f1" /><Cell fill="#10b981" /><Cell fill="#f43f5e" />
+                { [1,2,3,4].map((_, i) => <Cell key={i} fill={['#3b82f6', '#6366f1', '#10b981', '#f43f5e'][i]} />) }
               </Bar>
             </BarChart>
           </ResponsiveContainer>
