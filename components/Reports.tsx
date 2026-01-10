@@ -297,11 +297,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       )}
 
       {showPdfPreview && (
-        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[800] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[800] flex items-center justify-center p-4 overflow-y-auto">
           <style>
             {`
               @media print {
-                /* RESET TOTAL DA PÁGINA PARA O NAVEGADOR */
+                /* REGRAS GLOBAIS DE RESET PARA IMPRESSORA */
                 @page { 
                   size: A4; 
                   margin: 0 !important; 
@@ -315,53 +315,43 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   background: white !important;
                 }
 
-                /* ESCONDE TUDO O QUE NÃO É O MODAL DO PDF */
-                body > *:not(#pdf-modal-root) {
+                /* ESCONDE A ESTRUTURA ROOT DO APP PARA NÃO GERAR PÁGINAS EM BRANCO */
+                #root, body > div:not(#pdf-printer-portal) {
                   display: none !important;
                 }
 
-                #root {
-                  display: none !important;
-                }
-
-                /* CONFIGURAÇÃO DO CONTAINER DE IMPRESSÃO */
-                #pdf-modal-root {
+                /* RECONSTRÓI O MODAL COMO PÁGINA ÚNICA */
+                #pdf-printer-portal {
                   position: absolute !important;
                   top: 0 !important;
                   left: 0 !important;
                   width: 100% !important;
-                  height: auto !important;
                   margin: 0 !important;
                   padding: 0 !important;
-                  background: white !important;
                   display: block !important;
                   visibility: visible !important;
-                }
-
-                #pdf-content {
-                  width: 210mm !important; /* Largura A4 */
-                  min-height: 297mm !important; /* Altura A4 */
-                  margin: 0 auto !important;
-                  padding: 10mm !important;
                   background: white !important;
-                  box-sizing: border-box !important;
-                  display: flex !important;
-                  flex-direction: column !important;
-                  visibility: visible !important;
                   box-shadow: none !important;
                 }
 
-                /* Garante que elementos filhos sejam visíveis */
+                #pdf-content {
+                  width: 210mm !important;
+                  min-height: 297mm !important;
+                  margin: 0 auto !important;
+                  padding: 10mm !important;
+                  visibility: visible !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  background: white !important;
+                  box-sizing: border-box !important;
+                }
+
+                /* GARANTIA DE ELEMENTOS FILHOS VISÍVEIS */
                 #pdf-content * {
                   visibility: visible !important;
                 }
 
-                /* ESCONDER BOTÕES DE PREVIEW */
-                .no-print {
-                  display: none !important;
-                }
-
-                /* CORREÇÃO DE CORES DAS BARRAS AZUIS */
+                /* FORÇAR CORES AZUIS NAS BARRAS E TABELAS */
                 * {
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
@@ -370,6 +360,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
                 .bg-\\[\\#005a9c\\] {
                   background-color: #005a9c !important;
+                  border-color: #005a9c !important;
                 }
 
                 table thead tr {
@@ -379,35 +370,36 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 table thead th {
                   color: white !important;
                   background-color: #005a9c !important;
-                  border: none !important;
                 }
 
-                /* Ajustes de Gráficos na Impressão */
-                .recharts-responsive-container {
-                  width: 100% !important;
-                  height: auto !important;
-                  min-height: 150px !important;
+                /* OCULTAR BOTÕES DE INTERFACE NO PDF */
+                .no-print {
+                  display: none !important;
+                }
+
+                /* REMOVER ROLAGENS INTERNAS NA IMPRESSÃO */
+                .overflow-y-auto {
+                   overflow: visible !important;
+                   max-height: none !important;
                 }
               }
             `}
           </style>
 
-          <div id="pdf-modal-root" className="bg-white w-full max-w-5xl h-[95vh] rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
+          <div id="pdf-printer-portal" className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
               <div className="flex items-center gap-3">
-                <i className="fas fa-file-pdf text-[#005a9c] text-xl"></i>
-                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Visualização do Relatório</h2>
+                <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
+                  <i className="fas fa-file-pdf"></i>
+                </div>
+                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Preview de Impressão</h2>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => window.print()} className="px-6 py-3 bg-[#005a9c] text-white font-black rounded-xl shadow-lg flex items-center gap-2 uppercase text-[10px] tracking-widest active:scale-95">
-                  <i className="fas fa-print"></i> Imprimir / Salvar
-                </button>
-                <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all">
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
+              <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all">
+                <i className="fas fa-times"></i>
+              </button>
             </div>
-            <div className="flex-1 overflow-y-auto bg-slate-100 p-10 no-scrollbar">
+
+            <div className="flex-1 bg-slate-100 p-6 md:p-10 overflow-y-auto no-scrollbar">
               <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[10mm] flex flex-col gap-4 text-slate-900">
                 <header className="relative flex items-start border-b-4 border-[#005a9c] pb-4 min-h-[120px]" style={{ paddingTop: `${config.headerPaddingTop}px` }}>
                   {config.reportLogo && (
@@ -555,9 +547,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </footer>
               </div>
             </div>
+
             <div className="p-8 bg-white border-t border-slate-100 flex justify-end no-print gap-4">
               <button onClick={() => setShowPdfPreview(false)} className="px-10 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all">Fechar Preview</button>
-              <button onClick={() => window.print()} className="px-12 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Imprimir Agora</button>
+              <button onClick={() => window.print()} className="px-12 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">
+                <i className="fas fa-print mr-2"></i> Imprimir Agora
+              </button>
             </div>
           </div>
         </div>
