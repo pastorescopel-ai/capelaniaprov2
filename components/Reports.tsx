@@ -174,31 +174,37 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const activeDetails = useMemo(() => {
     if (!selectedDetailUser) return { items: [] };
     
-    const studyMap: Record<string, any> = {};
+    const studyMap: Record<string, BibleStudy> = {};
     (studies || []).forEach(s => {
-      if (s.userId === selectedDetailUser.id) {
-        const key = (s && typeof s.name === 'string') ? s.name.trim().toLowerCase() : (s?.id || Math.random().toString());
+      if (s.userId === selectedDetailUser.id && s.name && typeof s.name === 'string') {
+        const key = s.name.trim().toLowerCase();
         if (!studyMap[key] || s.createdAt > studyMap[key].createdAt) {
-          studyMap[key] = { ...s, type: 'study' };
+          studyMap[key] = s;
         }
       }
     });
 
-    const classMap: Record<string, any> = {};
+    const classMap: Record<string, BibleClass> = {};
     (classes || []).forEach(c => {
       if (c.userId === selectedDetailUser.id) {
         const key = `${c.guide || ""}-${c.sector || ""}`.trim().toLowerCase();
         if (!classMap[key] || c.createdAt > classMap[key].createdAt) {
-          classMap[key] = { ...c, type: 'class' };
+          classMap[key] = c;
         }
       }
     });
 
-    const activeStudies = Object.values(studyMap).filter((s: any) => s.status !== RecordStatus.TERMINO);
-    const activeClasses = Object.values(classMap).filter((c: any) => c.status !== RecordStatus.TERMINO);
+    // Filtra removendo o que já está com status de Término no registro mais recente
+    const activeStudies = Object.values(studyMap)
+      .filter(s => s.status !== RecordStatus.TERMINO)
+      .map(s => ({ ...s, type: 'study' }));
+
+    const activeClasses = Object.values(classMap)
+      .filter(c => c.status !== RecordStatus.TERMINO)
+      .map(c => ({ ...c, type: 'class' }));
 
     const combined = [...activeStudies, ...activeClasses]
-      .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
     return {
       items: combined
