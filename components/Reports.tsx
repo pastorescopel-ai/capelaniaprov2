@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config } from '../types';
 
 interface ReportsProps {
@@ -44,7 +44,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // Estatísticas de Alunos Únicos e Totais de Ação
   const totalStats = useMemo(() => {
     const uniqueStudents = new Set<string>();
     
@@ -81,7 +80,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       uStudies.forEach(s => { if (s.name) uniqueNames.add(s.name.trim().toLowerCase()); });
       uClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
 
-      // Dados específicos por unidade para as tabelas do PDF
       const getUnitStats = (unit: Unit) => {
           const unitStudies = uStudies.filter(s => s.unit === unit);
           const unitClasses = uClasses.filter(c => c.unit === unit);
@@ -122,7 +120,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     }).sort((a, b) => b.totalActions - a.totalActions);
   }, [users, filteredData, selectedChaplain]);
 
-  // Detalhes do Modal - Exibe apenas quem NÃO finalizou
   const activeDetails = useMemo(() => {
     if (!selectedDetailUser) return { items: [] };
     
@@ -137,7 +134,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     return { items };
   }, [filteredData, selectedDetailUser]);
 
-  // Dados para os gráficos do PDF
   const activityPieData = [
     { name: 'Estudos', value: totalStats.studies, color: '#3b82f6' },
     { name: 'Classes', value: totalStats.classes, color: '#6366f1' },
@@ -324,9 +320,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   box-shadow: none !important;
                   margin: 0 auto !important;
                   border: none !important;
-                  padding: 15mm !important;
+                  padding: 10mm !important;
                   width: 210mm !important;
-                  min-height: 297mm !important;
+                  height: 297mm !important;
+                  max-height: 297mm !important;
+                  overflow: hidden !important;
+                  box-sizing: border-box !important;
                 }
                 .recharts-responsive-container { min-width: 100% !important; }
               }
@@ -339,33 +338,32 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500"><i className="fas fa-times"></i></button>
             </div>
             <div className="flex-1 overflow-y-auto bg-slate-100 p-10 no-scrollbar">
-              <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-8 text-slate-900">
-                <header className="relative flex items-start border-b-4 border-[#005a9c] pb-8 min-h-[140px]" style={{ paddingTop: `${config.headerPaddingTop}px` }}>
+              <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[10mm] flex flex-col gap-4 text-slate-900">
+                <header className="relative flex items-start border-b-4 border-[#005a9c] pb-4 min-h-[120px]" style={{ paddingTop: `${config.headerPaddingTop}px` }}>
                   {config.reportLogo && <div className="absolute" style={{ left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px` }}><img src={config.reportLogo} style={{ width: `${config.reportLogoWidth}px`, height: 'auto' }} alt="Logo" /></div>}
                   <div className="w-full" style={{ textAlign: config.headerTextAlign }}>
                     <h1 style={{fontSize: `${config.fontSize1}px`, color: '#005a9c'}} className="font-black uppercase leading-none">{config.headerLine1}</h1>
-                    <h2 style={{fontSize: `${config.fontSize2}px`}} className="font-bold text-slate-600 uppercase mt-4">{config.headerLine2}</h2>
-                    <p className="text-[10px] font-bold mt-2">Período: {startDate.split('-').reverse().join('/')} até {endDate.split('-').reverse().join('/')}</p>
-                    <p className="text-[9px] font-bold text-blue-600 mt-1 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
+                    <h2 style={{fontSize: `${config.fontSize2}px`}} className="font-bold text-slate-600 uppercase mt-2">{config.headerLine2}</h2>
+                    <p className="text-[10px] font-bold mt-1">Período: {startDate.split('-').reverse().join('/')} até {endDate.split('-').reverse().join('/')}</p>
+                    <p className="text-[9px] font-bold text-blue-600 mt-0.5 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
                   </div>
                 </header>
 
-                <section className="space-y-6">
-                  {/* TABELA HAB */}
+                <section className="space-y-4">
                   {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
                     <div>
-                      <h3 className="text-xs font-black uppercase text-[#005a9c] mb-3 border-b border-slate-100 pb-1 italic">Resumo de Atividades por Capelão - Unidade HAB</h3>
-                      <table className="w-full text-left text-[8px] border-collapse shadow-sm mb-4">
-                        <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-1.5">Capelão</th><th className="p-1.5 text-center">Total Estudantes</th><th className="p-1.5 text-center">Estudos</th><th className="p-1.5 text-center">Classes</th><th className="p-1.5 text-center">PGs</th><th className="p-1.5 text-center">Visitas</th></tr></thead>
+                      <h3 className="text-[10px] font-black uppercase text-[#005a9c] mb-2 border-b border-slate-100 pb-0.5 italic">Resumo de Atividades por Capelão - Unidade HAB</h3>
+                      <table className="w-full text-left text-[7px] border-collapse shadow-sm mb-2">
+                        <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-1">Capelão</th><th className="p-1 text-center">Total Estudantes</th><th className="p-1 text-center">Estudos</th><th className="p-1 text-center">Classes</th><th className="p-1 text-center">PGs</th><th className="p-1 text-center">Visitas</th></tr></thead>
                         <tbody className="divide-y divide-slate-100">
                           {chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
                             <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                              <td className="p-1.5 font-bold text-slate-700">{stat.name}</td>
-                              <td className="p-1.5 text-center font-bold text-slate-800">{stat.hab.students}</td>
-                              <td className="p-1.5 text-center font-bold text-blue-600">{stat.hab.studies}</td>
-                              <td className="p-1.5 text-center font-bold text-indigo-600">{stat.hab.classes}</td>
-                              <td className="p-1.5 text-center font-bold text-emerald-600">{stat.hab.groups}</td>
-                              <td className="p-1.5 text-center font-bold text-rose-600">{stat.hab.visits}</td>
+                              <td className="p-1 font-bold text-slate-700">{stat.name}</td>
+                              <td className="p-1 text-center font-bold text-slate-800">{stat.hab.students}</td>
+                              <td className="p-1 text-center font-bold text-blue-600">{stat.hab.studies}</td>
+                              <td className="p-1 text-center font-bold text-indigo-600">{stat.hab.classes}</td>
+                              <td className="p-1 text-center font-bold text-emerald-600">{stat.hab.groups}</td>
+                              <td className="p-1 text-center font-bold text-rose-600">{stat.hab.visits}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -373,21 +371,20 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     </div>
                   )}
 
-                  {/* TABELA HABA */}
                   {(selectedUnit === 'all' || selectedUnit === Unit.HABA) && (
                     <div>
-                      <h3 className="text-xs font-black uppercase text-[#005a9c] mb-3 border-b border-slate-100 pb-1 italic">Resumo de Atividades por Capelão - Unidade HABA</h3>
-                      <table className="w-full text-left text-[8px] border-collapse shadow-sm">
-                        <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-1.5">Capelão</th><th className="p-1.5 text-center">Total Estudantes</th><th className="p-1.5 text-center">Estudos</th><th className="p-1.5 text-center">Classes</th><th className="p-1.5 text-center">PGs</th><th className="p-1.5 text-center">Visitas</th></tr></thead>
+                      <h3 className="text-[10px] font-black uppercase text-[#005a9c] mb-2 border-b border-slate-100 pb-0.5 italic">Resumo de Atividades por Capelão - Unidade HABA</h3>
+                      <table className="w-full text-left text-[7px] border-collapse shadow-sm">
+                        <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-1">Capelão</th><th className="p-1 text-center">Total Estudantes</th><th className="p-1 text-center">Estudos</th><th className="p-1 text-center">Classes</th><th className="p-1 text-center">PGs</th><th className="p-1 text-center">Visitas</th></tr></thead>
                         <tbody className="divide-y divide-slate-100">
                           {chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
                             <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                              <td className="p-1.5 font-bold text-slate-700">{stat.name}</td>
-                              <td className="p-1.5 text-center font-bold text-slate-800">{stat.haba.students}</td>
-                              <td className="p-1.5 text-center font-bold text-blue-600">{stat.haba.studies}</td>
-                              <td className="p-1.5 text-center font-bold text-indigo-600">{stat.haba.classes}</td>
-                              <td className="p-1.5 text-center font-bold text-emerald-600">{stat.haba.groups}</td>
-                              <td className="p-1.5 text-center font-bold text-rose-600">{stat.haba.visits}</td>
+                              <td className="p-1 font-bold text-slate-700">{stat.name}</td>
+                              <td className="p-1 text-center font-bold text-slate-800">{stat.haba.students}</td>
+                              <td className="p-1 text-center font-bold text-blue-600">{stat.haba.studies}</td>
+                              <td className="p-1 text-center font-bold text-indigo-600">{stat.haba.classes}</td>
+                              <td className="p-1 text-center font-bold text-emerald-600">{stat.haba.groups}</td>
+                              <td className="p-1 text-center font-bold text-rose-600">{stat.haba.visits}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -396,59 +393,71 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   )}
                 </section>
 
-                <section className="grid grid-cols-2 gap-8 mt-4">
-                  <div>
-                    <h3 className="text-[10px] font-black uppercase text-slate-500 mb-4 text-center">Distribuição de Atividades</h3>
-                    <div className="h-[200px] w-full flex items-center justify-center">
-                      <PieChart width={300} height={200}>
+                <section className="flex flex-col items-center gap-4 mt-2">
+                  <div className="w-full max-w-md mx-auto">
+                    <h3 className="text-[9px] font-black uppercase text-slate-500 mb-2 text-center">Distribuição de Atividades</h3>
+                    <div className="h-[120px] w-full flex items-center justify-center">
+                      <PieChart width={350} height={120}>
                         <Pie
                           data={activityPieData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={40}
-                          outerRadius={70}
-                          paddingAngle={5}
+                          innerRadius={30}
+                          outerRadius={50}
+                          paddingAngle={3}
                           dataKey="value"
                           isAnimationActive={false}
+                          label={({ name, value }) => `${name}: ${value}`}
+                          labelLine={true}
                         >
                           {activityPieData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
                         <Tooltip isAnimationActive={false} />
-                        <Legend wrapperStyle={{fontSize: '9px', fontWeight: 'bold'}} />
+                        <Legend wrapperStyle={{fontSize: '7px', fontWeight: 'bold'}} verticalAlign="bottom" align="center" />
                       </PieChart>
                     </div>
                   </div>
-                  <div>
-                    <h3 className="text-[10px] font-black uppercase text-slate-500 mb-4 text-center">Desempenho da Equipe</h3>
-                    <div className="h-[240px] w-full">
+                  <div className="w-full max-w-2xl mx-auto">
+                    <h3 className="text-[9px] font-black uppercase text-slate-500 mb-2 text-center">Desempenho da Equipe</h3>
+                    <div className="h-[150px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chaplainStats} margin={{top: 5, right: 10, left: -20, bottom: 5}}>
-                          <XAxis dataKey="name" tick={{fontSize: 7, fontWeight: 'bold'}} interval={0} axisLine={false} tickLine={false} />
-                          <YAxis tick={{fontSize: 7}} axisLine={false} tickLine={false} />
-                          <Tooltip isAnimationActive={false} contentStyle={{borderRadius: '8px', fontSize: '10px'}} />
-                          <Legend verticalAlign="bottom" wrapperStyle={{fontSize: '7px', fontWeight: 'bold', paddingTop: '10px'}} iconSize={8} />
-                          <Bar dataKey="students" name="Alunos" fill="#005a9c" radius={[2, 2, 0, 0]} isAnimationActive={false} />
-                          <Bar dataKey="studies" name="Estudos" fill="#3b82f6" radius={[2, 2, 0, 0]} isAnimationActive={false} />
-                          <Bar dataKey="classes" name="Classes" fill="#6366f1" radius={[2, 2, 0, 0]} isAnimationActive={false} />
-                          <Bar dataKey="groups" name="PGs" fill="#10b981" radius={[2, 2, 0, 0]} isAnimationActive={false} />
-                          <Bar dataKey="visits" name="Visitas" fill="#f43f5e" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                        <BarChart data={chaplainStats} margin={{top: 20, right: 10, left: -20, bottom: 5}}>
+                          <XAxis dataKey="name" tick={{fontSize: 6, fontWeight: 'bold'}} interval={0} axisLine={false} tickLine={false} />
+                          <YAxis tick={{fontSize: 6}} axisLine={false} tickLine={false} />
+                          <Tooltip isAnimationActive={false} contentStyle={{borderRadius: '8px', fontSize: '8px'}} />
+                          <Legend verticalAlign="bottom" wrapperStyle={{fontSize: '6px', fontWeight: 'bold', paddingTop: '5px'}} iconSize={6} />
+                          <Bar dataKey="students" name="Alunos" fill="#005a9c" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                            <LabelList dataKey="students" position="top" style={{fontSize: '6px', fontWeight: 'bold', fill: '#005a9c'}} />
+                          </Bar>
+                          <Bar dataKey="studies" name="Estudos" fill="#3b82f6" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                            <LabelList dataKey="studies" position="top" style={{fontSize: '6px', fontWeight: 'bold', fill: '#3b82f6'}} />
+                          </Bar>
+                          <Bar dataKey="classes" name="Classes" fill="#6366f1" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                            <LabelList dataKey="classes" position="top" style={{fontSize: '6px', fontWeight: 'bold', fill: '#6366f1'}} />
+                          </Bar>
+                          <Bar dataKey="groups" name="PGs" fill="#10b981" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                            <LabelList dataKey="groups" position="top" style={{fontSize: '6px', fontWeight: 'bold', fill: '#10b981'}} />
+                          </Bar>
+                          <Bar dataKey="visits" name="Visitas" fill="#f43f5e" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                            <LabelList dataKey="visits" position="top" style={{fontSize: '6px', fontWeight: 'bold', fill: '#f43f5e'}} />
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
                 </section>
 
-                <div className="mt-auto grid grid-cols-5 gap-3 border-t border-slate-200 pt-6">
-                    <div className="bg-[#005a9c] p-3 rounded-xl text-center text-white shadow-sm"><p className="text-[7px] font-black text-white/70 uppercase">Total Estudantes</p><p className="text-xl font-black">{totalStats.totalStudents}</p></div>
-                    <div className="bg-slate-50 p-3 rounded-xl text-center border border-slate-100"><p className="text-[7px] font-black text-slate-400 uppercase">Estudos Bíblicos</p><p className="text-xl font-black text-blue-600">{totalStats.studies}</p></div>
-                    <div className="bg-slate-50 p-3 rounded-xl text-center border border-slate-100"><p className="text-[7px] font-black text-slate-400 uppercase">Classes Bíblicas</p><p className="text-xl font-black text-indigo-600">{totalStats.classes}</p></div>
-                    <div className="bg-slate-50 p-3 rounded-xl text-center border border-slate-100"><p className="text-[7px] font-black text-slate-400 uppercase">PGs Assistidos</p><p className="text-xl font-black text-emerald-600">{totalStats.groups}</p></div>
-                    <div className="bg-slate-50 p-3 rounded-xl text-center border border-slate-100"><p className="text-[7px] font-black text-slate-400 uppercase">Visitas Colab.</p><p className="text-xl font-black text-rose-600">{totalStats.visits}</p></div>
+                <div className="mt-auto grid grid-cols-5 gap-2 border-t border-slate-200 pt-4">
+                    <div className="bg-[#005a9c] p-2 rounded-xl text-center text-white shadow-sm"><p className="text-[6px] font-black text-white/70 uppercase">Total Estudantes</p><p className="text-base font-black">{totalStats.totalStudents}</p></div>
+                    <div className="bg-slate-50 p-2 rounded-xl text-center border border-slate-100"><p className="text-[6px] font-black text-slate-400 uppercase">Estudos Bíblicos</p><p className="text-base font-black text-blue-600">{totalStats.studies}</p></div>
+                    <div className="bg-slate-50 p-2 rounded-xl text-center border border-slate-100"><p className="text-[6px] font-black text-slate-400 uppercase">Classes Bíblicas</p><p className="text-base font-black text-indigo-600">{totalStats.classes}</p></div>
+                    <div className="bg-slate-50 p-2 rounded-xl text-center border border-slate-100"><p className="text-[6px] font-black text-slate-400 uppercase">PGs Assistidos</p><p className="text-base font-black text-emerald-600">{totalStats.groups}</p></div>
+                    <div className="bg-slate-50 p-2 rounded-xl text-center border border-slate-100"><p className="text-[6px] font-black text-slate-400 uppercase">Visitas Colab.</p><p className="text-base font-black text-rose-600">{totalStats.visits}</p></div>
                 </div>
 
-                <footer className="mt-4 border-t border-slate-100 pt-2 flex justify-between text-[7px] font-bold text-slate-300 uppercase italic">
+                <footer className="mt-2 border-t border-slate-100 pt-1 flex justify-between text-[6px] font-bold text-slate-300 uppercase italic">
                   <span>Gerado eletronicamente em: {new Date().toLocaleString('pt-BR')}</span>
                   <span>Sistema Capelania Pro - Gestão Eficiente</span>
                 </footer>
