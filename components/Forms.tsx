@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Unit, RecordStatus, VisitReason, BibleStudy, BibleClass, SmallGroup, StaffVisit, UserRole } from '../types';
+import { Unit, RecordStatus, VisitReason, BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole } from '../types';
 import { STATUS_OPTIONS, VISIT_REASONS } from '../constants';
 
 interface FormProps {
@@ -7,6 +7,7 @@ interface FormProps {
   sectors: string[];
   groupsList?: string[];
   staffList?: string[];
+  users: User[];
   history: any[];
   allHistory?: any[]; 
   editingItem?: any;
@@ -38,7 +39,6 @@ const Autocomplete: React.FC<{ options: string[], value: string, onChange: (v: s
         onChange={(e) => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onBlur={() => {
-           // Pequeno delay para permitir que o onMouseDown da opção seja processado
            setTimeout(() => {
              setOpen(false);
              if (isStrict && value && !options.includes(value)) {
@@ -56,7 +56,6 @@ const Autocomplete: React.FC<{ options: string[], value: string, onChange: (v: s
               type="button" 
               className="w-full text-left p-4 hover:bg-slate-50 text-sm font-bold text-slate-700 transition-colors border-b border-slate-50 last:border-none" 
               onMouseDown={(e) => { 
-                // Usamos onMouseDown porque ele ocorre antes do onBlur do input
                 e.preventDefault(); 
                 onChange(o); 
                 setOpen(false); 
@@ -76,17 +75,22 @@ const HistoryCard: React.FC<{
   color: string, 
   title: string, 
   subtitle: string, 
+  chaplainName: string,
   onEdit: () => void, 
   onDelete: () => void, 
   extra?: React.ReactNode,
   middle?: React.ReactNode 
-}> = ({ icon, color, title, subtitle, onEdit, onDelete, extra, middle }) => (
+}> = ({ icon, color, title, subtitle, chaplainName, onEdit, onDelete, extra, middle }) => (
   <div className="bg-white p-5 md:p-6 rounded-[2.5rem] border border-slate-100 flex flex-col md:flex-row md:items-center justify-between shadow-sm hover:border-blue-200 transition-all group gap-4">
     <div className="flex items-center gap-4 flex-1">
       <div className={`w-12 h-12 ${color} bg-opacity-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0`}>{icon}</div>
       <div className="min-w-0">
         <h4 className="font-bold text-slate-800 leading-tight truncate">{title}</h4>
         <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none mt-1 truncate">{subtitle}</p>
+        <div className="flex items-center gap-1 mt-1">
+           <i className="fas fa-user-tie text-[8px] text-blue-400"></i>
+           <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tighter">Capelão: {chaplainName}</span>
+        </div>
       </div>
     </div>
     
@@ -106,7 +110,7 @@ const HistoryCard: React.FC<{
   </div>
 );
 
-export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, history, allHistory, editingItem, onSubmit, onDelete, onEdit }) => {
+export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, history, allHistory, editingItem, onSubmit, onDelete, onEdit }) => {
   const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
   const [showContinuity, setShowContinuity] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -196,6 +200,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, history, al
             color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-blue-600"} 
             title={item.name} 
             subtitle={`${item.sector} • ${item.lesson} • ${item.status}`} 
+            chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
             onEdit={() => onEdit?.(item)} 
             onDelete={() => onDelete(item.id)} 
             extra={item.status === RecordStatus.TERMINO && <span className="text-[8px] bg-rose-50 text-rose-600 px-2 py-1 rounded-lg font-black uppercase">Terminado</span>}
@@ -206,7 +211,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, history, al
   );
 };
 
-export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, history, allHistory, editingItem, onSubmit, onDelete, onEdit }) => {
+export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, history, allHistory, editingItem, onSubmit, onDelete, onEdit }) => {
   const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' });
   const [newStudent, setNewStudent] = useState('');
   const [showClassSearch, setShowClassSearch] = useState(false);
@@ -311,6 +316,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, history, al
             color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-indigo-600"} 
             title={item.lesson || 'Classe Bíblica'} 
             subtitle={`${item.sector} • ${item.students.length} alunos • ${item.status}`} 
+            chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
             onEdit={() => onEdit?.(item)} 
             onDelete={() => onDelete(item.id)} 
             extra={item.status === RecordStatus.TERMINO && <span className="text-[8px] bg-rose-50 text-rose-600 px-2 py-1 rounded-lg font-black uppercase">Terminado</span>}
@@ -321,7 +327,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, history, al
   );
 };
 
-export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, groupsList = [], history, editingItem, onSubmit, onDelete, onEdit }) => {
+export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, groupsList = [], history, editingItem, onSubmit, onDelete, onEdit }) => {
   const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' });
   useEffect(() => {
     if (editingItem) setFormData(editingItem);
@@ -335,7 +341,6 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, groupsList 
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local do PG..." /></div>
           
-          {/* Campo Nome do Grupo Restrito à Lista Mestra com busca */}
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Grupo *</label>
             <Autocomplete 
               options={groupsList} 
@@ -355,14 +360,14 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, groupsList 
       <div className="space-y-4">
         <h3 className="text-xl font-black text-slate-800 px-2 uppercase tracking-tight">Histórico Recente</h3>
         {history.map(item => (
-          <HistoryCard key={item.id} icon="🏠" color="text-emerald-600" title={item.groupName} subtitle={`${item.sector} • ${item.participantsCount} participantes`} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} />
+          <HistoryCard key={item.id} icon="🏠" color="text-emerald-600" title={item.groupName} subtitle={`${item.sector} • ${item.participantsCount} participantes`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} />
         ))}
       </div>
     </div>
   );
 };
 
-export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, staffList = [], history, editingItem, onSubmit, onDelete, onEdit, onToggleReturn }) => {
+export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, staffList = [], history, editingItem, onSubmit, onDelete, onEdit, onToggleReturn }) => {
   const [formData, setFormData] = useState({ 
     date: new Date().toISOString().split('T')[0], 
     sector: '', 
@@ -411,7 +416,7 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, staffList =
                 type="date" 
                 value={formData.returnDate} 
                 onChange={e => setFormData({...formData, returnDate: e.target.value})} 
-                className="w-full p-4 rounded-2xl bg-rose-50 border-2 border-rose-100 text-rose-700 font-bold" 
+                className="w-full p-4 rounded-2xl bg-rose border-2 border-rose-100 text-rose-700 font-bold" 
               />
             </div>
           )}
@@ -429,6 +434,7 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, staffList =
             color="text-rose-600" 
             title={item.staffName} 
             subtitle={`${item.sector} • ${item.reason}`} 
+            chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
             onEdit={() => onEdit?.(item)} 
             onDelete={() => onDelete(item.id)} 
             middle={item.requiresReturn && !item.returnCompleted && item.returnDate && (
