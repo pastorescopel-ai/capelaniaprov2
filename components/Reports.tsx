@@ -24,6 +24,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
   const COLORS = ['#3b82f6', '#6366f1', '#10b981', '#f43f5e'];
 
+  // Filtra as atividades por DATA para o volume de trabalho do período
   const filteredData = useMemo(() => {
     const filterFn = (item: any) => {
       const dateMatch = item.date >= startDate && item.date <= endDate;
@@ -39,16 +40,27 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
+  // Calcula estatísticas globais (Alunos Únicos ignoram data para bater com o Dashboard)
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
     
-    filteredData.studies.forEach(item => { 
+    // Para alunos únicos, percorremos o banco COMPLETO respeitando apenas Filtros de Pessoa/Unidade
+    const fullStudies = studies.filter(s => 
+      (selectedChaplain === 'all' || s.userId === selectedChaplain) && 
+      (selectedUnit === 'all' || s.unit === selectedUnit)
+    );
+    const fullClasses = classes.filter(c => 
+      (selectedChaplain === 'all' || c.userId === selectedChaplain) && 
+      (selectedUnit === 'all' || c.unit === selectedUnit)
+    );
+
+    fullStudies.forEach(item => { 
       if (item.name && item.name.trim()) { 
         allStudentsSet.add(item.name.trim().toLowerCase()); 
       } 
     });
     
-    filteredData.classes.forEach(item => { 
+    fullClasses.forEach(item => { 
       if (item.students && Array.isArray(item.students)) { 
         item.students.forEach(name => { 
           if (name && name.trim()) { 
@@ -65,7 +77,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       visits: filteredData.visits.length,
       totalUniqueStudents: allStudentsSet.size
     };
-  }, [filteredData]);
+  }, [filteredData, studies, classes, selectedChaplain, selectedUnit]);
 
   const unitStats = useMemo(() => {
     const getStats = (u: Unit) => {
@@ -75,12 +87,15 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const v = filteredData.visits.filter(x => x.unit === u);
       
       const unitStudentsSet = new Set<string>();
-      s.forEach(item => { if (item.name && item.name.trim()) unitStudentsSet.add(item.name.trim().toLowerCase()); });
-      c.forEach(item => { 
-        if (item.students && Array.isArray(item.students)) {
-          item.students.forEach(n => { if (n && n.trim()) unitStudentsSet.add(n.trim().toLowerCase()); }); 
-        }
-      });
+      // Alunos únicos da unidade (Histórico total)
+      studies.filter(x => x.unit === u && (selectedChaplain === 'all' || x.userId === selectedChaplain))
+        .forEach(item => { if (item.name && item.name.trim()) unitStudentsSet.add(item.name.trim().toLowerCase()); });
+      classes.filter(x => x.unit === u && (selectedChaplain === 'all' || x.userId === selectedChaplain))
+        .forEach(item => { 
+          if (item.students && Array.isArray(item.students)) {
+            item.students.forEach(n => { if (n && n.trim()) unitStudentsSet.add(n.trim().toLowerCase()); }); 
+          }
+        });
       
       return { 
         studies: s.length, 
@@ -91,7 +106,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       };
     };
     return { HAB: getStats(Unit.HAB), HABA: getStats(Unit.HABA) };
-  }, [filteredData]);
+  }, [filteredData, studies, classes, selectedChaplain]);
 
   const chaplainStats = useMemo(() => {
     return users.map(user => {
@@ -101,12 +116,15 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const uVisits = visits.filter(v => v.userId === user.id && v.date >= startDate && v.date <= endDate && (selectedUnit === 'all' || v.unit === selectedUnit));
       
       const studentsSet = new Set<string>();
-      uStudies.forEach(s => { if (s.name && s.name.trim()) studentsSet.add(s.name.trim().toLowerCase()); });
-      uClasses.forEach(c => { 
-        if (c.students && Array.isArray(c.students)) {
-          c.students.forEach(n => { if (n && n.trim()) studentsSet.add(n.trim().toLowerCase()); }); 
-        }
-      });
+      // Alunos únicos deste capelão (Histórico total)
+      studies.filter(s => s.userId === user.id && (selectedUnit === 'all' || s.unit === selectedUnit))
+        .forEach(s => { if (s.name && s.name.trim()) studentsSet.add(s.name.trim().toLowerCase()); });
+      classes.filter(c => c.userId === user.id && (selectedUnit === 'all' || c.unit === selectedUnit))
+        .forEach(c => { 
+          if (c.students && Array.isArray(c.students)) {
+            c.students.forEach(n => { if (n && n.trim()) studentsSet.add(n.trim().toLowerCase()); }); 
+          }
+        });
 
       return { 
         user, 
@@ -118,7 +136,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         visits: uVisits.length, 
         totalActions: uStudies.length + uClasses.length + uGroups.length + uVisits.length 
       };
-    }).filter(s => selectedChaplain === 'all' ? s.totalActions > 0 : s.user.id === selectedChaplain).sort((a, b) => b.totalActions - a.totalActions);
+    }).filter(s => selectedChaplain === 'all' ? s.totalActions > 0 || s.students > 0 : s.user.id === selectedChaplain).sort((a, b) => b.totalActions - a.totalActions);
   }, [users, studies, classes, groups, visits, startDate, endDate, selectedUnit, selectedChaplain]);
 
   const chartData = useMemo(() => {
@@ -199,11 +217,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         <div className="relative z-10 space-y-8 text-center lg:text-left">
           <h2 className="text-3xl font-black tracking-tighter uppercase italic">Total Geral Consolidado</h2>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
-            <div className="bg-white/10 p-6 rounded-3xl border border-white/20 backdrop-blur-sm"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Alunos Únicos</p><p className="text-4xl font-black">{totalStats.totalUniqueStudents}</p></div>
-            <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Estudos</p><p className="text-3xl font-black">{totalStats.studies}</p></div>
-            <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Classes</p><p className="text-3xl font-black">{totalStats.classes}</p></div>
-            <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">PGs</p><p className="text-3xl font-black">{totalStats.groups}</p></div>
-            <div className="bg-emerald-500/20 p-6 rounded-3xl border border-emerald-500/30"><p className="text-[9px] font-black text-emerald-300 uppercase mb-2">Visitas</p><p className="text-3xl font-black text-emerald-300">{totalStats.visits}</p></div>
+            <div className="bg-white/10 p-6 rounded-3xl border border-white/20 backdrop-blur-sm"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Alunos Únicos (Total)</p><p className="text-4xl font-black">{totalStats.totalUniqueStudents}</p></div>
+            <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Estudos (Período)</p><p className="text-3xl font-black">{totalStats.studies}</p></div>
+            <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Classes (Período)</p><p className="text-3xl font-black">{totalStats.classes}</p></div>
+            <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">PGs (Período)</p><p className="text-3xl font-black">{totalStats.groups}</p></div>
+            <div className="bg-emerald-500/20 p-6 rounded-3xl border border-emerald-500/30"><p className="text-[9px] font-black text-emerald-300 uppercase mb-2">Visitas (Período)</p><p className="text-3xl font-black text-emerald-300">{totalStats.visits}</p></div>
           </div>
         </div>
       </section>
@@ -240,11 +258,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   <p className="text-lg font-black text-blue-700">{stat.students}</p>
                 </div>
                 <div className="bg-indigo-50 p-3 rounded-2xl text-center">
-                  <p className="text-[8px] font-black text-indigo-400 uppercase mb-1">Classes</p>
-                  <p className="text-lg font-black text-indigo-700">{stat.classes}</p>
+                  <p className="text-[8px] font-black text-indigo-400 uppercase mb-1">Ativ. Período</p>
+                  <p className="text-lg font-black text-indigo-700">{stat.studies + stat.classes}</p>
                 </div>
                 <div className="bg-rose-50 p-3 rounded-2xl text-center">
-                  <p className="text-[8px] font-black text-rose-400 uppercase mb-1">Visitas</p>
+                  <p className="text-[8px] font-black text-rose-400 uppercase mb-1">Visitas Per.</p>
                   <p className="text-lg font-black text-rose-700">{stat.visits}</p>
                 </div>
               </div>
