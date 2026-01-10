@@ -38,10 +38,27 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
+  // LÓGICA CORRIGIDA: Soma de alunos únicos garantindo que nomes em Classes e Estudos sejam contabilizados corretamente
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
-    filteredData.studies.forEach(item => { if (item.name) allStudentsSet.add(item.name.trim().toLowerCase()); });
-    filteredData.classes.forEach(item => { if (item.students) item.students.forEach(name => { if (name) allStudentsSet.add(name.trim().toLowerCase()); }); });
+    
+    // Adiciona nomes dos estudos individuais
+    filteredData.studies.forEach(item => { 
+      if (item.name && item.name.trim()) { 
+        allStudentsSet.add(item.name.trim().toLowerCase()); 
+      } 
+    });
+    
+    // Adiciona nomes das classes coletivas
+    filteredData.classes.forEach(item => { 
+      if (item.students && Array.isArray(item.students)) { 
+        item.students.forEach(name => { 
+          if (name && name.trim()) { 
+            allStudentsSet.add(name.trim().toLowerCase()); 
+          } 
+        }); 
+      } 
+    });
 
     return {
       studies: filteredData.studies.length,
@@ -58,10 +75,22 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const c = filteredData.classes.filter(x => x.unit === u);
       const g = filteredData.groups.filter(x => x.unit === u);
       const v = filteredData.visits.filter(x => x.unit === u);
+      
       const unitStudentsSet = new Set<string>();
-      s.forEach(item => { if (item.name) unitStudentsSet.add(item.name.trim().toLowerCase()); });
-      c.forEach(item => { if (item.students) item.students.forEach(n => { if (n) unitStudentsSet.add(n.trim().toLowerCase()); }); });
-      return { studies: s.length, classes: c.length, groups: g.length, visits: v.length, totalUniqueStudents: unitStudentsSet.size };
+      s.forEach(item => { if (item.name && item.name.trim()) unitStudentsSet.add(item.name.trim().toLowerCase()); });
+      c.forEach(item => { 
+        if (item.students && Array.isArray(item.students)) {
+          item.students.forEach(n => { if (n && n.trim()) unitStudentsSet.add(n.trim().toLowerCase()); }); 
+        }
+      });
+      
+      return { 
+        studies: s.length, 
+        classes: c.length, 
+        groups: g.length, 
+        visits: v.length, 
+        totalUniqueStudents: unitStudentsSet.size 
+      };
     };
     return { HAB: getStats(Unit.HAB), HABA: getStats(Unit.HABA) };
   }, [filteredData]);
@@ -72,10 +101,25 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const uClasses = classes.filter(c => c.userId === user.id && c.date >= startDate && c.date <= endDate && (selectedUnit === 'all' || c.unit === selectedUnit));
       const uGroups = groups.filter(g => g.userId === user.id && g.date >= startDate && g.date <= endDate && (selectedUnit === 'all' || g.unit === selectedUnit));
       const uVisits = visits.filter(v => v.userId === user.id && v.date >= startDate && v.date <= endDate && (selectedUnit === 'all' || v.unit === selectedUnit));
+      
       const studentsSet = new Set<string>();
-      uStudies.forEach(s => { if (s.name) studentsSet.add(s.name.trim().toLowerCase()); });
-      uClasses.forEach(c => { if (c.students) c.students.forEach(n => { if (n) studentsSet.add(n.trim().toLowerCase()); }); });
-      return { user, name: user.name, students: studentsSet.size, studies: uStudies.length, classes: uClasses.length, groups: uGroups.length, visits: uVisits.length, totalActions: uStudies.length + uClasses.length + uGroups.length + uVisits.length };
+      uStudies.forEach(s => { if (s.name && s.name.trim()) studentsSet.add(s.name.trim().toLowerCase()); });
+      uClasses.forEach(c => { 
+        if (c.students && Array.isArray(c.students)) {
+          c.students.forEach(n => { if (n && n.trim()) studentsSet.add(n.trim().toLowerCase()); }); 
+        }
+      });
+
+      return { 
+        user, 
+        name: user.name, 
+        students: studentsSet.size, 
+        studies: uStudies.length, 
+        classes: uClasses.length, 
+        groups: uGroups.length, 
+        visits: uVisits.length, 
+        totalActions: uStudies.length + uClasses.length + uGroups.length + uVisits.length 
+      };
     }).filter(s => selectedChaplain === 'all' ? s.totalActions > 0 : s.user.id === selectedChaplain).sort((a, b) => b.totalActions - a.totalActions);
   }, [users, studies, classes, groups, visits, startDate, endDate, selectedUnit, selectedChaplain]);
 
@@ -89,17 +133,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     return { activities, byChaplain, monthlyProgress };
   }, [filteredData, chaplainStats]);
 
-  // Lógica para filtrar apenas alunos ATIVOS do capelão selecionado
   const activeDetails = useMemo(() => {
     if (!selectedDetailUser) return { students: [] };
-    
-    // Filtramos os estudos bíblicos do capelão que NÃO estão com status Término
     const activeStudies = studies.filter(s => 
       s.userId === selectedDetailUser.id && 
       (s.status === RecordStatus.INICIO || s.status === RecordStatus.CONTINUACAO)
     );
-
-    // Removemos duplicatas de alunos para mostrar o registro mais recente de cada um
     const uniqueActive: Record<string, BibleStudy> = {};
     activeStudies.forEach(s => {
       const key = s.name.trim().toLowerCase();
@@ -107,7 +146,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         uniqueActive[key] = s;
       }
     });
-
     return {
       students: Object.values(uniqueActive).sort((a, b) => a.name.localeCompare(b.name))
     };
@@ -145,7 +183,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      {/* SEÇÃO DE CARDS DE CAPELÃES - ADICIONADA CONFORME SOLICITADO */}
       <section className="space-y-6">
         <h2 className="text-2xl font-black text-slate-800 px-4 flex items-center gap-3 uppercase tracking-tight">
           <i className="fas fa-user-tie text-[#005a9c]"></i> Detalhamento por Equipe
@@ -196,7 +233,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      {/* MODAL DE DETALHAMENTO DE ALUNOS ATIVOS */}
       {selectedDetailUser && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[900] flex items-center justify-center p-4">
           <div className="bg-slate-50 w-full max-w-4xl max-h-[85vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
