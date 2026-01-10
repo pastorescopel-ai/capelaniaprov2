@@ -306,16 +306,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   margin: 0mm !important; 
                 }
                 
-                /* Esconde tudo no fundo */
-                body * { visibility: hidden !important; }
-                #root { display: none !important; }
+                /* Esconde ABSOLUTAMENTE tudo o que não for o container do PDF */
+                body * { 
+                  visibility: hidden !important; 
+                  opacity: 0 !important;
+                }
                 
-                /* Garante que o container de impressão apareça e ocupe a folha */
                 #pdf-modal-container, #pdf-modal-container * { 
                   visibility: visible !important; 
+                  opacity: 1 !important;
                   display: block !important;
                 }
 
+                /* Reseta o modal para ser uma página estática no topo */
                 #pdf-modal-container {
                   position: absolute !important;
                   left: 0 !important;
@@ -326,6 +329,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   padding: 0 !important;
                   background: white !important;
                   box-shadow: none !important;
+                  z-index: 999999 !important;
+                  transform: none !important;
                 }
 
                 #pdf-content {
@@ -335,41 +340,51 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   margin: 0 auto !important;
                   background: white !important;
                   box-sizing: border-box !important;
+                  display: block !important;
                   overflow: visible !important;
-                  display: flex !important;
-                  flex-direction: column !important;
                   box-shadow: none !important;
                 }
 
-                /* Força o navegador a imprimir cores de fundo e barras azuis */
+                /* FORÇAR AS BARRAS AZUIS E CORES */
                 * {
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
                   color-adjust: exact !important;
-                  backdrop-filter: none !important;
-                  filter: none !important;
                 }
 
-                /* Garante as barras azuis nas tabelas */
+                .bg-\\[\\#005a9c\\] {
+                  background-color: #005a9c !important;
+                }
+
                 table thead tr {
                   background-color: #005a9c !important;
+                  color: white !important;
                 }
                 
                 table thead th {
                   background-color: #005a9c !important;
                   color: white !important;
-                  border: none !important;
                 }
 
-                /* Esconde botões da interface na impressão */
-                .no-print { display: none !important; }
-                
-                /* Mantém o gráfico visível */
+                /* Esconde os botões e o background cinza do preview */
+                .no-print { 
+                  display: none !important; 
+                }
+
+                .flex-1.overflow-y-auto.bg-slate-100 {
+                  background: white !important;
+                  padding: 0 !important;
+                }
+
+                /* Garantir que os gráficos apareçam sem animação */
                 .recharts-responsive-container {
                   width: 100% !important;
                   height: auto !important;
+                  min-height: 150px !important;
                 }
-                svg { max-width: 100% !important; }
+                svg {
+                  display: block !important;
+                }
               }
             `}
           </style>
@@ -377,9 +392,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <div id="pdf-modal-container" className="bg-white w-full max-w-5xl h-[95vh] rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
               <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Relatório PDF</h2>
-              <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all">
-                <i className="fas fa-times"></i>
-              </button>
+              <div className="flex gap-4">
+                <button onClick={() => window.print()} className="px-8 py-3 bg-[#005a9c] text-white font-black rounded-xl shadow-lg uppercase text-[10px] tracking-widest active:scale-95 transition-all">Imprimir / Salvar</button>
+                <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all"><i className="fas fa-times"></i></button>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto bg-slate-100 p-10 no-scrollbar">
               <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[10mm] flex flex-col gap-4 text-slate-900">
@@ -530,8 +546,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               </div>
             </div>
             <div className="p-8 bg-white border-t border-slate-100 flex justify-end no-print gap-4">
-              <button onClick={() => setShowPdfPreview(false)} className="px-8 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
-              <button onClick={() => window.print()} className="px-12 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Imprimir / Salvar PDF</button>
+              <button onClick={() => setShowPdfPreview(false)} className="px-10 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all">Fechar Preview</button>
+              <button onClick={() => window.print()} className="px-12 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Imprimir Agora</button>
             </div>
           </div>
         </div>
