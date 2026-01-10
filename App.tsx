@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import { BibleStudyForm, BibleClassForm, StaffVisitForm, SmallGroupForm } from './components/Forms';
@@ -23,11 +23,11 @@ const App: React.FC = () => {
   // Estados de Sincronização e Controle
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false); // Flag crítica para proteção de dados
+  const [isInitialized, setIsInitialized] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [itemToDelete, setItemToDelete] = useState<{type: string, id: string} | null>(null);
   
-  // Dados do Sistema
+  // Dados do Sistema com inicialização garantida como arrays
   const [users, setUsers] = useState<User[]>([]);
   const [bibleStudies, setBibleStudies] = useState<BibleStudy[]>([]);
   const [bibleClasses, setBibleClasses] = useState<BibleClass[]>([]);
@@ -37,46 +37,50 @@ const App: React.FC = () => {
     sectorsHAB: [], sectorsHABA: [], staffHAB: [], staffHABA: [], groupsHAB: [], groupsHABA: []
   });
 
-  const applySystemOverrides = (baseConfig: Config): Config => ({
-    ...baseConfig,
-    googleSheetUrl: GOOGLE_SCRIPT_URL,
-    appLogo: APP_LOGO_BASE64,
-    reportLogo: REPORT_LOGO_BASE64
-  });
+  const applySystemOverrides = (baseConfig: Config): Config => {
+    if (!baseConfig) return INITIAL_CONFIG;
+    return {
+      ...baseConfig,
+      googleSheetUrl: GOOGLE_SCRIPT_URL,
+      appLogo: APP_LOGO_BASE64,
+      reportLogo: REPORT_LOGO_BASE64
+    };
+  };
 
   const [config, setConfig] = useState<Config>(applySystemOverrides(INITIAL_CONFIG));
 
-  // 1. Carregamento Inicial (Prioridade: Local -> Nuvem)
+  // 1. Carregamento Inicial
   useEffect(() => {
     const initApp = async () => {
-      // Carrega localmente primeiro para resposta imediata
-      const localUsers = syncService.getLocal<User[]>('users');
-      const localStudies = syncService.getLocal<BibleStudy[]>('bibleStudies');
-      const localClasses = syncService.getLocal<BibleClass[]>('bibleClasses');
-      const localGroups = syncService.getLocal<SmallGroup[]>('smallGroups');
-      const localVisits = syncService.getLocal<StaffVisit[]>('staffVisits');
-      const localLists = syncService.getLocal<MasterLists>('masterLists');
-      const localConfig = syncService.getLocal<Config>('config');
+      try {
+        const localUsers = syncService.getLocal<User[]>('users');
+        const localStudies = syncService.getLocal<BibleStudy[]>('bibleStudies');
+        const localClasses = syncService.getLocal<BibleClass[]>('bibleClasses');
+        const localGroups = syncService.getLocal<SmallGroup[]>('smallGroups');
+        const localVisits = syncService.getLocal<StaffVisit[]>('staffVisits');
+        const localLists = syncService.getLocal<MasterLists>('masterLists');
+        const localConfig = syncService.getLocal<Config>('config');
 
-      if (localUsers) setUsers(localUsers);
-      if (localStudies) setBibleStudies(localStudies);
-      if (localClasses) setBibleClasses(localClasses);
-      if (localGroups) setSmallGroups(localGroups);
-      if (localVisits) setStaffVisits(localVisits);
-      if (localLists) setMasterLists(localLists);
-      if (localConfig) setConfig(applySystemOverrides(localConfig));
+        if (localUsers) setUsers(localUsers);
+        if (localStudies) setBibleStudies(localStudies);
+        if (localClasses) setBibleClasses(localClasses);
+        if (localGroups) setSmallGroups(localGroups);
+        if (localVisits) setStaffVisits(localVisits);
+        if (localLists) setMasterLists(prev => ({ ...prev, ...localLists }));
+        if (localConfig) setConfig(applySystemOverrides(localConfig));
 
-      // Tenta sincronizar com a nuvem
-      await loadFromCloud();
-      
-      // Marca como inicializado apenas após tentar carregar tudo
-      setIsInitialized(true);
+        await loadFromCloud();
+      } catch (err) {
+        console.error("Erro na inicialização:", err);
+      } finally {
+        setIsInitialized(true);
+      }
     };
 
     initApp();
   }, []);
 
-  // 2. Salva localmente APENAS se já estiver inicializado (evita salvar arrays vazios no boot)
+  // 2. Persistência Local Protegida
   useEffect(() => {
     if (!isInitialized) return;
     syncService.setLocal('users', users);
@@ -96,18 +100,28 @@ const App: React.FC = () => {
       syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
       const cloudData = await syncService.syncFromCloud();
       if (cloudData) {
-        // Atualiza estados apenas se houver dados válidos vindo da nuvem
-        if (cloudData.users && cloudData.users.length > 0) setUsers(cloudData.users);
-        if (cloudData.bibleStudies) setBibleStudies(cloudData.bibleStudies);
-        if (cloudData.bibleClasses) setBibleClasses(cloudData.bibleClasses);
-        if (cloudData.smallGroups) setSmallGroups(cloudData.smallGroups);
-        if (cloudData.staffVisits) setStaffVisits(cloudData.staffVisits);
-        if (cloudData.masterLists) setMasterLists(cloudData.masterLists);
+        if (cloudData.users && Array.isArray(cloudData.users)) setUsers(cloudData.users);
+        if (cloudData.bibleStudies && Array.isArray(cloudData.bibleStudies)) setBibleStudies(cloudData.bibleStudies);
+        if (cloudData.bibleClasses && Array.isArray(cloudData.bibleClasses)) setBibleClasses(cloudData.bibleClasses);
+        if (cloudData.smallGroups && Array.isArray(cloudData.smallGroups)) setSmallGroups(cloudData.smallGroups);
+        if (cloudData.staffVisits && Array.isArray(cloudData.staffVisits)) setStaffVisits(cloudData.staffVisits);
+        
+        if (cloudData.masterLists) {
+          setMasterLists(prev => ({
+            sectorsHAB: cloudData.masterLists.sectorsHAB || prev.sectorsHAB,
+            sectorsHABA: cloudData.masterLists.sectorsHABA || prev.sectorsHABA,
+            staffHAB: cloudData.masterLists.staffHAB || prev.staffHAB,
+            staffHABA: cloudData.masterLists.staffHABA || prev.staffHABA,
+            groupsHAB: cloudData.masterLists.groupsHAB || prev.groupsHAB,
+            groupsHABA: cloudData.masterLists.groupsHABA || prev.groupsHABA,
+          }));
+        }
+        
         if (cloudData.config) setConfig(applySystemOverrides(cloudData.config));
         setIsConnected(true);
       }
     } catch (e) {
-      console.error("Erro na sincronização (Modo Offline):", e);
+      console.error("Erro Cloud Sync:", e);
       setIsConnected(false);
     } finally {
       setIsSyncing(false);
@@ -119,7 +133,6 @@ const App: React.FC = () => {
     setIsSyncing(true);
     syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
     
-    // Constrói o payload garantindo que não estamos enviando dados vazios se o estado local tiver conteúdo
     const payload = {
       users: overrides?.users !== undefined ? overrides.users : users,
       bibleStudies: overrides?.bibleStudies !== undefined ? overrides.bibleStudies : bibleStudies,
@@ -135,6 +148,7 @@ const App: React.FC = () => {
       setIsConnected(success);
       return success;
     } catch (err) {
+      console.error("Erro ao salvar:", err);
       setIsConnected(false);
       return false;
     } finally {
@@ -172,8 +186,7 @@ const App: React.FC = () => {
   };
 
   const generateId = () => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-    return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+    return (crypto && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
   };
 
   const handleSaveItem = async (type: string, data: any) => {
@@ -197,13 +210,11 @@ const App: React.FC = () => {
       if (type === 'pg') updatedGroups = [newItem, ...smallGroups];
     }
 
-    // Atualiza estados locais primeiro
     setBibleStudies(updatedStudies);
     setBibleClasses(updatedClasses);
     setStaffVisits(updatedVisits);
     setSmallGroups(updatedGroups);
 
-    // Salva na nuvem o conjunto COMPLETO e ATUALIZADO
     await saveToCloud({
       bibleStudies: updatedStudies,
       bibleClasses: updatedClasses,
@@ -244,7 +255,7 @@ const App: React.FC = () => {
     >
       {isSyncing && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[999] flex items-center justify-center p-4">
-          <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full text-center border border-white/20 animate-in zoom-in duration-300">
+          <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full text-center border border-white/20">
             <div className="relative">
               <div className="w-20 h-20 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
               <div className="absolute inset-0 flex items-center justify-center">
@@ -261,7 +272,7 @@ const App: React.FC = () => {
 
       {itemToDelete && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[510] flex items-center justify-center p-4">
-          <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-sm w-full animate-in zoom-in duration-200 text-center space-y-6">
+          <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-sm w-full text-center space-y-6">
             <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6"><i className="fas fa-trash-alt"></i></div>
             <h3 className="text-2xl font-black text-slate-800 mb-2">Excluir Registro?</h3>
             <p className="text-slate-500 mb-8 font-medium">Esta ação não poderá ser desfeita na nuvem.</p>

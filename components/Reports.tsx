@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config } from '../types';
 
 interface ReportsProps {
@@ -24,7 +24,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
   const COLORS = ['#3b82f6', '#6366f1', '#10b981', '#f43f5e'];
 
-  // Filtra as atividades por DATA para o volume de trabalho do período
   const filteredData = useMemo(() => {
     const filterFn = (item: any) => {
       const dateMatch = item.date >= startDate && item.date <= endDate;
@@ -33,39 +32,33 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       return dateMatch && chaplainMatch && unitMatch;
     };
     return {
-      studies: studies.filter(filterFn),
-      classes: classes.filter(filterFn),
-      groups: groups.filter(filterFn),
-      visits: visits.filter(filterFn),
+      studies: (studies || []).filter(filterFn),
+      classes: (classes || []).filter(filterFn),
+      groups: (groups || []).filter(filterFn),
+      visits: (visits || []).filter(filterFn),
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // Calcula estatísticas globais (Alunos Únicos ignoram data para bater com o Dashboard)
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
     
-    // Para alunos únicos, percorremos o banco COMPLETO respeitando apenas Filtros de Pessoa/Unidade
-    const fullStudies = studies.filter(s => 
+    const fullStudies = (studies || []).filter(s => 
       (selectedChaplain === 'all' || s.userId === selectedChaplain) && 
       (selectedUnit === 'all' || s.unit === selectedUnit)
     );
-    const fullClasses = classes.filter(c => 
+    const fullClasses = (classes || []).filter(c => 
       (selectedChaplain === 'all' || c.userId === selectedChaplain) && 
       (selectedUnit === 'all' || c.unit === selectedUnit)
     );
 
     fullStudies.forEach(item => { 
-      if (item.name && item.name.trim()) { 
-        allStudentsSet.add(item.name.trim().toLowerCase()); 
-      } 
+      if (item.name && item.name.trim()) allStudentsSet.add(item.name.trim().toLowerCase()); 
     });
     
     fullClasses.forEach(item => { 
       if (item.students && Array.isArray(item.students)) { 
         item.students.forEach(name => { 
-          if (name && name.trim()) { 
-            allStudentsSet.add(name.trim().toLowerCase()); 
-          } 
+          if (name && name.trim()) allStudentsSet.add(name.trim().toLowerCase()); 
         }); 
       } 
     });
@@ -87,10 +80,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const v = filteredData.visits.filter(x => x.unit === u);
       
       const unitStudentsSet = new Set<string>();
-      // Alunos únicos da unidade (Histórico total)
-      studies.filter(x => x.unit === u && (selectedChaplain === 'all' || x.userId === selectedChaplain))
+      (studies || []).filter(x => x.unit === u && (selectedChaplain === 'all' || x.userId === selectedChaplain))
         .forEach(item => { if (item.name && item.name.trim()) unitStudentsSet.add(item.name.trim().toLowerCase()); });
-      classes.filter(x => x.unit === u && (selectedChaplain === 'all' || x.userId === selectedChaplain))
+      (classes || []).filter(x => x.unit === u && (selectedChaplain === 'all' || x.userId === selectedChaplain))
         .forEach(item => { 
           if (item.students && Array.isArray(item.students)) {
             item.students.forEach(n => { if (n && n.trim()) unitStudentsSet.add(n.trim().toLowerCase()); }); 
@@ -109,17 +101,16 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   }, [filteredData, studies, classes, selectedChaplain]);
 
   const chaplainStats = useMemo(() => {
-    return users.map(user => {
-      const uStudies = studies.filter(s => s.userId === user.id && s.date >= startDate && s.date <= endDate && (selectedUnit === 'all' || s.unit === selectedUnit));
-      const uClasses = classes.filter(c => c.userId === user.id && c.date >= startDate && c.date <= endDate && (selectedUnit === 'all' || c.unit === selectedUnit));
-      const uGroups = groups.filter(g => g.userId === user.id && g.date >= startDate && g.date <= endDate && (selectedUnit === 'all' || g.unit === selectedUnit));
-      const uVisits = visits.filter(v => v.userId === user.id && v.date >= startDate && v.date <= endDate && (selectedUnit === 'all' || v.unit === selectedUnit));
+    return (users || []).map(user => {
+      const uStudies = (studies || []).filter(s => s.userId === user.id && s.date >= startDate && s.date <= endDate && (selectedUnit === 'all' || s.unit === selectedUnit));
+      const uClasses = (classes || []).filter(c => c.userId === user.id && c.date >= startDate && c.date <= endDate && (selectedUnit === 'all' || c.unit === selectedUnit));
+      const uGroups = (groups || []).filter(g => g.userId === user.id && g.date >= startDate && g.date <= endDate && (selectedUnit === 'all' || g.unit === selectedUnit));
+      const uVisits = (visits || []).filter(v => v.userId === user.id && v.date >= startDate && v.date <= endDate && (selectedUnit === 'all' || v.unit === selectedUnit));
       
       const studentsSet = new Set<string>();
-      // Alunos únicos deste capelão (Histórico total)
-      studies.filter(s => s.userId === user.id && (selectedUnit === 'all' || s.unit === selectedUnit))
+      (studies || []).filter(s => s.userId === user.id && (selectedUnit === 'all' || s.unit === selectedUnit))
         .forEach(s => { if (s.name && s.name.trim()) studentsSet.add(s.name.trim().toLowerCase()); });
-      classes.filter(c => c.userId === user.id && (selectedUnit === 'all' || c.unit === selectedUnit))
+      (classes || []).filter(c => c.userId === user.id && (selectedUnit === 'all' || c.unit === selectedUnit))
         .forEach(c => { 
           if (c.students && Array.isArray(c.students)) {
             c.students.forEach(n => { if (n && n.trim()) studentsSet.add(n.trim().toLowerCase()); }); 
@@ -128,7 +119,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
       return { 
         user, 
-        name: user.name, 
+        name: user.name || "Sem Nome", 
         students: studentsSet.size, 
         studies: uStudies.length, 
         classes: uClasses.length, 
@@ -141,7 +132,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
   const chartData = useMemo(() => {
     const activities = [{ name: 'Estudos', value: filteredData.studies.length }, { name: 'Classes', value: filteredData.classes.length }, { name: 'PGs', value: filteredData.groups.length }, { name: 'Visitas', value: filteredData.visits.length }];
-    const byChaplain = chaplainStats.map(s => ({ name: s.name.split(' ')[0], total: s.totalActions }));
+    const byChaplain = chaplainStats.map(s => ({ name: (s.name || "").split(' ')[0], total: s.totalActions }));
     const monthlyMap: Record<string, any> = {};
     const allItems = [...filteredData.studies, ...filteredData.classes, ...filteredData.groups, ...filteredData.visits];
     allItems.forEach(item => { const month = item.date.substring(0, 7); if (!monthlyMap[month]) monthlyMap[month] = { month, total: 0 }; monthlyMap[month].total++; });
@@ -153,9 +144,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     if (!selectedDetailUser) return { items: [] };
     
     const studyMap: Record<string, any> = {};
-    studies.forEach(s => {
+    (studies || []).forEach(s => {
       if (s.userId === selectedDetailUser.id) {
-        const key = s.name.trim().toLowerCase();
+        const key = (s.name || "").trim().toLowerCase();
         if (!studyMap[key] || s.createdAt > studyMap[key].createdAt) {
           studyMap[key] = { ...s, type: 'study' };
         }
@@ -163,9 +154,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     });
 
     const classMap: Record<string, any> = {};
-    classes.forEach(c => {
+    (classes || []).forEach(c => {
       if (c.userId === selectedDetailUser.id) {
-        const key = `${c.guide}-${c.sector}`.trim().toLowerCase();
+        const key = `${c.guide || ""}-${c.sector || ""}`.trim().toLowerCase();
         if (!classMap[key] || c.createdAt > classMap[key].createdAt) {
           classMap[key] = { ...c, type: 'class' };
         }
@@ -176,7 +167,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     const activeClasses = Object.values(classMap).filter(c => c.status !== RecordStatus.TERMINO);
 
     const combined = [...activeStudies, ...activeClasses]
-      .sort((a, b) => b.createdAt - a.createdAt);
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
     return {
       items: combined
@@ -243,7 +234,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   {stat.user.profilePic ? (
                     <img src={stat.user.profilePic} className="w-full h-full object-cover rounded-2xl" alt="Foto" />
                   ) : (
-                    stat.name[0]
+                    (stat.name || "?")[0]
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -332,7 +323,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-[9px] font-black text-slate-400 uppercase">Lista de Alunos:</span>
-                                    <span className="text-xs font-bold">{item.students.join(', ')}</span>
+                                    <span className="text-xs font-bold">{(item.students || []).join(', ')}</span>
                                 </div>
                              </div>
                           </div>
