@@ -89,14 +89,29 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     return { activities, byChaplain, monthlyProgress };
   }, [filteredData, chaplainStats]);
 
-  const chaplainProgress = useMemo(() => {
-    if (!selectedDetailUser) return { activeStudies: [], activeClasses: [] };
-    const studyMap: Record<string, BibleStudy> = {};
-    const classMap: Record<string, BibleClass> = {};
-    studies.filter(s => s.userId === selectedDetailUser.id).forEach(s => { const key = s.name.trim().toLowerCase(); if (!studyMap[key] || s.createdAt > studyMap[key].createdAt) studyMap[key] = s; });
-    classes.filter(c => c.userId === selectedDetailUser.id).forEach(c => { const key = `${c.guide.trim().toLowerCase()}-${c.sector.trim().toLowerCase()}`; if (!classMap[key] || c.createdAt > classMap[key].createdAt) classMap[key] = c; });
-    return { activeStudies: Object.values(studyMap).filter(s => s.status !== RecordStatus.TERMINO), activeClasses: Object.values(classMap).filter(c => c.status !== RecordStatus.TERMINO) };
-  }, [studies, classes, selectedDetailUser]);
+  // Lógica para filtrar apenas alunos ATIVOS do capelão selecionado
+  const activeDetails = useMemo(() => {
+    if (!selectedDetailUser) return { students: [] };
+    
+    // Filtramos os estudos bíblicos do capelão que NÃO estão com status Término
+    const activeStudies = studies.filter(s => 
+      s.userId === selectedDetailUser.id && 
+      (s.status === RecordStatus.INICIO || s.status === RecordStatus.CONTINUACAO)
+    );
+
+    // Removemos duplicatas de alunos para mostrar o registro mais recente de cada um
+    const uniqueActive: Record<string, BibleStudy> = {};
+    activeStudies.forEach(s => {
+      const key = s.name.trim().toLowerCase();
+      if (!uniqueActive[key] || s.createdAt > uniqueActive[key].createdAt) {
+        uniqueActive[key] = s;
+      }
+    });
+
+    return {
+      students: Object.values(uniqueActive).sort((a, b) => a.name.localeCompare(b.name))
+    };
+  }, [studies, selectedDetailUser]);
 
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
@@ -129,6 +144,135 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </div>
         </div>
       </section>
+
+      {/* SEÇÃO DE CARDS DE CAPELÃES - ADICIONADA CONFORME SOLICITADO */}
+      <section className="space-y-6">
+        <h2 className="text-2xl font-black text-slate-800 px-4 flex items-center gap-3 uppercase tracking-tight">
+          <i className="fas fa-user-tie text-[#005a9c]"></i> Detalhamento por Equipe
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {chaplainStats.map((stat) => (
+            <div 
+              key={stat.user.id}
+              onClick={() => setSelectedDetailUser(stat.user)}
+              className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer group relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-full -mr-12 -mt-12 group-hover:bg-blue-100 transition-colors"></div>
+              <div className="flex items-center gap-4 mb-6 relative z-10">
+                <div className="w-14 h-14 bg-[#005a9c] rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg">
+                  {stat.user.profilePic ? (
+                    <img src={stat.user.profilePic} className="w-full h-full object-cover rounded-2xl" alt="Foto" />
+                  ) : (
+                    stat.name[0]
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-slate-800 truncate text-lg">{stat.name}</h3>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{stat.user.role}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 relative z-10">
+                <div className="bg-blue-50 p-3 rounded-2xl text-center">
+                  <p className="text-[8px] font-black text-blue-400 uppercase mb-1">Alunos</p>
+                  <p className="text-lg font-black text-blue-700">{stat.students}</p>
+                </div>
+                <div className="bg-indigo-50 p-3 rounded-2xl text-center">
+                  <p className="text-[8px] font-black text-indigo-400 uppercase mb-1">Classes</p>
+                  <p className="text-lg font-black text-indigo-700">{stat.classes}</p>
+                </div>
+                <div className="bg-rose-50 p-3 rounded-2xl text-center">
+                  <p className="text-[8px] font-black text-rose-400 uppercase mb-1">Visitas</p>
+                  <p className="text-lg font-black text-rose-700">{stat.visits}</p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-center gap-2 text-slate-300 group-hover:text-[#005a9c] transition-colors">
+                <span className="text-[10px] font-black uppercase tracking-widest">Ver Alunos Ativos</span>
+                <i className="fas fa-arrow-right text-xs"></i>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* MODAL DE DETALHAMENTO DE ALUNOS ATIVOS */}
+      {selectedDetailUser && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[900] flex items-center justify-center p-4">
+          <div className="bg-slate-50 w-full max-w-4xl max-h-[85vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
+            <div className="p-8 bg-white border-b border-slate-100 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg">
+                  <i className="fas fa-users"></i>
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Alunos Ativos</h3>
+                  <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Capelão: {selectedDetailUser.name}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedDetailUser(null)}
+                className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
+              {activeDetails.students.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {activeDetails.students.map((student) => (
+                    <div key={student.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-4 group hover:border-blue-300 transition-all">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                            <i className="fas fa-user"></i>
+                          </div>
+                          <div>
+                            <h4 className="font-black text-slate-800 text-base leading-tight uppercase">{student.name}</h4>
+                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${student.status === RecordStatus.INICIO ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {student.status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 text-slate-500">
+                          <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-xs">
+                            <i className="fab fa-whatsapp"></i>
+                          </div>
+                          <span className="text-sm font-bold">{student.whatsapp || 'Não informado'}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-slate-500">
+                          <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-xs">
+                            <i className="fas fa-book-reader"></i>
+                          </div>
+                          <span className="text-sm font-bold italic">"{student.lesson || 'Nenhuma lição registrada'}"</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-slate-400">
+                          <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-[10px]">
+                            <i className="fas fa-hospital"></i>
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-widest">{student.sector} • {student.unit}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-4">
+                  <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 text-4xl">
+                    <i className="fas fa-folder-open"></i>
+                  </div>
+                  <h4 className="text-xl font-black text-slate-400 uppercase tracking-tighter">Nenhum aluno ativo encontrado</h4>
+                  <p className="text-slate-400 max-w-xs mx-auto">Este capelão não possui estudos bíblicos com status "Início" ou "Continuação" no momento.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid md:grid-cols-2 gap-8">
         {Object.entries(unitStats).map(([u, s]) => (
