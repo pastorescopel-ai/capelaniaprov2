@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import { BibleStudyForm, BibleClassForm, StaffVisitForm, SmallGroupForm } from './components/Forms';
@@ -20,26 +20,20 @@ const App: React.FC = () => {
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Estados de Sincronização
+  // Estados de Sincronização e Controle
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false); // Flag crítica para proteção de dados
   const [editingItem, setEditingItem] = useState<any>(null);
   const [itemToDelete, setItemToDelete] = useState<{type: string, id: string} | null>(null);
   
-  // Dados do Sistema com Fallback Seguro
-  const [users, setUsers] = useState<User[]>(() => {
-    try {
-      return syncService.getLocal<User[]>('users') || [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [bibleStudies, setBibleStudies] = useState<BibleStudy[]>(() => syncService.getLocal('bibleStudies') || []);
-  const [bibleClasses, setBibleClasses] = useState<BibleClass[]>(() => syncService.getLocal('bibleClasses') || []);
-  const [smallGroups, setSmallGroups] = useState<SmallGroup[]>(() => syncService.getLocal('smallGroups') || []);
-  const [staffVisits, setStaffVisits] = useState<StaffVisit[]>(() => syncService.getLocal('staffVisits') || []);
-  const [masterLists, setMasterLists] = useState<MasterLists>(() => syncService.getLocal('masterLists') || {
+  // Dados do Sistema
+  const [users, setUsers] = useState<User[]>([]);
+  const [bibleStudies, setBibleStudies] = useState<BibleStudy[]>([]);
+  const [bibleClasses, setBibleClasses] = useState<BibleClass[]>([]);
+  const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
+  const [staffVisits, setStaffVisits] = useState<StaffVisit[]>([]);
+  const [masterLists, setMasterLists] = useState<MasterLists>({
     sectorsHAB: [], sectorsHABA: [], staffHAB: [], staffHABA: [], groupsHAB: [], groupsHABA: []
   });
 
@@ -50,10 +44,49 @@ const App: React.FC = () => {
     reportLogo: REPORT_LOGO_BASE64
   });
 
-  const [config, setConfig] = useState<Config>(() => {
-    const local = syncService.getLocal<Config>('config');
-    return applySystemOverrides(local || INITIAL_CONFIG);
-  });
+  const [config, setConfig] = useState<Config>(applySystemOverrides(INITIAL_CONFIG));
+
+  // 1. Carregamento Inicial (Prioridade: Local -> Nuvem)
+  useEffect(() => {
+    const initApp = async () => {
+      // Carrega localmente primeiro para resposta imediata
+      const localUsers = syncService.getLocal<User[]>('users');
+      const localStudies = syncService.getLocal<BibleStudy[]>('bibleStudies');
+      const localClasses = syncService.getLocal<BibleClass[]>('bibleClasses');
+      const localGroups = syncService.getLocal<SmallGroup[]>('smallGroups');
+      const localVisits = syncService.getLocal<StaffVisit[]>('staffVisits');
+      const localLists = syncService.getLocal<MasterLists>('masterLists');
+      const localConfig = syncService.getLocal<Config>('config');
+
+      if (localUsers) setUsers(localUsers);
+      if (localStudies) setBibleStudies(localStudies);
+      if (localClasses) setBibleClasses(localClasses);
+      if (localGroups) setSmallGroups(localGroups);
+      if (localVisits) setStaffVisits(localVisits);
+      if (localLists) setMasterLists(localLists);
+      if (localConfig) setConfig(applySystemOverrides(localConfig));
+
+      // Tenta sincronizar com a nuvem
+      await loadFromCloud();
+      
+      // Marca como inicializado apenas após tentar carregar tudo
+      setIsInitialized(true);
+    };
+
+    initApp();
+  }, []);
+
+  // 2. Salva localmente APENAS se já estiver inicializado (evita salvar arrays vazios no boot)
+  useEffect(() => {
+    if (!isInitialized) return;
+    syncService.setLocal('users', users);
+    syncService.setLocal('bibleStudies', bibleStudies);
+    syncService.setLocal('bibleClasses', bibleClasses);
+    syncService.setLocal('smallGroups', smallGroups);
+    syncService.setLocal('staffVisits', staffVisits);
+    syncService.setLocal('masterLists', masterLists);
+    syncService.setLocal('config', config);
+  }, [users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists, config, isInitialized]);
 
   // Funções de Sincronização
   const loadFromCloud = useCallback(async () => {
@@ -63,6 +96,7 @@ const App: React.FC = () => {
       syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
       const cloudData = await syncService.syncFromCloud();
       if (cloudData) {
+        // Atualiza estados apenas se houver dados válidos vindo da nuvem
         if (cloudData.users && cloudData.users.length > 0) setUsers(cloudData.users);
         if (cloudData.bibleStudies) setBibleStudies(cloudData.bibleStudies);
         if (cloudData.bibleClasses) setBibleClasses(cloudData.bibleClasses);
@@ -73,44 +107,40 @@ const App: React.FC = () => {
         setIsConnected(true);
       }
     } catch (e) {
-      console.error("Sync failure (Offline mode enabled):", e);
+      console.error("Erro na sincronização (Modo Offline):", e);
+      setIsConnected(false);
     } finally {
       setIsSyncing(false);
     }
   }, []);
 
   const saveToCloud = useCallback(async (overrides?: any) => {
-    if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('URL_EXEMPLO')) return;
+    if (!isInitialized || !GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('URL_EXEMPLO')) return;
     setIsSyncing(true);
     syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
     
+    // Constrói o payload garantindo que não estamos enviando dados vazios se o estado local tiver conteúdo
     const payload = {
-      users: overrides?.users || users,
-      bibleStudies: overrides?.bibleStudies || bibleStudies,
-      bibleClasses: overrides?.bibleClasses || bibleClasses,
-      smallGroups: overrides?.smallGroups || smallGroups,
-      staffVisits: overrides?.staffVisits || staffVisits,
-      masterLists: overrides?.masterLists || masterLists,
-      config: overrides?.config || config,
+      users: overrides?.users !== undefined ? overrides.users : users,
+      bibleStudies: overrides?.bibleStudies !== undefined ? overrides.bibleStudies : bibleStudies,
+      bibleClasses: overrides?.bibleClasses !== undefined ? overrides.bibleClasses : bibleClasses,
+      smallGroups: overrides?.smallGroups !== undefined ? overrides.smallGroups : smallGroups,
+      staffVisits: overrides?.staffVisits !== undefined ? overrides.staffVisits : staffVisits,
+      masterLists: overrides?.masterLists !== undefined ? overrides.masterLists : masterLists,
+      config: overrides?.config !== undefined ? overrides.config : config,
     };
 
-    const success = await syncService.saveToCloud(payload);
-    setIsConnected(success);
-    setIsSyncing(false);
-    return success;
-  }, [config, users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists]);
-
-  useEffect(() => { loadFromCloud(); }, [loadFromCloud]);
-
-  useEffect(() => {
-    syncService.setLocal('users', users);
-    syncService.setLocal('bibleStudies', bibleStudies);
-    syncService.setLocal('bibleClasses', bibleClasses);
-    syncService.setLocal('smallGroups', smallGroups);
-    syncService.setLocal('staffVisits', staffVisits);
-    syncService.setLocal('masterLists', masterLists);
-    syncService.setLocal('config', config);
-  }, [users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists, config]);
+    try {
+      const success = await syncService.saveToCloud(payload);
+      setIsConnected(success);
+      return success;
+    } catch (err) {
+      setIsConnected(false);
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isInitialized, config, users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists]);
 
   const handleLogin = async (email: string, pass: string) => {
     setLoginError(null);
@@ -118,12 +148,12 @@ const App: React.FC = () => {
     
     let existingUser = users.find(u => u.email.toLowerCase() === lowerEmail && u.password === pass);
     
-    // Login Mestre de Emergência (Admin)
     if (!existingUser && lowerEmail === 'pastorescopel@gmail.com' && pass === 'admin') {
       existingUser = { id: 'admin-root', name: 'Administrador Geral', email: lowerEmail, role: UserRole.ADMIN, password: 'admin' };
       if (!users.find(u => u.email.toLowerCase() === lowerEmail)) {
         const updatedUsers = [...users, existingUser];
         setUsers(updatedUsers);
+        await saveToCloud({ users: updatedUsers });
       }
     }
 
@@ -141,27 +171,46 @@ const App: React.FC = () => {
     setActiveTab('dashboard');
   };
 
-  // Utilitário para ID Único (Resiliência para contextos não-HTTPS)
   const generateId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
     return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
   };
 
   const handleSaveItem = async (type: string, data: any) => {
-    let update: any = {};
+    if (!isInitialized) return;
+
+    let updatedStudies = [...bibleStudies];
+    let updatedClasses = [...bibleClasses];
+    let updatedVisits = [...staffVisits];
+    let updatedGroups = [...smallGroups];
+
     if (editingItem) {
-      if (type === 'study') { update.bibleStudies = bibleStudies.map(s => s.id === editingItem.id ? { ...data, id: editingItem.id } : s); setBibleStudies(update.bibleStudies); }
-      if (type === 'class') { update.bibleClasses = bibleClasses.map(c => c.id === editingItem.id ? { ...data, id: editingItem.id } : c); setBibleClasses(update.bibleClasses); }
-      if (type === 'visit') { update.staffVisits = staffVisits.map(v => v.id === editingItem.id ? { ...data, id: editingItem.id } : v); setStaffVisits(update.staffVisits); }
-      if (type === 'pg') { update.smallGroups = smallGroups.map(g => g.id === editingItem.id ? { ...data, id: editingItem.id } : g); setSmallGroups(update.smallGroups); }
+      if (type === 'study') updatedStudies = bibleStudies.map(s => s.id === editingItem.id ? { ...data, id: editingItem.id } : s);
+      if (type === 'class') updatedClasses = bibleClasses.map(c => c.id === editingItem.id ? { ...data, id: editingItem.id } : c);
+      if (type === 'visit') updatedVisits = staffVisits.map(v => v.id === editingItem.id ? { ...data, id: editingItem.id } : v);
+      if (type === 'pg') updatedGroups = smallGroups.map(g => g.id === editingItem.id ? { ...data, id: editingItem.id } : g);
     } else {
       const newItem = { ...data, userId: currentUser?.id, id: generateId(), createdAt: Date.now() };
-      if (type === 'study') { update.bibleStudies = [newItem, ...bibleStudies]; setBibleStudies(update.bibleStudies); }
-      if (type === 'class') { update.bibleClasses = [newItem, ...bibleClasses]; setBibleClasses(update.bibleClasses); }
-      if (type === 'visit') { update.staffVisits = [newItem, ...staffVisits]; setStaffVisits(update.staffVisits); }
-      if (type === 'pg') { update.smallGroups = [newItem, ...smallGroups]; setSmallGroups(update.smallGroups); }
+      if (type === 'study') updatedStudies = [newItem, ...bibleStudies];
+      if (type === 'class') updatedClasses = [newItem, ...bibleClasses];
+      if (type === 'visit') updatedVisits = [newItem, ...staffVisits];
+      if (type === 'pg') updatedGroups = [newItem, ...smallGroups];
     }
-    await saveToCloud(update);
+
+    // Atualiza estados locais primeiro
+    setBibleStudies(updatedStudies);
+    setBibleClasses(updatedClasses);
+    setStaffVisits(updatedVisits);
+    setSmallGroups(updatedGroups);
+
+    // Salva na nuvem o conjunto COMPLETO e ATUALIZADO
+    await saveToCloud({
+      bibleStudies: updatedStudies,
+      bibleClasses: updatedClasses,
+      staffVisits: updatedVisits,
+      smallGroups: updatedGroups
+    });
+    
     setEditingItem(null);
   };
 
@@ -171,7 +220,6 @@ const App: React.FC = () => {
     return list.filter(item => item.unit === currentUnit && item.userId === currentUser.id);
   };
 
-  // --- RENDERIZAÇÃO PRIORITÁRIA DA TELA DE LOGIN ---
   if (!isAuthenticated || !currentUser) {
     return (
       <Login 
@@ -184,7 +232,6 @@ const App: React.FC = () => {
     );
   }
 
-  // --- RENDERIZAÇÃO DO SISTEMA PÓS-LOGIN ---
   return (
     <Layout 
       activeTab={activeTab} 
@@ -195,7 +242,6 @@ const App: React.FC = () => {
       config={config} 
       onLogout={handleLogout}
     >
-      {/* Overlay Global de Sincronização */}
       {isSyncing && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[999] flex items-center justify-center p-4">
           <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full text-center border border-white/20 animate-in zoom-in duration-300">
@@ -207,13 +253,12 @@ const App: React.FC = () => {
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Sincronizando</h3>
-              <p className="text-slate-500 text-sm font-medium">Aguarde um momento...</p>
+              <p className="text-slate-500 text-sm font-medium">Salvando seus dados com segurança...</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal de Exclusão */}
       {itemToDelete && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[510] flex items-center justify-center p-4">
           <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-sm w-full animate-in zoom-in duration-200 text-center space-y-6">
@@ -224,12 +269,15 @@ const App: React.FC = () => {
               <button onClick={() => setItemToDelete(null)} className="py-4 rounded-2xl bg-slate-50 text-slate-400 font-bold uppercase text-xs">Voltar</button>
               <button onClick={async () => {
                 const { type, id } = itemToDelete;
-                let update: any = {};
-                if (type === 'study') { update.bibleStudies = bibleStudies.filter(s => s.id !== id); setBibleStudies(update.bibleStudies); }
-                if (type === 'class') { update.bibleClasses = bibleClasses.filter(c => c.id !== id); setBibleClasses(update.bibleClasses); }
-                if (type === 'visit') { update.staffVisits = staffVisits.filter(v => v.id !== id); setStaffVisits(update.staffVisits); }
-                if (type === 'pg') { update.smallGroups = smallGroups.filter(g => g.id !== id); setSmallGroups(update.smallGroups); }
-                await saveToCloud(update);
+                let updatedList: any[] = [];
+                let payloadKey = "";
+
+                if (type === 'study') { updatedList = bibleStudies.filter(s => s.id !== id); setBibleStudies(updatedList); payloadKey = "bibleStudies"; }
+                if (type === 'class') { updatedList = bibleClasses.filter(c => c.id !== id); setBibleClasses(updatedList); payloadKey = "bibleClasses"; }
+                if (type === 'visit') { updatedList = staffVisits.filter(v => v.id !== id); setStaffVisits(updatedList); payloadKey = "staffVisits"; }
+                if (type === 'pg') { updatedList = smallGroups.filter(g => g.id !== id); setSmallGroups(updatedList); payloadKey = "smallGroups"; }
+                
+                await saveToCloud({ [payloadKey]: updatedList });
                 setItemToDelete(null);
               }} className="py-4 rounded-2xl bg-rose-500 text-white font-bold uppercase text-xs shadow-lg shadow-rose-100">Excluir</button>
             </div>
@@ -238,7 +286,6 @@ const App: React.FC = () => {
       )}
 
       <div className="max-w-7xl mx-auto px-4 md:px-0">
-        {/* Seletor de Unidade */}
         <div className="mb-8">
           {['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab) && (
             <div className="flex bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 max-w-fit">
@@ -248,12 +295,11 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Mapeamento de Abas */}
         {activeTab === 'dashboard' && <Dashboard studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} currentUser={currentUser} config={config} onGoToTab={setActiveTab} onUpdateConfig={c => {setConfig(c); saveToCloud({config: c});}} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
-        {activeTab === 'bibleStudy' && <BibleStudyForm editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleStudies).slice(0, 10)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} />}
-        {activeTab === 'bibleClass' && <BibleClassForm editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleClasses).slice(0, 10)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} />}
-        {activeTab === 'smallGroup' && <SmallGroupForm groupsList={currentUnit === Unit.HAB ? masterLists.groupsHAB : masterLists.groupsHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(smallGroups).slice(0, 10)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />}
-        {activeTab === 'staffVisit' && <StaffVisitForm onToggleReturn={id => { const v = staffVisits.find(x=>x.id===id); if(v) { const up = staffVisits.map(x=>x.id===id?{...x, returnCompleted: !x.returnCompleted}:x); setStaffVisits(up); saveToCloud({staffVisits: up}); } }} staffList={currentUnit === Unit.HAB ? masterLists.staffHAB : masterLists.staffHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(staffVisits).slice(0, 10)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />}
+        {activeTab === 'bibleStudy' && <BibleStudyForm editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleStudies).slice(0, 15)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} />}
+        {activeTab === 'bibleClass' && <BibleClassForm editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleClasses).slice(0, 15)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} />}
+        {activeTab === 'smallGroup' && <SmallGroupForm groupsList={currentUnit === Unit.HAB ? masterLists.groupsHAB : masterLists.groupsHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(smallGroups).slice(0, 15)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />}
+        {activeTab === 'staffVisit' && <StaffVisitForm onToggleReturn={id => { const up = staffVisits.map(x=>x.id===id?{...x, returnCompleted: !x.returnCompleted}:x); setStaffVisits(up); saveToCloud({staffVisits: up}); }} staffList={currentUnit === Unit.HAB ? masterLists.staffHAB : masterLists.staffHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(staffVisits).slice(0, 15)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />}
         {activeTab === 'reports' && <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} config={config} onRefresh={loadFromCloud} />}
         {activeTab === 'users' && <UserManagement users={users} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
         {activeTab === 'profile' && <Profile user={currentUser} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
