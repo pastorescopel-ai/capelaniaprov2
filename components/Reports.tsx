@@ -302,47 +302,50 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             {`
               @media print {
                 @page { size: A4; margin: 0; }
-                body * { 
-                  visibility: hidden !important; 
-                }
-                /* Força a impressão de cores de fundo (background-color) */
-                * {
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                }
-                #pdf-modal-container, #pdf-modal-container * { 
-                  visibility: visible !important; 
-                }
+                
+                /* Esconde tudo exceto o modal de PDF */
+                body * { display: none !important; }
+                #pdf-modal-container, #pdf-modal-container * { display: block !important; }
+                
+                /* Reseta o container do modal para ocupar a página toda sem ser fixo */
                 #pdf-modal-container {
-                  position: fixed !important;
+                  position: absolute !important;
                   left: 0 !important;
                   top: 0 !important;
                   width: 100vw !important;
-                  height: 100vh !important;
+                  height: auto !important;
                   margin: 0 !important;
                   padding: 0 !important;
                   background: white !important;
-                  z-index: 9999 !important;
-                }
-                .no-print { display: none !important; }
-                #pdf-content {
                   box-shadow: none !important;
-                  margin: 0 auto !important;
-                  border: none !important;
-                  padding: 10mm !important;
+                  display: block !important;
+                }
+
+                /* Garante que o conteúdo interno seja renderizado como vetor/texto e não imagem */
+                #pdf-content {
                   width: 210mm !important;
-                  height: 297mm !important;
-                  max-height: 297mm !important;
-                  overflow: hidden !important;
-                  box-sizing: border-box !important;
+                  min-height: 297mm !important;
+                  padding: 10mm !important;
+                  margin: 0 auto !important;
                   background: white !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  box-sizing: border-box !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  box-shadow: none !important;
                 }
+
+                /* Força o conteúdo a não ser rasterizado (evita o efeito de "imagem") */
+                * {
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  backdrop-filter: none !important;
+                  filter: none !important;
+                }
+
+                .no-print { display: none !important; }
                 .recharts-responsive-container { min-width: 100% !important; }
-                
-                /* Garante que o azul do sistema apareça nas barras de cabeçalho das tabelas */
-                .bg-\\[\\#005a9c\\] {
-                  background-color: #005a9c !important;
-                }
               }
             `}
           </style>
