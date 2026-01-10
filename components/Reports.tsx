@@ -39,7 +39,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // Lógica de Soma de alunos únicos (Contabiliza indivíduos distintos sem duplicar continuações)
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
     
@@ -132,24 +131,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     return { activities, byChaplain, monthlyProgress };
   }, [filteredData, chaplainStats]);
 
-  // Lógica de Detalhamento: Agrupa por Aluno/Classe e mantém apenas o registro MAIS RECENTE
-  // Se o registro mais recente for 'Término', ele sai da lista de ativos.
   const activeDetails = useMemo(() => {
     if (!selectedDetailUser) return { items: [] };
     
-    // Mapa para consolidar estudos por nome do aluno (Busca no histórico completo do usuário)
     const studyMap: Record<string, any> = {};
     studies.forEach(s => {
       if (s.userId === selectedDetailUser.id) {
         const key = s.name.trim().toLowerCase();
-        // Se já existe, substitui apenas se for mais recente (createdAt maior)
         if (!studyMap[key] || s.createdAt > studyMap[key].createdAt) {
           studyMap[key] = { ...s, type: 'study' };
         }
       }
     });
 
-    // Mapa para consolidar classes por Guia + Setor (identidade da classe)
     const classMap: Record<string, any> = {};
     classes.forEach(c => {
       if (c.userId === selectedDetailUser.id) {
@@ -160,11 +154,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       }
     });
 
-    // Filtra para remover aqueles cujo status final é 'Término'
     const activeStudies = Object.values(studyMap).filter(s => s.status !== RecordStatus.TERMINO);
     const activeClasses = Object.values(classMap).filter(c => c.status !== RecordStatus.TERMINO);
 
-    // Combina ambos e ordena por data de criação decrescente
     const combined = [...activeStudies, ...activeClasses]
       .sort((a, b) => b.createdAt - a.createdAt);
 
@@ -179,7 +171,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <h1 className="text-3xl font-black text-slate-800">Painel de Relatórios</h1>
           <div className="flex flex-wrap gap-3">
-            {/* Novo botão de Sincronizar Banco */}
             <button 
               onClick={() => onRefresh && onRefresh()} 
               className="px-8 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95 hover:bg-emerald-700 transition-colors"
@@ -196,15 +187,15 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
-          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 uppercase ml-2">Início</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-4 rounded-xl border-none text-xs font-bold" /></div>
-          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 uppercase ml-2">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-xl border-none text-xs font-bold" /></div>
-          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 uppercase ml-2">Capelão</label><select value={selectedChaplain} onChange={e => setSelectedChaplain(e.target.value)} className="w-full p-4 rounded-xl border-none text-xs font-bold"><option value="all">Todos os Capelães</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
-          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 uppercase ml-2">Unidade</label><select value={selectedUnit} onChange={e => setSelectedUnit(e.target.value as any)} className="w-full p-4 rounded-xl border-none text-xs font-bold"><option value="all">Ambas Unidades</option><option value={Unit.HAB}>HAB</option><option value={Unit.HABA}>HABA</option></select></div>
+          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 ml-2 uppercase">Início</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-4 rounded-xl border-none text-xs font-bold" /></div>
+          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 ml-2 uppercase">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-xl border-none text-xs font-bold" /></div>
+          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 ml-2 uppercase">Capelão</label><select value={selectedChaplain} onChange={e => setSelectedChaplain(e.target.value)} className="w-full p-4 rounded-xl border-none text-xs font-bold"><option value="all">Todos os Capelães</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
+          <div className="space-y-1"><label className="text-[9px] font-black text-slate-400 ml-2 uppercase">Unidade</label><select value={selectedUnit} onChange={e => setSelectedUnit(e.target.value as any)} className="w-full p-4 rounded-xl border-none text-xs font-bold"><option value="all">Ambas Unidades</option><option value={Unit.HAB}>HAB</option><option value={Unit.HABA}>HABA</option></select></div>
         </div>
       </section>
 
       <section className="bg-[#005a9c] text-white p-10 rounded-[3.5rem] shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
         <div className="relative z-10 space-y-8 text-center lg:text-left">
           <h2 className="text-3xl font-black tracking-tighter uppercase italic">Total Geral Consolidado</h2>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
