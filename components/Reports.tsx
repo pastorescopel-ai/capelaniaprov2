@@ -151,7 +151,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <h2 className="text-3xl font-black tracking-tighter uppercase tracking-tight italic">Relatório Geral</h2>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
             <div className="bg-white/10 p-6 rounded-3xl border border-white/20 backdrop-blur-sm">
-              <p className="text-[9px] font-black text-white/70 uppercase mb-2">Total Alunos Únicos</p>
+              <p className="text-[9px] font-black text-white/70 uppercase mb-2">Total de Estudantes</p>
               <p className="text-4xl font-black">{totalStats.totalStudents}</p>
             </div>
             <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Estudos</p><p className="text-3xl font-black">{totalStats.studies}</p></div>

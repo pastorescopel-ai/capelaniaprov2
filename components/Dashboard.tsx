@@ -53,7 +53,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
   const totalActions = userStudies.length + userClasses.length + userGroups.length + userVisits.length;
 
   const stats = [
-    { label: 'Alunos Ativos (Únicos)', value: uniqueActiveStudents.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
+    { label: 'Total de alunos (HAB/HABA)', value: uniqueActiveStudents.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
     { label: 'Meus PGs', value: userGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-500' },
     { label: 'Minhas Ações', value: totalActions, icon: <i className="fas fa-bolt"></i>, color: 'bg-amber-500' },
     { label: 'Minhas Visitas', value: userVisits.length, icon: <i className="fas fa-hands-helping"></i>, color: 'bg-rose-500' },
