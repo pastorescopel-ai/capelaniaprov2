@@ -135,18 +135,21 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, hist
         latestByStudent[h.name] = h;
       }
     });
+    // Remove alunos que já terminaram o curso
     return Object.values(latestByStudent).filter(h => h.status !== RecordStatus.TERMINO);
   }, [allHistory]);
 
   const handleSelectHistorical = (last: BibleStudy) => {
-    if (last.date === formData.date) {
-      setErrorMsg("ERRO: Este aluno já possui um registro na data selecionada. Registre a continuação em outro dia!");
-      setTimeout(() => setErrorMsg(null), 6000);
-      return;
+    // Ao selecionar do histórico, usamos onEdit para atualizar o registro existente
+    if (onEdit) {
+      onEdit({ 
+        ...last, 
+        status: RecordStatus.CONTINUACAO, 
+        date: new Date().toISOString().split('T')[0] 
+      });
+      setShowContinuity(false);
+      setErrorMsg(null);
     }
-    setFormData({ ...last, status: RecordStatus.CONTINUACAO, date: formData.date, lesson: '', observations: '' });
-    setShowContinuity(false);
-    setErrorMsg(null);
   };
 
   return (
@@ -250,14 +253,15 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, hist
   const addStudent = () => { if (newStudent.trim()) { setFormData({...formData, students: [...formData.students, newStudent.trim()]}); setNewStudent(''); } };
 
   const handleSelectHistorical = (last: BibleClass) => {
-    if (last.date === formData.date) {
-      setErrorMsg("ERRO: Esta classe já foi registrada hoje. Escolha outro dia para a continuação!");
-      setTimeout(() => setErrorMsg(null), 6000);
-      return;
+    if (onEdit) {
+      onEdit({ 
+        ...last, 
+        status: RecordStatus.CONTINUACAO, 
+        date: new Date().toISOString().split('T')[0] 
+      });
+      setShowClassSearch(false);
+      setErrorMsg(null);
     }
-    setFormData({ ...last, status: RecordStatus.CONTINUACAO, date: formData.date, lesson: '', observations: '' });
-    setShowClassSearch(false);
-    setErrorMsg(null);
   };
 
   return (

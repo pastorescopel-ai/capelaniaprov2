@@ -7,7 +7,7 @@ import Reports from './components/Reports';
 import Login from './components/Login';
 import Profile from './components/Profile';
 import UserManagement from './components/UserManagement';
-import { User, UserRole, Unit, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config } from './types';
+import { User, UserRole, Unit, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, RecordStatus } from './types';
 import { syncService } from './services/syncService';
 import { INITIAL_CONFIG, GOOGLE_SCRIPT_URL, APP_LOGO_BASE64, REPORT_LOGO_BASE64 } from './constants';
 
@@ -187,10 +187,8 @@ const App: React.FC = () => {
     setLoginError(null);
     const lowerEmail = email.toLowerCase().trim();
     
-    // Procura o usuário decodificado na lista local (que já foi decodificada no loadFromCloud)
     let existingUser = users.find(u => u.email.toLowerCase().trim() === lowerEmail && u.password === pass);
     
-    // Fallback Admin de Recuperação
     if (!existingUser && lowerEmail === 'pastorescopel@gmail.com' && pass === 'admin') {
       existingUser = { 
         id: 'admin-root', 
@@ -199,7 +197,6 @@ const App: React.FC = () => {
         role: UserRole.ADMIN, 
         password: 'admin' 
       };
-      // Se ele não existir na lista, adiciona para garantir persistência futura
       if (!users.find(u => u.email.toLowerCase() === lowerEmail)) {
         const updatedUsers = [...users, existingUser];
         setUsers(updatedUsers);
@@ -233,11 +230,15 @@ const App: React.FC = () => {
     let updatedVisits = [...staffVisits];
     let updatedGroups = [...smallGroups];
 
-    if (editingItem) {
-      if (type === 'study') updatedStudies = bibleStudies.map(s => s.id === editingItem.id ? { ...data, id: editingItem.id } : s);
-      if (type === 'class') updatedClasses = bibleClasses.map(c => c.id === editingItem.id ? { ...data, id: editingItem.id } : c);
-      if (type === 'visit') updatedVisits = staffVisits.map(v => v.id === editingItem.id ? { ...data, id: editingItem.id } : v);
-      if (type === 'pg') updatedGroups = smallGroups.map(g => g.id === editingItem.id ? { ...data, id: editingItem.id } : g);
+    // Se o dado vindo já possui um ID (ex: veio do histórico como Continuação/Término)
+    // ou se estamos explicitamente editando através do estado editingItem
+    const targetId = data.id || editingItem?.id;
+
+    if (targetId) {
+      if (type === 'study') updatedStudies = bibleStudies.map(s => s.id === targetId ? { ...data, id: targetId } : s);
+      if (type === 'class') updatedClasses = bibleClasses.map(c => c.id === targetId ? { ...data, id: targetId } : c);
+      if (type === 'visit') updatedVisits = staffVisits.map(v => v.id === targetId ? { ...data, id: targetId } : v);
+      if (type === 'pg') updatedGroups = smallGroups.map(g => g.id === targetId ? { ...data, id: targetId } : g);
     } else {
       const newItem = { ...data, userId: currentUser?.id, id: generateId(), createdAt: Date.now() };
       if (type === 'study') updatedStudies = [newItem, ...bibleStudies];

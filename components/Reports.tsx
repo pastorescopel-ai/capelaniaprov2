@@ -16,15 +16,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [selectedDetailUser, setSelectedDetailUser] = useState<User | null>(null);
   
-  // Data inicial padrão: 1º de Janeiro do ano atual para abranger o histórico existente
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedChaplain, setSelectedChaplain] = useState('all');
   const [selectedUnit, setSelectedUnit] = useState<'all' | Unit>('all');
 
-  const COLORS = ['#3b82f6', '#6366f1', '#10b981', '#f43f5e'];
-
-  // Dados filtrados base - Fonte da Verdade para Relatórios
   const filteredData = useMemo(() => {
     const sList = Array.isArray(studies) ? studies : [];
     const cList = Array.isArray(classes) ? classes : [];
@@ -35,11 +31,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       if (!item || !item.date) return false;
       const dateMatch = item.date >= startDate && item.date <= endDate;
       const chaplainMatch = selectedChaplain === 'all' || item.userId === selectedChaplain;
-      
-      // REGRA: Se não houver unit no registro antigo, assume-se HAB para não zerar
       const itemUnit = item.unit || Unit.HAB;
       const unitMatch = selectedUnit === 'all' || itemUnit === selectedUnit;
-      
       return dateMatch && chaplainMatch && unitMatch;
     };
 
@@ -51,17 +44,17 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // Estatísticas do Card Superior (Total Geral Consolidado) - FÓRMULA DE SOMA TOTAL
+  // Estatísticas de Alunos Únicos e Totais de Ação
   const totalStats = useMemo(() => {
-    let studentCount = 0;
+    const uniqueStudents = new Set<string>();
     
-    // 1. Cada estudo individual conta como 1 aluno
-    studentCount += filteredData.studies.length;
+    filteredData.studies.forEach(s => {
+      if (s.name) uniqueStudents.add(s.name.trim().toLowerCase());
+    });
 
-    // 2. Soma a quantidade de alunos dentro de cada classe bíblica
     filteredData.classes.forEach(c => {
-      if (c && Array.isArray(c.students)) {
-        studentCount += c.students.length;
+      if (Array.isArray(c.students)) {
+        c.students.forEach(name => uniqueStudents.add(name.trim().toLowerCase()));
       }
     });
 
@@ -70,11 +63,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       classes: filteredData.classes.length,
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,
-      totalStudents: studentCount
+      totalStudents: uniqueStudents.size
     };
   }, [filteredData]);
 
-  // Estatísticas por Capelão (Cards Individuais) - FÓRMULA DE SOMA TOTAL POR USUÁRIO
   const chaplainStats = useMemo(() => {
     const uList = Array.isArray(users) ? users : [];
 
@@ -83,20 +75,16 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const uClasses = filteredData.classes.filter(c => c.userId === user.id);
       const uVisits = filteredData.visits.filter(v => v.userId === user.id);
       
-      let userStudents = 0;
-      userStudents += uStudies.length;
-      uClasses.forEach(c => {
-        if (Array.isArray(c.students)) {
-          userStudents += c.students.length;
-        }
-      });
+      const uniqueNames = new Set<string>();
+      uStudies.forEach(s => { if (s.name) uniqueNames.add(s.name.trim().toLowerCase()); });
+      uClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
 
       const totalActions = uStudies.length + uClasses.length + uVisits.length;
 
       return { 
         user, 
         name: user.name || "Sem Nome", 
-        students: userStudents, 
+        students: uniqueNames.size, 
         studies: uStudies.length, 
         classes: uClasses.length, 
         visits: uVisits.length, 
@@ -108,37 +96,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     }).sort((a, b) => b.totalActions - a.totalActions);
   }, [users, filteredData, selectedChaplain]);
 
-  // Detalhes do Modal
+  // Detalhes do Modal - Exibe apenas quem NÃO finalizou
   const activeDetails = useMemo(() => {
     if (!selectedDetailUser) return { items: [] };
     
-    const sList = filteredData.studies.filter(s => s.userId === selectedDetailUser.id);
-    const cList = filteredData.classes.filter(c => c.userId === selectedDetailUser.id);
+    const sList = filteredData.studies.filter(s => s.userId === selectedDetailUser.id && s.status !== RecordStatus.TERMINO);
+    const cList = filteredData.classes.filter(c => c.userId === selectedDetailUser.id && c.status !== RecordStatus.TERMINO);
 
-    const studyMap: Record<string, any> = {};
-    sList.forEach(s => {
-      if (s && s.name) {
-        const key = String(s.name).trim().toLowerCase();
-        if (!studyMap[key] || (Number(s.createdAt) || 0) > (Number(studyMap[key].createdAt) || 0)) {
-          studyMap[key] = { ...s, type: 'study' };
-        }
-      }
-    });
+    const items = [
+      ...sList.map(s => ({ ...s, type: 'study' })),
+      ...cList.map(c => ({ ...c, type: 'class' }))
+    ].sort((a: any, b: any) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
 
-    const classMap: Record<string, any> = {};
-    cList.forEach(c => {
-      const key = `${String(c.guide || "")}-${String(c.sector || "")}`.trim().toLowerCase();
-      if (!classMap[key] || (Number(c.createdAt) || 0) > (Number(classMap[key].createdAt) || 0)) {
-        classMap[key] = { ...c, type: 'class' };
-      }
-    });
-
-    const finalStudies = Object.values(studyMap).filter((s: any) => s.status !== RecordStatus.TERMINO);
-    const finalClasses = Object.values(classMap).filter((c: any) => c.status !== RecordStatus.TERMINO);
-
-    return {
-      items: [...finalStudies, ...finalClasses].sort((a: any, b: any) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0))
-    };
+    return { items };
   }, [filteredData, selectedDetailUser]);
 
   return (
@@ -178,10 +148,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       <section className="bg-[#005a9c] text-white p-10 rounded-[3.5rem] shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
         <div className="relative z-10 space-y-8">
-          <h2 className="text-3xl font-black tracking-tighter uppercase tracking-tight italic">Total Geral Consolidado</h2>
+          <h2 className="text-3xl font-black tracking-tighter uppercase tracking-tight italic">Relatório Geral</h2>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
             <div className="bg-white/10 p-6 rounded-3xl border border-white/20 backdrop-blur-sm">
-              <p className="text-[9px] font-black text-white/70 uppercase mb-2">Total de Alunos</p>
+              <p className="text-[9px] font-black text-white/70 uppercase mb-2">Total Alunos Únicos</p>
               <p className="text-4xl font-black">{totalStats.totalStudents}</p>
             </div>
             <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Estudos</p><p className="text-3xl font-black">{totalStats.studies}</p></div>
@@ -215,7 +185,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 <div className="bg-rose-50 p-3 rounded-2xl text-center"><p className="text-[8px] font-black text-rose-400 uppercase mb-1">Visitas</p><p className="text-lg font-black text-rose-700">{stat.visits}</p></div>
               </div>
               <div className="mt-6 flex items-center justify-center gap-2 text-slate-300 group-hover:text-[#005a9c] transition-colors">
-                <span className="text-[10px] font-black uppercase tracking-widest">Ver Atendimentos Atuais</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Ver Atendimentos Ativos</span>
                 <i className="fas fa-arrow-right text-xs"></i>
               </div>
             </div>
@@ -232,7 +202,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 <div>
                   <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Atendimentos Ativos</h3>
                   <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Capelão: {selectedDetailUser.name}</p>
-                  <p className="text-[9px] text-blue-500 font-bold uppercase">Unidade Selecionada: {selectedUnit === 'all' ? 'Ambas' : selectedUnit}</p>
                 </div>
               </div>
               <button onClick={() => setSelectedDetailUser(null)} className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm">
@@ -264,7 +233,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-4">
                   <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 text-4xl"><i className="fas fa-folder-open"></i></div>
-                  <h4 className="text-xl font-black text-slate-400 uppercase tracking-tighter">Nenhum atendimento ativo nesta unidade/período</h4>
+                  <h4 className="text-xl font-black text-slate-400 uppercase tracking-tighter">Nenhum atendimento ativo</h4>
                 </div>
               )}
             </div>
@@ -291,7 +260,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   </div>
                 </header>
                 <table className="w-full text-left text-[10px] border-collapse shadow-sm">
-                  <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Atendimentos</th><th className="p-3 text-center">Total de Alunos</th></tr></thead>
+                  <thead><tr className="bg-[#005a9c] text-white uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Atendimentos</th><th className="p-3 text-center">Alunos Únicos</th></tr></thead>
                   <tbody className="divide-y divide-slate-100">
                     {chaplainStats.map((stat, idx) => (
                       <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
@@ -303,9 +272,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   </tbody>
                 </table>
                 <div className="mt-8 grid grid-cols-3 gap-4 border-t border-slate-100 pt-6">
-                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[8px] font-black text-slate-400 uppercase">Total Estudos</p><p className="text-xl font-black text-[#005a9c]">{totalStats.studies}</p></div>
-                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[8px] font-black text-slate-400 uppercase">Total Classes</p><p className="text-xl font-black text-[#005a9c]">{totalStats.classes}</p></div>
-                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[8px] font-black text-slate-400 uppercase">Total Geral Alunos</p><p className="text-xl font-black text-indigo-600">{totalStats.totalStudents}</p></div>
+                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[8px] font-black text-slate-400 uppercase">Ações Estudos</p><p className="text-xl font-black text-[#005a9c]">{totalStats.studies}</p></div>
+                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[8px] font-black text-slate-400 uppercase">Ações Classes</p><p className="text-xl font-black text-[#005a9c]">{totalStats.classes}</p></div>
+                    <div className="bg-slate-50 p-4 rounded-xl text-center"><p className="text-[8px] font-black text-slate-400 uppercase">Alunos Únicos (Geral)</p><p className="text-xl font-black text-indigo-600">{totalStats.totalStudents}</p></div>
                 </div>
                 <footer className="mt-auto border-t border-slate-200 pt-4 flex justify-between text-[8px] font-bold text-slate-400 uppercase"><span>Gerado em: {new Date().toLocaleString('pt-BR')}</span><span>Sistema Capelania Pro</span></footer>
               </div>

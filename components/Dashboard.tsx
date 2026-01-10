@@ -18,7 +18,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
   const [isEditingMural, setIsEditingMural] = useState(false);
   const [muralDraft, setMuralDraft] = useState(config?.muralText || "");
 
-  // No painel mostramos SEMPRE o somatório TOTAL (HAB + HABA) do usuário logado para informação completa
+  // Filtros baseados no usuário logado
   const userStudies = (studies || []).filter(s => s && s.userId === currentUser?.id);
   const userClasses = (classes || []).filter(c => c && c.userId === currentUser?.id);
   const userGroups = (groups || []).filter(g => g && g.userId === currentUser?.id);
@@ -33,23 +33,27 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
     v.returnDate === today
   );
 
-  // FÓRMULA DE SOMA TOTAL DE ALUNOS (HAB+HABA)
-  let totalStudentCount = 0;
+  // FÓRMULA DE SOMA ÚNICA DE ALUNOS ATIVOS (Status Início ou Continuação)
+  const uniqueActiveStudents = new Set<string>();
   
-  // 1. Cada estudo individual conta como 1 aluno
-  totalStudentCount += userStudies.length;
+  // Adiciona alunos de estudos bíblicos ativos
+  userStudies.forEach(s => {
+    if (s.status !== RecordStatus.TERMINO) {
+      uniqueActiveStudents.add(s.name.trim().toLowerCase());
+    }
+  });
 
-  // 2. Soma a quantidade de alunos dentro de cada classe bíblica do usuário
+  // Adiciona alunos de classes bíblicas ativas
   userClasses.forEach(c => {
-    if (c && Array.isArray(c.students)) {
-      totalStudentCount += c.students.length;
+    if (c.status !== RecordStatus.TERMINO && Array.isArray(c.students)) {
+      c.students.forEach(name => uniqueActiveStudents.add(name.trim().toLowerCase()));
     }
   });
 
   const totalActions = userStudies.length + userClasses.length + userGroups.length + userVisits.length;
 
   const stats = [
-    { label: 'Meus Alunos (HAB+HABA)', value: totalStudentCount, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
+    { label: 'Alunos Ativos (Únicos)', value: uniqueActiveStudents.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
     { label: 'Meus PGs', value: userGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-500' },
     { label: 'Minhas Ações', value: totalActions, icon: <i className="fas fa-bolt"></i>, color: 'bg-amber-500' },
     { label: 'Minhas Visitas', value: userVisits.length, icon: <i className="fas fa-hands-helping"></i>, color: 'bg-rose-500' },
@@ -173,7 +177,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
 
       <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
         <h3 className="text-xl font-black text-slate-800 mb-8 flex items-center gap-2">
-          <i className="fas fa-chart-bar text-blue-600"></i> Meu Desempenho (Consolidado HAB+HABA)
+          <i className="fas fa-chart-bar text-blue-600"></i> Meu Desempenho (HAB+HABA)
         </h3>
         <div className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height="100%">
