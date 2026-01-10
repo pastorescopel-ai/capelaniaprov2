@@ -38,7 +38,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // Alunos Únicos consideram o HISTÓRICO GLOBAL (Ignoram filtro de data do relatório)
   const totalStats = useMemo(() => {
     const allStudentsSet = new Set<string>();
     
@@ -52,13 +51,13 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     );
 
     fullStudies.forEach(item => { 
-      if (item.name && typeof item.name === 'string' && item.name.trim()) {
+      if (item && item.name && typeof item.name === 'string' && item.name.trim()) {
         allStudentsSet.add(item.name.trim().toLowerCase()); 
       }
     });
     
     fullClasses.forEach(item => { 
-      if (item.students && Array.isArray(item.students)) { 
+      if (item && item.students && Array.isArray(item.students)) { 
         item.students.forEach(name => { 
           if (name && typeof name === 'string' && name.trim()) {
             allStudentsSet.add(name.trim().toLowerCase()); 
@@ -86,13 +85,13 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const unitStudentsSet = new Set<string>();
       (studies || []).filter(x => x.unit === u && (selectedChaplain === 'all' || x.userId === selectedChaplain))
         .forEach(item => { 
-          if (item.name && typeof item.name === 'string' && item.name.trim()) {
+          if (item && item.name && typeof item.name === 'string' && item.name.trim()) {
             unitStudentsSet.add(item.name.trim().toLowerCase()); 
           }
         });
       (classes || []).filter(x => x.unit === u && (selectedChaplain === 'all' || x.userId === selectedChaplain))
         .forEach(item => { 
-          if (item.students && Array.isArray(item.students)) {
+          if (item && item.students && Array.isArray(item.students)) {
             item.students.forEach(n => { 
               if (n && typeof n === 'string' && n.trim()) {
                 unitStudentsSet.add(n.trim().toLowerCase()); 
@@ -122,13 +121,13 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const studentsSet = new Set<string>();
       (studies || []).filter(s => s.userId === user.id && (selectedUnit === 'all' || s.unit === selectedUnit))
         .forEach(s => { 
-          if (s.name && typeof s.name === 'string' && s.name.trim()) {
+          if (s && s.name && typeof s.name === 'string' && s.name.trim()) {
             studentsSet.add(s.name.trim().toLowerCase()); 
           }
         });
       (classes || []).filter(c => c.userId === user.id && (selectedUnit === 'all' || c.unit === selectedUnit))
         .forEach(c => { 
-          if (c.students && Array.isArray(c.students)) {
+          if (c && c.students && Array.isArray(c.students)) {
             c.students.forEach(n => { 
               if (n && typeof n === 'string' && n.trim()) {
                 studentsSet.add(n.trim().toLowerCase()); 
@@ -178,7 +177,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     const studyMap: Record<string, any> = {};
     (studies || []).forEach(s => {
       if (s.userId === selectedDetailUser.id) {
-        const key = typeof s.name === 'string' ? s.name.trim().toLowerCase() : s.id;
+        const key = (s && typeof s.name === 'string') ? s.name.trim().toLowerCase() : (s?.id || Math.random().toString());
         if (!studyMap[key] || s.createdAt > studyMap[key].createdAt) {
           studyMap[key] = { ...s, type: 'study' };
         }
@@ -195,11 +194,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       }
     });
 
-    const activeStudies = Object.values(studyMap).filter(s => s.status !== RecordStatus.TERMINO);
-    const activeClasses = Object.values(classMap).filter(c => c.status !== RecordStatus.TERMINO);
+    const activeStudies = Object.values(studyMap).filter((s: any) => s.status !== RecordStatus.TERMINO);
+    const activeClasses = Object.values(classMap).filter((c: any) => c.status !== RecordStatus.TERMINO);
 
     const combined = [...activeStudies, ...activeClasses]
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 
     return {
       items: combined
