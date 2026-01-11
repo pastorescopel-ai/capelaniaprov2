@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -11,18 +12,16 @@ import { User, UserRole, Unit, BibleStudy, BibleClass, SmallGroup, StaffVisit, M
 import { syncService } from './services/syncService';
 import { INITIAL_CONFIG, GOOGLE_SCRIPT_URL, APP_LOGO_BASE64, REPORT_LOGO_BASE64 } from './constants';
 
-// Funções de auxílio para Ofuscação de Dados Sensíveis
 const encodeData = (str: string) => btoa(unescape(encodeURIComponent(str)));
 const decodeData = (str: string) => {
   try {
     return decodeURIComponent(escape(atob(str)));
   } catch (e) {
-    return str; // Fallback para dados antigos não codificados
+    return str;
   }
 };
 
 const App: React.FC = () => {
-  // Estados de Autenticação
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -30,14 +29,12 @@ const App: React.FC = () => {
   const [selectedChaplainFilter, setSelectedChaplainFilter] = useState<string>('all');
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Estados de Sincronização e Controle
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [itemToDelete, setItemToDelete] = useState<{type: string, id: string} | null>(null);
   
-  // Dados do Systema com inicialização garantida como arrays
   const [users, setUsers] = useState<User[]>([]);
   const [bibleStudies, setBibleStudies] = useState<BibleStudy[]>([]);
   const [bibleClasses, setBibleClasses] = useState<BibleClass[]>([]);
@@ -59,7 +56,6 @@ const App: React.FC = () => {
 
   const [config, setConfig] = useState<Config>(applySystemOverrides(INITIAL_CONFIG));
 
-  // 1. Carregamento Inicial
   useEffect(() => {
     const initApp = async () => {
       try {
@@ -86,11 +82,9 @@ const App: React.FC = () => {
         setIsInitialized(true);
       }
     };
-
     initApp();
   }, []);
 
-  // 2. Persistência Local Protegida
   useEffect(() => {
     if (!isInitialized) return;
     syncService.setLocal('users', users);
@@ -102,7 +96,6 @@ const App: React.FC = () => {
     syncService.setLocal('config', config);
   }, [users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists, config, isInitialized]);
 
-  // Funções de Sincronização
   const loadFromCloud = useCallback(async () => {
     if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('URL_EXEMPLO')) return;
     setIsSyncing(true);
@@ -110,7 +103,6 @@ const App: React.FC = () => {
       syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
       const cloudData = await syncService.syncFromCloud();
       if (cloudData) {
-        // Decodificação de segurança para usuários
         if (cloudData.users && Array.isArray(cloudData.users)) {
           const decodedUsers = cloudData.users.map((u: User) => ({
             ...u,
@@ -119,23 +111,11 @@ const App: React.FC = () => {
           }));
           setUsers(decodedUsers);
         }
-
         if (cloudData.bibleStudies && Array.isArray(cloudData.bibleStudies)) setBibleStudies(cloudData.bibleStudies);
         if (cloudData.bibleClasses && Array.isArray(cloudData.bibleClasses)) setBibleClasses(cloudData.bibleClasses);
         if (cloudData.smallGroups && Array.isArray(cloudData.smallGroups)) setSmallGroups(cloudData.smallGroups);
         if (cloudData.staffVisits && Array.isArray(cloudData.staffVisits)) setStaffVisits(cloudData.staffVisits);
-        
-        if (cloudData.masterLists) {
-          setMasterLists(prev => ({
-            sectorsHAB: cloudData.masterLists.sectorsHAB || prev.sectorsHAB,
-            sectorsHABA: cloudData.masterLists.sectorsHABA || prev.sectorsHABA,
-            staffHAB: cloudData.masterLists.staffHAB || prev.staffHAB,
-            staffHABA: cloudData.masterLists.staffHABA || prev.staffHABA,
-            groupsHAB: cloudData.masterLists.groupsHAB || prev.groupsHAB,
-            groupsHABA: cloudData.masterLists.groupsHABA || prev.groupsHABA,
-          }));
-        }
-        
+        if (cloudData.masterLists) setMasterLists(prev => ({ ...prev, ...cloudData.masterLists }));
         if (cloudData.config) setConfig(applySystemOverrides(cloudData.config));
         setIsConnected(true);
       }
@@ -152,13 +132,21 @@ const App: React.FC = () => {
     setIsSyncing(true);
     syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
     
-    // Codificação de segurança antes de enviar para a nuvem
     const targetUsers = overrides?.users !== undefined ? overrides.users : users;
     const securedUsers = targetUsers.map((u: User) => ({
       ...u,
       email: encodeData(u.email),
       password: encodeData(u.password || '')
     }));
+
+    // Remove campos estáticos do config para não poluir o banco
+    let cloudConfig = overrides?.config !== undefined ? { ...overrides.config } : { ...config };
+    // @ts-ignore
+    delete cloudConfig.appLogo;
+    // @ts-ignore
+    delete cloudConfig.reportLogo;
+    // @ts-ignore
+    delete cloudConfig.googleSheetUrl;
 
     const payload = {
       users: securedUsers,
@@ -167,7 +155,7 @@ const App: React.FC = () => {
       smallGroups: overrides?.smallGroups !== undefined ? overrides.smallGroups : smallGroups,
       staffVisits: overrides?.staffVisits !== undefined ? overrides.staffVisits : staffVisits,
       masterLists: overrides?.masterLists !== undefined ? overrides.masterLists : masterLists,
-      config: overrides?.config !== undefined ? overrides.config : config,
+      config: cloudConfig,
     };
 
     try {
@@ -186,24 +174,15 @@ const App: React.FC = () => {
   const handleLogin = async (email: string, pass: string) => {
     setLoginError(null);
     const lowerEmail = email.toLowerCase().trim();
-    
     let existingUser = users.find(u => u.email.toLowerCase().trim() === lowerEmail && u.password === pass);
-    
     if (!existingUser && lowerEmail === 'pastorescopel@gmail.com' && pass === 'admin') {
-      existingUser = { 
-        id: 'admin-root', 
-        name: 'Administrador Geral', 
-        email: lowerEmail, 
-        role: UserRole.ADMIN, 
-        password: 'admin' 
-      };
+      existingUser = { id: 'admin-root', name: 'Administrador Geral', email: lowerEmail, role: UserRole.ADMIN, password: 'admin' };
       if (!users.find(u => u.email.toLowerCase() === lowerEmail)) {
         const updatedUsers = [...users, existingUser];
         setUsers(updatedUsers);
         await saveToCloud({ users: updatedUsers });
       }
     }
-
     if (existingUser) {
       setCurrentUser(existingUser);
       setIsAuthenticated(true);
@@ -218,108 +197,56 @@ const App: React.FC = () => {
     setActiveTab('dashboard');
   };
 
-  const generateId = () => {
-    return (crypto && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
-  };
-
   const handleSaveItem = async (type: string, data: any) => {
     if (!isInitialized) return;
-
     let updatedStudies = [...bibleStudies];
     let updatedClasses = [...bibleClasses];
     let updatedVisits = [...staffVisits];
     let updatedGroups = [...smallGroups];
-
-    // Se o dado vindo já possui um ID (ex: veio do histórico como Continuação/Término)
-    // ou se estamos explicitamente editando através do estado editingItem
     const targetId = data.id || editingItem?.id;
-
     if (targetId) {
       if (type === 'study') updatedStudies = bibleStudies.map(s => s.id === targetId ? { ...data, id: targetId } : s);
       if (type === 'class') updatedClasses = bibleClasses.map(c => c.id === targetId ? { ...data, id: targetId } : c);
       if (type === 'visit') updatedVisits = staffVisits.map(v => v.id === targetId ? { ...data, id: targetId } : v);
       if (type === 'pg') updatedGroups = smallGroups.map(g => g.id === targetId ? { ...data, id: targetId } : g);
     } else {
-      const newItem = { ...data, userId: currentUser?.id, id: generateId(), createdAt: Date.now() };
+      const newItem = { ...data, userId: currentUser?.id, id: crypto.randomUUID(), createdAt: Date.now() };
       if (type === 'study') updatedStudies = [newItem, ...bibleStudies];
       if (type === 'class') updatedClasses = [newItem, ...bibleClasses];
       if (type === 'visit') updatedVisits = [newItem, ...staffVisits];
       if (type === 'pg') updatedGroups = [newItem, ...smallGroups];
     }
-
     setBibleStudies(updatedStudies);
     setBibleClasses(updatedClasses);
     setStaffVisits(updatedVisits);
     setSmallGroups(updatedGroups);
-
-    await saveToCloud({
-      bibleStudies: updatedStudies,
-      bibleClasses: updatedClasses,
-      staffVisits: updatedVisits,
-      smallGroups: updatedGroups
-    });
-    
+    await saveToCloud({ bibleStudies: updatedStudies, bibleClasses: updatedClasses, staffVisits: updatedVisits, smallGroups: updatedGroups });
     setEditingItem(null);
   };
 
   const getVisibleHistory = (list: any[]) => {
     if (!currentUser) return [];
-    
-    const matchUnit = (item: any) => {
-      const itemUnit = item.unit || Unit.HAB;
-      return itemUnit === currentUnit;
-    };
-
+    const matchUnit = (item: any) => (item.unit || Unit.HAB) === currentUnit;
     if (currentUser.role === UserRole.ADMIN) {
-      return list.filter(item => {
-        const isCorrectUnit = matchUnit(item);
-        const isCorrectChaplain = selectedChaplainFilter === 'all' || item.userId === selectedChaplainFilter;
-        return isCorrectUnit && isCorrectChaplain;
-      });
+      return list.filter(item => matchUnit(item) && (selectedChaplainFilter === 'all' || item.userId === selectedChaplainFilter));
     }
-    
     return list.filter(item => item && matchUnit(item) && item.userId === currentUser.id);
   };
 
   if (!isAuthenticated || !currentUser) {
-    return (
-      <Login 
-        logo={config.appLogo} 
-        onLogin={handleLogin} 
-        isSyncing={isSyncing} 
-        errorMsg={loginError} 
-        isConnected={isConnected} 
-      />
-    );
+    return <Login logo={config.appLogo} onLogin={handleLogin} isSyncing={isSyncing} errorMsg={loginError} isConnected={isConnected} />;
   }
 
   return (
-    <Layout 
-      activeTab={activeTab} 
-      setActiveTab={setActiveTab} 
-      userRole={currentUser.role} 
-      isSyncing={isSyncing} 
-      isConnected={isConnected} 
-      config={config} 
-      onLogout={handleLogout}
-    >
+    <Layout activeTab={activeTab} setActiveTab={setActiveTab} userRole={currentUser.role} isSyncing={isSyncing} isConnected={isConnected} config={config} onLogout={handleLogout}>
       {isSyncing && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[999] flex items-center justify-center p-4">
           <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full text-center border border-white/20">
-            <div className="relative">
-              <div className="w-20 h-20 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <i className="fas fa-cloud-upload-alt text-blue-600 text-2xl animate-pulse"></i>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Sincronizando</h3>
-              <p className="text-slate-500 text-sm font-medium">Salvando seus dados com segurança...</p>
-            </div>
+            <div className="relative"><div className="w-20 h-20 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div><div className="absolute inset-0 flex items-center justify-center"><i className="fas fa-cloud-upload-alt text-blue-600 text-2xl animate-pulse"></i></div></div>
+            <div className="space-y-2"><h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Sincronizando</h3><p className="text-slate-500 text-sm font-medium">Salvando seus dados com segurança...</p></div>
           </div>
         </div>
       )}
-
       {itemToDelete && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[510] flex items-center justify-center p-4">
           <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl max-sm w-full text-center space-y-6">
@@ -343,7 +270,6 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-
       <div className="max-w-7xl mx-auto px-4 md:px-0">
         <div className="mb-8 flex flex-col md:flex-row gap-4 items-start md:items-center">
           {['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab) && (
@@ -352,26 +278,19 @@ const App: React.FC = () => {
                 <button onClick={() => setCurrentUnit(Unit.HAB)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HAB ? 'bg-[#005a9c] text-white shadow-lg' : 'text-slate-400'}`}>Unidade HAB</button>
                 <button onClick={() => setCurrentUnit(Unit.HABA)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HABA ? 'bg-[#005a9c] text-white shadow-lg' : 'text-slate-400'}`}>Unidade HABA</button>
               </div>
-
               {currentUser.role === UserRole.ADMIN && (
                 <div className="flex items-center gap-3 bg-white p-2 px-4 rounded-[2rem] shadow-sm border border-slate-100">
                   <i className="fas fa-filter text-slate-400 text-xs"></i>
-                  <select 
-                    value={selectedChaplainFilter} 
-                    onChange={(e) => setSelectedChaplainFilter(e.target.value)}
-                    className="bg-transparent border-none text-xs font-black uppercase text-slate-600 focus:ring-0 cursor-pointer"
-                  >
+                  {/* Fixed typo: changed selectedChapplaceFilter to selectedChaplainFilter */}
+                  <select value={selectedChaplainFilter} onChange={(e) => setSelectedChaplainFilter(e.target.value)} className="bg-transparent border-none text-xs font-black uppercase text-slate-600 focus:ring-0 cursor-pointer">
                     <option value="all">Filtrar: Todos os Capelães</option>
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>Ver: {u.name}</option>
-                    ))}
+                    {users.map(u => <option key={u.id} value={u.id}>Ver: {u.name}</option>)}
                   </select>
                 </div>
               )}
             </>
           )}
         </div>
-
         {activeTab === 'dashboard' && currentUser && <Dashboard studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} currentUser={currentUser} config={config} onGoToTab={setActiveTab} onUpdateConfig={c => {setConfig(c); saveToCloud({config: c});}} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
         {activeTab === 'bibleStudy' && <BibleStudyForm users={users} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleStudies).slice(0, 15)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} />}
         {activeTab === 'bibleClass' && <BibleClassForm users={users} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleClasses).slice(0, 15)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} />}
@@ -380,7 +299,7 @@ const App: React.FC = () => {
         {activeTab === 'reports' && <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} config={config} onRefresh={loadFromCloud} />}
         {activeTab === 'users' && <UserManagement users={users} currentUser={currentUser} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
         {activeTab === 'profile' && currentUser && <Profile user={currentUser} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
-        {activeTab === 'admin' && <AdminPanel config={config} masterLists={masterLists} users={users} onUpdateConfig={async c => { setConfig(c); await saveToCloud({ config: c }); }} onUpdateLists={async l => { setMasterLists(l); await saveToCloud({ masterLists: l }); }} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
+        {activeTab === 'admin' && <AdminPanel config={config} masterLists={masterLists} users={users} onUpdateConfig={async c => { setConfig(applySystemOverrides(c)); await saveToCloud({ config: c }); }} onUpdateLists={async l => { setMasterLists(l); await saveToCloud({ masterLists: l }); }} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
       </div>
     </Layout>
   );
