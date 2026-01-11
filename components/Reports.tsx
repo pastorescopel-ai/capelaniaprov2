@@ -141,58 +141,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     { name: 'Visitas', value: totalStats.visits, color: '#f43f5e' }
   ].filter(d => d.value > 0);
 
-  // FUNÇÃO DE IMPRESSÃO VIA IFRAME (SOLUÇÃO SAFARI/CHROME UNIFICADA)
-  const handlePrint = () => {
-    const content = document.getElementById('pdf-content');
-    if (!content) return;
-
-    // Cria Iframe Oculto
-    const pri = (document.getElementById('ifmcontentstoprint') as HTMLIFrameElement) || document.createElement('iframe');
-    pri.id = 'ifmcontentstoprint';
-    pri.style.position = 'absolute';
-    pri.style.top = '-1000px';
-    pri.style.left = '-1000px';
-    pri.style.width = '0px';
-    pri.style.height = '0px';
-    document.body.appendChild(pri);
-
-    const priDoc = pri.contentWindow?.document;
-    if (!priDoc) return;
-
-    // Monta o documento HTML para o Iframe
-    priDoc.open();
-    priDoc.write(`
-      <html>
-        <head>
-          <title>Relatorio_Capelania</title>
-          <link href="https://cdn.tailwindcss.com" rel="stylesheet">
-          <style>
-            @page { size: A4; margin: 0; }
-            body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            #print-container { width: 210mm; padding: 15mm; margin: 0 auto; box-sizing: border-box; }
-            .bg-\\[\\#005a9c\\], .bg-blue-600 { background-color: #005a9c !important; color: white !important; }
-            table thead tr { background-color: #005a9c !important; color: white !important; }
-            .recharts-responsive-container { width: 100% !important; height: 180px !important; }
-            svg { display: block; max-width: 100%; }
-          </style>
-        </head>
-        <body>
-          <div id="print-container">
-            ${content.innerHTML}
-          </div>
-          <script>
-            window.onload = function() {
-              setTimeout(function() {
-                window.print();
-              }, 500);
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    priDoc.close();
-  };
-
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
@@ -350,6 +298,28 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
       {showPdfPreview && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[950] flex items-center justify-center p-4 overflow-y-auto">
+          <style>
+            {`
+              @media print {
+                @page { size: A4; margin: 0 !important; }
+                html, body { margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+                body * { visibility: hidden !important; }
+                #pdf-content, #pdf-content * { visibility: visible !important; }
+                #pdf-content { 
+                  position: absolute !important; 
+                  top: 0 !important; 
+                  left: 0 !important; 
+                  width: 210mm !important; 
+                  padding: 15mm !important; 
+                  background: white !important;
+                }
+                .no-print { display: none !important; }
+                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                .bg-\\[\\#005a9c\\], table thead tr { background-color: #005a9c !important; box-shadow: inset 0 0 0 1000px #005a9c !important; }
+              }
+            `}
+          </style>
+
           <div className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
               <div className="flex items-center gap-3">
@@ -364,7 +334,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             </div>
 
             <div className="flex-1 bg-slate-100 p-4 md:p-10 overflow-y-auto no-scrollbar">
-              {/* O CONTEÚDO ABAIXO É O QUE O IFRAME IRÁ CAPTURAR */}
               <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
                 <header className="relative flex items-start border-b-4 border-[#005a9c] pb-6 min-h-[140px]" style={{ paddingTop: `${config.headerPaddingTop}px` }}>
                   {config.reportLogo && (
@@ -443,52 +412,28 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </section>
 
                 <section className="flex flex-col items-center gap-6 mt-4">
-                  <div className="w-full max-w-lg mx-auto">
-                    <h3 className="text-[10px] font-black uppercase text-slate-500 mb-2 text-center tracking-widest">Distribuição de Atividades</h3>
-                    <div className="h-[140px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={activityPieData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={40}
-                            outerRadius={60}
-                            paddingAngle={5}
-                            dataKey="value"
-                            isAnimationActive={false}
-                          >
-                            {activityPieData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip isAnimationActive={false} />
-                          <Legend wrapperStyle={{fontSize: '9px', fontWeight: 'bold'}} verticalAlign="bottom" align="center" />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
+                  <div className="w-full h-[160px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={activityPieData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value" isAnimationActive={false}>
+                          {activityPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                        </Pie>
+                        <Tooltip isAnimationActive={false} />
+                        <Legend wrapperStyle={{fontSize: '9px', fontWeight: 'bold'}} verticalAlign="bottom" align="center" />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                  <div className="w-full max-w-3xl mx-auto">
-                    <h3 className="text-[10px] font-black uppercase text-slate-500 mb-2 text-center tracking-widest">Desempenho Geral da Equipe</h3>
-                    <div className="h-[180px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chaplainStats} margin={{top: 20, right: 10, left: -20, bottom: 5}}>
-                          <XAxis dataKey="name" tick={{fontSize: 7, fontWeight: 'bold'}} interval={0} axisLine={false} tickLine={false} />
-                          <YAxis tick={{fontSize: 7}} axisLine={false} tickLine={false} />
-                          <Tooltip isAnimationActive={false} contentStyle={{borderRadius: '8px', fontSize: '9px'}} />
-                          <Legend verticalAlign="bottom" wrapperStyle={{fontSize: '8px', fontWeight: 'bold', paddingTop: '10px'}} iconSize={8} />
-                          <Bar dataKey="students" name="Alunos" fill="#005a9c" isAnimationActive={false}>
-                            <LabelList dataKey="students" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#005a9c'}} />
-                          </Bar>
-                          <Bar dataKey="studies" name="Estudos" fill="#3b82f6" isAnimationActive={false}>
-                            <LabelList dataKey="studies" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#3b82f6'}} />
-                          </Bar>
-                          <Bar dataKey="classes" name="Classes" fill="#6366f1" isAnimationActive={false}>
-                            <LabelList dataKey="classes" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#6366f1'}} />
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
+                  <div className="w-full h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chaplainStats} margin={{top: 20, right: 10, left: -20, bottom: 5}}>
+                        <XAxis dataKey="name" tick={{fontSize: 7, fontWeight: 'bold'}} interval={0} axisLine={false} tickLine={false} />
+                        <YAxis tick={{fontSize: 7}} axisLine={false} tickLine={false} />
+                        <Tooltip isAnimationActive={false} />
+                        <Legend verticalAlign="bottom" wrapperStyle={{fontSize: '8px', fontWeight: 'bold'}} iconSize={8} />
+                        <Bar dataKey="students" name="Alunos" fill="#005a9c" isAnimationActive={false}><LabelList dataKey="students" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#005a9c'}} /></Bar>
+                        <Bar dataKey="studies" name="Estudos" fill="#3b82f6" isAnimationActive={false}><LabelList dataKey="studies" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#3b82f6'}} /></Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </section>
 
@@ -509,7 +454,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
             <div className="p-8 bg-white border-t border-slate-100 flex justify-end no-print gap-4">
               <button onClick={() => setShowPdfPreview(false)} className="px-10 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all active:scale-95">Fechar Preview</button>
-              <button onClick={handlePrint} className="px-14 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center gap-3">
+              <button onClick={() => window.print()} className="px-14 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center gap-3">
                 <i className="fas fa-print"></i> Imprimir Agora
               </button>
             </div>
