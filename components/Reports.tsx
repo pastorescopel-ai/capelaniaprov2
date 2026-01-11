@@ -1,4 +1,3 @@
-
 // ############################################################
 // # VERSION: 1.0.6-STABLE (RESTORE POINT)
 // # STATUS: VERIFIED & FUNCTIONAL
@@ -127,13 +126,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     }).sort((a, b) => b.totalActions - a.totalActions);
   }, [users, filteredData, selectedChaplain]);
 
-  const activityPieData = [
-    { name: 'Estudos', value: totalStats.studies, color: '#3b82f6' },
-    { name: 'Classes', value: totalStats.classes, color: '#6366f1' },
-    { name: 'PGs', value: totalStats.groups, color: '#10b981' },
-    { name: 'Visitas', value: totalStats.visits, color: '#f43f5e' }
-  ].filter(d => d.value > 0);
-
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
@@ -214,36 +206,25 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             <div className="flex-1 bg-slate-100 p-4 md:p-10 overflow-y-auto no-scrollbar">
               <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
                 
-                {/* CABEÇALHO CUSTOMIZÁVEL - POSICIONAMENTO ABSOLUTO FIDEDIGNO */}
-                <header className="relative border-b-4 border-[#005a9c]" style={{ height: '140px' }}>
-                  {config.reportLogo && (
-                    <img 
-                      src={config.reportLogo} 
-                      style={{ 
-                        position: 'absolute',
-                        left: `${config.reportLogoX}px`, 
-                        top: `${config.reportLogoY}px`,
-                        width: `${config.reportLogoWidth}px` 
-                      }} 
-                      alt="Logo" 
-                    />
-                  )}
-                  
-                  <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '300px', textAlign: 'center' }}>
-                    <h1 style={{fontSize: `${config.fontSize1}px`, color: '#005a9c', margin: 0}} className="font-black uppercase">{config.headerLine1}</h1>
-                  </div>
-
-                  <div style={{ position: 'absolute', left: `${config.headerLine2X}px`, top: `${config.headerLine2Y}px`, width: '300px', textAlign: 'center' }}>
-                    <h2 style={{fontSize: `${config.fontSize2}px`, margin: 0}} className="font-bold text-slate-600 uppercase">{config.headerLine2}</h2>
-                  </div>
-
-                  <div style={{ position: 'absolute', left: `${config.headerLine3X}px`, top: `${config.headerLine3Y}px`, width: '300px', textAlign: 'center' }}>
-                    <h3 style={{fontSize: `${config.fontSize3}px`, margin: 0}} className="font-medium text-slate-400 uppercase">{config.headerLine3}</h3>
-                  </div>
-
-                  <div style={{ position: 'absolute', right: 0, top: '10px', textAlign: 'right' }}>
-                    <p className="text-[9px] font-bold uppercase text-slate-400">Emissão: {new Date().toLocaleDateString()}</p>
-                    <p className="text-[8px] font-black text-blue-600 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
+                {/* CABEÇALHO PADRÃO ESTÁVEL (FLEXBOX CENTRALIZADO) */}
+                <header className="flex flex-col items-center justify-between border-b-4 border-[#005a9c] pb-6 gap-6">
+                  <div className="flex items-center justify-between w-full">
+                    {config.reportLogo && (
+                      <img 
+                        src={config.reportLogo} 
+                        style={{ width: `${config.reportLogoWidth}px` }} 
+                        alt="Logo" 
+                      />
+                    )}
+                    <div className="flex-1 text-center space-y-1">
+                      <h1 style={{fontSize: `${config.fontSize1}px`}} className="text-[#005a9c] font-black uppercase tracking-tight">{config.headerLine1}</h1>
+                      <h2 style={{fontSize: `${config.fontSize2}px`}} className="text-slate-600 font-bold uppercase tracking-wide">{config.headerLine2}</h2>
+                      <h3 style={{fontSize: `${config.fontSize3}px`}} className="text-slate-400 font-medium uppercase tracking-widest">{config.headerLine3}</h3>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] font-bold uppercase text-slate-400">Emissão: {new Date().toLocaleDateString()}</p>
+                      <p className="text-[8px] font-black text-blue-600 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
+                    </div>
                   </div>
                 </header>
 
