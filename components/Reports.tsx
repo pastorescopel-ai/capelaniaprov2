@@ -1,4 +1,4 @@
-// VERCEL_FORCE_BUILD_ID: 20250410_V3_FINAL
+// VERCEL_BUILD_FORCE_REFRESH: 2025-04-10-T12:30-FIX-FINAL
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config } from '../types';
@@ -322,16 +322,20 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </style>
 
           <div className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print" style={{ zIndex: 9999, position: 'relative' }}>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
                   <i className="fas fa-file-pdf"></i>
                 </div>
                 <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Preview de Relatório</h2>
               </div>
-              <div className="flex items-center gap-3" style={{ zIndex: 9999 }}>
-                <button onClick={() => window.print()} className="px-6 py-2.5 bg-[#005a9c] text-white font-black rounded-xl shadow-lg uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center gap-2">
-                  <i className="fas fa-print"></i> Imprimir
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => window.print()} 
+                  className="px-8 py-3.5 bg-[#005a9c] text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest active:scale-95 transition-all flex items-center gap-3"
+                  style={{ cursor: 'pointer', border: 'none' }}
+                >
+                  <i className="fas fa-print"></i> Imprimir Relatório
                 </button>
                 <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all">
                   <i className="fas fa-times"></i>
