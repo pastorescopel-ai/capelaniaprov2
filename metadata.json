@@ -1,6 +1,6 @@
 {
   "name": "Capelania Hospitalar Pro",
-  "description": "RESTORE-POINT-V1.1.5: Versão consolidada e estável. Inclui correções de precisão na contagem de alunos (Context-Aware), otimização de fontes para impressão (PDF) e domínio dinâmico de gráficos.",
-  "version": "1.1.5-STABLE",
+  "description": "Versão Capelania Estável 1.0: Sistema completo e consolidado. Inclui Dashboard inteligente, Gestão de Usuários, Painel Admin dinâmico e Motor de Impressão Isolado com paridade 1:1 (800px).",
+  "version": "1.0.0-PRO",
   "requestFramePermissions": []
 }

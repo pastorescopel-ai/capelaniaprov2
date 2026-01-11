@@ -1,5 +1,5 @@
 // ############################################################
-// # VERSION: 1.2.4-PRINT-ZERO-MARGIN-FIDELITY
+// # VERSION: 1.0.0-ESTAVEL (GOLDEN MASTER)
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
@@ -154,10 +154,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Relatório Capelania - Impressão</title>
+          <title>Relatório Capelania - Impressão Estável 1.0</title>
           ${styles}
           <style>
-            /* Reset absoluto de margens para o navegador */
             @media print {
               @page { 
                 size: A4; 
@@ -174,7 +173,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 box-shadow: none !important;
                 margin: 0 !important;
                 width: 210mm !important;
-                transform: none !important; /* Remove escala na impressão física */
+                transform: none !important;
               }
             }
             body { 
@@ -187,14 +186,13 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             }
             #pdf-isolated-container {
               background: white !important;
-              width: 210mm !important; /* Tamanho exato do A4 */
+              width: 210mm !important;
               min-height: 297mm !important;
-              padding: 15mm !important; /* Margem interna idêntica ao visualizador */
+              padding: 15mm !important;
               box-sizing: border-box !important;
               position: relative !important;
               box-shadow: 0 0 40px rgba(0,0,0,0.1);
             }
-            /* Garantia de fidelidade de cores */
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             header { position: relative !important; height: 140px !important; }
             #pdf-root { width: 100% !important; max-width: none !important; box-shadow: none !important; border: none !important; padding: 0 !important; }
@@ -206,7 +204,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </div>
           <script>
             window.onload = () => {
-              // Pequeno delay para garantir que imagens Base64 e SVGs (Recharts) carreguem
               setTimeout(() => {
                 window.print();
               }, 800);
@@ -226,7 +223,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     { label: 'Visitas Colab.', val: totalStats.visits, icon: 'fa-handshake', color: 'bg-rose-500' },
   ];
 
-  // Componente interno para visualização no modal (Mantido exatamente como solicitado)
   const PdfTemplate = () => (
     <div id="pdf-root" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
       <header className="relative border-b-4 border-[#005a9c] flex-shrink-0" style={{ height: '140px' }}>
@@ -298,7 +294,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       </section>
 
       <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
-        <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.2.4-Ultimate</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
+        <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro - Versão Estável 1.0</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
         <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
       </footer>
     </div>
@@ -313,12 +309,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             <button onClick={() => onRefresh && onRefresh()} className="px-6 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 hover:bg-emerald-700">
               <i className="fas fa-sync-alt"></i> Sincronizar
             </button>
-            
-            {/* BOTÃO DE IMPRESSÃO DIRETA - ISOLADO */}
             <button onClick={handlePrintIsolated} className="px-6 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 hover:bg-black">
               <i className="fas fa-print"></i> Impressão Direta
             </button>
-
             <button onClick={() => setShowPdfPreview(true)} className="px-6 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95">
               <i className="fas fa-file-pdf"></i> Visualizar PDF
             </button>
@@ -358,7 +351,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      {/* DESEMPENHO POR CAPELÃO */}
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
         <h2 className="text-xl font-black text-slate-800 mb-8 uppercase tracking-tighter flex items-center gap-3">
           <i className="fas fa-id-card-alt text-blue-600"></i> Desempenho por Capelão
@@ -390,7 +382,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      {/* MODAL DE DETALHES DO CAPELÃO */}
       {selectedDetailUser && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[900] flex items-center justify-center p-4">
            <div className="bg-white w-full max-w-4xl rounded-[3rem] p-10 space-y-8 animate-in zoom-in duration-300 relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -436,18 +427,16 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       )}
 
-      {/* MODAL DE VISUALIZAÇÃO PRÉ-IMPRESSÃO */}
       {showPdfPreview && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[950] flex items-center justify-center p-4 overflow-y-auto">
           <div id="pdf-container-outer" className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
-              <div className="flex items-center gap-3"><div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center"><i className="fas fa-file-pdf"></i></div><h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Visualização de Impressão</h2></div>
+              <div className="flex items-center gap-3"><div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center"><i className="fas fa-file-pdf"></i></div><h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Visualização Estável 1.0</h2></div>
               <div className="flex items-center gap-3">
                 <button onClick={handlePrintIsolated} className="px-8 py-3.5 bg-slate-900 text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest active:scale-95 transition-all flex items-center gap-3"><i className="fas fa-print"></i> Imprimir Agora</button>
                 <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all"><i className="fas fa-times"></i></button>
               </div>
             </div>
-
             <div className="flex-1 bg-slate-100 p-4 md:p-10 overflow-y-auto no-scrollbar">
               <PdfTemplate />
             </div>
@@ -455,7 +444,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       )}
 
-      {/* CONTAINER DE RENDERIZAÇÃO EM SEGUNDO PLANO (Sempre presente, mas invisível) */}
       <div style={{ position: 'fixed', left: '-9999px', top: 0, opacity: 0, pointerEvents: 'none' }}>
          <PdfTemplate />
       </div>
