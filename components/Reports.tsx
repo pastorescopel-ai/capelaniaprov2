@@ -1,4 +1,4 @@
-// Vercel Production Fix - v1.0.1 - Estabilização de Gráficos e Impressão
+// VERCEL_BUILD_ID: B-20250410-FINAL_STABLE
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config } from '../types';
