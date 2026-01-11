@@ -241,7 +241,21 @@ const App: React.FC = () => {
         {activeTab === 'reports' && <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} config={config} onRefresh={loadFromCloud} />}
         {activeTab === 'users' && <UserManagement users={users} currentUser={currentUser} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
         {activeTab === 'profile' && currentUser && <Profile user={currentUser} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
-        {activeTab === 'admin' && <AdminPanel config={config} masterLists={masterLists} users={users} currentUser={currentUser} onUpdateConfig={async c => { setConfig(applySystemOverrides(c)); await saveToCloud({ config: c }); }} onUpdateLists={async l => { setMasterLists(l); await saveToCloud({ masterLists: l }); }} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
+        {activeTab === 'admin' && (
+          <AdminPanel 
+            config={config} 
+            masterLists={masterLists} 
+            users={users} 
+            currentUser={currentUser}
+            bibleStudies={bibleStudies}
+            bibleClasses={bibleClasses}
+            smallGroups={smallGroups}
+            staffVisits={staffVisits}
+            onUpdateConfig={async c => { setConfig(applySystemOverrides(c)); await saveToCloud({ config: c }); }} 
+            onUpdateLists={async l => { setMasterLists(l); await saveToCloud({ masterLists: l }); }} 
+            onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} 
+          />
+        )}
       </div>
     </Layout>
   );

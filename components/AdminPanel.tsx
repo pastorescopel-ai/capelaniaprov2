@@ -1,27 +1,37 @@
 
 // ############################################################
-// # VERSION: 1.3.5-SOURCE-BACKUP
-// # STATUS: STABLE + SOURCE EXPORT ENABLED
+// # VERSION: 1.4.0-DNA-TOTAL
+// # STATUS: STABLE + FULL BACKUP + SYNC FIX
 // ############################################################
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MasterLists, Config, User } from '../types';
+import { MasterLists, Config, User, BibleStudy, BibleClass, SmallGroup, StaffVisit } from '../types';
 
 interface AdminPanelProps {
   config: Config;
   masterLists: MasterLists;
   users: User[];
   currentUser: User;
-  onUpdateConfig: (newConfig: Config) => void;
-  onUpdateLists: (newLists: MasterLists) => void;
-  onUpdateUsers: (newUsers: User[]) => void;
+  // Adicionado para o Backup Total
+  bibleStudies: BibleStudy[];
+  bibleClasses: BibleClass[];
+  smallGroups: SmallGroup[];
+  staffVisits: StaffVisit[];
+  onUpdateConfig: (newConfig: Config) => Promise<void>;
+  onUpdateLists: (newLists: MasterLists) => Promise<void>;
+  onUpdateUsers: (newUsers: User[]) => Promise<void>;
 }
 
 type DragType = 'logo' | 'line1' | 'line2' | 'line3' | 'resize' | null;
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, users, currentUser, onUpdateConfig, onUpdateLists, onUpdateUsers }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ 
+  config, masterLists, users, currentUser, 
+  bibleStudies, bibleClasses, smallGroups, staffVisits,
+  onUpdateConfig, onUpdateLists, onUpdateUsers 
+}) => {
   const [localConfig, setLocalConfig] = useState(config);
   const [activeDrag, setActiveDrag] = useState<DragType>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   
   const [lists, setLists] = useState({
@@ -76,74 +86,87 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, users, cur
     return Array.from(new Set(items)); 
   };
 
-  const handleDownloadBackup = () => {
-    const backupData = { config: localConfig, masterLists, users, backupDate: new Date().toISOString() };
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `backup_dados_capelania_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  // ############################################################
-  // # NOVO: MOTOR DE EXPORTAÇÃO DE CÓDIGO (DNA DO SISTEMA)
-  // ############################################################
-  const handleExportSystemSource = () => {
-    const confirmExport = confirm("Isso irá gerar um backup completo contendo as Configurações, Usuários e um Manifesto de Código para recuperação. Deseja continuar?");
+  const handleExportFullDNA = () => {
+    const confirmExport = confirm("ATENÇÃO: Este backup contém TODOS OS REGISTROS (estudos, visitas, classes, grupos), TODOS OS USUÁRIOS e todas as configurações. É a cópia integral do seu banco de dados. Deseja baixar?");
     
     if (confirmExport) {
-      const systemDNA = {
-        version: "1.3.5-PRO",
+      const fullDNA = {
+        version: "1.4.0-DNA-TOTAL",
         exportDate: new Date().toISOString(),
         author: currentUser.name,
-        // Incluímos o estado atual do banco de dados
-        data: {
+        // O "Coração" do Sistema: Dados Reais
+        database: {
+          bibleStudies,
+          bibleClasses,
+          smallGroups,
+          staffVisits,
+          users,
           config: localConfig,
-          masterLists: masterLists,
-          users: users
-        },
-        // Manifesto de recuperação (O usuário pode copiar e colar os códigos se perder os arquivos)
-        instructions: "Para restaurar, utilize os dados acima. O sistema é baseado em React + Tailwind + Recharts.",
-        requirements: "Node 20+, Vite 5+, React 18+"
+          masterLists
+        }
       };
 
-      const blob = new Blob([JSON.stringify(systemDNA, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(fullDNA, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `DNA_SISTEMA_CAPELANIA_PRO_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `DNA_SISTEMA_COMPLETO_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }
   };
 
-  const handleSaveAll = () => {
-    const finalConfig = { 
-      ...localConfig, 
-      lastModifiedBy: currentUser.name, 
-      lastModifiedAt: Date.now() 
-    };
-    
-    // @ts-ignore
-    delete finalConfig.appLogo; delete finalConfig.reportLogo; delete finalConfig.googleSheetUrl;
-    onUpdateConfig(finalConfig);
+  const handleSaveAll = async () => {
+    setIsSaving(true);
+    try {
+      const finalConfig = { 
+        ...localConfig, 
+        lastModifiedBy: currentUser.name, 
+        lastModifiedAt: Date.now() 
+      };
+      
+      const newLists: MasterLists = {
+        sectorsHAB: cleanListItems(lists.sectorsHAB),
+        sectorsHABA: cleanListItems(lists.sectorsHABA),
+        groupsHAB: cleanListItems(lists.groupsHAB),
+        groupsHABA: cleanListItems(lists.groupsHABA),
+        staffHAB: cleanListItems(lists.staffHAB),
+        staffHABA: cleanListItems(lists.staffHABA),
+      };
 
-    const newLists: MasterLists = {
-      sectorsHAB: cleanListItems(lists.sectorsHAB),
-      sectorsHABA: cleanListItems(lists.sectorsHABA),
-      groupsHAB: cleanListItems(lists.groupsHAB),
-      groupsHABA: cleanListItems(lists.groupsHABA),
-      staffHAB: cleanListItems(lists.staffHAB),
-      staffHABA: cleanListItems(lists.staffHABA),
-    };
-    onUpdateLists(newLists);
-    alert('Configurações e Listas salvas com sucesso!');
+      // Sequência de salvamento garantida
+      await onUpdateConfig(finalConfig);
+      await onUpdateLists(newLists);
+      
+      alert('Sincronização concluída! Todos os dados e listas foram salvos na nuvem.');
+    } catch (error) {
+      alert('Erro ao salvar dados. Verifique sua conexão.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="space-y-12 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700" onMouseUp={() => setActiveDrag(null)} onMouseLeave={() => setActiveDrag(null)}>
+      
+      {/* OVERLAY DE SALVAMENTO */}
+      {isSaving && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[1000] flex items-center justify-center p-4">
+          <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl flex flex-col items-center gap-8 max-w-md w-full text-center border-4 border-blue-50 animate-in zoom-in duration-300">
+            <div className="relative">
+               <div className="w-24 h-24 border-8 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
+               <div className="absolute inset-0 flex items-center justify-center">
+                  <i className="fas fa-cloud-upload-alt text-blue-600 text-2xl animate-bounce"></i>
+               </div>
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">Sincronizando Tudo</h3>
+              <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest leading-relaxed px-6">Gravando configurações, identidades visuais e bancos de dados no Google Sheets...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-4xl font-black text-slate-800 tracking-tight uppercase">Painel Admin</h1>
@@ -155,13 +178,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, users, cur
         </div>
         <div className="flex flex-wrap gap-3">
           <button 
-            onClick={handleExportSystemSource} 
+            onClick={handleExportFullDNA} 
             className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg"
           >
-            <i className="fas fa-code text-amber-400"></i> Exportar DNA (Sistema)
-          </button>
-          <button onClick={handleDownloadBackup} className="px-5 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95">
-            <i className="fas fa-database"></i> Backup Dados
+            <i className="fas fa-dna text-amber-400"></i> Backup DNA Total
           </button>
           <button onClick={handleSaveAll} className="px-10 py-5 text-white font-black rounded-[1.5rem] shadow-2xl hover:brightness-110 transition-all flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95" style={{ backgroundColor: localConfig.primaryColor || '#005a9c' }}>
             <i className="fas fa-save"></i> Salvar Tudo
@@ -187,8 +207,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, users, cur
               const fsField = `fontSize${i+1}` as keyof Config;
               const colors = [localConfig.primaryColor, '#475569', '#94a3b8'];
               return (
-                <div key={l} className={`absolute p-2 rounded cursor-move border border-transparent ${activeDrag === `line${i+1}` as DragType ? 'bg-blue-50/50 border-blue-200' : 'hover:border-slate-100'}`} style={{ left: localConfig[xField] as number, top: localConfig[yField] as number, minWidth: '350px' }} onMouseDown={(e) => { e.preventDefault(); setActiveDrag(`line${i+1}` as DragType); }}>
-                  <input value={localConfig[field] as string} onChange={e => setLocalConfig({...localConfig, [field]: e.target.value})} className="w-full bg-transparent border-none focus:ring-0 font-black uppercase whitespace-nowrap" style={{ fontSize: `${localConfig[fsField]}px`, textAlign: localConfig.headerTextAlign, color: colors[i] }} />
+                <div key={l} className={`absolute p-2 rounded cursor-move border-2 border-dashed ${activeDrag === `line${i+1}` as DragType ? 'bg-blue-50/50 border-blue-400' : 'border-transparent hover:border-slate-200'}`} style={{ left: localConfig[xField] as number, top: localConfig[yField] as number, minWidth: '350px' }} onMouseDown={(e) => { if(e.target === e.currentTarget) { e.preventDefault(); setActiveDrag(`line${i+1}` as DragType); } }}>
+                  <input value={localConfig[field] as string} onChange={e => setLocalConfig({...localConfig, [field]: e.target.value})} className="w-full bg-transparent border-none focus:ring-0 font-black uppercase whitespace-nowrap outline-none" style={{ fontSize: `${localConfig[fsField]}px`, textAlign: localConfig.headerTextAlign, color: colors[i] }} />
                 </div>
               );
             })}
@@ -253,7 +273,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, users, cur
                   <label className="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-[0.2em]">
                     {type === 'sectors' ? 'Setores Hospitalares' : type === 'groups' ? 'Nomes dos PGs' : 'Equipe de Colaboradores'}
                   </label>
-                  <textarea value={(lists as any)[`${type}${unit}`]} onChange={e => setLists({...lists, [`${type}${unit}`]: e.target.value})} className="w-full h-40 p-5 bg-slate-50 rounded-3xl border-none font-bold text-xs resize-none focus:ring-2 focus:ring-blue-100 shadow-inner" placeholder="Uma entrada por linha..." />
+                  <textarea 
+                    value={(lists as any)[`${type}${unit}`]} 
+                    onChange={e => setLists({...lists, [`${type}${unit}`]: e.target.value})} 
+                    className="w-full h-40 p-5 bg-slate-50 rounded-3xl border-none font-bold text-xs resize-none focus:ring-2 focus:ring-blue-100 shadow-inner outline-none" 
+                    placeholder="Uma entrada por linha..." 
+                  />
                 </div>
               ))}
             </div>
