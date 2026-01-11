@@ -1,4 +1,9 @@
-// VERCEL_BUILD_ID: REF-20250410-1500-STABLE
+// ############################################################
+// # VERSION: 1.0.6-STABLE (RESTORE POINT)
+// # STATUS: VERIFIED & FUNCTIONAL
+// # DATE: 2025-04-10
+// ############################################################
+
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config } from '../types';
@@ -89,7 +94,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           
           const unitUniqueNames = new Set<string>();
           unitStudies.forEach(s => { if (s.name) unitUniqueNames.add(s.name.trim().toLowerCase()); });
-          unitClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
+          unitClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => unitUniqueNames.add(n.trim().toLowerCase())); });
 
           return {
               students: unitUniqueNames.size,

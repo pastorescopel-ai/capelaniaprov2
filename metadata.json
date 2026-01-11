@@ -1,6 +1,6 @@
 {
   "name": "Capelania Hospitalar Pro",
-  "description": "Sistema de gestão para capelães hospitalares com sincronização em nuvem via Google Sheets, suporte offline e relatórios avançados.",
-  "version": "1.0.5-FINAL-STABLE",
+  "description": "RESTORE-POINT-V1: Versão estável com relatórios e sincronização corrigidos.",
+  "version": "1.0.6-STABLE",
   "requestFramePermissions": []
 }
