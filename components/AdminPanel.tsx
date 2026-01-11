@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+
+import React, { useState, useRef } from 'react';
 import { MasterLists, Config, User } from '../types';
 
 interface AdminPanelProps {
@@ -10,11 +11,11 @@ interface AdminPanelProps {
   onUpdateUsers: (newUsers: User[]) => void;
 }
 
+type DragType = 'logo' | 'line1' | 'line2' | 'line3' | 'resize' | null;
+
 const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, onUpdateConfig, onUpdateLists }) => {
   const [localConfig, setLocalConfig] = useState(config);
-  const [isDraggingLogo, setIsDraggingLogo] = useState(false);
-  const [isDraggingText, setIsDraggingText] = useState(false);
-  const [isResizingLogo, setIsResizingLogo] = useState(false);
+  const [activeDrag, setActiveDrag] = useState<DragType>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   
   const [lists, setLists] = useState({
@@ -27,39 +28,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, onUpdateCo
   });
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingLogo && !isResizingLogo && !isDraggingText) return;
-    if (!previewRef.current) return;
+    if (!activeDrag || !previewRef.current) return;
 
     const rect = previewRef.current.getBoundingClientRect();
     const x = Math.round(e.clientX - rect.left);
     const y = Math.round(e.clientY - rect.top);
 
-    if (isDraggingLogo) {
-      setLocalConfig(prev => ({
-        ...prev,
-        reportLogoX: x - (prev.reportLogoWidth / 2),
-        reportLogoY: Math.max(0, y - 20) // Impede de sair para cima
-      }));
-    } else if (isResizingLogo) {
-      const newWidth = Math.max(30, x - localConfig.reportLogoX);
-      setLocalConfig(prev => ({
-        ...prev,
-        reportLogoWidth: newWidth
-      }));
-    } else if (isDraggingText) {
-      // Ajusta o Padding Top (Margem do texto)
-      const newPadding = Math.max(0, y);
-      setLocalConfig(prev => ({
-        ...prev,
-        headerPaddingTop: newPadding
-      }));
-    }
+    setLocalConfig(prev => {
+      switch (activeDrag) {
+        case 'logo':
+          return { ...prev, reportLogoX: x - (prev.reportLogoWidth / 2), reportLogoY: y - (prev.reportLogoWidth / 4) };
+        case 'line1':
+          return { ...prev, headerLine1X: x - 100, headerLine1Y: y - 10 };
+        case 'line2':
+          return { ...prev, headerLine2X: x - 100, headerLine2Y: y - 10 };
+        case 'line3':
+          return { ...prev, headerLine3X: x - 100, headerLine3Y: y - 10 };
+        case 'resize':
+          const newWidth = Math.max(30, x - prev.reportLogoX);
+          return { ...prev, reportLogoWidth: newWidth };
+        default:
+          return prev;
+      }
+    });
   };
 
   const handleMouseUp = () => {
-    setIsDraggingLogo(false);
-    setIsDraggingText(false);
-    setIsResizingLogo(false);
+    setActiveDrag(null);
   };
 
   const handleSaveAll = () => {
@@ -87,152 +82,141 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, onUpdateCo
         </button>
       </header>
 
-      {/* Editor Visual de Cabeçalho - Simulação Real A4 */}
+      {/* Editor Visual de Cabeçalho - Simulação Fiel A4 (Área Superior) */}
       <section className="space-y-4">
         <div className="flex items-center justify-between px-6">
           <h3 className="text-[#005a9c] font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-2">
-            <i className="fas fa-pencil-ruler"></i> Editor de Cabeçalho (Visualize o topo real da página A4)
+            <i className="fas fa-pencil-ruler"></i> Design do Cabeçalho (Arraste cada elemento individualmente)
           </h3>
-          <div className="flex gap-4 text-[10px] font-bold text-slate-400">
-            <span>Alinhamento: <span className="text-slate-800 capitalize">{localConfig.headerTextAlign}</span></span>
-            <span>Espaçamento Topo: <span className="text-slate-800">{localConfig.headerPaddingTop}px</span></span>
+          <div className="flex gap-4 text-[10px] font-bold text-slate-400 uppercase">
+             <span>Logo: {localConfig.reportLogoX}x, {localConfig.reportLogoY}y</span>
+             <span>Área do Cabeçalho: 800px x 220px</span>
           </div>
         </div>
 
-        <div className="bg-slate-300 p-6 md:p-16 rounded-[4rem] shadow-inner border border-slate-400 relative">
-            {/* Indicador de extremidade superior */}
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 text-[9px] font-black text-slate-500 uppercase tracking-widest opacity-50">
-                Extremidade Superior do Papel (Limite A4)
-            </div>
+        <div className="bg-slate-300 p-8 md:p-16 rounded-[4rem] shadow-inner border border-slate-400 relative flex justify-center">
+          {/* Régua de limite superior */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 text-[8px] font-black text-slate-500 uppercase tracking-widest opacity-40">
+            Topo da Página A4
+          </div>
 
           <div 
             ref={previewRef}
             onMouseMove={handleMouseMove}
-            className="bg-white mx-auto shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] relative overflow-hidden border-t-2 border-slate-100"
-            style={{ width: '100%', maxWidth: '800px', minHeight: '550px' }}
+            className="bg-white shadow-[0_45px_100px_-20px_rgba(0,0,0,0.4)] relative overflow-hidden"
+            style={{ width: '800px', height: '220px' }} // Altura aproximada do cabeçalho real
           >
-            {/* Linha de Base do Cabeçalho (Apenas visual para o admin) */}
-            <div className="absolute top-[180px] left-0 right-0 border-b border-dashed border-slate-200 pointer-events-none"></div>
-            <div className="absolute top-0 left-0 bottom-0 border-r border-dashed border-slate-100 pointer-events-none w-1/2"></div>
+            {/* Linha de Base (Fim do Cabeçalho) */}
+            <div className="absolute bottom-0 left-0 right-0 border-b-2 border-dashed border-slate-200 pointer-events-none flex justify-center">
+                <span className="bg-white px-2 text-[8px] font-bold text-slate-300 -translate-y-1/2">FIM DA ÁREA DE CABEÇALHO</span>
+            </div>
 
-            {/* Logo Draggable */}
+            {/* Logo Draggable e Resizable */}
             <div 
-              className={`absolute transition-shadow duration-200 ${isDraggingLogo ? 'ring-2 ring-blue-500 shadow-2xl z-50' : 'hover:ring-2 hover:ring-blue-200'}`}
+              className={`absolute transition-shadow duration-200 ${activeDrag === 'logo' ? 'ring-2 ring-blue-500 shadow-2xl z-50' : 'hover:ring-2 hover:ring-blue-200'}`}
               style={{ 
                 left: `${localConfig.reportLogoX}px`, 
                 top: `${localConfig.reportLogoY}px`,
-                cursor: isResizingLogo ? 'nwse-resize' : 'move'
+                cursor: activeDrag === 'resize' ? 'nwse-resize' : 'move'
               }}
+              onMouseDown={(e) => { e.preventDefault(); setActiveDrag('logo'); }}
             >
               <img 
                 src={localConfig.reportLogo} 
                 style={{ width: `${localConfig.reportLogoWidth}px`, display: 'block' }} 
                 alt="Logo" 
-                onMouseDown={(e) => { e.preventDefault(); setIsDraggingLogo(true); }}
               />
               <div 
-                onMouseDown={(e) => { e.stopPropagation(); setIsResizingLogo(true); }}
+                onMouseDown={(e) => { e.stopPropagation(); setActiveDrag('resize'); }}
                 className="absolute -right-2 -bottom-2 w-6 h-6 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center text-white text-[10px] cursor-nwse-resize shadow-lg"
               >
                 <i className="fas fa-expand"></i>
               </div>
             </div>
 
-            {/* Área de Texto com Arraste de Margem e Edição Direta */}
+            {/* Linha 1 Draggable */}
             <div 
-              className="w-full relative group"
-              style={{ 
-                textAlign: localConfig.headerTextAlign, 
-                paddingTop: `${localConfig.headerPaddingTop}px` 
-              }}
+                className={`absolute p-2 rounded-lg cursor-move border border-transparent ${activeDrag === 'line1' ? 'border-blue-400 bg-blue-50/30' : 'hover:border-slate-200'}`}
+                style={{ left: localConfig.headerLine1X, top: localConfig.headerLine1Y, minWidth: '300px' }}
+                onMouseDown={(e) => { e.preventDefault(); setActiveDrag('line1'); }}
             >
-              {/* Alça de arraste da margem superior */}
-              <div 
-                onMouseDown={() => setIsDraggingText(true)}
-                className="absolute top-0 left-0 right-0 h-8 bg-blue-500/0 hover:bg-blue-500/10 cursor-ns-resize flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
-                title="Arraste para ajustar a margem superior"
-              >
-                <div className="w-32 h-1.5 bg-blue-500/50 rounded-full"></div>
-                <span className="absolute -top-6 bg-blue-600 text-white text-[8px] px-2 py-1 rounded font-black uppercase">Arraste para mover o texto</span>
-              </div>
-
-              {/* Inputs de Texto In-Place */}
-              <div className="px-10 space-y-2">
                 <input 
                   value={localConfig.headerLine1}
                   onChange={e => setLocalConfig({...localConfig, headerLine1: e.target.value})}
-                  className="w-full bg-transparent border-none focus:ring-4 focus:ring-blue-100 text-[#005a9c] font-black uppercase text-center focus:text-left hover:bg-slate-50 transition-all rounded-xl p-2"
-                  style={{ fontSize: `${localConfig.fontSize1}px`, textAlign: localConfig.headerTextAlign }}
+                  className="w-full bg-transparent border-none focus:ring-0 text-[#005a9c] font-black uppercase text-center"
+                  style={{ fontSize: `${localConfig.fontSize1}px` }}
                 />
+            </div>
+
+            {/* Linha 2 Draggable */}
+            <div 
+                className={`absolute p-2 rounded-lg cursor-move border border-transparent ${activeDrag === 'line2' ? 'border-blue-400 bg-blue-50/30' : 'hover:border-slate-200'}`}
+                style={{ left: localConfig.headerLine2X, top: localConfig.headerLine2Y, minWidth: '300px' }}
+                onMouseDown={(e) => { e.preventDefault(); setActiveDrag('line2'); }}
+            >
                 <input 
                   value={localConfig.headerLine2}
                   onChange={e => setLocalConfig({...localConfig, headerLine2: e.target.value})}
-                  className="w-full bg-transparent border-none focus:ring-4 focus:ring-blue-100 text-slate-500 font-bold uppercase text-center focus:text-left hover:bg-slate-50 transition-all rounded-xl p-2"
-                  style={{ fontSize: `${localConfig.fontSize2}px`, textAlign: localConfig.headerTextAlign }}
+                  className="w-full bg-transparent border-none focus:ring-0 text-slate-600 font-bold uppercase text-center"
+                  style={{ fontSize: `${localConfig.fontSize2}px` }}
                 />
+            </div>
+
+            {/* Linha 3 Draggable */}
+            <div 
+                className={`absolute p-2 rounded-lg cursor-move border border-transparent ${activeDrag === 'line3' ? 'border-blue-400 bg-blue-50/30' : 'hover:border-slate-200'}`}
+                style={{ left: localConfig.headerLine3X, top: localConfig.headerLine3Y, minWidth: '300px' }}
+                onMouseDown={(e) => { e.preventDefault(); setActiveDrag('line3'); }}
+            >
                 <input 
                   value={localConfig.headerLine3}
                   onChange={e => setLocalConfig({...localConfig, headerLine3: e.target.value})}
-                  className="w-full bg-transparent border-none focus:ring-4 focus:ring-blue-100 text-slate-400 font-medium uppercase text-center focus:text-left hover:bg-slate-50 transition-all rounded-xl p-2"
-                  style={{ fontSize: `${localConfig.fontSize3}px`, textAlign: localConfig.headerTextAlign }}
+                  className="w-full bg-transparent border-none focus:ring-0 text-slate-400 font-medium uppercase text-center"
+                  style={{ fontSize: `${localConfig.fontSize3}px` }}
                 />
-              </div>
-            </div>
-            
-            {/* Sombra para indicar continuidade da página */}
-            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-50 to-transparent pointer-events-none flex items-end justify-center pb-4">
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Continuidade do Relatório...</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Controles de Estilo e Alinhamento */}
+      {/* Controles Auxiliares (Tipografia e Tamanhos) */}
       <div className="grid lg:grid-cols-2 gap-8">
         <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight">
-            <i className="fas fa-text-height text-blue-500"></i> Tamanho das Fontes
+            <i className="fas fa-text-height text-blue-500"></i> Tamanho das Fontes (PX)
           </h2>
           <div className="grid grid-cols-3 gap-4">
             {[1, 2, 3].map(i => (
               <div key={i} className="space-y-1">
                 <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Linha {i}</label>
-                <div className="relative">
-                  <input 
-                    type="number" 
-                    value={(localConfig as any)[`fontSize${i}`]} 
-                    onChange={e => setLocalConfig({...localConfig, [`fontSize${i}`]: parseInt(e.target.value) || 0})}
-                    className="w-full p-4 bg-slate-50 rounded-2xl border-none font-black text-blue-600 focus:ring-2 focus:ring-blue-200"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-300">PX</span>
-                </div>
+                <input 
+                  type="number" 
+                  value={(localConfig as any)[`fontSize${i}`]} 
+                  onChange={e => setLocalConfig({...localConfig, [`fontSize${i}`]: parseInt(e.target.value) || 0})}
+                  className="w-full p-4 bg-slate-50 rounded-2xl border-none font-black text-blue-600 focus:ring-2 focus:ring-blue-200"
+                />
               </div>
             ))}
           </div>
           <div className="pt-4 border-t border-slate-50">
-            <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-2 block">Alinhamento do Texto</label>
-            <div className="flex gap-2">
-              {['left', 'center', 'right'].map(align => (
-                <button 
-                  key={align}
-                  onClick={() => setLocalConfig({...localConfig, headerTextAlign: align as any})}
-                  className={`flex-1 py-4 rounded-2xl border-2 transition-all flex items-center justify-center gap-2 ${localConfig.headerTextAlign === align ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-slate-50 text-slate-400 bg-slate-50 hover:bg-slate-100'}`}
-                >
-                  <i className={`fas fa-align-${align}`}></i>
-                  <span className="text-[10px] font-black uppercase">{align === 'left' ? 'Esquerda' : align === 'center' ? 'Centro' : 'Direita'}</span>
-                </button>
-              ))}
-            </div>
+                <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-2 block text-center">Ajuste Fino de Largura da Logo</label>
+                <input 
+                  type="number" 
+                  value={localConfig.reportLogoWidth} 
+                  onChange={e => setLocalConfig({...localConfig, reportLogoWidth: parseInt(e.target.value) || 0})}
+                  className="w-full p-4 bg-slate-50 rounded-2xl border-none font-black text-slate-800 text-center"
+                />
           </div>
         </section>
 
-        <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col justify-center">
-            <div className="p-6 bg-blue-50 rounded-3xl border-2 border-blue-100 space-y-3">
-                <h4 className="text-blue-800 font-black text-xs uppercase tracking-widest flex items-center gap-2">
-                    <i className="fas fa-info-circle"></i> Dica de Designer
+        <section className="bg-[#005a9c] p-8 rounded-[2.5rem] shadow-xl text-white flex flex-col justify-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+            <div className="relative z-10 space-y-3">
+                <h4 className="font-black text-xs uppercase tracking-widest flex items-center gap-2 text-blue-200">
+                    <i className="fas fa-info-circle"></i> Instruções de Edição
                 </h4>
-                <p className="text-blue-600 text-sm font-medium leading-relaxed italic">
-                    "O editor acima simula a borda superior real da folha. Use o arraste de margem (Padding) para descer o texto caso a logo seja muito alta ou para centralizar verticalmente no topo."
+                <p className="text-sm font-medium leading-relaxed opacity-90 italic">
+                    "Clique e arraste diretamente no topo da página branca acima para posicionar a logo e cada linha de texto. O limite inferior pontilhado marca onde o conteúdo do relatório começará a ser impresso."
                 </p>
             </div>
         </section>
@@ -241,7 +225,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, onUpdateCo
       {/* Listas Mestres */}
       <section className="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
         <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 tracking-tighter uppercase">
-          <i className="fas fa-database text-emerald-500"></i> Dados do Sistema
+          <i className="fas fa-database text-emerald-500"></i> Gerenciar Listas
         </h2>
         <div className="grid md:grid-cols-2 gap-10">
           {['HAB', 'HABA'].map(unit => (

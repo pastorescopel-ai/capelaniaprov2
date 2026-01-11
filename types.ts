@@ -104,6 +104,12 @@ export interface Config {
   reportLogoWidth: number;
   reportLogoX: number;
   reportLogoY: number;
+  headerLine1X: number;
+  headerLine1Y: number;
+  headerLine2X: number;
+  headerLine2Y: number;
+  headerLine3X: number;
+  headerLine3Y: number;
   headerPaddingTop: number;
   headerTextAlign: 'left' | 'center' | 'right';
 }

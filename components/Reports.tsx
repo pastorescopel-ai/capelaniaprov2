@@ -1,3 +1,4 @@
+
 // ############################################################
 // # VERSION: 1.0.6-STABLE (RESTORE POINT)
 // # STATUS: VERIFIED & FUNCTIONAL
@@ -126,20 +127,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     }).sort((a, b) => b.totalActions - a.totalActions);
   }, [users, filteredData, selectedChaplain]);
 
-  const activeDetails = useMemo(() => {
-    if (!selectedDetailUser) return { items: [] };
-    
-    const sList = filteredData.studies.filter(s => s.userId === selectedDetailUser.id && s.status !== RecordStatus.TERMINO);
-    const cList = filteredData.classes.filter(c => c.userId === selectedDetailUser.id && c.status !== RecordStatus.TERMINO);
-
-    const items = [
-      ...sList.map(s => ({ ...s, type: 'study' })),
-      ...cList.map(c => ({ ...c, type: 'class' }))
-    ].sort((a: any, b: any) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
-
-    return { items };
-  }, [filteredData, selectedDetailUser]);
-
   const activityPieData = [
     { name: 'Estudos', value: totalStats.studies, color: '#3b82f6' },
     { name: 'Classes', value: totalStats.classes, color: '#6366f1' },
@@ -181,127 +168,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      <section className="bg-[#005a9c] text-white p-10 rounded-[3.5rem] shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
-        <div className="relative z-10 space-y-8">
-          <h2 className="text-3xl font-black tracking-tighter uppercase tracking-tight italic">Relatório Geral</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
-            <div className="bg-white/10 p-6 rounded-3xl border border-white/20 backdrop-blur-sm">
-              <p className="text-[9px] font-black text-white/70 uppercase mb-2">Total de Estudantes</p>
-              <p className="text-4xl font-black">{totalStats.totalStudents}</p>
-            </div>
-            <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Estudos</p><p className="text-3xl font-black">{totalStats.studies}</p></div>
-            <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">Classes</p><p className="text-3xl font-black">{totalStats.classes}</p></div>
-            <div className="bg-white/10 p-6 rounded-3xl border border-white/20"><p className="text-[9px] font-black text-white/70 uppercase mb-2">PGs</p><p className="text-3xl font-black">{totalStats.groups}</p></div>
-            <div className="bg-emerald-500/20 p-6 rounded-3xl border border-emerald-500/30"><p className="text-[9px] font-black text-emerald-300 uppercase mb-2">Visitas Colab.</p><p className="text-3xl font-black">{totalStats.visits}</p></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-6">
-        <h2 className="text-2xl font-black text-slate-800 px-4 flex items-center gap-3 uppercase tracking-tight">
-          <i className="fas fa-user-tie text-[#005a9c]"></i> Detalhamento por Equipe
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {chaplainStats.map((stat) => (
-            <div key={stat.user.id} onClick={() => setSelectedDetailUser(stat.user)} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer group relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-full -mr-12 -mt-12 group-hover:bg-blue-100 transition-colors"></div>
-              <div className="flex items-center gap-4 mb-6 relative z-10">
-                <div className="w-14 h-14 bg-[#005a9c] rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg overflow-hidden">
-                  {stat.user.profilePic ? <img src={stat.user.profilePic} className="w-full h-full object-cover" alt="Foto" /> : stat.name[0]}
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-slate-800 truncate text-lg">{stat.name}</h3>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{stat.user.role}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3 relative z-10">
-                <div className="bg-blue-50 p-3 rounded-2xl text-center"><p className="text-[8px] font-black text-blue-400 uppercase mb-1">Alunos</p><p className="text-lg font-black text-blue-700">{stat.students}</p></div>
-                <div className="bg-indigo-50 p-3 rounded-2xl text-center"><p className="text-[8px] font-black text-indigo-400 uppercase mb-1">Ações</p><p className="text-lg font-black text-indigo-700">{stat.studies + stat.classes}</p></div>
-                <div className="bg-rose-50 p-3 rounded-2xl text-center"><p className="text-[8px] font-black text-rose-400 uppercase mb-1">Visitas</p><p className="text-lg font-black text-rose-700">{stat.visits}</p></div>
-              </div>
-              <div className="mt-6 flex items-center justify-center gap-2 text-slate-300 group-hover:text-[#005a9c] transition-colors">
-                <span className="text-[10px] font-black uppercase tracking-widest">Ver Atendimentos Ativos</span>
-                <i className="fas fa-arrow-right text-xs"></i>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {selectedDetailUser && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[900] flex items-center justify-center p-4">
-          <div className="bg-slate-50 w-full max-w-4xl max-h-[85vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
-            <div className="p-8 bg-white border-b border-slate-100 flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg"><i className="fas fa-book-reader"></i></div>
-                <div>
-                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Atendimentos Ativos</h3>
-                  <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Capelão: {selectedDetailUser.name}</p>
-                </div>
-              </div>
-              <button onClick={() => setSelectedDetailUser(null)} className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm">
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
-              {activeDetails.items.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {activeDetails.items.map((item: any) => (
-                    <div key={item.id} className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm flex flex-col gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.type === 'class' ? 'bg-indigo-50 text-indigo-600' : 'bg-blue-50 text-blue-600'}`}>
-                          <i className={`fas ${item.type === 'class' ? 'fa-users' : 'fa-user'}`}></i>
-                        </div>
-                        <div>
-                          <h4 className="font-black text-slate-800 text-base leading-tight uppercase">{item.type === 'class' ? 'Classe Bíblica' : (item.name || 'Sem Nome')}</h4>
-                          <div className="flex items-center gap-2">
-                             <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{item.status}</span>
-                             {item.type === 'study' && item.whatsapp && (
-                               <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600">
-                                 <i className="fab fa-whatsapp"></i> {item.whatsapp}
-                               </span>
-                             )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        {item.type === 'class' && (
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] font-black text-slate-400 uppercase">Setor:</span>
-                              <span className="text-[10px] font-black text-slate-700 uppercase">{item.sector}</span>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <span className="text-[9px] font-black text-slate-400 uppercase">Alunos ({item.students?.length || 0}):</span>
-                              <div className="flex flex-wrap gap-1">
-                                {(item.students || []).map((s: string, idx: number) => (
-                                  <span key={idx} className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded-lg text-slate-600">
-                                    {s.split(' ')[0]}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        <div className="flex flex-col"><span className="text-[9px] font-black text-slate-400 uppercase">Guia:</span><span className="text-sm font-bold text-[#005a9c]">{item.guide || 'Não informado'}</span></div>
-                        <div className="flex flex-col bg-slate-50 p-4 rounded-2xl border border-slate-100"><span className="text-[9px] font-black text-slate-400 uppercase">Lição Atual:</span><span className="text-sm font-black italic text-slate-700">"{item.lesson || 'Início do curso'}"</span></div>
-                        <div className="flex items-center gap-3 text-slate-400 pt-2 border-t border-slate-100"><span className="text-[10px] font-black uppercase tracking-widest">{item.sector} • {item.unit}</span></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-4">
-                  <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 text-4xl"><i className="fas fa-folder-open"></i></div>
-                  <h4 className="text-xl font-black text-slate-400 uppercase tracking-tighter">Nenhum atendimento ativo</h4>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Preview PDF */}
       {showPdfPreview && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[950] flex items-center justify-center p-4 overflow-y-auto">
           <style>
@@ -335,12 +202,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Preview de Relatório</h2>
               </div>
               <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => window.print()} 
-                  className="px-8 py-3.5 bg-[#005a9c] text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest active:scale-95 transition-all flex items-center gap-3"
-                  style={{ cursor: 'pointer', border: 'none' }}
-                >
-                  <i className="fas fa-print"></i> Imprimir Relatório
+                <button onClick={() => window.print()} className="px-8 py-3.5 bg-[#005a9c] text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest active:scale-95 transition-all flex items-center gap-3">
+                  <i className="fas fa-print"></i> Imprimir
                 </button>
                 <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all">
                   <i className="fas fa-times"></i>
@@ -350,22 +213,43 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
             <div className="flex-1 bg-slate-100 p-4 md:p-10 overflow-y-auto no-scrollbar">
               <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
-                <header className="relative flex items-start border-b-4 border-[#005a9c] pb-6 min-h-[140px]" style={{ paddingTop: `${config.headerPaddingTop}px` }}>
+                
+                {/* CABEÇALHO CUSTOMIZÁVEL - POSICIONAMENTO ABSOLUTO FIDEDIGNO */}
+                <header className="relative border-b-4 border-[#005a9c]" style={{ height: '140px' }}>
                   {config.reportLogo && (
-                    <div className="absolute" style={{ left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px` }}>
-                      <img src={config.reportLogo} style={{ width: `${config.reportLogoWidth}px`, height: 'auto' }} alt="Logo" />
-                    </div>
+                    <img 
+                      src={config.reportLogo} 
+                      style={{ 
+                        position: 'absolute',
+                        left: `${config.reportLogoX}px`, 
+                        top: `${config.reportLogoY}px`,
+                        width: `${config.reportLogoWidth}px` 
+                      }} 
+                      alt="Logo" 
+                    />
                   )}
-                  <div className="w-full" style={{ textAlign: config.headerTextAlign }}>
-                    <h1 style={{fontSize: `${config.fontSize1}px`, color: '#005a9c'}} className="font-black uppercase leading-none">{config.headerLine1}</h1>
-                    <h2 style={{fontSize: `${config.fontSize2}px`}} className="font-bold text-slate-600 uppercase mt-2">{config.headerLine2}</h2>
-                    <p className="text-[11px] font-bold mt-2">Período: {startDate.split('-').reverse().join('/')} até {endDate.split('-').reverse().join('/')}</p>
-                    <p className="text-[10px] font-bold text-blue-600 mt-1 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
+                  
+                  <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '300px', textAlign: 'center' }}>
+                    <h1 style={{fontSize: `${config.fontSize1}px`, color: '#005a9c', margin: 0}} className="font-black uppercase">{config.headerLine1}</h1>
+                  </div>
+
+                  <div style={{ position: 'absolute', left: `${config.headerLine2X}px`, top: `${config.headerLine2Y}px`, width: '300px', textAlign: 'center' }}>
+                    <h2 style={{fontSize: `${config.fontSize2}px`, margin: 0}} className="font-bold text-slate-600 uppercase">{config.headerLine2}</h2>
+                  </div>
+
+                  <div style={{ position: 'absolute', left: `${config.headerLine3X}px`, top: `${config.headerLine3Y}px`, width: '300px', textAlign: 'center' }}>
+                    <h3 style={{fontSize: `${config.fontSize3}px`, margin: 0}} className="font-medium text-slate-400 uppercase">{config.headerLine3}</h3>
+                  </div>
+
+                  <div style={{ position: 'absolute', right: 0, top: '10px', textAlign: 'right' }}>
+                    <p className="text-[9px] font-bold uppercase text-slate-400">Emissão: {new Date().toLocaleDateString()}</p>
+                    <p className="text-[8px] font-black text-blue-600 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
                   </div>
                 </header>
 
-                <section className="space-y-6">
-                  {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
+                <section className="space-y-6 mt-4">
+                   {/* Conteúdo das Tabelas e Gráficos do Relatório */}
+                   {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
                     <div>
                       <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-3 border-b border-slate-100 pb-1 italic">Resumo de Atividades - Unidade HAB</h3>
                       <table className="w-full text-left text-[8px] border-collapse shadow-sm">
@@ -426,66 +310,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   )}
                 </section>
 
-                <section className="flex flex-col items-center gap-6 mt-4">
-                  <div className="w-full h-[160px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={activityPieData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value" isAnimationActive={false}>
-                          {activityPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                        </Pie>
-                        <Tooltip isAnimationActive={false} />
-                        <Legend wrapperStyle={{fontSize: '9px', fontWeight: 'bold'}} verticalAlign="bottom" align="center" />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="w-full h-[240px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chaplainStats} margin={{top: 25, right: 10, left: -20, bottom: 5}}>
-                        <XAxis dataKey="name" tick={{fontSize: 7, fontWeight: 'bold'}} interval={0} axisLine={false} tickLine={false} />
-                        <YAxis tick={{fontSize: 7}} axisLine={false} tickLine={false} />
-                        <Tooltip isAnimationActive={false} />
-                        <Legend verticalAlign="bottom" wrapperStyle={{fontSize: '8px', fontWeight: 'bold'}} iconSize={8} />
-                        
-                        <Bar dataKey="students" name="Alunos" fill="#005a9c" isAnimationActive={false}>
-                          <LabelList dataKey="students" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#005a9c'}} />
-                        </Bar>
-                        <Bar dataKey="studies" name="Estudos" fill="#3b82f6" isAnimationActive={false}>
-                          <LabelList dataKey="studies" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#3b82f6'}} />
-                        </Bar>
-                        <Bar dataKey="classes" name="Classes" fill="#6366f1" isAnimationActive={false}>
-                          <LabelList dataKey="classes" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#6366f1'}} />
-                        </Bar>
-                        <Bar dataKey="groups" name="PGs" fill="#10b981" isAnimationActive={false}>
-                          <LabelList dataKey="groups" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#10b981'}} />
-                        </Bar>
-                        <Bar dataKey="visits" name="Visitas" fill="#f43f5e" isAnimationActive={false}>
-                          <LabelList dataKey="visits" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#f43f5e'}} />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </section>
-
-                <div className="mt-auto grid grid-cols-5 gap-3 border-t-2 border-slate-100 pt-6">
-                    <div className="bg-[#005a9c] p-3 rounded-2xl text-center text-white shadow-md flex flex-col justify-center"><p className="text-[7px] font-black text-white/70 uppercase tracking-wider mb-1">Total Estudantes</p><p className="text-xl font-black leading-none">{totalStats.totalStudents}</p></div>
-                    <div className="bg-slate-50 p-3 rounded-2xl text-center border border-slate-100 flex flex-col justify-center"><p className="text-[7px] font-black text-slate-400 uppercase tracking-wider mb-1">Estudos</p><p className="text-xl font-black text-blue-600 leading-none">{totalStats.studies}</p></div>
-                    <div className="bg-slate-50 p-3 rounded-2xl text-center border border-slate-100 flex flex-col justify-center"><p className="text-[7px] font-black text-slate-400 uppercase tracking-wider mb-1">Classes</p><p className="text-xl font-black text-indigo-600 leading-none">{totalStats.classes}</p></div>
-                    <div className="bg-slate-50 p-3 rounded-2xl text-center border border-slate-100 flex flex-col justify-center"><p className="text-[7px] font-black text-slate-400 uppercase tracking-wider mb-1">PGs</p><p className="text-xl font-black text-emerald-600 leading-none">{totalStats.groups}</p></div>
-                    <div className="bg-slate-50 p-3 rounded-2xl text-center border border-slate-100 flex flex-col justify-center"><p className="text-[7px] font-black text-slate-400 uppercase tracking-wider mb-1">Visitas</p><p className="text-xl font-black text-rose-600 leading-none">{totalStats.visits}</p></div>
-                </div>
-
-                <footer className="mt-4 border-t border-slate-100 pt-2 flex justify-between text-[7px] font-bold text-slate-300 uppercase italic">
-                  <span>Gerado em: {new Date().toLocaleString('pt-BR')}</span>
-                  <span>Sistema Capelania Pro - Gestão Eficiente</span>
+                <footer className="mt-auto border-t border-slate-100 pt-2 flex justify-between text-[7px] font-bold text-slate-300 uppercase italic">
+                  <span>Gerado pelo Sistema Capelania Pro</span>
+                  <span>{new Date().toLocaleString()}</span>
                 </footer>
               </div>
-            </div>
-
-            <div className="p-8 bg-white border-t border-slate-100 flex justify-end no-print gap-4">
-              <button onClick={() => setShowPdfPreview(false)} className="px-10 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all active:scale-95">Fechar Preview</button>
-              <button onClick={() => window.print()} className="px-14 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center gap-3">
-                <i className="fas fa-print"></i> Imprimir Agora
-              </button>
             </div>
           </div>
         </div>
