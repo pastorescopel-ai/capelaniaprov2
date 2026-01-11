@@ -1,4 +1,4 @@
-// VERCEL_BUILD_ID: B-20250410-FINAL_STABLE
+// VERCEL_FORCE_BUILD_ID: 20250410_V3_FINAL
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config } from '../types';
@@ -329,7 +329,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </div>
                 <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Preview de Relatório</h2>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3" style={{ zIndex: 9999 }}>
                 <button onClick={() => window.print()} className="px-6 py-2.5 bg-[#005a9c] text-white font-black rounded-xl shadow-lg uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center gap-2">
                   <i className="fas fa-print"></i> Imprimir
                 </button>
