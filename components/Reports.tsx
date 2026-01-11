@@ -1,6 +1,6 @@
 // ############################################################
-// # VERSION: 1.0.9-FIX (TOTAL STUDENTS + DETAILED LISTS)
-// # STATUS: VERIFIED & FUNCTIONAL
+// # VERSION: 1.1.1-PRO (VISIBLE LABELS + GLOBAL AGGREGATION)
+// # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
 
@@ -27,6 +27,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const [selectedChaplain, setSelectedChaplain] = useState('all');
   const [selectedUnit, setSelectedUnit] = useState<'all' | Unit>('all');
 
+  // Filtro que preserva todo o histórico contido nas listas originais
   const filteredData = useMemo(() => {
     const sList = Array.isArray(studies) ? studies : [];
     const cList = Array.isArray(classes) ? classes : [];
@@ -50,18 +51,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
+  // Estatísticas Globais: Soma total de todos os capelães
   const totalStats = useMemo(() => {
     const uniqueStudents = new Set<string>();
     
-    // Conta todos os alunos de estudos bíblicos no período (Independente de Início, Continuação ou Término)
-    filteredData.studies.forEach(s => {
-      if (s.name) uniqueStudents.add(s.name.trim().toLowerCase());
+    // Agrega nomes de todos os registros de Estudos Bíblicos (Global)
+    filteredData.studies.forEach(s => { 
+      if (s.name) uniqueStudents.add(s.name.trim().toLowerCase()); 
     });
-
-    // Conta todos os alunos de classes bíblicas no período (Independente de status)
-    filteredData.classes.forEach(c => {
+    
+    // Agrega nomes de todos os alunos das Classes Bíblicas (Global)
+    filteredData.classes.forEach(c => { 
       if (Array.isArray(c.students)) {
-        c.students.forEach(name => uniqueStudents.add(name.trim().toLowerCase()));
+        c.students.forEach(name => uniqueStudents.add(name.trim().toLowerCase())); 
       }
     });
 
@@ -131,19 +133,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   }, [users, filteredData, selectedChaplain]);
 
   const summaryCards = [
-    { label: 'Total de Alunos', val: totalStats.totalStudents, icon: 'fa-user-graduate', color: 'bg-blue-600' },
+    { label: 'Total de Alunos', val: totalStats.totalStudents, icon: 'fa-user-graduate', color: 'bg-[#005a9c]' },
     { label: 'Estudos Bíblicos', val: totalStats.studies, icon: 'fa-book', color: 'bg-blue-500' },
     { label: 'Classes Bíblicas', val: totalStats.classes, icon: 'fa-users', color: 'bg-indigo-500' },
     { label: 'Pequenos Grupos', val: totalStats.groups, icon: 'fa-house-user', color: 'bg-emerald-500' },
     { label: 'Visitas Colab.', val: totalStats.visits, icon: 'fa-handshake', color: 'bg-rose-500' },
-  ];
-
-  const chartData = [
-    { name: 'Alunos', value: totalStats.totalStudents, color: '#2563eb' },
-    { name: 'Estudos', value: totalStats.studies, color: '#3b82f6' },
-    { name: 'Classes', value: totalStats.classes, color: '#6366f1' },
-    { name: 'PGs', value: totalStats.groups, color: '#10b981' },
-    { name: 'Visitas', value: totalStats.visits, color: '#f43f5e' },
   ];
 
   return (
@@ -180,7 +174,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </div>
         </div>
 
-        {/* Cards de Resumo Azul */}
+        {/* Cards de Resumo Azul - TOTAIS GLOBAIS DA EQUIPE */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {summaryCards.map((card, i) => (
             <div key={i} className={`${card.color} p-6 rounded-[2.5rem] text-white shadow-xl shadow-blue-100/20 group hover:scale-[1.03] transition-all`}>
@@ -232,7 +226,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      {/* Detalhes do Capelão Selecionado (MODAL) */}
+      {/* Modal Detalhes do Capelão */}
       {selectedDetailUser && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[900] flex items-center justify-center p-4">
            <div className="bg-white w-full max-w-4xl rounded-[3rem] p-10 space-y-8 animate-in zoom-in duration-300 relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -247,7 +241,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               </div>
 
               <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-8">
-                {/* Atividades Detalhadas por Unidade */}
                 {['HAB', 'HABA'].map(u => {
                   const stat = chaplainStats.find(s => s.user.id === selectedDetailUser.id)?.[u.toLowerCase() as 'hab' | 'haba'];
                   if (!stat || (stat.studies === 0 && stat.classes === 0)) return null;
@@ -258,7 +251,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                         <i className={`fas fa-hospital text-xl ${u === 'HAB' ? 'text-blue-500' : 'text-indigo-500'}`}></i>
                         <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight">Atividades Unidade {u}</h4>
                       </div>
-
                       {stat.rawStudies.length > 0 && (
                         <div className="space-y-3">
                           <h5 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] ml-2">Estudos Bíblicos (Iniciais e Continuação)</h5>
@@ -278,7 +270,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                           </div>
                         </div>
                       )}
-
                       {stat.rawClasses.length > 0 && (
                         <div className="space-y-3">
                           <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] ml-2">Classes Bíblicas (Iniciais e Continuação)</h5>
@@ -351,124 +342,117 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 {/* CABEÇALHO DENTRO DO PDF */}
                 <header className="relative border-b-4 border-[#005a9c]" style={{ height: '140px' }}>
                   {config.reportLogo && (
-                    <img 
-                      src={config.reportLogo} 
-                      style={{ 
-                        position: 'absolute',
-                        left: `${config.reportLogoX}px`, 
-                        top: `${config.reportLogoY}px`,
-                        width: `${config.reportLogoWidth}px` 
-                      }} 
-                      alt="Logo" 
-                    />
+                    <img src={config.reportLogo} style={{ position: 'absolute', left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px`, width: `${config.reportLogoWidth}px` }} alt="Logo" />
                   )}
-                  
                   <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '300px', textAlign: 'center' }}>
                     <h1 style={{fontSize: `${config.fontSize1}px`, color: '#005a9c', margin: 0}} className="font-black uppercase">{config.headerLine1}</h1>
                   </div>
-
                   <div style={{ position: 'absolute', left: `${config.headerLine2X}px`, top: `${config.headerLine2Y}px`, width: '300px', textAlign: 'center' }}>
                     <h2 style={{fontSize: `${config.fontSize2}px`, margin: 0}} className="font-bold text-slate-600 uppercase">{config.headerLine2}</h2>
                   </div>
-
                   <div style={{ position: 'absolute', left: `${config.headerLine3X}px`, top: `${config.headerLine3Y}px`, width: '300px', textAlign: 'center' }}>
                     <h3 style={{fontSize: `${config.fontSize3}px`, margin: 0}} className="font-medium text-slate-400 uppercase">{config.headerLine3}</h3>
                   </div>
-
                   <div style={{ position: 'absolute', right: 0, top: '10px', textAlign: 'right' }}>
                     <p className="text-[9px] font-bold uppercase text-slate-400">Emissão: {new Date().toLocaleDateString()}</p>
                     <p className="text-[8px] font-black text-blue-600 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
                   </div>
                 </header>
 
-                <section className="space-y-8 mt-4">
-                   {/* Gráfico de Barras no PDF */}
-                   <div className="w-full bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                      <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-6 text-center tracking-widest">Resumo Estatístico Consolidado (Toda Equipe)</h3>
-                      <div className="h-[200px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 800, fill: '#64748b'}} />
-                            <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={50}>
-                              {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                              <LabelList dataKey="value" position="top" style={{ fontSize: '10px', fontWeight: '900', fill: '#0f172a' }} />
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                   </div>
-
+                <section className="space-y-12 mt-4">
+                   {/* Tabelas de Unidades */}
                    {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
-                    <div>
-                      <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-3 border-b-2 border-slate-100 pb-1 flex items-center gap-2">
-                        <i className="fas fa-hospital"></i> Tabela de Atividades - Unidade HAB
-                      </h3>
+                    <div className="space-y-4">
+                      <h3 className="text-[11px] font-black uppercase text-[#005a9c] border-b-2 border-slate-100 pb-1 flex items-center gap-2"><i className="fas fa-hospital"></i> Atividades HAB</h3>
                       <table className="w-full text-left text-[9px] border-collapse">
-                        <thead>
-                          <tr className="bg-[#005a9c] text-white font-black uppercase">
-                            <th className="p-3">Capelão</th>
-                            <th className="p-3 text-center">Total Alunos</th>
-                            <th className="p-3 text-center">Estudos</th>
-                            <th className="p-3 text-center">Classes</th>
-                            <th className="p-3 text-center">PGs</th>
-                            <th className="p-3 text-center">Visitas</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
-                            <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                              <td className="p-3 font-bold text-slate-700 uppercase tracking-tight">{stat.name}</td>
-                              <td className="p-3 text-center font-bold text-slate-800">{stat.hab.students}</td>
-                              <td className="p-3 text-center font-bold text-blue-600">{stat.hab.studies}</td>
-                              <td className="p-3 text-center font-bold text-indigo-600">{stat.hab.classes}</td>
-                              <td className="p-3 text-center font-bold text-emerald-600">{stat.hab.groups}</td>
-                              <td className="p-3 text-center font-bold text-rose-600">{stat.hab.visits}</td>
-                            </tr>
-                          ))}
-                        </tbody>
+                        <thead><tr className="bg-[#005a9c] text-white font-black uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Total Alunos</th><th className="p-3 text-center">Estudos</th><th className="p-3 text-center">Classes</th><th className="p-3 text-center">PGs</th><th className="p-3 text-center">Visitas</th></tr></thead>
+                        <tbody className="divide-y divide-slate-100">{chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
+                          <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}><td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td><td className="p-3 text-center font-bold text-slate-800">{stat.hab.students}</td><td className="p-3 text-center font-bold text-blue-600">{stat.hab.studies}</td><td className="p-3 text-center font-bold text-indigo-600">{stat.hab.classes}</td><td className="p-3 text-center font-bold text-emerald-600">{stat.hab.groups}</td><td className="p-3 text-center font-bold text-rose-600">{stat.hab.visits}</td></tr>
+                        ))}</tbody>
                       </table>
                     </div>
                   )}
 
                   {(selectedUnit === 'all' || selectedUnit === Unit.HABA) && (
-                    <div className="mt-4">
-                      <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-3 border-b-2 border-slate-100 pb-1 flex items-center gap-2">
-                        <i className="fas fa-hospital-alt"></i> Tabela de Atividades - Unidade HABA
-                      </h3>
+                    <div className="space-y-4">
+                      <h3 className="text-[11px] font-black uppercase text-[#005a9c] border-b-2 border-slate-100 pb-1 flex items-center gap-2"><i className="fas fa-hospital-alt"></i> Atividades HABA</h3>
                       <table className="w-full text-left text-[9px] border-collapse">
-                        <thead>
-                          <tr className="bg-[#005a9c] text-white font-black uppercase">
-                            <th className="p-3">Capelão</th>
-                            <th className="p-3 text-center">Total Alunos</th>
-                            <th className="p-3 text-center">Estudos</th>
-                            <th className="p-3 text-center">Classes</th>
-                            <th className="p-3 text-center">PGs</th>
-                            <th className="p-3 text-center">Visitas</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
-                            <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                              <td className="p-3 font-bold text-slate-700 uppercase tracking-tight">{stat.name}</td>
-                              <td className="p-3 text-center font-bold text-slate-800">{stat.haba.students}</td>
-                              <td className="p-3 text-center font-bold text-blue-600">{stat.haba.studies}</td>
-                              <td className="p-3 text-center font-bold text-indigo-600">{stat.haba.classes}</td>
-                              <td className="p-3 text-center font-bold text-emerald-600">{stat.haba.groups}</td>
-                              <td className="p-3 text-center font-bold text-rose-600">{stat.haba.visits}</td>
-                            </tr>
-                          ))}
-                        </tbody>
+                        <thead><tr className="bg-[#005a9c] text-white font-black uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Total Alunos</th><th className="p-3 text-center">Estudos</th><th className="p-3 text-center">Classes</th><th className="p-3 text-center">PGs</th><th className="p-3 text-center">Visitas</th></tr></thead>
+                        <tbody className="divide-y divide-slate-100">{chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
+                          <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}><td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td><td className="p-3 text-center font-bold text-slate-800">{stat.haba.students}</td><td className="p-3 text-center font-bold text-blue-600">{stat.haba.studies}</td><td className="p-3 text-center font-bold text-indigo-600">{stat.haba.classes}</td><td className="p-3 text-center font-bold text-emerald-600">{stat.haba.groups}</td><td className="p-3 text-center font-bold text-rose-600">{stat.haba.visits}</td></tr>
+                        ))}</tbody>
                       </table>
                     </div>
                   )}
+
+                  {/* Gráficos Individuais por Capelão com Números Visíveis */}
+                  <div className="space-y-8">
+                    <h3 className="text-[11px] font-black uppercase text-[#005a9c] text-center italic tracking-widest border-y border-slate-50 py-2">Desempenho Gráfico por Capelão</h3>
+                    <div className="grid grid-cols-1 gap-12">
+                      {chaplainStats.map((stat, idx) => (
+                        <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-slate-100 page-break-inside-avoid">
+                          <h4 className="text-[10px] font-black text-slate-800 uppercase mb-4 flex justify-between">
+                            <span>{stat.name}</span>
+                            <span className="text-blue-600 uppercase tracking-tighter">Total de Ações: {stat.totalActions}</span>
+                          </h4>
+                          <div className="h-[140px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={[
+                                { n: 'Alunos', v: stat.students, c: '#005a9c' },
+                                { n: 'Estudos', v: stat.studies, c: '#3b82f6' },
+                                { n: 'Classes', v: stat.classes, c: '#6366f1' },
+                                { n: 'PGs', v: stat.groups, c: '#10b981' },
+                                { n: 'Visitas', v: stat.visits, c: '#f43f5e' }
+                              ]}>
+                                <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 800, fill: '#64748b'}} />
+                                <Bar dataKey="v" radius={[4, 4, 0, 0]} barSize={40}>
+                                  {[0,1,2,3,4].map((_, i) => <Cell key={i} fill={['#005a9c', '#3b82f6', '#6366f1', '#10b981', '#f43f5e'][i]} />)}
+                                  {/* Rótulo numérico visível e destacado no topo da barra */}
+                                  <LabelList dataKey="v" position="top" style={{ fontSize: '10px', fontWeight: '900', fill: '#0f172a' }} />
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Cards de Totais Gerais no Rodapé com Ênfase em Azul no Total de Alunos */}
+                  <div className="pt-10 border-t-2 border-slate-100 page-break-inside-avoid">
+                    <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-6 text-center tracking-widest">Resumo Consolidado de Atividades</h3>
+                    <div className="grid grid-cols-5 gap-3">
+                      {/* Card de Total de Alunos com Ênfase em Azul conforme solicitado */}
+                      <div className="bg-[#005a9c] p-4 rounded-xl text-white text-center shadow-lg border border-blue-700">
+                        <p className="text-[7px] font-black uppercase tracking-widest opacity-80 mb-1 leading-none">Total Alunos</p>
+                        <p className="text-2xl font-black leading-none">{totalStats.totalStudents}</p>
+                      </div>
+                      <div className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center">
+                        <p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">Estudos</p>
+                        <p className="text-xl font-black leading-none">{totalStats.studies}</p>
+                      </div>
+                      <div className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center">
+                        <p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">Classes</p>
+                        <p className="text-xl font-black leading-none">{totalStats.classes}</p>
+                      </div>
+                      <div className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center">
+                        <p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">P. Grupos</p>
+                        <p className="text-xl font-black leading-none">{totalStats.groups}</p>
+                      </div>
+                      <div className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center">
+                        <p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">Visitas</p>
+                        <p className="text-xl font-black leading-none">{totalStats.visits}</p>
+                      </div>
+                    </div>
+                  </div>
                 </section>
 
                 <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4">
                   <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic">
-                    <span>Sistema de Gestão Capelania Hospitalar v1.0.9</span>
-                    <span>Documento Oficial de Registro de Atividades</span>
+                    <span>Capelania Hospitalar Pro v1.1.1</span>
+                    <span>Período: {startDate.split('-').reverse().join('/')} até {endDate.split('-').reverse().join('/')}</span>
                   </div>
-                  <div className="flex justify-center gap-20 pt-8 opacity-40">
+                  <div className="flex justify-center gap-20 pt-10 opacity-40">
                     <div className="text-center">
                       <div className="w-48 border-b border-slate-400 mb-1"></div>
                       <p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p>
