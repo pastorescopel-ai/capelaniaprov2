@@ -127,13 +127,9 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // ############################################################
-  // # NOVO: SINCRONIZAÇÃO AUTOMÁTICA DISCRETA (A CADA 5 MINUTOS)
-  // ############################################################
   useEffect(() => {
     if (!isAuthenticated || !isConnected || !isInitialized) return;
     const interval = setInterval(() => {
-      // Só sincroniza se não estiver salvando algo no momento
       if (!isSyncing && !editingItem) {
         loadFromCloud();
       }
@@ -268,6 +264,7 @@ const App: React.FC = () => {
               setMasterLists(l); 
               await saveToCloud({ config: c, masterLists: l }); 
             }}
+            onRefreshData={loadFromCloud}
           />
         )}
       </div>

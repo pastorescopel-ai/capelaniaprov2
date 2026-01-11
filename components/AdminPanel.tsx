@@ -1,7 +1,7 @@
 
 // ############################################################
-// # VERSION: 1.4.1-DNA-TOTAL (STABLE)
-// # STATUS: FULLY FUNCTIONAL + HEADER EDIT ENABLED
+// # VERSION: 1.4.2-DNA-TOTAL (STABLE)
+// # STATUS: FULLY FUNCTIONAL + MANUAL SYNC ENABLED
 // ############################################################
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -16,8 +16,8 @@ interface AdminPanelProps {
   bibleClasses: BibleClass[];
   smallGroups: SmallGroup[];
   staffVisits: StaffVisit[];
-  // Função unificada para evitar erros de sincronia
   onSaveAllData: (config: Config, lists: MasterLists) => Promise<void>;
+  onRefreshData: () => Promise<void>; // Nova prop para sincronia manual
 }
 
 type DragType = 'logo' | 'line1' | 'line2' | 'line3' | 'resize' | null;
@@ -25,11 +25,12 @@ type DragType = 'logo' | 'line1' | 'line2' | 'line3' | 'resize' | null;
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
   config, masterLists, users, currentUser, 
   bibleStudies, bibleClasses, smallGroups, staffVisits,
-  onSaveAllData 
+  onSaveAllData, onRefreshData
 }) => {
   const [localConfig, setLocalConfig] = useState(config);
   const [activeDrag, setActiveDrag] = useState<DragType>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   
   const [lists, setLists] = useState({
@@ -84,11 +85,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     return Array.from(new Set(items)); 
   };
 
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await onRefreshData();
+      alert('Dados atualizados com sucesso da nuvem!');
+    } catch (e) {
+      alert('Erro ao atualizar dados.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const handleExportFullDNA = () => {
     const confirmExport = confirm("ATENÇÃO: Este backup contém TODOS OS REGISTROS, USUÁRIOS e CONFIGURAÇÕES. É a cópia integral do seu banco de dados.");
     if (confirmExport) {
       const fullDNA = {
-        version: "1.4.1-DNA-TOTAL",
+        version: "1.4.2-DNA-TOTAL",
         exportDate: new Date().toISOString(),
         author: currentUser.name,
         database: { bibleStudies, bibleClasses, smallGroups, staffVisits, users, config: localConfig, masterLists }
@@ -131,18 +144,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   return (
     <div className="space-y-12 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700" onMouseUp={() => setActiveDrag(null)} onMouseLeave={() => setActiveDrag(null)}>
       
-      {isSaving && (
+      {(isSaving || isRefreshing) && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[1000] flex items-center justify-center p-4">
           <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl flex flex-col items-center gap-8 max-w-md w-full text-center border-4 border-blue-50 animate-in zoom-in duration-300">
             <div className="relative">
                <div className="w-24 h-24 border-8 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
                <div className="absolute inset-0 flex items-center justify-center">
-                  <i className="fas fa-cloud-upload-alt text-blue-600 text-2xl animate-bounce"></i>
+                  <i className={`fas ${isRefreshing ? 'fa-sync-alt animate-spin' : 'fa-cloud-upload-alt animate-bounce'} text-blue-600 text-2xl`}></i>
                </div>
             </div>
             <div className="space-y-3">
-              <h3 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">Sincronizando Tudo</h3>
-              <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest leading-relaxed px-6">Gravando configurações e Listas Mestres na nuvem...</p>
+              <h3 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">
+                {isRefreshing ? 'Atualizando Dados' : 'Sincronizando Tudo'}
+              </h3>
+              <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest leading-relaxed px-6">
+                {isRefreshing ? 'Buscando informações recentes do Google Sheets...' : 'Gravando configurações e Listas Mestres na nuvem...'}
+              </p>
             </div>
           </div>
         </div>
@@ -158,8 +175,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           )}
         </div>
         <div className="flex flex-wrap gap-3">
-          <button onClick={handleExportFullDNA} className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg"><i className="fas fa-dna text-amber-400"></i> Backup DNA Total</button>
-          <button onClick={handleSaveAll} className="px-10 py-5 text-white font-black rounded-[1.5rem] shadow-2xl hover:brightness-110 transition-all flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95" style={{ backgroundColor: localConfig.primaryColor || '#005a9c' }}><i className="fas fa-save"></i> Salvar Tudo</button>
+          <button onClick={handleManualRefresh} className="px-5 py-4 bg-emerald-50 text-emerald-600 font-black rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm">
+            <i className={`fas fa-sync-alt ${isRefreshing ? 'animate-spin' : ''}`}></i> Sincronizar Agora
+          </button>
+          <button onClick={handleExportFullDNA} className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg">
+            <i className="fas fa-dna text-amber-400"></i> Backup DNA Total
+          </button>
+          <button onClick={handleSaveAll} className="px-10 py-5 text-white font-black rounded-[1.5rem] shadow-2xl hover:brightness-110 transition-all flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95" style={{ backgroundColor: localConfig.primaryColor || '#005a9c' }}>
+            <i className="fas fa-save"></i> Salvar Tudo
+          </button>
         </div>
       </header>
 
