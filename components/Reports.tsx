@@ -1,5 +1,5 @@
 // ############################################################
-// # VERSION: 1.1.8-PRINT-PERFECTION (CHROME A4 SCALE FIXED)
+// # VERSION: 1.1.9-PRINT-STABLE (CHROME ENGINE OPTIMIZED)
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
@@ -274,28 +274,30 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   size: A4; 
                   margin: 0 !important; 
                 }
-                html, body { 
+                /* ISOLAMENTO TOTAL DA INTERFACE */
+                html, body {
+                  background: white !important;
                   margin: 0 !important;
                   padding: 0 !important;
-                  height: 100% !important;
-                  width: 100% !important;
+                  height: auto !important;
+                  overflow: visible !important;
+                }
+                /* ESCONDE TUDO QUE NÃO SEJA O RELATÓRIO */
+                body > *:not(.fixed), #root > *:not(.fixed) {
+                  display: none !important;
+                }
+                .fixed:has(#pdf-root) {
+                  position: static !important;
+                  display: block !important;
                   background: white !important;
-                  overflow: hidden !important;
+                  padding: 0 !important;
+                  margin: 0 !important;
                 }
-                /* FORÇAR VISIBILIDADE ZERO EM TUDO */
-                body * { 
-                  visibility: hidden !important; 
-                  display: none !important; 
-                }
-                /* FORÇAR APENAS O CONTEÚDO DO PDF */
-                #pdf-root, #pdf-root * { 
-                  visibility: visible !important; 
-                  display: block !important; 
-                }
+                /* RESET DO CONTAINER DE PDF */
                 #pdf-root {
                   display: flex !important;
                   flex-direction: column !important;
-                  position: fixed !important; /* FIXED GARANTE QUE COMEÇA NO TOPO DA FOLHA */
+                  position: fixed !important; 
                   top: 0 !important;
                   left: 0 !important;
                   width: 210mm !important;
@@ -304,18 +306,25 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   margin: 0 !important;
                   background: white !important;
                   box-sizing: border-box !important;
-                  z-index: 9999 !important;
+                  box-shadow: none !important;
+                  border: none !important;
+                  z-index: 999999 !important;
                 }
-                .no-print { display: none !important; }
+                #pdf-container-outer, .no-print {
+                  display: none !important;
+                }
+                /* FORÇAR RENDERIZAÇÃO DE CORES E IMAGENS */
                 * { 
                   -webkit-print-color-adjust: exact !important; 
                   print-color-adjust: exact !important; 
                   text-rendering: optimizeLegibility !important;
                 }
-                /* Ajuste de escala para evitar sobreposição de textos absolutistas */
-                header h1, header h2, header h3 {
-                  line-height: 1.2 !important;
-                  white-space: nowrap !important;
+                /* FIX PARA ELEMENTOS ABSOLUTOS DO CABEÇALHO */
+                header {
+                  overflow: visible !important;
+                }
+                header img, header div {
+                  display: block !important;
                 }
               }
             `}
@@ -401,7 +410,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </section>
 
                 <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
-                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.8-Fidelity</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
+                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.9-Fidelity</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
                   <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
                 </footer>
               </div>
