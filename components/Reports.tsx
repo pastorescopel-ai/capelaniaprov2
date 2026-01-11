@@ -1,5 +1,5 @@
 // ############################################################
-// # VERSION: 1.2.3-PRINT-DIRECT-SHORTCUT
+// # VERSION: 1.2.4-PRINT-ZERO-MARGIN-FIDELITY
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
@@ -134,14 +134,13 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   }, [users, filteredData, selectedChaplain]);
 
   /**
-   * MOTOR DE IMPRESSÃO ISOLADO (SOLUÇÃO DEFINITIVA)
+   * MOTOR DE IMPRESSÃO ISOLADO (CORREÇÃO DE MARGENS E ESCALA)
    */
   const handlePrintIsolated = () => {
-    // Busca o container de relatório (seja o do modal ou o invisível de fundo)
     const printContent = document.getElementById('pdf-root');
     if (!printContent) return;
 
-    const printWindow = window.open('', '_blank', 'width=950,height=900');
+    const printWindow = window.open('', '_blank', 'width=1000,height=900');
     if (!printWindow) {
       alert('Por favor, permita pop-ups para imprimir o relatório.');
       return;
@@ -155,32 +154,50 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Relatório Capelania - Impressão Direta</title>
+          <title>Relatório Capelania - Impressão</title>
           ${styles}
           <style>
+            /* Reset absoluto de margens para o navegador */
             @media print {
-              @page { size: A4; margin: 0; }
-              body { margin: 0; padding: 0; background: white; }
+              @page { 
+                size: A4; 
+                margin: 0mm !important; 
+              }
+              html, body { 
+                margin: 0 !important; 
+                padding: 0 !important; 
+                width: 210mm !important;
+                background: white !important;
+              }
+              .no-print { display: none !important; }
+              #pdf-isolated-container {
+                box-shadow: none !important;
+                margin: 0 !important;
+                width: 210mm !important;
+                transform: none !important; /* Remove escala na impressão física */
+              }
             }
             body { 
               background: #f1f5f9; 
               display: flex; 
               justify-content: center; 
-              padding: 0;
+              padding: 20px 0;
               margin: 0;
               font-family: 'Inter', sans-serif;
             }
             #pdf-isolated-container {
               background: white !important;
-              width: 800px !important;
-              min-height: 1130px !important;
-              padding: 40px !important;
+              width: 210mm !important; /* Tamanho exato do A4 */
+              min-height: 297mm !important;
+              padding: 15mm !important; /* Margem interna idêntica ao visualizador */
               box-sizing: border-box !important;
-              transform: scale(0.96);
-              transform-origin: top center;
+              position: relative !important;
+              box-shadow: 0 0 40px rgba(0,0,0,0.1);
             }
+            /* Garantia de fidelidade de cores */
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .no-print { display: none !important; }
+            header { position: relative !important; height: 140px !important; }
+            #pdf-root { width: 100% !important; max-width: none !important; box-shadow: none !important; border: none !important; padding: 0 !important; }
           </style>
         </head>
         <body>
@@ -189,9 +206,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </div>
           <script>
             window.onload = () => {
+              // Pequeno delay para garantir que imagens Base64 e SVGs (Recharts) carreguem
               setTimeout(() => {
                 window.print();
-              }, 600);
+              }, 800);
             };
           </script>
         </body>
@@ -208,7 +226,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     { label: 'Visitas Colab.', val: totalStats.visits, icon: 'fa-handshake', color: 'bg-rose-500' },
   ];
 
-  // Componente interno para evitar repetição de código no PDF
+  // Componente interno para visualização no modal (Mantido exatamente como solicitado)
   const PdfTemplate = () => (
     <div id="pdf-root" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
       <header className="relative border-b-4 border-[#005a9c] flex-shrink-0" style={{ height: '140px' }}>
@@ -280,7 +298,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       </section>
 
       <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
-        <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.2.3-Ultimate</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
+        <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.2.4-Ultimate</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
         <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
       </footer>
     </div>
@@ -296,7 +314,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               <i className="fas fa-sync-alt"></i> Sincronizar
             </button>
             
-            {/* NOVO BOTÃO DE IMPRESSÃO DIRETA */}
+            {/* BOTÃO DE IMPRESSÃO DIRETA - ISOLADO */}
             <button onClick={handlePrintIsolated} className="px-6 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 hover:bg-black">
               <i className="fas fa-print"></i> Impressão Direta
             </button>
@@ -438,11 +456,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       )}
 
       {/* CONTAINER DE RENDERIZAÇÃO EM SEGUNDO PLANO (Sempre presente, mas invisível) */}
-      {!showPdfPreview && (
-        <div style={{ position: 'fixed', left: '-9999px', top: 0, opacity: 0, pointerEvents: 'none' }}>
-           <PdfTemplate />
-        </div>
-      )}
+      <div style={{ position: 'fixed', left: '-9999px', top: 0, opacity: 0, pointerEvents: 'none' }}>
+         <PdfTemplate />
+      </div>
     </div>
   );
 };
