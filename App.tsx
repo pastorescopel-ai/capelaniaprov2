@@ -103,13 +103,22 @@ const App: React.FC = () => {
       syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
       const cloudData = await syncService.syncFromCloud();
       if (cloudData) {
+        let freshUsers = users;
         if (cloudData.users && Array.isArray(cloudData.users)) {
-          const decodedUsers = cloudData.users.map((u: User) => ({
+          freshUsers = cloudData.users.map((u: User) => ({
             ...u,
             email: decodeData(u.email),
             password: decodeData(u.password || '')
           }));
-          setUsers(decodedUsers);
+          setUsers(freshUsers);
+
+          // Atualiza o perfil do usuário logado caso tenha mudado em outro dispositivo
+          if (currentUser) {
+            const updatedMe = freshUsers.find(u => u.id === currentUser.id);
+            if (updatedMe) {
+              setCurrentUser(updatedMe);
+            }
+          }
         }
         if (cloudData.bibleStudies && Array.isArray(cloudData.bibleStudies)) setBibleStudies(cloudData.bibleStudies);
         if (cloudData.bibleClasses && Array.isArray(cloudData.bibleClasses)) setBibleClasses(cloudData.bibleClasses);
@@ -125,7 +134,7 @@ const App: React.FC = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [currentUser, users]);
 
   useEffect(() => {
     if (!isAuthenticated || !isConnected || !isInitialized) return;
@@ -248,7 +257,7 @@ const App: React.FC = () => {
         {activeTab === 'staffVisit' && <StaffVisitForm users={users} onToggleReturn={id => { const up = staffVisits.map(x=>x.id===id?{...x, returnCompleted: !x.returnCompleted}:x); setStaffVisits(up); saveToCloud({staffVisits: up}); }} staffList={currentUnit === Unit.HAB ? masterLists.staffHAB : masterLists.staffHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(staffVisits).slice(0, 15)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />}
         {activeTab === 'reports' && <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} config={config} onRefresh={loadFromCloud} />}
         {activeTab === 'users' && <UserManagement users={users} currentUser={currentUser} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
-        {activeTab === 'profile' && currentUser && <Profile user={currentUser} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
+        {activeTab === 'profile' && currentUser && <Profile user={currentUser} isSyncing={isSyncing} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
         {activeTab === 'admin' && (
           <AdminPanel 
             config={config} 

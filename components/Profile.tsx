@@ -4,10 +4,11 @@ import { User } from '../types';
 
 interface ProfileProps {
   user: User;
+  isSyncing?: boolean; // Nova prop para controle visual
   onUpdateUser: (updatedUser: User) => void;
 }
 
-const Profile: React.FC<ProfileProps> = ({ user, onUpdateUser }) => {
+const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
   const [name, setName] = useState(user.name);
   const [passData, setPassData] = useState({ current: '', new: '', confirm: '' });
   const [profilePic, setProfilePic] = useState(user.profilePic || '');
@@ -71,11 +72,30 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdateUser }) => {
 
     onUpdateUser(updatedUser);
     setPassData({ current: '', new: '', confirm: '' });
-    alert('Perfil atualizado com sucesso!');
+    // O alerta agora será secundário ao processo de sincronia visual
   };
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500 pb-24">
+      
+      {/* OVERLAY DE SINCRONIZAÇÃO PADRÃO */}
+      {isSyncing && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[1000] flex items-center justify-center p-4">
+          <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl flex flex-col items-center gap-8 max-w-md w-full text-center border-4 border-blue-50 animate-in zoom-in duration-300">
+            <div className="relative">
+               <div className="w-24 h-24 border-8 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
+               <div className="absolute inset-0 flex items-center justify-center">
+                  <i className="fas fa-cloud-upload-alt text-blue-600 text-2xl animate-bounce"></i>
+               </div>
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">Sincronizando Perfil</h3>
+              <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest leading-relaxed px-6">Gravando suas alterações na nuvem de forma segura...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header>
         <h1 className="text-3xl font-bold text-slate-800">Meu Perfil</h1>
         <p className="text-slate-500">Dados pessoais e segurança da conta</p>
