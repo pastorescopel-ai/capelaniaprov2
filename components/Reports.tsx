@@ -1,5 +1,5 @@
 // ############################################################
-// # VERSION: 1.1.9-PRINT-STABLE (CHROME ENGINE OPTIMIZED)
+// # VERSION: 1.2.0-PRINT-ULTIMATE (PIXEL-PERFECT FIDELITY)
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
@@ -274,7 +274,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   size: A4; 
                   margin: 0 !important; 
                 }
-                /* ISOLAMENTO TOTAL DA INTERFACE */
+                /* ISOLAMENTO TOTAL DA INTERFACE DO SISTEMA */
                 html, body {
                   background: white !important;
                   margin: 0 !important;
@@ -282,49 +282,55 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   height: auto !important;
                   overflow: visible !important;
                 }
-                /* ESCONDE TUDO QUE NÃO SEJA O RELATÓRIO */
-                body > *:not(.fixed), #root > *:not(.fixed) {
+                /* ESCONDE TUDO NO SISTEMA QUE NÃO SEJA O CONTAINER DE PDF */
+                #root > *, body > *:not(.fixed) {
                   display: none !important;
                 }
                 .fixed:has(#pdf-root) {
                   position: static !important;
                   display: block !important;
                   background: white !important;
-                  padding: 0 !important;
-                  margin: 0 !important;
                 }
-                /* RESET DO CONTAINER DE PDF */
+                /* RESET E ESCALA PIXEL-PERFECT DO RELATÓRIO */
                 #pdf-root {
                   display: flex !important;
                   flex-direction: column !important;
-                  position: fixed !important; 
+                  position: absolute !important;
                   top: 0 !important;
                   left: 0 !important;
-                  width: 210mm !important;
-                  height: 297mm !important;
-                  padding: 15mm !important;
+                  /* A largura de 800px garante que a escala X/Y do Painel Admin seja respeitada */
+                  width: 800px !important; 
+                  min-height: 1131px !important; /* Proporção A4 para 800px de largura */
+                  padding: 40px !important;
                   margin: 0 !important;
                   background: white !important;
                   box-sizing: border-box !important;
                   box-shadow: none !important;
                   border: none !important;
                   z-index: 999999 !important;
+                  /* ESCALA PARA ENCAIXAR NO PAPEL A4 (210mm) */
+                  transform: scale(0.96) !important;
+                  transform-origin: top left !important;
                 }
+                /* Remove controles visuais durante a impressão */
                 #pdf-container-outer, .no-print {
                   display: none !important;
                 }
-                /* FORÇAR RENDERIZAÇÃO DE CORES E IMAGENS */
+                /* Força renderização total de cores e fontes */
                 * { 
                   -webkit-print-color-adjust: exact !important; 
                   print-color-adjust: exact !important; 
                   text-rendering: optimizeLegibility !important;
                 }
-                /* FIX PARA ELEMENTOS ABSOLUTOS DO CABEÇALHO */
+                /* Corrige o problema de sobreposição em textos absolutos */
                 header {
-                  overflow: visible !important;
+                   width: 100% !important;
+                   height: 160px !important;
+                   position: relative !important;
                 }
-                header img, header div {
-                  display: block !important;
+                header div, header h1, header h2, header h3 {
+                   white-space: nowrap !important;
+                   line-height: 1.1 !important;
                 }
               }
             `}
@@ -410,7 +416,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </section>
 
                 <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
-                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.9-Fidelity</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
+                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.2.0-Ultimate</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
                   <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
                 </footer>
               </div>
