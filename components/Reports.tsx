@@ -1,6 +1,6 @@
 
 // ############################################################
-// # VERSION: 1.0.0-ESTAVEL (GOLDEN MASTER - RESTORED)
+// # VERSION: 1.0.1-ESTAVEL (PRINT AUTO-CLOSE)
 // # STATUS: VERIFIED & PRODUCTION READY + ADMIN SYNC (1.3)
 // # DATE: 2025-04-12
 // ############################################################
@@ -137,7 +137,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   }, [users, filteredData, selectedChaplain]);
 
   /**
-   * MOTOR DE IMPRESSÃO ISOLADO (CORREÇÃO DE MARGENS E ESCALA)
+   * MOTOR DE IMPRESSÃO ISOLADO (FECHAMENTO AUTOMÁTICO ADICIONADO)
    */
   const handlePrintIsolated = () => {
     const printContent = document.getElementById('pdf-root');
@@ -209,6 +209,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             window.onload = () => {
               setTimeout(() => {
                 window.print();
+                // FECHA A ABA AUTOMATICAMENTE APÓS IMPRIMIR OU CANCELAR
+                window.close();
               }, 800);
             };
           </script>
@@ -333,11 +335,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 <div className="h-[140px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={[
-                      { n: 'Alunos', v: stat.students, c: pColor },
-                      { n: 'Estudos', v: stat.studies, c: '#3b82f6' },
-                      { n: 'Classes', v: stat.classes, c: '#6366f1' },
-                      { n: 'PGs', v: stat.groups, c: '#10b981' },
-                      { n: 'Visitas', v: stat.visits, c: '#f43f5e' }
+                      { n: 'Alunos', v: stat.students, nColor: pColor },
+                      { n: 'Estudos', v: stat.studies, nColor: '#3b82f6' },
+                      { n: 'Classes', v: stat.classes, nColor: '#6366f1' },
+                      { n: 'PGs', v: stat.groups, nColor: '#10b981' },
+                      { n: 'Visitas', v: stat.visits, nColor: '#f43f5e' }
                     ]} margin={{ top: 30, bottom: 0, left: 0, right: 0 }}>
                       <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 800, fill: '#64748b'}} />
                       <YAxis hide domain={[0, (dataMax: number) => Math.ceil(dataMax + (dataMax * 0.2) + 2)]} />
