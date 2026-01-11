@@ -88,7 +88,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           
           const unitUniqueNames = new Set<string>();
           unitStudies.forEach(s => { if (s.name) unitUniqueNames.add(s.name.trim().toLowerCase()); });
-          unitClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => unitUniqueNames.add(n.trim().toLowerCase())); });
+          unitClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
 
           return {
               students: unitUniqueNames.size,
@@ -268,7 +268,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                             </div>
                             <div className="flex flex-col gap-1">
                               <span className="text-[9px] font-black text-slate-400 uppercase">Alunos ({item.students?.length || 0}):</span>
-                              <div className="flex wrap gap-1">
+                              <div className="flex flex-wrap gap-1">
                                 {(item.students || []).map((s: string, idx: number) => (
                                   <span key={idx} className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded-lg text-slate-600">
                                     {s.split(' ')[0]}
@@ -328,9 +328,14 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </div>
                 <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Preview de Relatório</h2>
               </div>
-              <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all">
-                <i className="fas fa-times"></i>
-              </button>
+              <div className="flex items-center gap-3">
+                <button onClick={() => window.print()} className="px-6 py-2.5 bg-[#005a9c] text-white font-black rounded-xl shadow-lg uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center gap-2">
+                  <i className="fas fa-print"></i> Imprimir
+                </button>
+                <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all">
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 bg-slate-100 p-4 md:p-10 overflow-y-auto no-scrollbar">
@@ -423,15 +428,29 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="w-full h-[200px]">
+                  <div className="w-full h-[240px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chaplainStats} margin={{top: 20, right: 10, left: -20, bottom: 5}}>
+                      <BarChart data={chaplainStats} margin={{top: 25, right: 10, left: -20, bottom: 5}}>
                         <XAxis dataKey="name" tick={{fontSize: 7, fontWeight: 'bold'}} interval={0} axisLine={false} tickLine={false} />
                         <YAxis tick={{fontSize: 7}} axisLine={false} tickLine={false} />
                         <Tooltip isAnimationActive={false} />
                         <Legend verticalAlign="bottom" wrapperStyle={{fontSize: '8px', fontWeight: 'bold'}} iconSize={8} />
-                        <Bar dataKey="students" name="Alunos" fill="#005a9c" isAnimationActive={false}><LabelList dataKey="students" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#005a9c'}} /></Bar>
-                        <Bar dataKey="studies" name="Estudos" fill="#3b82f6" isAnimationActive={false}><LabelList dataKey="studies" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#3b82f6'}} /></Bar>
+                        
+                        <Bar dataKey="students" name="Alunos" fill="#005a9c" isAnimationActive={false}>
+                          <LabelList dataKey="students" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#005a9c'}} />
+                        </Bar>
+                        <Bar dataKey="studies" name="Estudos" fill="#3b82f6" isAnimationActive={false}>
+                          <LabelList dataKey="studies" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#3b82f6'}} />
+                        </Bar>
+                        <Bar dataKey="classes" name="Classes" fill="#6366f1" isAnimationActive={false}>
+                          <LabelList dataKey="classes" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#6366f1'}} />
+                        </Bar>
+                        <Bar dataKey="groups" name="PGs" fill="#10b981" isAnimationActive={false}>
+                          <LabelList dataKey="groups" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#10b981'}} />
+                        </Bar>
+                        <Bar dataKey="visits" name="Visitas" fill="#f43f5e" isAnimationActive={false}>
+                          <LabelList dataKey="visits" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#f43f5e'}} />
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
