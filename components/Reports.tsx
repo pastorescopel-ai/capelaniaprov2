@@ -1,12 +1,12 @@
 // ############################################################
-// # VERSION: 1.1.1-PRO (VISIBLE LABELS + GLOBAL AGGREGATION)
+// # VERSION: 1.1.2-STABLE (DATA SHIELD & LEGACY RECOVERY)
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
 
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
-import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config } from '../types';
+import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, UserRole } from '../types';
 
 interface ReportsProps {
   studies: BibleStudy[];
@@ -22,12 +22,13 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [selectedDetailUser, setSelectedDetailUser] = useState<User | null>(null);
   
-  const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]);
+  // Data de início estendida para 2020 para garantir captura de todo o histórico por padrão
+  const [startDate, setStartDate] = useState(new Date(2020, 0, 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedChaplain, setSelectedChaplain] = useState('all');
   const [selectedUnit, setSelectedUnit] = useState<'all' | Unit>('all');
 
-  // Filtro que preserva todo o histórico contido nas listas originais
+  // 1. Normalização e Filtragem (Garante que dados antigos sem Unidade não sumam)
   const filteredData = useMemo(() => {
     const sList = Array.isArray(studies) ? studies : [];
     const cList = Array.isArray(classes) ? classes : [];
@@ -36,10 +37,15 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
     const filterFn = (item: any) => {
       if (!item || !item.date) return false;
-      const dateMatch = item.date >= startDate && item.date <= endDate;
+      
+      const itemDate = item.date.split('T')[0];
+      const dateMatch = itemDate >= startDate && itemDate <= endDate;
       const chaplainMatch = selectedChaplain === 'all' || item.userId === selectedChaplain;
+      
+      // Fallback: Se não houver unidade, assume HAB para não perder o registro no filtro
       const itemUnit = item.unit || Unit.HAB;
       const unitMatch = selectedUnit === 'all' || itemUnit === selectedUnit;
+      
       return dateMatch && chaplainMatch && unitMatch;
     };
 
@@ -51,19 +57,21 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // Estatísticas Globais: Soma total de todos os capelães
+  // 2. Estatísticas Globais (Contagem Universal de Alunos)
   const totalStats = useMemo(() => {
     const uniqueStudents = new Set<string>();
     
-    // Agrega nomes de todos os registros de Estudos Bíblicos (Global)
+    // Contagem de Estudos (Independente de Início/Continuação/Término)
     filteredData.studies.forEach(s => { 
       if (s.name) uniqueStudents.add(s.name.trim().toLowerCase()); 
     });
     
-    // Agrega nomes de todos os alunos das Classes Bíblicas (Global)
+    // Contagem de Classes (Soma todos os nomes dentro do array de estudantes)
     filteredData.classes.forEach(c => { 
       if (Array.isArray(c.students)) {
-        c.students.forEach(name => uniqueStudents.add(name.trim().toLowerCase())); 
+        c.students.forEach(name => {
+          if (name) uniqueStudents.add(name.trim().toLowerCase());
+        });
       }
     });
 
@@ -72,29 +80,50 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       classes: filteredData.classes.length,
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,
-      totalStudents: uniqueStudents.size,
-      totalAll: filteredData.studies.length + filteredData.classes.length + filteredData.groups.length + filteredData.visits.length
+      totalStudents: uniqueStudents.size
     };
   }, [filteredData]);
 
+  // 3. Gerador de Cards de Capelães (Baseado nos Dados Reais + Lista de Usuários)
   const chaplainStats = useMemo(() => {
-    const uList = Array.isArray(users) ? users : [];
+    // Coleta todos os IDs únicos que possuem algum registro no banco
+    const allUserIdsFromData = new Set<string>([
+        ...filteredData.studies.map(s => s.userId),
+        ...filteredData.classes.map(c => c.userId),
+        ...filteredData.groups.map(g => g.userId),
+        ...filteredData.visits.map(v => v.userId)
+    ]);
 
-    return uList.map(user => {
-      const uStudies = filteredData.studies.filter(s => s.userId === user.id);
-      const uClasses = filteredData.classes.filter(c => c.userId === user.id);
-      const uVisits = filteredData.visits.filter(v => v.userId === user.id);
-      const uGroups = filteredData.groups.filter(g => g.userId === user.id);
+    // Coleta IDs da lista de usuários ativos
+    const activeUsers = Array.isArray(users) ? users : [];
+    activeUsers.forEach(u => allUserIdsFromData.add(u.id));
+
+    return Array.from(allUserIdsFromData).map(uid => {
+      const existingUser = activeUsers.find(u => u.id === uid);
+      
+      // Se o usuário não existe mais na lista ativa, cria um objeto virtual para o card
+      const userObj: User = existingUser || {
+        id: uid,
+        name: `Capelão (Histórico/Antigo)`,
+        email: '---',
+        role: UserRole.CHAPLAIN
+      };
+
+      const uStudies = filteredData.studies.filter(s => s.userId === uid);
+      const uClasses = filteredData.classes.filter(c => c.userId === uid);
+      const uVisits = filteredData.visits.filter(v => v.userId === uid);
+      const uGroups = filteredData.groups.filter(g => g.userId === uid);
       
       const uniqueNames = new Set<string>();
       uStudies.forEach(s => { if (s.name) uniqueNames.add(s.name.trim().toLowerCase()); });
       uClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
 
       const getUnitStats = (unit: Unit) => {
-          const unitStudies = uStudies.filter(s => s.unit === unit);
-          const unitClasses = uClasses.filter(c => c.unit === unit);
-          const unitGroups = uGroups.filter(g => g.unit === unit);
-          const unitVisits = uVisits.filter(v => v.unit === unit);
+          // Fallback para registros sem unidade
+          const unitStudies = uStudies.filter(s => (s.unit || Unit.HAB) === unit);
+          const unitClasses = uClasses.filter(c => (c.unit || Unit.HAB) === unit);
+          const unitGroups = uGroups.filter(g => (g.unit || Unit.HAB) === unit);
+          const unitVisits = uVisits.filter(v => (v.unit || Unit.HAB) === unit);
           
           const unitUniqueNames = new Set<string>();
           unitStudies.forEach(s => { if (s.name) unitUniqueNames.add(s.name.trim().toLowerCase()); });
@@ -113,8 +142,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       };
 
       return { 
-        user, 
-        name: user.name || "Sem Nome", 
+        user: userObj, 
+        name: userObj.name, 
         students: uniqueNames.size, 
         studies: uStudies.length, 
         classes: uClasses.length, 
@@ -127,7 +156,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         rawClasses: uClasses
       };
     }).filter(s => {
+        // Se estiver filtrando um capelão específico
         if (selectedChaplain !== 'all') return s.user.id === selectedChaplain;
+        // Caso contrário, mostra apenas quem tem atividade no período
         return s.totalActions > 0 || s.students > 0;
     }).sort((a, b) => b.totalActions - a.totalActions);
   }, [users, filteredData, selectedChaplain]);
@@ -161,7 +192,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Capelão</label>
             <select value={selectedChaplain} onChange={e => setSelectedChaplain(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs">
-              <option value="all">Todos os Capelães</option>
+              <option value="all">Todos os Capelães (Ativos e Históricos)</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
@@ -174,7 +205,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </div>
         </div>
 
-        {/* Cards de Resumo Azul - TOTAIS GLOBAIS DA EQUIPE */}
+        {/* Cards de Resumo */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {summaryCards.map((card, i) => (
             <div key={i} className={`${card.color} p-6 rounded-[2.5rem] text-white shadow-xl shadow-blue-100/20 group hover:scale-[1.03] transition-all`}>
@@ -207,7 +238,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   {stat.name[0]}
                 </div>
                 <div>
-                  <h4 className="font-black text-slate-800 uppercase tracking-tight leading-none">{stat.name}</h4>
+                  <h4 className="font-black text-slate-800 uppercase tracking-tight leading-none text-xs">{stat.name}</h4>
                   <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mt-1">Total: {stat.totalActions} Ações</p>
                 </div>
               </div>
@@ -253,17 +284,17 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                       </div>
                       {stat.rawStudies.length > 0 && (
                         <div className="space-y-3">
-                          <h5 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] ml-2">Estudos Bíblicos (Iniciais e Continuação)</h5>
+                          <h5 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] ml-2">Estudos Bíblicos (Histórico Completo)</h5>
                           <div className="grid gap-3">
                             {stat.rawStudies.map((item, idx) => (
                               <div key={idx} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex justify-between items-center group hover:border-blue-200 transition-all">
                                 <div className="space-y-1">
                                   <p className="font-black text-slate-800 uppercase text-sm">{item.name}</p>
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">Setor: {item.sector}</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{item.sector} • {item.date.split('T')[0].split('-').reverse().join('/')}</p>
                                 </div>
                                 <div className="text-right space-y-1">
                                   <p className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">Guia: {item.guide}</p>
-                                  <p className="text-xs font-black text-slate-700">Lição Atual: {item.lesson}</p>
+                                  <p className="text-xs font-black text-slate-700">{item.status}: {item.lesson}</p>
                                 </div>
                               </div>
                             ))}
@@ -272,17 +303,17 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                       )}
                       {stat.rawClasses.length > 0 && (
                         <div className="space-y-3">
-                          <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] ml-2">Classes Bíblicas (Iniciais e Continuação)</h5>
+                          <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] ml-2">Classes Bíblicas (Histórico Completo)</h5>
                           <div className="grid gap-3">
                             {stat.rawClasses.map((item, idx) => (
                               <div key={idx} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex justify-between items-center group hover:border-indigo-200 transition-all">
                                 <div className="space-y-1 max-w-[60%]">
                                   <p className="font-black text-slate-800 uppercase text-xs line-clamp-1">{item.students.join(', ')}</p>
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">Setor: {item.sector}</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{item.sector} • {item.date.split('T')[0].split('-').reverse().join('/')}</p>
                                 </div>
                                 <div className="text-right space-y-1">
                                   <p className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">Guia: {item.guide}</p>
-                                  <p className="text-xs font-black text-slate-700">Lição Atual: {item.lesson}</p>
+                                  <p className="text-xs font-black text-slate-700">{item.status}: {item.lesson}</p>
                                 </div>
                               </div>
                             ))}
@@ -359,7 +390,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   </div>
                 </header>
 
-                <section className="space-y-12 mt-4">
+                <section className="space-y-10 mt-4">
                    {/* Tabelas de Unidades */}
                    {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
                     <div className="space-y-4">
@@ -385,17 +416,17 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     </div>
                   )}
 
-                  {/* Gráficos Individuais por Capelão com Números Visíveis */}
-                  <div className="space-y-8">
+                  {/* Gráficos Individuais */}
+                  <div className="space-y-6">
                     <h3 className="text-[11px] font-black uppercase text-[#005a9c] text-center italic tracking-widest border-y border-slate-50 py-2">Desempenho Gráfico por Capelão</h3>
-                    <div className="grid grid-cols-1 gap-12">
+                    <div className="grid grid-cols-1 gap-8">
                       {chaplainStats.map((stat, idx) => (
                         <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-slate-100 page-break-inside-avoid">
                           <h4 className="text-[10px] font-black text-slate-800 uppercase mb-4 flex justify-between">
                             <span>{stat.name}</span>
-                            <span className="text-blue-600 uppercase tracking-tighter">Total de Ações: {stat.totalActions}</span>
+                            <span className="text-blue-600 uppercase tracking-tighter">Ações: {stat.totalActions}</span>
                           </h4>
-                          <div className="h-[140px] w-full">
+                          <div className="h-[120px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={[
                                 { n: 'Alunos', v: stat.students, c: '#005a9c' },
@@ -405,9 +436,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                                 { n: 'Visitas', v: stat.visits, c: '#f43f5e' }
                               ]}>
                                 <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 800, fill: '#64748b'}} />
-                                <Bar dataKey="v" radius={[4, 4, 0, 0]} barSize={40}>
+                                <Bar dataKey="v" radius={[4, 4, 0, 0]} barSize={35}>
                                   {[0,1,2,3,4].map((_, i) => <Cell key={i} fill={['#005a9c', '#3b82f6', '#6366f1', '#10b981', '#f43f5e'][i]} />)}
-                                  {/* Rótulo numérico visível e destacado no topo da barra */}
                                   <LabelList dataKey="v" position="top" style={{ fontSize: '10px', fontWeight: '900', fill: '#0f172a' }} />
                                 </Bar>
                               </BarChart>
@@ -418,11 +448,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     </div>
                   </div>
 
-                  {/* Cards de Totais Gerais no Rodapé com Ênfase em Azul no Total de Alunos */}
-                  <div className="pt-10 border-t-2 border-slate-100 page-break-inside-avoid">
+                  {/* Resumo de Totais */}
+                  <div className="pt-8 border-t-2 border-slate-100 page-break-inside-avoid">
                     <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-6 text-center tracking-widest">Resumo Consolidado de Atividades</h3>
                     <div className="grid grid-cols-5 gap-3">
-                      {/* Card de Total de Alunos com Ênfase em Azul conforme solicitado */}
                       <div className="bg-[#005a9c] p-4 rounded-xl text-white text-center shadow-lg border border-blue-700">
                         <p className="text-[7px] font-black uppercase tracking-widest opacity-80 mb-1 leading-none">Total Alunos</p>
                         <p className="text-2xl font-black leading-none">{totalStats.totalStudents}</p>
@@ -449,18 +478,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
                 <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4">
                   <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic">
-                    <span>Capelania Hospitalar Pro v1.1.1</span>
-                    <span>Período: {startDate.split('-').reverse().join('/')} até {endDate.split('-').reverse().join('/')}</span>
+                    <span>Capelania Hospitalar Pro v1.1.2-Stable</span>
+                    <span>Relatório Emitido em: {new Date().toLocaleDateString()}</span>
                   </div>
                   <div className="flex justify-center gap-20 pt-10 opacity-40">
-                    <div className="text-center">
-                      <div className="w-48 border-b border-slate-400 mb-1"></div>
-                      <p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="w-48 border-b border-slate-400 mb-1"></div>
-                      <p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p>
-                    </div>
+                    <div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div>
+                    <div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div>
                   </div>
                 </footer>
               </div>
