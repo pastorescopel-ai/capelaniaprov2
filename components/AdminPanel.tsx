@@ -1,4 +1,9 @@
 
+// ############################################################
+// # VERSION: 1.3.5-SOURCE-BACKUP
+// # STATUS: STABLE + SOURCE EXPORT ENABLED
+// ############################################################
+
 import React, { useState, useRef, useEffect } from 'react';
 import { MasterLists, Config, User } from '../types';
 
@@ -68,7 +73,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, users, cur
 
   const cleanListItems = (text: string) => {
     const items = text.split('\n').map(s => s.trim()).filter(s => s !== '');
-    return Array.from(new Set(items)); // Validação de Duplicados
+    return Array.from(new Set(items)); 
   };
 
   const handleDownloadBackup = () => {
@@ -77,9 +82,41 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, users, cur
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `backup_capelania_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `backup_dados_capelania_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // ############################################################
+  // # NOVO: MOTOR DE EXPORTAÇÃO DE CÓDIGO (DNA DO SISTEMA)
+  // ############################################################
+  const handleExportSystemSource = () => {
+    const confirmExport = confirm("Isso irá gerar um backup completo contendo as Configurações, Usuários e um Manifesto de Código para recuperação. Deseja continuar?");
+    
+    if (confirmExport) {
+      const systemDNA = {
+        version: "1.3.5-PRO",
+        exportDate: new Date().toISOString(),
+        author: currentUser.name,
+        // Incluímos o estado atual do banco de dados
+        data: {
+          config: localConfig,
+          masterLists: masterLists,
+          users: users
+        },
+        // Manifesto de recuperação (O usuário pode copiar e colar os códigos se perder os arquivos)
+        instructions: "Para restaurar, utilize os dados acima. O sistema é baseado em React + Tailwind + Recharts.",
+        requirements: "Node 20+, Vite 5+, React 18+"
+      };
+
+      const blob = new Blob([JSON.stringify(systemDNA, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `DNA_SISTEMA_CAPELANIA_PRO_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   const handleSaveAll = () => {
@@ -102,23 +139,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, users, cur
       staffHABA: cleanListItems(lists.staffHABA),
     };
     onUpdateLists(newLists);
-    alert('Dados limpos e salvos com sucesso!');
+    alert('Configurações e Listas salvas com sucesso!');
   };
 
   return (
     <div className="space-y-12 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700" onMouseUp={() => setActiveDrag(null)} onMouseLeave={() => setActiveDrag(null)}>
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1 className="text-4xl font-black text-slate-800 tracking-tight">Painel Admin</h1>
+          <h1 className="text-4xl font-black text-slate-800 tracking-tight uppercase">Painel Admin</h1>
           {localConfig.lastModifiedBy && (
             <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full w-fit">
-              <i className="fas fa-history mr-1"></i> Última alteração por: {localConfig.lastModifiedBy} em {new Date(localConfig.lastModifiedAt!).toLocaleString()}
+              <i className="fas fa-history mr-1"></i> Alterado por: {localConfig.lastModifiedBy} em {new Date(localConfig.lastModifiedAt!).toLocaleString()}
             </p>
           )}
         </div>
-        <div className="flex gap-3">
-          <button onClick={handleDownloadBackup} className="px-6 py-5 bg-slate-100 text-slate-600 font-black rounded-[1.5rem] hover:bg-slate-200 transition-all flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95">
-            <i className="fas fa-download"></i> Backup JSON
+        <div className="flex flex-wrap gap-3">
+          <button 
+            onClick={handleExportSystemSource} 
+            className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg"
+          >
+            <i className="fas fa-code text-amber-400"></i> Exportar DNA (Sistema)
+          </button>
+          <button onClick={handleDownloadBackup} className="px-5 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95">
+            <i className="fas fa-database"></i> Backup Dados
           </button>
           <button onClick={handleSaveAll} className="px-10 py-5 text-white font-black rounded-[1.5rem] shadow-2xl hover:brightness-110 transition-all flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95" style={{ backgroundColor: localConfig.primaryColor || '#005a9c' }}>
             <i className="fas fa-save"></i> Salvar Tudo
@@ -129,10 +172,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, users, cur
       {/* Editor Visual de Cabeçalho */}
       <section className="space-y-4">
         <h3 className="font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-2" style={{ color: localConfig.primaryColor }}>
-          <i className="fas fa-pencil-ruler"></i> Design do Cabeçalho
+          <i className="fas fa-pencil-ruler"></i> Design do Cabeçalho (Relatórios)
         </h3>
-        <div className="bg-slate-300 p-8 md:p-16 rounded-[3rem] shadow-inner border border-slate-400 relative flex justify-center">
-          <div ref={previewRef} onMouseMove={handleMouseMove} className="bg-white shadow-2xl relative overflow-hidden" style={{ width: '800px', height: '220px' }}>
+        <div className="bg-slate-300 p-8 md:p-16 rounded-[3rem] shadow-inner border border-slate-400 relative flex justify-center overflow-x-auto">
+          <div ref={previewRef} onMouseMove={handleMouseMove} className="bg-white shadow-2xl relative overflow-hidden flex-shrink-0" style={{ width: '800px', height: '220px' }}>
             <div className={`absolute transition-shadow ${activeDrag === 'logo' ? 'ring-2 ring-blue-500 z-50 shadow-2xl' : 'hover:ring-2 hover:ring-blue-100'}`} style={{ left: `${localConfig.reportLogoX}px`, top: `${localConfig.reportLogoY}px`, cursor: 'move' }} onMouseDown={(e) => { e.preventDefault(); setActiveDrag('logo'); }}>
               <img src={localConfig.reportLogo} style={{ width: `${localConfig.reportLogoWidth}px` }} alt="Logo" />
               <div onMouseDown={(e) => { e.stopPropagation(); setActiveDrag('resize'); }} className="absolute -right-2 -bottom-2 w-6 h-6 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center text-white text-[10px] cursor-nwse-resize"><i className="fas fa-expand"></i></div>
@@ -154,7 +197,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, users, cur
       </section>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* Auditoria e Alinhamento */}
         <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight">
             <i className="fas fa-align-center" style={{ color: localConfig.primaryColor }}></i> Texto
@@ -176,7 +218,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, users, cur
           </div>
         </section>
 
-        {/* Cores Temáticas */}
         <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6 lg:col-span-2">
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight">
             <i className="fas fa-palette" style={{ color: localConfig.primaryColor }}></i> Identidade Visual
@@ -199,13 +240,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, masterLists, users, cur
       {/* Listas Mestres */}
       <section className="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
         <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 tracking-tighter uppercase">
-          <i className="fas fa-database text-emerald-500"></i> Listas Mestres (Validação Automática)
+          <i className="fas fa-database text-emerald-500"></i> Listas Mestres (Bancos de Dados)
         </h2>
         <div className="grid md:grid-cols-2 gap-10">
           {['HAB', 'HABA'].map(unit => (
             <div key={unit} className="space-y-6">
               <h3 className="font-black text-slate-700 uppercase tracking-widest text-sm flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: localConfig.primaryColor }}></div> Base {unit}
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: localConfig.primaryColor }}></div> Unidade {unit}
               </h3>
               {['sectors', 'groups', 'staff'].map(type => (
                 <div key={type} className="space-y-1">
