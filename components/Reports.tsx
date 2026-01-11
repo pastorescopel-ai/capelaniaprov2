@@ -1,10 +1,11 @@
 // ############################################################
-// # VERSION: 1.0.7-FIX (RESTORED BODY + DYNAMIC HEADER)
+// # VERSION: 1.0.8-RESTORE (PDF CHART + DETAILED MODAL)
 // # STATUS: VERIFIED & FUNCTIONAL
 // # DATE: 2025-04-10
 // ############################################################
 
 import React, { useState, useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config } from '../types';
 
 interface ReportsProps {
@@ -101,7 +102,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               classes: unitClasses.length,
               groups: unitGroups.length,
               visits: unitVisits.length,
-              total: unitStudies.length + unitClasses.length + unitGroups.length + unitVisits.length
+              total: unitStudies.length + unitClasses.length + unitGroups.length + unitVisits.length,
+              rawStudies: unitStudies,
+              rawClasses: unitClasses
           };
       };
 
@@ -115,7 +118,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         groups: uGroups.length,
         hab: getUnitStats(Unit.HAB),
         haba: getUnitStats(Unit.HABA),
-        totalActions: uStudies.length + uClasses.length + uVisits.length + uGroups.length
+        totalActions: uStudies.length + uClasses.length + uVisits.length + uGroups.length,
+        rawStudies: uStudies,
+        rawClasses: uClasses
       };
     }).filter(s => {
         if (selectedChaplain !== 'all') return s.user.id === selectedChaplain;
@@ -129,6 +134,14 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     { label: 'Classes Bíblicas', val: totalStats.classes, icon: 'fa-users', color: 'bg-indigo-500' },
     { label: 'Pequenos Grupos', val: totalStats.groups, icon: 'fa-house-user', color: 'bg-emerald-500' },
     { label: 'Visitas Colab.', val: totalStats.visits, icon: 'fa-handshake', color: 'bg-rose-500' },
+  ];
+
+  const chartData = [
+    { name: 'Alunos', value: totalStats.totalStudents, color: '#2563eb' },
+    { name: 'Estudos', value: totalStats.studies, color: '#3b82f6' },
+    { name: 'Classes', value: totalStats.classes, color: '#6366f1' },
+    { name: 'PGs', value: totalStats.groups, color: '#10b981' },
+    { name: 'Visitas', value: totalStats.visits, color: '#f43f5e' },
   ];
 
   return (
@@ -220,10 +233,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       {/* Detalhes do Capelão Selecionado */}
       {selectedDetailUser && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[900] flex items-center justify-center p-4">
-           <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 space-y-8 animate-in zoom-in duration-300 relative">
-              <button onClick={() => setSelectedDetailUser(null)} className="absolute top-8 right-8 w-12 h-12 bg-slate-50 rounded-2xl text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center"><i className="fas fa-times"></i></button>
+           <div className="bg-white w-full max-w-4xl rounded-[3rem] p-10 space-y-8 animate-in zoom-in duration-300 relative overflow-hidden flex flex-col max-h-[90vh]">
+              <button onClick={() => setSelectedDetailUser(null)} className="absolute top-8 right-8 w-12 h-12 bg-slate-50 rounded-2xl text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center z-10"><i className="fas fa-times"></i></button>
               
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-6 flex-shrink-0">
                 <div className="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-blue-200">{selectedDetailUser.name[0]}</div>
                 <div>
                   <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">{selectedDetailUser.name}</h3>
@@ -231,24 +244,61 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                  {['HAB', 'HABA'].map(u => {
-                    const unitStat = chaplainStats.find(s => s.user.id === selectedDetailUser.id)?.[u.toLowerCase() as 'hab' | 'haba'];
-                    return (
-                      <div key={u} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-                        <h4 className="font-black text-slate-800 text-xs uppercase tracking-widest mb-4 border-b border-slate-200 pb-2 flex items-center gap-2">
-                          <i className={`fas fa-hospital ${u === 'HAB' ? 'text-blue-500' : 'text-indigo-500'}`}></i> Unidade {u}
-                        </h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between font-bold text-sm"><span className="text-slate-400">Estudantes:</span> <span className="text-slate-800">{unitStat?.students}</span></div>
-                          <div className="flex justify-between font-bold text-sm"><span className="text-slate-400">Estudos:</span> <span className="text-slate-800">{unitStat?.studies}</span></div>
-                          <div className="flex justify-between font-bold text-sm"><span className="text-slate-400">Classes:</span> <span className="text-slate-800">{unitStat?.classes}</span></div>
-                          <div className="flex justify-between font-bold text-sm"><span className="text-slate-400">PGs:</span> <span className="text-slate-800">{unitStat?.groups}</span></div>
-                          <div className="flex justify-between font-bold text-sm"><span className="text-slate-400">Visitas:</span> <span className="text-slate-800">{unitStat?.visits}</span></div>
-                        </div>
+              <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-8">
+                {/* Atividades Detalhadas por Unidade */}
+                {['HAB', 'HABA'].map(u => {
+                  const stat = chaplainStats.find(s => s.user.id === selectedDetailUser.id)?.[u.toLowerCase() as 'hab' | 'haba'];
+                  if (!stat || (stat.studies === 0 && stat.classes === 0)) return null;
+
+                  return (
+                    <div key={u} className="space-y-6">
+                      <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-2">
+                        <i className={`fas fa-hospital text-xl ${u === 'HAB' ? 'text-blue-500' : 'text-indigo-500'}`}></i>
+                        <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight">Atividades Unidade {u}</h4>
                       </div>
-                    );
-                  })}
+
+                      {stat.rawStudies.length > 0 && (
+                        <div className="space-y-3">
+                          <h5 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] ml-2">Estudos Bíblicos</h5>
+                          <div className="grid gap-3">
+                            {stat.rawStudies.map((item, idx) => (
+                              <div key={idx} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex justify-between items-center group hover:border-blue-200 transition-all">
+                                <div className="space-y-1">
+                                  <p className="font-black text-slate-800 uppercase text-sm">{item.name}</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{item.sector}</p>
+                                </div>
+                                <div className="text-right space-y-1">
+                                  <p className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">{item.guide}</p>
+                                  <p className="text-xs font-black text-slate-700">Lição {item.lesson}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {stat.rawClasses.length > 0 && (
+                        <div className="space-y-3">
+                          <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] ml-2">Classes Bíblicas</h5>
+                          <div className="grid gap-3">
+                            {stat.rawClasses.map((item, idx) => (
+                              <div key={idx} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex justify-between items-center group hover:border-indigo-200 transition-all">
+                                <div className="space-y-1 max-w-[60%]">
+                                  <p className="font-black text-slate-800 uppercase text-xs line-clamp-1">{item.students.join(', ')}</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{item.sector}</p>
+                                </div>
+                                <div className="text-right space-y-1">
+                                  <p className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">{item.guide}</p>
+                                  <p className="text-xs font-black text-slate-700">Lição {item.lesson}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
            </div>
         </div>
@@ -296,7 +346,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             <div className="flex-1 bg-slate-100 p-4 md:p-10 overflow-y-auto no-scrollbar">
               <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
                 
-                {/* CABEÇALHO DENTRO DO PDF - USANDO CONFIGURAÇÕES DINÂMICAS DO ADMIN */}
+                {/* CABEÇALHO DENTRO DO PDF */}
                 <header className="relative border-b-4 border-[#005a9c]" style={{ height: '140px' }}>
                   {config.reportLogo && (
                     <img 
@@ -330,14 +380,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </header>
 
                 <section className="space-y-8 mt-4">
-                   <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
-                      <div>
-                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Período Selecionado</p>
-                        <p className="text-xs font-black text-slate-700">{startDate.split('-').reverse().join('/')} até {endDate.split('-').reverse().join('/')}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Total Geral de Atendimentos</p>
-                        <p className="text-xl font-black text-[#005a9c]">{totalStats.totalAll}</p>
+                   {/* Gráfico de Barras no PDF */}
+                   <div className="w-full bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                      <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-6 text-center tracking-widest">Resumo Estatístico Consolidado</h3>
+                      <div className="h-[200px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 800, fill: '#64748b'}} />
+                            <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={50}>
+                              {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                              <LabelList dataKey="value" position="top" style={{ fontSize: '10px', fontWeight: '900', fill: '#0f172a' }} />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
                    </div>
 
@@ -408,7 +463,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
                 <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4">
                   <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic">
-                    <span>Sistema de Gestão Capelania Hospitalar v1.0.7</span>
+                    <span>Sistema de Gestão Capelania Hospitalar v1.0.8</span>
                     <span>Documento Oficial de Registro de Atividades</span>
                   </div>
                   <div className="flex justify-center gap-20 pt-8 opacity-40">
