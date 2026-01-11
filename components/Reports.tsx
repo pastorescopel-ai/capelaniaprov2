@@ -1,7 +1,7 @@
 // ############################################################
-// # VERSION: 1.0.8-RESTORE (PDF CHART + DETAILED MODAL)
+// # VERSION: 1.0.9-FIX (TOTAL STUDENTS + DETAILED LISTS)
 // # STATUS: VERIFIED & FUNCTIONAL
-// # DATE: 2025-04-10
+// # DATE: 2025-04-11
 // ############################################################
 
 import React, { useState, useMemo } from 'react';
@@ -53,10 +53,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const totalStats = useMemo(() => {
     const uniqueStudents = new Set<string>();
     
+    // Conta todos os alunos de estudos bíblicos no período (Independente de Início, Continuação ou Término)
     filteredData.studies.forEach(s => {
       if (s.name) uniqueStudents.add(s.name.trim().toLowerCase());
     });
 
+    // Conta todos os alunos de classes bíblicas no período (Independente de status)
     filteredData.classes.forEach(c => {
       if (Array.isArray(c.students)) {
         c.students.forEach(name => uniqueStudents.add(name.trim().toLowerCase()));
@@ -129,7 +131,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   }, [users, filteredData, selectedChaplain]);
 
   const summaryCards = [
-    { label: 'Alunos Únicos', val: totalStats.totalStudents, icon: 'fa-user-graduate', color: 'bg-blue-600' },
+    { label: 'Total de Alunos', val: totalStats.totalStudents, icon: 'fa-user-graduate', color: 'bg-blue-600' },
     { label: 'Estudos Bíblicos', val: totalStats.studies, icon: 'fa-book', color: 'bg-blue-500' },
     { label: 'Classes Bíblicas', val: totalStats.classes, icon: 'fa-users', color: 'bg-indigo-500' },
     { label: 'Pequenos Grupos', val: totalStats.groups, icon: 'fa-house-user', color: 'bg-emerald-500' },
@@ -217,7 +219,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-white p-3 rounded-xl border border-slate-100">
-                  <span className="block text-[8px] font-black text-slate-400 uppercase leading-none">Alunos</span>
+                  <span className="block text-[8px] font-black text-slate-400 uppercase leading-none">Total Alunos</span>
                   <span className="text-lg font-black text-slate-800">{stat.students}</span>
                 </div>
                 <div className="bg-white p-3 rounded-xl border border-slate-100">
@@ -230,7 +232,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      {/* Detalhes do Capelão Selecionado */}
+      {/* Detalhes do Capelão Selecionado (MODAL) */}
       {selectedDetailUser && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[900] flex items-center justify-center p-4">
            <div className="bg-white w-full max-w-4xl rounded-[3rem] p-10 space-y-8 animate-in zoom-in duration-300 relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -259,17 +261,17 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
                       {stat.rawStudies.length > 0 && (
                         <div className="space-y-3">
-                          <h5 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] ml-2">Estudos Bíblicos</h5>
+                          <h5 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] ml-2">Estudos Bíblicos (Iniciais e Continuação)</h5>
                           <div className="grid gap-3">
                             {stat.rawStudies.map((item, idx) => (
                               <div key={idx} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex justify-between items-center group hover:border-blue-200 transition-all">
                                 <div className="space-y-1">
                                   <p className="font-black text-slate-800 uppercase text-sm">{item.name}</p>
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{item.sector}</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">Setor: {item.sector}</p>
                                 </div>
                                 <div className="text-right space-y-1">
-                                  <p className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">{item.guide}</p>
-                                  <p className="text-xs font-black text-slate-700">Lição {item.lesson}</p>
+                                  <p className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">Guia: {item.guide}</p>
+                                  <p className="text-xs font-black text-slate-700">Lição Atual: {item.lesson}</p>
                                 </div>
                               </div>
                             ))}
@@ -279,17 +281,17 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
                       {stat.rawClasses.length > 0 && (
                         <div className="space-y-3">
-                          <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] ml-2">Classes Bíblicas</h5>
+                          <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] ml-2">Classes Bíblicas (Iniciais e Continuação)</h5>
                           <div className="grid gap-3">
                             {stat.rawClasses.map((item, idx) => (
                               <div key={idx} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex justify-between items-center group hover:border-indigo-200 transition-all">
                                 <div className="space-y-1 max-w-[60%]">
                                   <p className="font-black text-slate-800 uppercase text-xs line-clamp-1">{item.students.join(', ')}</p>
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{item.sector}</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">Setor: {item.sector}</p>
                                 </div>
                                 <div className="text-right space-y-1">
-                                  <p className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">{item.guide}</p>
-                                  <p className="text-xs font-black text-slate-700">Lição {item.lesson}</p>
+                                  <p className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">Guia: {item.guide}</p>
+                                  <p className="text-xs font-black text-slate-700">Lição Atual: {item.lesson}</p>
                                 </div>
                               </div>
                             ))}
@@ -382,7 +384,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 <section className="space-y-8 mt-4">
                    {/* Gráfico de Barras no PDF */}
                    <div className="w-full bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                      <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-6 text-center tracking-widest">Resumo Estatístico Consolidado</h3>
+                      <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-6 text-center tracking-widest">Resumo Estatístico Consolidado (Toda Equipe)</h3>
                       <div className="h-[200px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -405,7 +407,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                         <thead>
                           <tr className="bg-[#005a9c] text-white font-black uppercase">
                             <th className="p-3">Capelão</th>
-                            <th className="p-3 text-center">Alunos Únicos</th>
+                            <th className="p-3 text-center">Total Alunos</th>
                             <th className="p-3 text-center">Estudos</th>
                             <th className="p-3 text-center">Classes</th>
                             <th className="p-3 text-center">PGs</th>
@@ -437,7 +439,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                         <thead>
                           <tr className="bg-[#005a9c] text-white font-black uppercase">
                             <th className="p-3">Capelão</th>
-                            <th className="p-3 text-center">Alunos Únicos</th>
+                            <th className="p-3 text-center">Total Alunos</th>
                             <th className="p-3 text-center">Estudos</th>
                             <th className="p-3 text-center">Classes</th>
                             <th className="p-3 text-center">PGs</th>
@@ -463,7 +465,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
                 <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4">
                   <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic">
-                    <span>Sistema de Gestão Capelania Hospitalar v1.0.8</span>
+                    <span>Sistema de Gestão Capelania Hospitalar v1.0.9</span>
                     <span>Documento Oficial de Registro de Atividades</span>
                   </div>
                   <div className="flex justify-center gap-20 pt-8 opacity-40">
