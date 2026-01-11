@@ -1,5 +1,5 @@
 // ############################################################
-// # VERSION: 1.2.0-PRINT-ULTIMATE (PIXEL-PERFECT FIDELITY)
+// # VERSION: 1.2.1-PRINT-WINDOW-ISOLATED (PROFESSIONAL GRADE)
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
@@ -133,6 +133,77 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       .sort((a, b) => b.totalActions - a.totalActions);
   }, [users, filteredData, selectedChaplain]);
 
+  /**
+   * FUNÇÃO DE IMPRESSÃO PROFISSIONAL (ISOLADA)
+   * Abre uma janela limpa e injeta apenas o conteúdo do relatório
+   */
+  const handlePrintIsolated = () => {
+    const printContent = document.getElementById('pdf-root');
+    if (!printContent) return;
+
+    const printWindow = window.open('', '_blank', 'width=1000,height=800');
+    if (!printWindow) {
+      alert('Por favor, permita pop-ups para imprimir o relatório.');
+      return;
+    }
+
+    // Copia os links de fontes e estilos do documento principal
+    const styles = Array.from(document.querySelectorAll('link, style'))
+      .map(s => s.outerHTML)
+      .join('\n');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Relatório de Capelania - Impressão</title>
+          ${styles}
+          <style>
+            @media print {
+              @page { size: A4; margin: 0; }
+              body { margin: 0; padding: 0; background: white; width: 210mm; }
+            }
+            body { 
+              background: #f1f5f9; 
+              display: flex; 
+              justify-content: center; 
+              padding: 20px;
+              margin: 0;
+            }
+            #pdf-root {
+              background: white !important;
+              width: 800px !important;
+              min-height: 1130px !important;
+              padding: 40px !important;
+              box-shadow: 0 0 20px rgba(0,0,0,0.1);
+              transform: scale(0.98);
+              transform-origin: top left;
+            }
+            /* Garantia de visibilidade para o motor de impressão */
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .no-print { display: none !important; }
+          </style>
+        </head>
+        <body>
+          <div id="pdf-root">
+            ${printContent.innerHTML}
+          </div>
+          <script>
+            // Aguarda o carregamento de imagens e gráficos antes de imprimir
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                // Opcional: fechar a janela após imprimir
+                // window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const summaryCards = [
     { label: 'Total de Alunos', val: totalStats.totalStudents, icon: 'fa-user-graduate', color: 'bg-[#005a9c]' },
     { label: 'Estudos Bíblicos', val: totalStats.studies, icon: 'fa-book', color: 'bg-blue-500' },
@@ -143,6 +214,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
+      {/* SEÇÃO DE CABEÇALHO E FILTROS */}
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Relatórios e Estatísticas</h1>
@@ -156,6 +228,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </div>
         </div>
 
+        {/* FILTROS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Início</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs" /></div>
@@ -174,6 +247,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </div>
         </div>
 
+        {/* CARDS DE RESUMO */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {summaryCards.map((card, i) => (
             <div key={i} className={`${card.color} p-6 rounded-[2.5rem] text-white shadow-xl shadow-blue-100/20 group hover:scale-[1.03] transition-all`}>
@@ -189,6 +263,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
+      {/* DESEMPENHO POR CAPELÃO */}
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
         <h2 className="text-xl font-black text-slate-800 mb-8 uppercase tracking-tighter flex items-center gap-3">
           <i className="fas fa-id-card-alt text-blue-600"></i> Desempenho por Capelão
@@ -220,6 +295,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
+      {/* MODAL DE DETALHES DO CAPELÃO */}
       {selectedDetailUser && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[900] flex items-center justify-center p-4">
            <div className="bg-white w-full max-w-4xl rounded-[3rem] p-10 space-y-8 animate-in zoom-in duration-300 relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -265,82 +341,14 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       )}
 
+      {/* MODAL DE VISUALIZAÇÃO PRÉ-IMPRESSÃO */}
       {showPdfPreview && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[950] flex items-center justify-center p-4 overflow-y-auto">
-          <style>
-            {`
-              @media print {
-                @page { 
-                  size: A4; 
-                  margin: 0 !important; 
-                }
-                /* ISOLAMENTO TOTAL DA INTERFACE DO SISTEMA */
-                html, body {
-                  background: white !important;
-                  margin: 0 !important;
-                  padding: 0 !important;
-                  height: auto !important;
-                  overflow: visible !important;
-                }
-                /* ESCONDE TUDO NO SISTEMA QUE NÃO SEJA O CONTAINER DE PDF */
-                #root > *, body > *:not(.fixed) {
-                  display: none !important;
-                }
-                .fixed:has(#pdf-root) {
-                  position: static !important;
-                  display: block !important;
-                  background: white !important;
-                }
-                /* RESET E ESCALA PIXEL-PERFECT DO RELATÓRIO */
-                #pdf-root {
-                  display: flex !important;
-                  flex-direction: column !important;
-                  position: absolute !important;
-                  top: 0 !important;
-                  left: 0 !important;
-                  /* A largura de 800px garante que a escala X/Y do Painel Admin seja respeitada */
-                  width: 800px !important; 
-                  min-height: 1131px !important; /* Proporção A4 para 800px de largura */
-                  padding: 40px !important;
-                  margin: 0 !important;
-                  background: white !important;
-                  box-sizing: border-box !important;
-                  box-shadow: none !important;
-                  border: none !important;
-                  z-index: 999999 !important;
-                  /* ESCALA PARA ENCAIXAR NO PAPEL A4 (210mm) */
-                  transform: scale(0.96) !important;
-                  transform-origin: top left !important;
-                }
-                /* Remove controles visuais durante a impressão */
-                #pdf-container-outer, .no-print {
-                  display: none !important;
-                }
-                /* Força renderização total de cores e fontes */
-                * { 
-                  -webkit-print-color-adjust: exact !important; 
-                  print-color-adjust: exact !important; 
-                  text-rendering: optimizeLegibility !important;
-                }
-                /* Corrige o problema de sobreposição em textos absolutos */
-                header {
-                   width: 100% !important;
-                   height: 160px !important;
-                   position: relative !important;
-                }
-                header div, header h1, header h2, header h3 {
-                   white-space: nowrap !important;
-                   line-height: 1.1 !important;
-                }
-              }
-            `}
-          </style>
-
           <div id="pdf-container-outer" className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
               <div className="flex items-center gap-3"><div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center"><i className="fas fa-file-pdf"></i></div><h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Visualização de Impressão</h2></div>
               <div className="flex items-center gap-3">
-                <button onClick={() => window.print()} className="px-8 py-3.5 bg-[#005a9c] text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest active:scale-95 transition-all flex items-center gap-3"><i className="fas fa-print"></i> Imprimir Agora</button>
+                <button onClick={handlePrintIsolated} className="px-8 py-3.5 bg-[#005a9c] text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest active:scale-95 transition-all flex items-center gap-3"><i className="fas fa-print"></i> Imprimir Agora</button>
                 <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all"><i className="fas fa-times"></i></button>
               </div>
             </div>
@@ -416,7 +424,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </section>
 
                 <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
-                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.2.0-Ultimate</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
+                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.2.1-Ultimate</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
                   <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
                 </footer>
               </div>
