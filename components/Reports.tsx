@@ -1,5 +1,5 @@
 // ############################################################
-// # VERSION: 1.1.3-LEGIBILITY (HIGH-CONTRAST NUMBERS)
+// # VERSION: 1.1.4-OPTIMIZED-READ (CHART & TABLE BUFFERS)
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
@@ -298,7 +298,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                       <table className="w-full text-left text-[9px] border-collapse">
                         <thead><tr className="bg-[#005a9c] text-white font-black uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Total Alunos</th><th className="p-3 text-center">Estudos</th><th className="p-3 text-center">Classes</th><th className="p-3 text-center">PGs</th><th className="p-3 text-center">Visitas</th></tr></thead>
                         <tbody className="divide-y divide-slate-100">{chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
-                          <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}><td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td><td className="p-3 text-center font-black text-xs text-slate-900">{stat.hab.students}</td><td className="p-3 text-center font-black text-xs text-blue-700">{stat.hab.studies}</td><td className="p-3 text-center font-black text-xs text-indigo-700">{stat.hab.classes}</td><td className="p-3 text-center font-black text-xs text-emerald-700">{stat.hab.groups}</td><td className="p-3 text-center font-black text-xs text-rose-700">{stat.hab.visits}</td></tr>
+                          <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}><td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td><td className="p-3 text-center font-black text-sm text-slate-900">{stat.hab.students}</td><td className="p-3 text-center font-black text-sm text-blue-800">{stat.hab.studies}</td><td className="p-3 text-center font-black text-sm text-indigo-800">{stat.hab.classes}</td><td className="p-3 text-center font-black text-sm text-emerald-800">{stat.hab.groups}</td><td className="p-3 text-center font-black text-sm text-rose-800">{stat.hab.visits}</td></tr>
                         ))}</tbody>
                       </table>
                     </div>
@@ -310,7 +310,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                       <table className="w-full text-left text-[9px] border-collapse">
                         <thead><tr className="bg-[#005a9c] text-white font-black uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Total Alunos</th><th className="p-3 text-center">Estudos</th><th className="p-3 text-center">Classes</th><th className="p-3 text-center">PGs</th><th className="p-3 text-center">Visitas</th></tr></thead>
                         <tbody className="divide-y divide-slate-100">{chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
-                          <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}><td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td><td className="p-3 text-center font-black text-xs text-slate-900">{stat.haba.students}</td><td className="p-3 text-center font-black text-xs text-blue-700">{stat.haba.studies}</td><td className="p-3 text-center font-black text-xs text-indigo-700">{stat.haba.classes}</td><td className="p-3 text-center font-black text-xs text-emerald-700">{stat.haba.groups}</td><td className="p-3 text-center font-black text-xs text-rose-700">{stat.haba.visits}</td></tr>
+                          <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}><td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td><td className="p-3 text-center font-black text-sm text-slate-900">{stat.haba.students}</td><td className="p-3 text-center font-black text-sm text-blue-800">{stat.haba.studies}</td><td className="p-3 text-center font-black text-sm text-indigo-800">{stat.haba.classes}</td><td className="p-3 text-center font-black text-sm text-emerald-800">{stat.haba.groups}</td><td className="p-3 text-center font-black text-sm text-rose-800">{stat.haba.visits}</td></tr>
                         ))}</tbody>
                       </table>
                     </div>
@@ -318,17 +318,20 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
                   <div className="space-y-6">
                     <h3 className="text-[11px] font-black uppercase text-[#005a9c] text-center italic tracking-widest border-y border-slate-50 py-2">Desempenho Gráfico por Capelão</h3>
-                    <div className="grid grid-cols-1 gap-12">
+                    <div className="grid grid-cols-1 gap-14">
                       {chaplainStats.map((stat, idx) => (
                         <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-slate-100 page-break-inside-avoid">
                           <h4 className="text-[10px] font-black text-slate-800 uppercase mb-4 flex justify-between"><span>{stat.name}</span><span className="text-blue-600 uppercase tracking-tighter">Ações: {stat.totalActions}</span></h4>
                           <div className="h-[140px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={[{ n: 'Alunos', v: stat.students, c: '#005a9c' },{ n: 'Estudos', v: stat.studies, c: '#3b82f6' },{ n: 'Classes', v: stat.classes, c: '#6366f1' },{ n: 'PGs', v: stat.groups, c: '#10b981' },{ n: 'Visitas', v: stat.visits, c: '#f43f5e' }]}>
+                              {/* margin top 30 para acomodar os números sem cortar no topo da área do SVG */}
+                              <BarChart data={[{ n: 'Alunos', v: stat.students, c: '#005a9c' },{ n: 'Estudos', v: stat.studies, c: '#3b82f6' },{ n: 'Classes', v: stat.classes, c: '#6366f1' },{ n: 'PGs', v: stat.groups, c: '#10b981' },{ n: 'Visitas', v: stat.visits, c: '#f43f5e' }]} margin={{ top: 30, bottom: 0, left: 0, right: 0 }}>
                                 <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 800, fill: '#64748b'}} />
+                                {/* YAxis invisível com domain extendido para garantir que o LabelList position="top" nunca seja cortado */}
+                                <YAxis hide domain={[0, (dataMax) => Math.ceil(dataMax + (dataMax * 0.2) + 2)]} />
                                 <Bar dataKey="v" radius={[4, 4, 0, 0]} barSize={40}>
                                   {[0,1,2,3,4].map((_, i) => <Cell key={i} fill={['#005a9c', '#3b82f6', '#6366f1', '#10b981', '#f43f5e'][i]} />)}
-                                  {/* Rótulo numérico ajustado para maior visibilidade e destaque */}
+                                  {/* Rótulo no topo com fonte 14px Black para máxima legibilidade */}
                                   <LabelList dataKey="v" position="top" offset={10} style={{ fontSize: '14px', fontWeight: '900', fill: '#000000' }} />
                                 </Bar>
                               </BarChart>
@@ -352,7 +355,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </section>
 
                 <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4">
-                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.3-Legibility</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
+                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.4-HighRead</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
                   <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
                 </footer>
               </div>
