@@ -452,3 +452,4 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 };
 
 export default Reports;
+
