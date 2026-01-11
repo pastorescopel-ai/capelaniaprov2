@@ -1,6 +1,6 @@
 {
   "name": "Capelania Hospitalar Pro",
-  "description": "RESTORE-POINT-V1: Versão estável com relatórios e sincronização corrigidos.",
-  "version": "1.0.6-STABLE",
+  "description": "RESTORE-POINT-V1.1.5: Versão consolidada e estável. Inclui correções de precisão na contagem de alunos (Context-Aware), otimização de fontes para impressão (PDF) e domínio dinâmico de gráficos.",
+  "version": "1.1.5-STABLE",
   "requestFramePermissions": []
 }
