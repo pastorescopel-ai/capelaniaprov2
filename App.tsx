@@ -127,6 +127,20 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // ############################################################
+  // # NOVO: SINCRONIZAÇÃO AUTOMÁTICA DISCRETA (A CADA 5 MINUTOS)
+  // ############################################################
+  useEffect(() => {
+    if (!isAuthenticated || !isConnected || !isInitialized) return;
+    const interval = setInterval(() => {
+      // Só sincroniza se não estiver salvando algo no momento
+      if (!isSyncing && !editingItem) {
+        loadFromCloud();
+      }
+    }, 5 * 60 * 1000); 
+    return () => clearInterval(interval);
+  }, [isAuthenticated, isConnected, isInitialized, isSyncing, editingItem, loadFromCloud]);
+
   const saveToCloud = useCallback(async (overrides?: any) => {
     if (!isInitialized || !GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('URL_EXEMPLO')) return;
     setIsSyncing(true);
@@ -225,12 +239,10 @@ const App: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 md:px-0">
         <div className="mb-8 flex flex-col md:flex-row gap-4 items-start md:items-center">
           {['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab) && (
-            <>
-              <div className="flex bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 max-w-fit">
-                <button onClick={() => setCurrentUnit(Unit.HAB)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HAB ? 'text-white shadow-lg' : 'text-slate-400'}`} style={{ backgroundColor: currentUnit === Unit.HAB ? (config.primaryColor || '#005a9c') : undefined }}>Unidade HAB</button>
-                <button onClick={() => setCurrentUnit(Unit.HABA)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HABA ? 'text-white shadow-lg' : 'text-slate-400'}`} style={{ backgroundColor: currentUnit === Unit.HABA ? (config.primaryColor || '#005a9c') : undefined }}>Unidade HABA</button>
-              </div>
-            </>
+            <div className="flex bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 max-w-fit">
+              <button onClick={() => setCurrentUnit(Unit.HAB)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HAB ? 'text-white shadow-lg' : 'text-slate-400'}`} style={{ backgroundColor: currentUnit === Unit.HAB ? (config.primaryColor || '#005a9c') : undefined }}>Unidade HAB</button>
+              <button onClick={() => setCurrentUnit(Unit.HABA)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HABA ? 'text-white shadow-lg' : 'text-slate-400'}`} style={{ backgroundColor: currentUnit === Unit.HABA ? (config.primaryColor || '#005a9c') : undefined }}>Unidade HABA</button>
+            </div>
           )}
         </div>
         {activeTab === 'dashboard' && currentUser && <Dashboard studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} currentUser={currentUser} config={config} onGoToTab={setActiveTab} onUpdateConfig={c => {setConfig(c); saveToCloud({config: c});}} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
@@ -251,9 +263,11 @@ const App: React.FC = () => {
             bibleClasses={bibleClasses}
             smallGroups={smallGroups}
             staffVisits={staffVisits}
-            onUpdateConfig={async c => { setConfig(applySystemOverrides(c)); await saveToCloud({ config: c }); }} 
-            onUpdateLists={async l => { setMasterLists(l); await saveToCloud({ masterLists: l }); }} 
-            onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} 
+            onSaveAllData={async (c, l) => { 
+              setConfig(applySystemOverrides(c)); 
+              setMasterLists(l); 
+              await saveToCloud({ config: c, masterLists: l }); 
+            }}
           />
         )}
       </div>

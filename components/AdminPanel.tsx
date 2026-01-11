@@ -1,7 +1,7 @@
 
 // ############################################################
-// # VERSION: 1.4.0-DNA-TOTAL
-// # STATUS: STABLE + FULL BACKUP + SYNC FIX
+// # VERSION: 1.4.1-DNA-TOTAL (STABLE)
+// # STATUS: FULLY FUNCTIONAL + HEADER EDIT ENABLED
 // ############################################################
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -12,14 +12,12 @@ interface AdminPanelProps {
   masterLists: MasterLists;
   users: User[];
   currentUser: User;
-  // Adicionado para o Backup Total
   bibleStudies: BibleStudy[];
   bibleClasses: BibleClass[];
   smallGroups: SmallGroup[];
   staffVisits: StaffVisit[];
-  onUpdateConfig: (newConfig: Config) => Promise<void>;
-  onUpdateLists: (newLists: MasterLists) => Promise<void>;
-  onUpdateUsers: (newUsers: User[]) => Promise<void>;
+  // Função unificada para evitar erros de sincronia
+  onSaveAllData: (config: Config, lists: MasterLists) => Promise<void>;
 }
 
 type DragType = 'logo' | 'line1' | 'line2' | 'line3' | 'resize' | null;
@@ -27,7 +25,7 @@ type DragType = 'logo' | 'line1' | 'line2' | 'line3' | 'resize' | null;
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
   config, masterLists, users, currentUser, 
   bibleStudies, bibleClasses, smallGroups, staffVisits,
-  onUpdateConfig, onUpdateLists, onUpdateUsers 
+  onSaveAllData 
 }) => {
   const [localConfig, setLocalConfig] = useState(config);
   const [activeDrag, setActiveDrag] = useState<DragType>(null);
@@ -87,25 +85,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleExportFullDNA = () => {
-    const confirmExport = confirm("ATENÇÃO: Este backup contém TODOS OS REGISTROS (estudos, visitas, classes, grupos), TODOS OS USUÁRIOS e todas as configurações. É a cópia integral do seu banco de dados. Deseja baixar?");
-    
+    const confirmExport = confirm("ATENÇÃO: Este backup contém TODOS OS REGISTROS, USUÁRIOS e CONFIGURAÇÕES. É a cópia integral do seu banco de dados.");
     if (confirmExport) {
       const fullDNA = {
-        version: "1.4.0-DNA-TOTAL",
+        version: "1.4.1-DNA-TOTAL",
         exportDate: new Date().toISOString(),
         author: currentUser.name,
-        // O "Coração" do Sistema: Dados Reais
-        database: {
-          bibleStudies,
-          bibleClasses,
-          smallGroups,
-          staffVisits,
-          users,
-          config: localConfig,
-          masterLists
-        }
+        database: { bibleStudies, bibleClasses, smallGroups, staffVisits, users, config: localConfig, masterLists }
       };
-
       const blob = new Blob([JSON.stringify(fullDNA, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -124,7 +111,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         lastModifiedBy: currentUser.name, 
         lastModifiedAt: Date.now() 
       };
-      
       const newLists: MasterLists = {
         sectorsHAB: cleanListItems(lists.sectorsHAB),
         sectorsHABA: cleanListItems(lists.sectorsHABA),
@@ -133,14 +119,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         staffHAB: cleanListItems(lists.staffHAB),
         staffHABA: cleanListItems(lists.staffHABA),
       };
-
-      // Sequência de salvamento garantida
-      await onUpdateConfig(finalConfig);
-      await onUpdateLists(newLists);
-      
-      alert('Sincronização concluída! Todos os dados e listas foram salvos na nuvem.');
+      await onSaveAllData(finalConfig, newLists);
+      alert('Sincronização concluída com sucesso!');
     } catch (error) {
-      alert('Erro ao salvar dados. Verifique sua conexão.');
+      alert('Erro ao sincronizar. Verifique a conexão.');
     } finally {
       setIsSaving(false);
     }
@@ -149,7 +131,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   return (
     <div className="space-y-12 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700" onMouseUp={() => setActiveDrag(null)} onMouseLeave={() => setActiveDrag(null)}>
       
-      {/* OVERLAY DE SALVAMENTO */}
       {isSaving && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[1000] flex items-center justify-center p-4">
           <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl flex flex-col items-center gap-8 max-w-md w-full text-center border-4 border-blue-50 animate-in zoom-in duration-300">
@@ -161,7 +142,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
             <div className="space-y-3">
               <h3 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">Sincronizando Tudo</h3>
-              <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest leading-relaxed px-6">Gravando configurações, identidades visuais e bancos de dados no Google Sheets...</p>
+              <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest leading-relaxed px-6">Gravando configurações e Listas Mestres na nuvem...</p>
             </div>
           </div>
         </div>
@@ -177,23 +158,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           )}
         </div>
         <div className="flex flex-wrap gap-3">
-          <button 
-            onClick={handleExportFullDNA} 
-            className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg"
-          >
-            <i className="fas fa-dna text-amber-400"></i> Backup DNA Total
-          </button>
-          <button onClick={handleSaveAll} className="px-10 py-5 text-white font-black rounded-[1.5rem] shadow-2xl hover:brightness-110 transition-all flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95" style={{ backgroundColor: localConfig.primaryColor || '#005a9c' }}>
-            <i className="fas fa-save"></i> Salvar Tudo
-          </button>
+          <button onClick={handleExportFullDNA} className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg"><i className="fas fa-dna text-amber-400"></i> Backup DNA Total</button>
+          <button onClick={handleSaveAll} className="px-10 py-5 text-white font-black rounded-[1.5rem] shadow-2xl hover:brightness-110 transition-all flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95" style={{ backgroundColor: localConfig.primaryColor || '#005a9c' }}><i className="fas fa-save"></i> Salvar Tudo</button>
         </div>
       </header>
 
       {/* Editor Visual de Cabeçalho */}
       <section className="space-y-4">
-        <h3 className="font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-2" style={{ color: localConfig.primaryColor }}>
-          <i className="fas fa-pencil-ruler"></i> Design do Cabeçalho (Relatórios)
-        </h3>
+        <h3 className="font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-2" style={{ color: localConfig.primaryColor }}><i className="fas fa-pencil-ruler"></i> Design do Cabeçalho (Relatórios)</h3>
         <div className="bg-slate-300 p-8 md:p-16 rounded-[3rem] shadow-inner border border-slate-400 relative flex justify-center overflow-x-auto">
           <div ref={previewRef} onMouseMove={handleMouseMove} className="bg-white shadow-2xl relative overflow-hidden flex-shrink-0" style={{ width: '800px', height: '220px' }}>
             <div className={`absolute transition-shadow ${activeDrag === 'logo' ? 'ring-2 ring-blue-500 z-50 shadow-2xl' : 'hover:ring-2 hover:ring-blue-100'}`} style={{ left: `${localConfig.reportLogoX}px`, top: `${localConfig.reportLogoY}px`, cursor: 'move' }} onMouseDown={(e) => { e.preventDefault(); setActiveDrag('logo'); }}>
@@ -208,7 +180,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               const colors = [localConfig.primaryColor, '#475569', '#94a3b8'];
               return (
                 <div key={l} className={`absolute p-2 rounded cursor-move border-2 border-dashed ${activeDrag === `line${i+1}` as DragType ? 'bg-blue-50/50 border-blue-400' : 'border-transparent hover:border-slate-200'}`} style={{ left: localConfig[xField] as number, top: localConfig[yField] as number, minWidth: '350px' }} onMouseDown={(e) => { if(e.target === e.currentTarget) { e.preventDefault(); setActiveDrag(`line${i+1}` as DragType); } }}>
-                  <input value={localConfig[field] as string} onChange={e => setLocalConfig({...localConfig, [field]: e.target.value})} className="w-full bg-transparent border-none focus:ring-0 font-black uppercase whitespace-nowrap outline-none" style={{ fontSize: `${localConfig[fsField]}px`, textAlign: localConfig.headerTextAlign, color: colors[i] }} />
+                  <input value={localConfig[field] as string} onChange={e => setLocalConfig({...localConfig, [field]: e.target.value})} className="w-full bg-transparent border-none focus:ring-0 font-black uppercase whitespace-nowrap outline-none cursor-text" style={{ fontSize: `${localConfig[fsField]}px`, textAlign: localConfig.headerTextAlign, color: colors[i] }} />
                 </div>
               );
             })}
@@ -218,14 +190,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       <div className="grid lg:grid-cols-3 gap-8">
         <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
-          <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight">
-            <i className="fas fa-align-center" style={{ color: localConfig.primaryColor }}></i> Texto
-          </h2>
+          <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight"><i className="fas fa-align-center" style={{ color: localConfig.primaryColor }}></i> Texto</h2>
           <div className="flex bg-slate-50 p-2 rounded-2xl gap-2">
             {['left', 'center', 'right'].map(align => (
-              <button key={align} onClick={() => setLocalConfig({...localConfig, headerTextAlign: align as any})} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase transition-all ${localConfig.headerTextAlign === align ? 'bg-white shadow-sm' : 'text-slate-400'}`} style={{ color: localConfig.headerTextAlign === align ? localConfig.primaryColor : undefined }}>
-                <i className={`fas fa-align-${align} mr-2`}></i>{align}
-              </button>
+              <button key={align} onClick={() => setLocalConfig({...localConfig, headerTextAlign: align as any})} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase transition-all ${localConfig.headerTextAlign === align ? 'bg-white shadow-sm' : 'text-slate-400'}`} style={{ color: localConfig.headerTextAlign === align ? localConfig.primaryColor : undefined }}><i className={`fas fa-align-${align} mr-2`}></i>{align}</button>
             ))}
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -239,19 +207,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </section>
 
         <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6 lg:col-span-2">
-          <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight">
-            <i className="fas fa-palette" style={{ color: localConfig.primaryColor }}></i> Identidade Visual
-          </h2>
+          <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight"><i className="fas fa-palette" style={{ color: localConfig.primaryColor }}></i> Identidade Visual</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {colorPresets.map(cp => (
-              <button key={cp.value} onClick={() => setLocalConfig({...localConfig, primaryColor: cp.value})} className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${localConfig.primaryColor === cp.value ? 'border-slate-800 bg-slate-50' : 'border-slate-100 hover:border-slate-200'}`}>
-                <div className="w-6 h-6 rounded-lg shadow-sm" style={{ backgroundColor: cp.value }}></div>
-                <span className="text-[10px] font-black uppercase tracking-tighter text-slate-600">{cp.label}</span>
-              </button>
+              <button key={cp.value} onClick={() => setLocalConfig({...localConfig, primaryColor: cp.value})} className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${localConfig.primaryColor === cp.value ? 'border-slate-800 bg-slate-50' : 'border-slate-100 hover:border-slate-200'}`}><div className="w-6 h-6 rounded-lg shadow-sm" style={{ backgroundColor: cp.value }}></div><span className="text-[10px] font-black uppercase tracking-tighter text-slate-600">{cp.label}</span></button>
             ))}
             <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 md:col-span-1">
-               <input type="color" value={localConfig.primaryColor} onChange={e => setLocalConfig({...localConfig, primaryColor: e.target.value})} className="w-8 h-8 rounded cursor-pointer bg-transparent border-none" />
-               <span className="text-[10px] font-black uppercase text-slate-400">Personalizado</span>
+               <input type="color" value={localConfig.primaryColor} onChange={e => setLocalConfig({...localConfig, primaryColor: e.target.value})} className="w-8 h-8 rounded cursor-pointer bg-transparent border-none" /><span className="text-[10px] font-black uppercase text-slate-400">Personalizado</span>
             </div>
           </div>
         </section>
@@ -259,26 +221,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* Listas Mestres */}
       <section className="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
-        <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 tracking-tighter uppercase">
-          <i className="fas fa-database text-emerald-500"></i> Listas Mestres (Bancos de Dados)
-        </h2>
+        <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 tracking-tighter uppercase"><i className="fas fa-database text-emerald-500"></i> Listas Mestres (Bancos de Dados)</h2>
         <div className="grid md:grid-cols-2 gap-10">
           {['HAB', 'HABA'].map(unit => (
             <div key={unit} className="space-y-6">
-              <h3 className="font-black text-slate-700 uppercase tracking-widest text-sm flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: localConfig.primaryColor }}></div> Unidade {unit}
-              </h3>
+              <h3 className="font-black text-slate-700 uppercase tracking-widest text-sm flex items-center gap-3"><div className="w-3 h-3 rounded-full" style={{ backgroundColor: localConfig.primaryColor }}></div> Unidade {unit}</h3>
               {['sectors', 'groups', 'staff'].map(type => (
                 <div key={type} className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-[0.2em]">
-                    {type === 'sectors' ? 'Setores Hospitalares' : type === 'groups' ? 'Nomes dos PGs' : 'Equipe de Colaboradores'}
-                  </label>
-                  <textarea 
-                    value={(lists as any)[`${type}${unit}`]} 
-                    onChange={e => setLists({...lists, [`${type}${unit}`]: e.target.value})} 
-                    className="w-full h-40 p-5 bg-slate-50 rounded-3xl border-none font-bold text-xs resize-none focus:ring-2 focus:ring-blue-100 shadow-inner outline-none" 
-                    placeholder="Uma entrada por linha..." 
-                  />
+                  <label className="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-[0.2em]">{type === 'sectors' ? 'Setores Hospitalares' : type === 'groups' ? 'Nomes dos PGs' : 'Equipe de Colaboradores'}</label>
+                  <textarea value={(lists as any)[`${type}${unit}`]} onChange={e => setLists({...lists, [`${type}${unit}`]: e.target.value})} className="w-full h-40 p-5 bg-slate-50 rounded-3xl border-none font-bold text-xs resize-none focus:ring-2 focus:ring-blue-100 shadow-inner outline-none" placeholder="Uma entrada por linha..." />
                 </div>
               ))}
             </div>
