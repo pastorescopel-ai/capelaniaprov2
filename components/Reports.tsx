@@ -297,74 +297,61 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       )}
 
       {showPdfPreview && (
-        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[800] flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[950] flex items-center justify-center p-4 overflow-y-auto">
           <style>
             {`
               @media print {
-                /* REGRAS GLOBAIS DE RESET PARA IMPRESSORA */
+                /* CONFIGURAÇÃO DE PÁGINA */
                 @page { 
                   size: A4; 
                   margin: 0 !important; 
                 }
                 
+                /* RESET DE CORPO E HTML */
                 html, body {
-                  height: auto !important;
-                  overflow: visible !important;
                   margin: 0 !important;
                   padding: 0 !important;
+                  height: auto !important;
+                  overflow: visible !important;
                   background: white !important;
                 }
 
-                /* ESCONDE A ESTRUTURA ROOT DO APP PARA NÃO GERAR PÁGINAS EM BRANCO */
-                #root, body > div:not(#pdf-printer-portal) {
-                  display: none !important;
+                /* ESCONDER TUDO EXCETO O CONTEÚDO DO PDF */
+                body * {
+                  visibility: hidden !important;
                 }
 
-                /* RECONSTRÓI O MODAL COMO PÁGINA ÚNICA */
-                #pdf-printer-portal {
+                #pdf-content, #pdf-content * {
+                  visibility: visible !important;
+                }
+
+                /* POSICIONAR O CONTEÚDO DO PDF NO TOPO ABSOLUTO */
+                #pdf-content {
                   position: absolute !important;
                   top: 0 !important;
                   left: 0 !important;
-                  width: 100% !important;
+                  width: 210mm !important; /* Largura exata A4 */
+                  height: auto !important;
                   margin: 0 !important;
-                  padding: 0 !important;
-                  display: block !important;
-                  visibility: visible !important;
+                  padding: 15mm !important;
                   background: white !important;
+                  box-sizing: border-box !important;
+                  display: block !important;
                   box-shadow: none !important;
                 }
 
-                #pdf-content {
-                  width: 210mm !important;
-                  min-height: 297mm !important;
-                  margin: 0 auto !important;
-                  padding: 10mm !important;
-                  visibility: visible !important;
-                  display: flex !important;
-                  flex-direction: column !important;
-                  background: white !important;
-                  box-sizing: border-box !important;
-                }
-
-                /* GARANTIA DE ELEMENTOS FILHOS VISÍVEIS */
-                #pdf-content * {
-                  visibility: visible !important;
-                }
-
-                /* FORÇAR CORES AZUIS NAS BARRAS E TABELAS */
+                /* FORÇAR CORES E FUNDOS */
                 * {
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
                   color-adjust: exact !important;
                 }
 
-                .bg-\\[\\#005a9c\\] {
-                  background-color: #005a9c !important;
-                  border-color: #005a9c !important;
-                }
-
+                .bg-\\[\\#005a9c\\], 
+                .bg-blue-600,
                 table thead tr {
                   background-color: #005a9c !important;
+                  box-shadow: inset 0 0 0 1000px #005a9c !important;
                 }
 
                 table thead th {
@@ -372,36 +359,41 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   background-color: #005a9c !important;
                 }
 
-                /* OCULTAR BOTÕES DE INTERFACE NO PDF */
+                /* ESCONDER BOTÕES E ELEMENTOS DE UI */
                 .no-print {
                   display: none !important;
                 }
+                
+                /* AJUSTE DE GRÁFICOS PARA IMPRESSÃO */
+                svg {
+                  display: block !important;
+                  max-width: 100% !important;
+                }
 
-                /* REMOVER ROLAGENS INTERNAS NA IMPRESSÃO */
-                .overflow-y-auto {
-                   overflow: visible !important;
-                   max-height: none !important;
+                .recharts-responsive-container {
+                   width: 100% !important;
+                   height: 250px !important;
                 }
               }
             `}
           </style>
 
-          <div id="pdf-printer-portal" className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
+          <div className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
                   <i className="fas fa-file-pdf"></i>
                 </div>
-                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Preview de Impressão</h2>
+                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Preview de Relatório</h2>
               </div>
               <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all">
                 <i className="fas fa-times"></i>
               </button>
             </div>
 
-            <div className="flex-1 bg-slate-100 p-6 md:p-10 overflow-y-auto no-scrollbar">
-              <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[10mm] flex flex-col gap-4 text-slate-900">
-                <header className="relative flex items-start border-b-4 border-[#005a9c] pb-4 min-h-[120px]" style={{ paddingTop: `${config.headerPaddingTop}px` }}>
+            <div className="flex-1 bg-slate-100 p-4 md:p-10 overflow-y-auto no-scrollbar">
+              <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
+                <header className="relative flex items-start border-b-4 border-[#005a9c] pb-6 min-h-[140px]" style={{ paddingTop: `${config.headerPaddingTop}px` }}>
                   {config.reportLogo && (
                     <div className="absolute" style={{ left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px` }}>
                       <img src={config.reportLogo} style={{ width: `${config.reportLogoWidth}px`, height: 'auto' }} alt="Logo" />
@@ -410,35 +402,35 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   <div className="w-full" style={{ textAlign: config.headerTextAlign }}>
                     <h1 style={{fontSize: `${config.fontSize1}px`, color: '#005a9c'}} className="font-black uppercase leading-none">{config.headerLine1}</h1>
                     <h2 style={{fontSize: `${config.fontSize2}px`}} className="font-bold text-slate-600 uppercase mt-2">{config.headerLine2}</h2>
-                    <p className="text-[10px] font-bold mt-1">Período: {startDate.split('-').reverse().join('/')} até {endDate.split('-').reverse().join('/')}</p>
-                    <p className="text-[9px] font-bold text-blue-600 mt-0.5 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
+                    <p className="text-[11px] font-bold mt-2">Período: {startDate.split('-').reverse().join('/')} até {endDate.split('-').reverse().join('/')}</p>
+                    <p className="text-[10px] font-bold text-blue-600 mt-1 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
                   </div>
                 </header>
 
-                <section className="space-y-4">
+                <section className="space-y-6">
                   {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
                     <div>
-                      <h3 className="text-[10px] font-black uppercase text-[#005a9c] mb-2 border-b border-slate-100 pb-0.5 italic">Resumo de Atividades por Capelão - Unidade HAB</h3>
-                      <table className="w-full text-left text-[7px] border-collapse shadow-sm mb-2">
+                      <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-3 border-b border-slate-100 pb-1 italic">Resumo de Atividades - Unidade HAB</h3>
+                      <table className="w-full text-left text-[8px] border-collapse shadow-sm">
                         <thead>
-                          <tr className="bg-[#005a9c] text-white uppercase">
-                            <th className="p-1">Capelão</th>
-                            <th className="p-1 text-center">Total Estudantes</th>
-                            <th className="p-1 text-center">Estudos</th>
-                            <th className="p-1 text-center">Classes</th>
-                            <th className="p-1 text-center">PGs</th>
-                            <th className="p-1 text-center">Visitas</th>
+                          <tr className="bg-[#005a9c] text-white uppercase font-black">
+                            <th className="p-2">Capelão</th>
+                            <th className="p-2 text-center">Total Estudantes</th>
+                            <th className="p-2 text-center">Estudos</th>
+                            <th className="p-2 text-center">Classes</th>
+                            <th className="p-2 text-center">PGs</th>
+                            <th className="p-2 text-center">Visitas</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
                             <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                              <td className="p-1 font-bold text-slate-700">{stat.name}</td>
-                              <td className="p-1 text-center font-bold text-slate-800">{stat.hab.students}</td>
-                              <td className="p-1 text-center font-bold text-blue-600">{stat.hab.studies}</td>
-                              <td className="p-1 text-center font-bold text-indigo-600">{stat.hab.classes}</td>
-                              <td className="p-1 text-center font-bold text-emerald-600">{stat.hab.groups}</td>
-                              <td className="p-1 text-center font-bold text-rose-600">{stat.hab.visits}</td>
+                              <td className="p-2 font-bold text-slate-700">{stat.name}</td>
+                              <td className="p-2 text-center font-bold text-slate-800">{stat.hab.students}</td>
+                              <td className="p-2 text-center font-bold text-blue-600">{stat.hab.studies}</td>
+                              <td className="p-2 text-center font-bold text-indigo-600">{stat.hab.classes}</td>
+                              <td className="p-2 text-center font-bold text-emerald-600">{stat.hab.groups}</td>
+                              <td className="p-2 text-center font-bold text-rose-600">{stat.hab.visits}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -448,27 +440,27 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
                   {(selectedUnit === 'all' || selectedUnit === Unit.HABA) && (
                     <div>
-                      <h3 className="text-[10px] font-black uppercase text-[#005a9c] mb-2 border-b border-slate-100 pb-0.5 italic">Resumo de Atividades por Capelão - Unidade HABA</h3>
-                      <table className="w-full text-left text-[7px] border-collapse shadow-sm">
+                      <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-3 border-b border-slate-100 pb-1 italic">Resumo de Atividades - Unidade HABA</h3>
+                      <table className="w-full text-left text-[8px] border-collapse shadow-sm">
                         <thead>
-                          <tr className="bg-[#005a9c] text-white uppercase">
-                            <th className="p-1">Capelão</th>
-                            <th className="p-1 text-center">Total Estudantes</th>
-                            <th className="p-1 text-center">Estudos</th>
-                            <th className="p-1 text-center">Classes</th>
-                            <th className="p-1 text-center">PGs</th>
-                            <th className="p-1 text-center">Visitas</th>
+                          <tr className="bg-[#005a9c] text-white uppercase font-black">
+                            <th className="p-2">Capelão</th>
+                            <th className="p-2 text-center">Total Estudantes</th>
+                            <th className="p-2 text-center">Estudos</th>
+                            <th className="p-2 text-center">Classes</th>
+                            <th className="p-2 text-center">PGs</th>
+                            <th className="p-2 text-center">Visitas</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
                             <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                              <td className="p-1 font-bold text-slate-700">{stat.name}</td>
-                              <td className="p-1 text-center font-bold text-slate-800">{stat.haba.students}</td>
-                              <td className="p-1 text-center font-bold text-blue-600">{stat.haba.studies}</td>
-                              <td className="p-1 text-center font-bold text-indigo-600">{stat.haba.classes}</td>
-                              <td className="p-1 text-center font-bold text-emerald-600">{stat.haba.groups}</td>
-                              <td className="p-1 text-center font-bold text-rose-600">{stat.haba.visits}</td>
+                              <td className="p-2 font-bold text-slate-700">{stat.name}</td>
+                              <td className="p-2 text-center font-bold text-slate-800">{stat.haba.students}</td>
+                              <td className="p-2 text-center font-bold text-blue-600">{stat.haba.studies}</td>
+                              <td className="p-2 text-center font-bold text-indigo-600">{stat.haba.classes}</td>
+                              <td className="p-2 text-center font-bold text-emerald-600">{stat.haba.groups}</td>
+                              <td className="p-2 text-center font-bold text-rose-600">{stat.haba.visits}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -477,19 +469,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   )}
                 </section>
 
-                <section className="flex flex-col items-center gap-4 mt-2">
-                  <div className="w-full max-w-md mx-auto">
-                    <h3 className="text-[9px] font-black uppercase text-slate-500 mb-2 text-center">Distribuição de Atividades</h3>
-                    <div className="h-[120px] w-full">
+                <section className="flex flex-col items-center gap-6 mt-4">
+                  <div className="w-full max-w-lg mx-auto">
+                    <h3 className="text-[10px] font-black uppercase text-slate-500 mb-2 text-center tracking-widest">Distribuição de Atividades</h3>
+                    <div className="h-[140px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
                             data={activityPieData}
                             cx="50%"
                             cy="50%"
-                            innerRadius={30}
-                            outerRadius={50}
-                            paddingAngle={3}
+                            innerRadius={40}
+                            outerRadius={60}
+                            paddingAngle={5}
                             dataKey="value"
                             isAnimationActive={false}
                           >
@@ -498,34 +490,28 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                             ))}
                           </Pie>
                           <Tooltip isAnimationActive={false} />
-                          <Legend wrapperStyle={{fontSize: '7px', fontWeight: 'bold'}} verticalAlign="bottom" align="center" />
+                          <Legend wrapperStyle={{fontSize: '9px', fontWeight: 'bold'}} verticalAlign="bottom" align="center" />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
-                  <div className="w-full max-w-2xl mx-auto">
-                    <h3 className="text-[9px] font-black uppercase text-slate-500 mb-2 text-center">Desempenho da Equipe</h3>
-                    <div className="h-[150px] w-full">
+                  <div className="w-full max-w-3xl mx-auto">
+                    <h3 className="text-[10px] font-black uppercase text-slate-500 mb-2 text-center tracking-widest">Desempenho Geral da Equipe</h3>
+                    <div className="h-[180px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chaplainStats} margin={{top: 20, right: 10, left: -20, bottom: 5}}>
-                          <XAxis dataKey="name" tick={{fontSize: 6, fontWeight: 'bold'}} interval={0} axisLine={false} tickLine={false} />
-                          <YAxis tick={{fontSize: 6}} axisLine={false} tickLine={false} />
-                          <Tooltip isAnimationActive={false} contentStyle={{borderRadius: '8px', fontSize: '8px'}} />
-                          <Legend verticalAlign="bottom" wrapperStyle={{fontSize: '6px', fontWeight: 'bold', paddingTop: '5px'}} iconSize={6} />
-                          <Bar dataKey="students" name="Alunos" fill="#005a9c" radius={[2, 2, 0, 0]} isAnimationActive={false}>
-                            <LabelList dataKey="students" position="top" style={{fontSize: '6px', fontWeight: 'bold', fill: '#005a9c'}} />
+                          <XAxis dataKey="name" tick={{fontSize: 7, fontWeight: 'bold'}} interval={0} axisLine={false} tickLine={false} />
+                          <YAxis tick={{fontSize: 7}} axisLine={false} tickLine={false} />
+                          <Tooltip isAnimationActive={false} contentStyle={{borderRadius: '8px', fontSize: '9px'}} />
+                          <Legend verticalAlign="bottom" wrapperStyle={{fontSize: '8px', fontWeight: 'bold', paddingTop: '10px'}} iconSize={8} />
+                          <Bar dataKey="students" name="Alunos" fill="#005a9c" isAnimationActive={false}>
+                            <LabelList dataKey="students" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#005a9c'}} />
                           </Bar>
-                          <Bar dataKey="studies" name="Estudos" fill="#3b82f6" radius={[2, 2, 0, 0]} isAnimationActive={false}>
-                            <LabelList dataKey="studies" position="top" style={{fontSize: '6px', fontWeight: 'bold', fill: '#3b82f6'}} />
+                          <Bar dataKey="studies" name="Estudos" fill="#3b82f6" isAnimationActive={false}>
+                            <LabelList dataKey="studies" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#3b82f6'}} />
                           </Bar>
-                          <Bar dataKey="classes" name="Classes" fill="#6366f1" radius={[2, 2, 0, 0]} isAnimationActive={false}>
-                            <LabelList dataKey="classes" position="top" style={{fontSize: '6px', fontWeight: 'bold', fill: '#6366f1'}} />
-                          </Bar>
-                          <Bar dataKey="groups" name="PGs" fill="#10b981" radius={[2, 2, 0, 0]} isAnimationActive={false}>
-                            <LabelList dataKey="groups" position="top" style={{fontSize: '6px', fontWeight: 'bold', fill: '#10b981'}} />
-                          </Bar>
-                          <Bar dataKey="visits" name="Visitas" fill="#f43f5e" radius={[2, 2, 0, 0]} isAnimationActive={false}>
-                            <LabelList dataKey="visits" position="top" style={{fontSize: '6px', fontWeight: 'bold', fill: '#f43f5e'}} />
+                          <Bar dataKey="classes" name="Classes" fill="#6366f1" isAnimationActive={false}>
+                            <LabelList dataKey="classes" position="top" style={{fontSize: '8px', fontWeight: 'bold', fill: '#6366f1'}} />
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
@@ -533,25 +519,25 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   </div>
                 </section>
 
-                <div className="mt-auto grid grid-cols-5 gap-2 border-t border-slate-200 pt-4">
-                    <div className="bg-[#005a9c] p-2 rounded-xl text-center text-white shadow-sm"><p className="text-[6px] font-black text-white/70 uppercase">Total Estudantes</p><p className="text-base font-black">{totalStats.totalStudents}</p></div>
-                    <div className="bg-slate-50 p-2 rounded-xl text-center border border-slate-100"><p className="text-[6px] font-black text-slate-400 uppercase">Estudos Bíblicos</p><p className="text-base font-black text-blue-600">{totalStats.studies}</p></div>
-                    <div className="bg-slate-50 p-2 rounded-xl text-center border border-slate-100"><p className="text-[6px] font-black text-slate-400 uppercase">Classes Bíblicas</p><p className="text-base font-black text-indigo-600">{totalStats.classes}</p></div>
-                    <div className="bg-slate-50 p-2 rounded-xl text-center border border-slate-100"><p className="text-[6px] font-black text-slate-400 uppercase">PGs Assistidos</p><p className="text-base font-black text-emerald-600">{totalStats.groups}</p></div>
-                    <div className="bg-slate-50 p-2 rounded-xl text-center border border-slate-100"><p className="text-[6px] font-black text-slate-400 uppercase">Visitas Colab.</p><p className="text-base font-black text-rose-600">{totalStats.visits}</p></div>
+                <div className="mt-auto grid grid-cols-5 gap-3 border-t-2 border-slate-100 pt-6">
+                    <div className="bg-[#005a9c] p-3 rounded-2xl text-center text-white shadow-md flex flex-col justify-center"><p className="text-[7px] font-black text-white/70 uppercase tracking-wider mb-1">Total Estudantes</p><p className="text-xl font-black leading-none">{totalStats.totalStudents}</p></div>
+                    <div className="bg-slate-50 p-3 rounded-2xl text-center border border-slate-100 flex flex-col justify-center"><p className="text-[7px] font-black text-slate-400 uppercase tracking-wider mb-1">Estudos</p><p className="text-xl font-black text-blue-600 leading-none">{totalStats.studies}</p></div>
+                    <div className="bg-slate-50 p-3 rounded-2xl text-center border border-slate-100 flex flex-col justify-center"><p className="text-[7px] font-black text-slate-400 uppercase tracking-wider mb-1">Classes</p><p className="text-xl font-black text-indigo-600 leading-none">{totalStats.classes}</p></div>
+                    <div className="bg-slate-50 p-3 rounded-2xl text-center border border-slate-100 flex flex-col justify-center"><p className="text-[7px] font-black text-slate-400 uppercase tracking-wider mb-1">PGs</p><p className="text-xl font-black text-emerald-600 leading-none">{totalStats.groups}</p></div>
+                    <div className="bg-slate-50 p-3 rounded-2xl text-center border border-slate-100 flex flex-col justify-center"><p className="text-[7px] font-black text-slate-400 uppercase tracking-wider mb-1">Visitas</p><p className="text-xl font-black text-rose-600 leading-none">{totalStats.visits}</p></div>
                 </div>
 
-                <footer className="mt-2 border-t border-slate-100 pt-1 flex justify-between text-[6px] font-bold text-slate-300 uppercase italic">
-                  <span>Gerado eletronicamente em: {new Date().toLocaleString('pt-BR')}</span>
+                <footer className="mt-4 border-t border-slate-100 pt-2 flex justify-between text-[7px] font-bold text-slate-300 uppercase italic">
+                  <span>Gerado em: {new Date().toLocaleString('pt-BR')}</span>
                   <span>Sistema Capelania Pro - Gestão Eficiente</span>
                 </footer>
               </div>
             </div>
 
             <div className="p-8 bg-white border-t border-slate-100 flex justify-end no-print gap-4">
-              <button onClick={() => setShowPdfPreview(false)} className="px-10 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all">Fechar Preview</button>
-              <button onClick={() => window.print()} className="px-12 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">
-                <i className="fas fa-print mr-2"></i> Imprimir Agora
+              <button onClick={() => setShowPdfPreview(false)} className="px-10 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all active:scale-95">Fechar Preview</button>
+              <button onClick={() => window.print()} className="px-14 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center gap-3">
+                <i className="fas fa-print"></i> Imprimir Agora
               </button>
             </div>
           </div>
