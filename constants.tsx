@@ -2,28 +2,12 @@
 import React from 'react';
 import { UserRole, RecordStatus, VisitReason, Config } from './types';
 
-// =============================================================================
-// CONFIGURAÇÕES INTERNAS DO SISTEMA
-// =============================================================================
-
-/**
- * 1. URL DO GOOGLE APPS SCRIPT
- */
 export const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwMB8cug1XCpVPkoqRac8A-zk2DEgT-r-t4v7bFK5lU0Q52OJvqh4Q0-h56okfv4Kwh/exec';
 
-/**
- * 2. LOGO DO APLICATIVO
- */
-export const APP_LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAGDf+RsAAAACXBIWXMAAAsTAAALEwEAmpwYAAAGOWlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgOS4xLWMwMDIgNzkuYjdjNjRjY2Y5LCAyMDI0LzA3LzE2LTEyOjM5OjA0ICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6cGhvdG9zaG9wPSJodHRwOi8vbnMuYWRvYmUuY29tL3Bob3Rvc2hvcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RFdnQ9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZUV2ZW50IyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgMjYuMSAoTWFjaW50b3NoKSIgeG1wOkNyZWF0_DATE_20250312'; // Abreviação por clareza
+export const APP_LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAGDf+RsAAAACXBIWXMAAAsTAAALEwEAmpwYAAAGOWlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgOS4xLWMwMDIgNzkuYjdjNjRjY2Y5LCAyMDI0LzA3LzE2LTEyOjM5OjA0ICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6cGhvdG9zaG9wPSJodHRwOi8vbnMuYWRvYmUuY29tL3Bob3Rvc2hvcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RFdnQ9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZUV2ZW50IyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgMjYuMSAoTWFjaW50b3NoKSIgeG1wOkNyZWF0_DATE_20250312';
 
-/**
- * 3. LOGO DO RELATÓRIO
- */
-export const REPORT_LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAbgAAAG4CAYAAADt...'; // Abreviação por clareza
+export const REPORT_LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAbgAAAG4CAYAAADt...';
 
-/**
- * 4. ITENS DE NAVEGAÇÃO
- */
 export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
   { id: 'bibleStudy', label: 'Estudo Bíblico', icon: '📖', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
@@ -36,23 +20,14 @@ export const NAV_ITEMS = [
   { id: 'admin', label: 'Painel Admin', icon: '🛠️', roles: [UserRole.ADMIN] },
 ];
 
-/**
- * 5. OPÇÕES DE STATUS
- */
 export const STATUS_OPTIONS = [
   RecordStatus.INICIO,
   RecordStatus.CONTINUACAO,
   RecordStatus.TERMINO
 ];
 
-/**
- * 6. MOTIVOS DE VISITA
- */
 export const VISIT_REASONS = Object.values(VisitReason);
 
-/**
- * 7. CONFIGURAÇÃO INICIAL
- */
 export const INITIAL_CONFIG: Config = {
   googleSheetUrl: GOOGLE_SCRIPT_URL,
   appLogo: APP_LOGO_BASE64,
@@ -74,5 +49,6 @@ export const INITIAL_CONFIG: Config = {
   headerLine3X: 200,
   headerLine3Y: 95,
   headerPaddingTop: 40,
-  headerTextAlign: 'center'
+  headerTextAlign: 'center',
+  primaryColor: '#005a9c'
 };

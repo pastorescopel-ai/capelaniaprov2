@@ -139,14 +139,9 @@ const App: React.FC = () => {
       password: encodeData(u.password || '')
     }));
 
-    // Remove campos estáticos do config para não poluir o banco
     let cloudConfig = overrides?.config !== undefined ? { ...overrides.config } : { ...config };
     // @ts-ignore
-    delete cloudConfig.appLogo;
-    // @ts-ignore
-    delete cloudConfig.reportLogo;
-    // @ts-ignore
-    delete cloudConfig.googleSheetUrl;
+    delete cloudConfig.appLogo; delete cloudConfig.reportLogo; delete cloudConfig.googleSheetUrl;
 
     const payload = {
       users: securedUsers,
@@ -191,18 +186,11 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    setActiveTab('dashboard');
-  };
+  const handleLogout = () => { setIsAuthenticated(false); setCurrentUser(null); setActiveTab('dashboard'); };
 
   const handleSaveItem = async (type: string, data: any) => {
     if (!isInitialized) return;
-    let updatedStudies = [...bibleStudies];
-    let updatedClasses = [...bibleClasses];
-    let updatedVisits = [...staffVisits];
-    let updatedGroups = [...smallGroups];
+    let updatedStudies = [...bibleStudies], updatedClasses = [...bibleClasses], updatedVisits = [...staffVisits], updatedGroups = [...smallGroups];
     const targetId = data.id || editingItem?.id;
     if (targetId) {
       if (type === 'study') updatedStudies = bibleStudies.map(s => s.id === targetId ? { ...data, id: targetId } : s);
@@ -216,10 +204,7 @@ const App: React.FC = () => {
       if (type === 'visit') updatedVisits = [newItem, ...staffVisits];
       if (type === 'pg') updatedGroups = [newItem, ...smallGroups];
     }
-    setBibleStudies(updatedStudies);
-    setBibleClasses(updatedClasses);
-    setStaffVisits(updatedVisits);
-    setSmallGroups(updatedGroups);
+    setBibleStudies(updatedStudies); setBibleClasses(updatedClasses); setStaffVisits(updatedVisits); setSmallGroups(updatedGroups);
     await saveToCloud({ bibleStudies: updatedStudies, bibleClasses: updatedClasses, staffVisits: updatedVisits, smallGroups: updatedGroups });
     setEditingItem(null);
   };
@@ -227,9 +212,7 @@ const App: React.FC = () => {
   const getVisibleHistory = (list: any[]) => {
     if (!currentUser) return [];
     const matchUnit = (item: any) => (item.unit || Unit.HAB) === currentUnit;
-    if (currentUser.role === UserRole.ADMIN) {
-      return list.filter(item => matchUnit(item) && (selectedChaplainFilter === 'all' || item.userId === selectedChaplainFilter));
-    }
+    if (currentUser.role === UserRole.ADMIN) return list.filter(item => matchUnit(item) && (selectedChaplainFilter === 'all' || item.userId === selectedChaplainFilter));
     return list.filter(item => item && matchUnit(item) && item.userId === currentUser.id);
   };
 
@@ -239,55 +222,14 @@ const App: React.FC = () => {
 
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab} userRole={currentUser.role} isSyncing={isSyncing} isConnected={isConnected} config={config} onLogout={handleLogout}>
-      {isSyncing && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[999] flex items-center justify-center p-4">
-          <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full text-center border border-white/20">
-            <div className="relative"><div className="w-20 h-20 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div><div className="absolute inset-0 flex items-center justify-center"><i className="fas fa-cloud-upload-alt text-blue-600 text-2xl animate-pulse"></i></div></div>
-            <div className="space-y-2"><h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Sincronizando</h3><p className="text-slate-500 text-sm font-medium">Salvando seus dados com segurança...</p></div>
-          </div>
-        </div>
-      )}
-      {itemToDelete && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[510] flex items-center justify-center p-4">
-          <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl max-sm w-full text-center space-y-6">
-            <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6"><i className="fas fa-trash-alt"></i></div>
-            <h3 className="text-2xl font-black text-slate-800 mb-2">Excluir Registro?</h3>
-            <p className="text-slate-500 mb-8 font-medium">Esta ação não poderá ser desfeita na nuvem.</p>
-            <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => setItemToDelete(null)} className="py-4 rounded-2xl bg-slate-50 text-slate-400 font-bold uppercase text-xs">Voltar</button>
-              <button onClick={async () => {
-                const { type, id } = itemToDelete;
-                let updatedList: any[] = [];
-                let payloadKey = "";
-                if (type === 'study') { updatedList = bibleStudies.filter(s => s.id !== id); setBibleStudies(updatedList); payloadKey = "bibleStudies"; }
-                if (type === 'class') { updatedList = bibleClasses.filter(c => c.id !== id); setBibleClasses(updatedList); payloadKey = "bibleClasses"; }
-                if (type === 'visit') { updatedList = staffVisits.filter(v => v.id !== id); setStaffVisits(updatedList); payloadKey = "staffVisits"; }
-                if (type === 'pg') { updatedList = smallGroups.filter(g => g.id !== id); setSmallGroups(updatedList); payloadKey = "smallGroups"; }
-                await saveToCloud({ [payloadKey]: updatedList });
-                setItemToDelete(null);
-              }} className="py-4 rounded-2xl bg-rose-500 text-white font-bold uppercase text-xs shadow-lg shadow-rose-100">Excluir</button>
-            </div>
-          </div>
-        </div>
-      )}
       <div className="max-w-7xl mx-auto px-4 md:px-0">
         <div className="mb-8 flex flex-col md:flex-row gap-4 items-start md:items-center">
           {['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab) && (
             <>
               <div className="flex bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 max-w-fit">
-                <button onClick={() => setCurrentUnit(Unit.HAB)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HAB ? 'bg-[#005a9c] text-white shadow-lg' : 'text-slate-400'}`}>Unidade HAB</button>
-                <button onClick={() => setCurrentUnit(Unit.HABA)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HABA ? 'bg-[#005a9c] text-white shadow-lg' : 'text-slate-400'}`}>Unidade HABA</button>
+                <button onClick={() => setCurrentUnit(Unit.HAB)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HAB ? 'text-white shadow-lg' : 'text-slate-400'}`} style={{ backgroundColor: currentUnit === Unit.HAB ? (config.primaryColor || '#005a9c') : undefined }}>Unidade HAB</button>
+                <button onClick={() => setCurrentUnit(Unit.HABA)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HABA ? 'text-white shadow-lg' : 'text-slate-400'}`} style={{ backgroundColor: currentUnit === Unit.HABA ? (config.primaryColor || '#005a9c') : undefined }}>Unidade HABA</button>
               </div>
-              {currentUser.role === UserRole.ADMIN && (
-                <div className="flex items-center gap-3 bg-white p-2 px-4 rounded-[2rem] shadow-sm border border-slate-100">
-                  <i className="fas fa-filter text-slate-400 text-xs"></i>
-                  {/* Fixed typo: changed selectedChapplaceFilter to selectedChaplainFilter */}
-                  <select value={selectedChaplainFilter} onChange={(e) => setSelectedChaplainFilter(e.target.value)} className="bg-transparent border-none text-xs font-black uppercase text-slate-600 focus:ring-0 cursor-pointer">
-                    <option value="all">Filtrar: Todos os Capelães</option>
-                    {users.map(u => <option key={u.id} value={u.id}>Ver: {u.name}</option>)}
-                  </select>
-                </div>
-              )}
             </>
           )}
         </div>
@@ -299,7 +241,7 @@ const App: React.FC = () => {
         {activeTab === 'reports' && <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} config={config} onRefresh={loadFromCloud} />}
         {activeTab === 'users' && <UserManagement users={users} currentUser={currentUser} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
         {activeTab === 'profile' && currentUser && <Profile user={currentUser} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
-        {activeTab === 'admin' && <AdminPanel config={config} masterLists={masterLists} users={users} onUpdateConfig={async c => { setConfig(applySystemOverrides(c)); await saveToCloud({ config: c }); }} onUpdateLists={async l => { setMasterLists(l); await saveToCloud({ masterLists: l }); }} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
+        {activeTab === 'admin' && <AdminPanel config={config} masterLists={masterLists} users={users} currentUser={currentUser} onUpdateConfig={async c => { setConfig(applySystemOverrides(c)); await saveToCloud({ config: c }); }} onUpdateLists={async l => { setMasterLists(l); await saveToCloud({ masterLists: l }); }} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
       </div>
     </Layout>
   );

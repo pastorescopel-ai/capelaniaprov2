@@ -112,6 +112,9 @@ export interface Config {
   headerLine3Y: number;
   headerPaddingTop: number;
   headerTextAlign: 'left' | 'center' | 'right';
+  primaryColor?: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: number;
 }
 
 export interface MasterLists {
