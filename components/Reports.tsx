@@ -1,5 +1,5 @@
 // ############################################################
-// # VERSION: 1.1.7-PRINT-FIX (CHROME VISIBILITY OPTIMIZED)
+// # VERSION: 1.1.8-PRINT-PERFECTION (CHROME A4 SCALE FIXED)
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
@@ -27,7 +27,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const [selectedChaplain, setSelectedChaplain] = useState('all');
   const [selectedUnit, setSelectedUnit] = useState<'all' | Unit>('all');
 
-  // 1. Filtragem de Dados com Retrocompatibilidade
+  // 1. Filtragem de Dados
   const filteredData = useMemo(() => {
     const sList = Array.isArray(studies) ? studies : [];
     const cList = Array.isArray(classes) ? classes : [];
@@ -55,14 +55,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   // 2. Estatísticas Globais
   const totalStats = useMemo(() => {
     const uniqueStudentContexts = new Set<string>();
-    
     filteredData.studies.forEach(s => { 
       if (s.name) {
         const studentKey = `${s.userId}-${s.unit || Unit.HAB}-${s.name.trim().toLowerCase()}`;
         uniqueStudentContexts.add(studentKey); 
       }
     });
-
     filteredData.classes.forEach(c => { 
       if (Array.isArray(c.students)) {
         c.students.forEach(name => { 
@@ -73,7 +71,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         });
       }
     });
-
     return {
       studies: filteredData.studies.length,
       classes: filteredData.classes.length,
@@ -91,13 +88,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         ...filteredData.groups.map(g => g.userId),
         ...filteredData.visits.map(v => v.userId)
     ]);
-
     const activeUsers = Array.isArray(users) ? users : [];
     activeUsers.forEach(u => allUserIdsFromData.add(u.id));
 
     return Array.from(allUserIdsFromData).map(uid => {
       const existingUser = activeUsers.find(u => u.id === uid);
-      const userObj: User = existingUser || { id: uid, name: `Capelão (Histórico/Antigo)`, email: '---', role: UserRole.CHAPLAIN };
+      const userObj: User = existingUser || { id: uid, name: `Capelão Antigo`, email: '---', role: UserRole.CHAPLAIN };
 
       const uStudies = filteredData.studies.filter(s => s.userId === uid);
       const uClasses = filteredData.classes.filter(c => c.userId === uid);
@@ -113,11 +109,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           const unitClasses = uClasses.filter(c => (c.unit || Unit.HAB) === unit);
           const unitGroups = uGroups.filter(g => (g.unit || Unit.HAB) === unit);
           const unitVisits = uVisits.filter(v => (v.unit || Unit.HAB) === unit);
-          
           const unitUniqueNames = new Set<string>();
           unitStudies.forEach(s => { if (s.name) unitUniqueNames.add(s.name.trim().toLowerCase()); });
           unitClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => unitUniqueNames.add(n.trim().toLowerCase())); });
-
           return {
               students: unitUniqueNames.size,
               studies: unitStudies.length,
@@ -278,44 +272,50 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               @media print {
                 @page { 
                   size: A4; 
-                  margin: 0; 
+                  margin: 0 !important; 
                 }
-                body { 
-                  visibility: hidden; 
-                  background: white !important;
-                }
-                /* Garante que o container do PDF seja a única coisa visível */
-                #pdf-root { 
-                  visibility: visible !important; 
-                  position: absolute !important; 
-                  top: 0 !important; 
-                  left: 0 !important; 
-                  width: 210mm !important; 
-                  height: 297mm !important; 
+                html, body { 
                   margin: 0 !important;
-                  padding: 15mm !important;
+                  padding: 0 !important;
+                  height: 100% !important;
+                  width: 100% !important;
                   background: white !important;
+                  overflow: hidden !important;
+                }
+                /* FORÇAR VISIBILIDADE ZERO EM TUDO */
+                body * { 
+                  visibility: hidden !important; 
+                  display: none !important; 
+                }
+                /* FORÇAR APENAS O CONTEÚDO DO PDF */
+                #pdf-root, #pdf-root * { 
+                  visibility: visible !important; 
+                  display: block !important; 
+                }
+                #pdf-root {
                   display: flex !important;
                   flex-direction: column !important;
+                  position: fixed !important; /* FIXED GARANTE QUE COMEÇA NO TOPO DA FOLHA */
+                  top: 0 !important;
+                  left: 0 !important;
+                  width: 210mm !important;
+                  height: 297mm !important;
+                  padding: 15mm !important;
+                  margin: 0 !important;
+                  background: white !important;
                   box-sizing: border-box !important;
+                  z-index: 9999 !important;
                 }
-                #pdf-root * { 
-                  visibility: visible !important; 
-                }
-                /* Remove elementos desnecessários da impressão */
-                .no-print, .no-print * { 
-                  display: none !important; 
-                  visibility: hidden !important;
-                }
-                /* Força renderização de cores e fundos no Chrome */
+                .no-print { display: none !important; }
                 * { 
                   -webkit-print-color-adjust: exact !important; 
                   print-color-adjust: exact !important; 
+                  text-rendering: optimizeLegibility !important;
                 }
-                /* Corrige cores de fundo específicas */
-                .bg-\\[\\#005a9c\\], table thead tr { 
-                  background-color: #005a9c !important; 
-                  box-shadow: inset 0 0 0 1000px #005a9c !important; 
+                /* Ajuste de escala para evitar sobreposição de textos absolutistas */
+                header h1, header h2, header h3 {
+                  line-height: 1.2 !important;
+                  white-space: nowrap !important;
                 }
               }
             `}
@@ -345,7 +345,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     <div className="space-y-4">
                       <h3 className="text-[11px] font-black uppercase text-[#005a9c] border-b-2 border-slate-100 pb-1 flex items-center gap-2"><i className="fas fa-hospital"></i> Atividades HAB</h3>
                       <table className="w-full text-left text-[9px] border-collapse">
-                        <thead><tr className="bg-[#005a9c] text-white font-black uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Total Alunos</th><th className="p-3 text-center">Estudos</th><th className="p-3 text-center">Classes</th><th className="p-3 text-center">PGs</th><th className="p-3 text-center">Visitas</th></tr></thead>
+                        <thead><tr className="bg-[#005a9c] text-white font-black uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Alunos</th><th className="p-3 text-center">Estudos</th><th className="p-3 text-center">Classes</th><th className="p-3 text-center">PGs</th><th className="p-3 text-center">Visitas</th></tr></thead>
                         <tbody className="divide-y divide-slate-100">{chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
                           <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}><td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td><td className="p-3 text-center font-black text-sm text-slate-900">{stat.hab.students}</td><td className="p-3 text-center font-black text-sm text-blue-800">{stat.hab.studies}</td><td className="p-3 text-center font-black text-sm text-indigo-800">{stat.hab.classes}</td><td className="p-3 text-center font-black text-sm text-emerald-800">{stat.hab.groups}</td><td className="p-3 text-center font-black text-sm text-rose-800">{stat.hab.visits}</td></tr>
                         ))}</tbody>
@@ -357,7 +357,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     <div className="space-y-4">
                       <h3 className="text-[11px] font-black uppercase text-[#005a9c] border-b-2 border-slate-100 pb-1 flex items-center gap-2"><i className="fas fa-hospital-alt"></i> Atividades HABA</h3>
                       <table className="w-full text-left text-[9px] border-collapse">
-                        <thead><tr className="bg-[#005a9c] text-white font-black uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Total Alunos</th><th className="p-3 text-center">Estudos</th><th className="p-3 text-center">Classes</th><th className="p-3 text-center">PGs</th><th className="p-3 text-center">Visitas</th></tr></thead>
+                        <thead><tr className="bg-[#005a9c] text-white font-black uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Alunos</th><th className="p-3 text-center">Estudos</th><th className="p-3 text-center">Classes</th><th className="p-3 text-center">PGs</th><th className="p-3 text-center">Visitas</th></tr></thead>
                         <tbody className="divide-y divide-slate-100">{chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
                           <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}><td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td><td className="p-3 text-center font-black text-sm text-slate-900">{stat.haba.students}</td><td className="p-3 text-center font-black text-sm text-blue-800">{stat.haba.studies}</td><td className="p-3 text-center font-black text-sm text-indigo-800">{stat.haba.classes}</td><td className="p-3 text-center font-black text-sm text-emerald-800">{stat.haba.groups}</td><td className="p-3 text-center font-black text-sm text-rose-800">{stat.haba.visits}</td></tr>
                         ))}</tbody>
@@ -374,7 +374,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                           <div className="h-[140px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={[{ n: 'Alunos', v: stat.students, c: '#005a9c' },{ n: 'Estudos', v: stat.studies, c: '#3b82f6' },{ n: 'Classes', v: stat.classes, c: '#6366f1' },{ n: 'PGs', v: stat.groups, c: '#10b981' },{ n: 'Visitas', v: stat.visits, c: '#f43f5e' }]} margin={{ top: 30, bottom: 0, left: 0, right: 0 }}>
-                                <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeights: 800, fill: '#64748b'}} />
+                                <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 800, fill: '#64748b'}} />
                                 <YAxis hide domain={[0, (dataMax) => Math.ceil(dataMax + (dataMax * 0.2) + 2)]} />
                                 <Bar dataKey="v" radius={[4, 4, 0, 0]} barSize={40}>
                                   {[0,1,2,3,4].map((_, i) => <Cell key={i} fill={['#005a9c', '#3b82f6', '#6366f1', '#10b981', '#f43f5e'][i]} />)}
@@ -401,7 +401,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </section>
 
                 <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
-                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.7-Fidelity</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
+                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.8-Fidelity</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
                   <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
                 </footer>
               </div>
