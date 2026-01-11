@@ -268,7 +268,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                             </div>
                             <div className="flex flex-col gap-1">
                               <span className="text-[9px] font-black text-slate-400 uppercase">Alunos ({item.students?.length || 0}):</span>
-                              <div className="flex flex-wrap gap-1">
+                              <div className="flex wrap gap-1">
                                 {(item.students || []).map((s: string, idx: number) => (
                                   <span key={idx} className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded-lg text-slate-600">
                                     {s.split(' ')[0]}
