@@ -1,5 +1,5 @@
 // ############################################################
-// # VERSION: 1.2.1-PRINT-WINDOW-ISOLATED (PROFESSIONAL GRADE)
+// # VERSION: 1.2.2-PRINT-WINDOW-ULTIMATE
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
@@ -134,73 +134,88 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   }, [users, filteredData, selectedChaplain]);
 
   /**
-   * FUNÇÃO DE IMPRESSÃO PROFISSIONAL (ISOLADA)
-   * Abre uma janela limpa e injeta apenas o conteúdo do relatório
+   * MOTOR DE IMPRESSÃO ISOLADO (SOLUÇÃO DEFINITIVA)
    */
   const handlePrintIsolated = () => {
     const printContent = document.getElementById('pdf-root');
     if (!printContent) return;
 
-    const printWindow = window.open('', '_blank', 'width=1000,height=800');
+    // Criar uma nova aba/janela
+    const printWindow = window.open('', '_blank', 'width=900,height=900');
     if (!printWindow) {
       alert('Por favor, permita pop-ups para imprimir o relatório.');
       return;
     }
 
-    // Copia os links de fontes e estilos do documento principal
+    // Coletar todos os estilos CSS externos (Tailwind, FontAwesome, Google Fonts)
     const styles = Array.from(document.querySelectorAll('link, style'))
       .map(s => s.outerHTML)
       .join('\n');
 
+    // Injetar o documento HTML puro e otimizado para A4
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Relatório de Capelania - Impressão</title>
+          <title>Impressão - Capelania Pro</title>
           ${styles}
           <style>
             @media print {
               @page { size: A4; margin: 0; }
-              body { margin: 0; padding: 0; background: white; width: 210mm; }
+              body { margin: 0; padding: 0; background: white; }
+              .no-print { display: none !important; }
             }
             body { 
-              background: #f1f5f9; 
+              background: #f8fafc; 
               display: flex; 
               justify-content: center; 
-              padding: 20px;
+              padding: 0;
               margin: 0;
+              font-family: 'Inter', sans-serif;
             }
-            #pdf-root {
+            /* O segredo da fidelidade: Container fixo de 800px igual ao Admin Panel */
+            #pdf-isolated-container {
               background: white !important;
               width: 800px !important;
               min-height: 1130px !important;
               padding: 40px !important;
-              box-shadow: 0 0 20px rgba(0,0,0,0.1);
-              transform: scale(0.98);
-              transform-origin: top left;
+              position: relative !important;
+              box-sizing: border-box !important;
+              /* Ajuste de escala para o A4 (210mm) */
+              transform: scale(0.96);
+              transform-origin: top center;
             }
-            /* Garantia de visibilidade para o motor de impressão */
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .no-print { display: none !important; }
+            /* Garantia de renderização de cores e imagens */
+            * { 
+              -webkit-print-color-adjust: exact !important; 
+              print-color-adjust: exact !important; 
+            }
+            header { 
+              position: relative !important;
+              height: 140px !important;
+            }
+            /* Reset para tabelas e gráficos */
+            table { width: 100% !important; border-collapse: collapse !important; }
+            .recharts-responsive-container { width: 100% !important; height: 140px !important; }
           </style>
         </head>
         <body>
-          <div id="pdf-root">
+          <div id="pdf-isolated-container">
             ${printContent.innerHTML}
           </div>
           <script>
-            // Aguarda o carregamento de imagens e gráficos antes de imprimir
+            // Garante que tudo carregue antes de abrir a janela de impressão
             window.onload = () => {
               setTimeout(() => {
                 window.print();
-                // Opcional: fechar a janela após imprimir
-                // window.close();
+                // A janela permanece aberta caso o usuário queira salvar como PDF
               }, 500);
             };
           </script>
         </body>
       </html>
     `);
+    
     printWindow.document.close();
   };
 
@@ -214,7 +229,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
-      {/* SEÇÃO DE CABEÇALHO E FILTROS */}
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Relatórios e Estatísticas</h1>
@@ -228,7 +242,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </div>
         </div>
 
-        {/* FILTROS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Início</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs" /></div>
@@ -247,7 +260,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </div>
         </div>
 
-        {/* CARDS DE RESUMO */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {summaryCards.map((card, i) => (
             <div key={i} className={`${card.color} p-6 rounded-[2.5rem] text-white shadow-xl shadow-blue-100/20 group hover:scale-[1.03] transition-all`}>
@@ -424,7 +436,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </section>
 
                 <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
-                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.2.1-Ultimate</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
+                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.2.2-Ultimate</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
                   <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
                 </footer>
               </div>
