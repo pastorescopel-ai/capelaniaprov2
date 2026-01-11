@@ -1,5 +1,5 @@
 // ############################################################
-// # VERSION: 1.1.4-OPTIMIZED-READ (CHART & TABLE BUFFERS)
+// # VERSION: 1.1.5-PRECISION-COUNT (CONTEXT-AWARE STUDENT TOTAL)
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
@@ -27,6 +27,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const [selectedChaplain, setSelectedChaplain] = useState('all');
   const [selectedUnit, setSelectedUnit] = useState<'all' | Unit>('all');
 
+  // 1. Filtragem de Dados com Retrocompatibilidade
   const filteredData = useMemo(() => {
     const sList = Array.isArray(studies) ? studies : [];
     const cList = Array.isArray(classes) ? classes : [];
@@ -51,23 +52,41 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
+  // 2. Estatísticas Globais (Correção: Unicidade por Contexto de Atendimento)
   const totalStats = useMemo(() => {
-    const uniqueStudents = new Set<string>();
-    filteredData.studies.forEach(s => { if (s.name) uniqueStudents.add(s.name.trim().toLowerCase()); });
-    filteredData.classes.forEach(c => { 
-      if (Array.isArray(c.students)) {
-        c.students.forEach(name => { if (name) uniqueStudents.add(name.trim().toLowerCase()); });
+    // Para chegar ao total correto (ex: 9), a unicidade deve considerar o contexto (Capelão + Unidade)
+    // Evita que "João" no HAB colida com "João" no HABA ou com "João" de outro Capelão
+    const uniqueStudentContexts = new Set<string>();
+    
+    filteredData.studies.forEach(s => { 
+      if (s.name) {
+        // Chave: Capelão + Unidade + Nome (Garante contagem individual por matrícula/vínculo)
+        const studentKey = `${s.userId}-${s.unit || Unit.HAB}-${s.name.trim().toLowerCase()}`;
+        uniqueStudentContexts.add(studentKey); 
       }
     });
+
+    filteredData.classes.forEach(c => { 
+      if (Array.isArray(c.students)) {
+        c.students.forEach(name => { 
+          if (name) {
+            const studentKey = `${c.userId}-${c.unit || Unit.HAB}-${name.trim().toLowerCase()}`;
+            uniqueStudentContexts.add(studentKey); 
+          }
+        });
+      }
+    });
+
     return {
       studies: filteredData.studies.length,
       classes: filteredData.classes.length,
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,
-      totalStudents: uniqueStudents.size
+      totalStudents: uniqueStudentContexts.size
     };
   }, [filteredData]);
 
+  // 3. Estatísticas por Capelão
   const chaplainStats = useMemo(() => {
     const allUserIdsFromData = new Set<string>([
         ...filteredData.studies.map(s => s.userId),
@@ -324,14 +343,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                           <h4 className="text-[10px] font-black text-slate-800 uppercase mb-4 flex justify-between"><span>{stat.name}</span><span className="text-blue-600 uppercase tracking-tighter">Ações: {stat.totalActions}</span></h4>
                           <div className="h-[140px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                              {/* margin top 30 para acomodar os números sem cortar no topo da área do SVG */}
                               <BarChart data={[{ n: 'Alunos', v: stat.students, c: '#005a9c' },{ n: 'Estudos', v: stat.studies, c: '#3b82f6' },{ n: 'Classes', v: stat.classes, c: '#6366f1' },{ n: 'PGs', v: stat.groups, c: '#10b981' },{ n: 'Visitas', v: stat.visits, c: '#f43f5e' }]} margin={{ top: 30, bottom: 0, left: 0, right: 0 }}>
                                 <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 800, fill: '#64748b'}} />
-                                {/* YAxis invisível com domain extendido para garantir que o LabelList position="top" nunca seja cortado */}
                                 <YAxis hide domain={[0, (dataMax) => Math.ceil(dataMax + (dataMax * 0.2) + 2)]} />
                                 <Bar dataKey="v" radius={[4, 4, 0, 0]} barSize={40}>
                                   {[0,1,2,3,4].map((_, i) => <Cell key={i} fill={['#005a9c', '#3b82f6', '#6366f1', '#10b981', '#f43f5e'][i]} />)}
-                                  {/* Rótulo no topo com fonte 14px Black para máxima legibilidade */}
                                   <LabelList dataKey="v" position="top" offset={10} style={{ fontSize: '14px', fontWeight: '900', fill: '#000000' }} />
                                 </Bar>
                               </BarChart>
@@ -355,7 +371,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </section>
 
                 <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4">
-                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.4-HighRead</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
+                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.5-HighPrecision</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
                   <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
                 </footer>
               </div>
