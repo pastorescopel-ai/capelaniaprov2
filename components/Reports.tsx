@@ -1,5 +1,5 @@
 // ############################################################
-// # VERSION: 1.1.5-PRECISION-COUNT (CONTEXT-AWARE STUDENT TOTAL)
+// # VERSION: 1.1.6-PRINT-FIDELITY (CHROME A4 OPTIMIZED)
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
@@ -52,15 +52,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // 2. Estatísticas Globais (Correção: Unicidade por Contexto de Atendimento)
+  // 2. Estatísticas Globais
   const totalStats = useMemo(() => {
-    // Para chegar ao total correto (ex: 9), a unicidade deve considerar o contexto (Capelão + Unidade)
-    // Evita que "João" no HAB colida com "João" no HABA ou com "João" de outro Capelão
     const uniqueStudentContexts = new Set<string>();
     
     filteredData.studies.forEach(s => { 
       if (s.name) {
-        // Chave: Capelão + Unidade + Nome (Garante contagem individual por matrícula/vínculo)
         const studentKey = `${s.userId}-${s.unit || Unit.HAB}-${s.name.trim().toLowerCase()}`;
         uniqueStudentContexts.add(studentKey); 
       }
@@ -279,19 +276,58 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <style>
             {`
               @media print {
-                @page { size: A4; margin: 0 !important; }
-                html, body { margin: 0 !important; padding: 0 !important; overflow: visible !important; }
-                body * { visibility: hidden !important; }
-                #pdf-content, #pdf-content * { visibility: visible !important; }
-                #pdf-content { position: absolute !important; top: 0 !important; left: 0 !important; width: 210mm !important; padding: 15mm !important; background: white !important; }
+                @page { 
+                  size: A4; 
+                  margin: 0 !important; 
+                }
+                html, body { 
+                  margin: 0 !important; 
+                  padding: 0 !important; 
+                  width: 210mm !important;
+                  height: 297mm !important;
+                  overflow: visible !important;
+                  background: white !important;
+                }
+                /* Esconde tudo que não for o container de PDF */
+                body * { 
+                  visibility: hidden !important; 
+                  display: none !important;
+                }
+                #pdf-root, #pdf-root * { 
+                  visibility: visible !important; 
+                  display: block !important;
+                }
+                #pdf-root {
+                  display: flex !important;
+                  flex-direction: column !important;
+                  position: absolute !important; 
+                  top: 0 !important; 
+                  left: 0 !important; 
+                  width: 210mm !important; 
+                  height: 297mm !important;
+                  padding: 15mm !important; 
+                  margin: 0 !important;
+                  background: white !important;
+                  box-sizing: border-box !important;
+                }
                 .no-print { display: none !important; }
-                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-                .bg-\\[\\#005a9c\\], table thead tr { background-color: #005a9c !important; box-shadow: inset 0 0 0 1000px #005a9c !important; }
+                * { 
+                  -webkit-print-color-adjust: exact !important; 
+                  print-color-adjust: exact !important; 
+                }
+                /* Correção de tabelas e cores no Chrome */
+                .bg-\\[\\#005a9c\\], table thead tr { 
+                  background-color: #005a9c !important; 
+                  box-shadow: inset 0 0 0 1000px #005a9c !important; 
+                }
+                .recharts-bar-rectangle path { 
+                  fill: inherit !important; 
+                }
               }
             `}
           </style>
 
-          <div className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
+          <div id="pdf-container-outer" className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
               <div className="flex items-center gap-3"><div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center"><i className="fas fa-file-pdf"></i></div><h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Visualização de Impressão</h2></div>
               <div className="flex items-center gap-3">
@@ -301,8 +337,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             </div>
 
             <div className="flex-1 bg-slate-100 p-4 md:p-10 overflow-y-auto no-scrollbar">
-              <div id="pdf-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
-                <header className="relative border-b-4 border-[#005a9c]" style={{ height: '140px' }}>
+              <div id="pdf-root" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
+                <header className="relative border-b-4 border-[#005a9c] flex-shrink-0" style={{ height: '140px' }}>
                   {config.reportLogo && <img src={config.reportLogo} style={{ position: 'absolute', left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px`, width: `${config.reportLogoWidth}px` }} alt="Logo" />}
                   <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '300px', textAlign: 'center' }}><h1 style={{fontSize: `${config.fontSize1}px`, color: '#005a9c', margin: 0}} className="font-black uppercase">{config.headerLine1}</h1></div>
                   <div style={{ position: 'absolute', left: `${config.headerLine2X}px`, top: `${config.headerLine2Y}px`, width: '300px', textAlign: 'center' }}><h2 style={{fontSize: `${config.fontSize2}px`, margin: 0}} className="font-bold text-slate-600 uppercase">{config.headerLine2}</h2></div>
@@ -310,7 +346,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   <div style={{ position: 'absolute', right: 0, top: '10px', textAlign: 'right' }}><p className="text-[9px] font-bold uppercase text-slate-400">Emissão: {new Date().toLocaleDateString()}</p><p className="text-[8px] font-black text-blue-600 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p></div>
                 </header>
 
-                <section className="space-y-10 mt-4">
+                <section className="space-y-10 mt-4 flex-1">
                    {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
                     <div className="space-y-4">
                       <h3 className="text-[11px] font-black uppercase text-[#005a9c] border-b-2 border-slate-100 pb-1 flex items-center gap-2"><i className="fas fa-hospital"></i> Atividades HAB</h3>
@@ -370,8 +406,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   </div>
                 </section>
 
-                <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4">
-                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.5-HighPrecision</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
+                <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
+                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.6-Fidelity</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
                   <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
                 </footer>
               </div>
