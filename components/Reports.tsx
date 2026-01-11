@@ -1,5 +1,5 @@
 // ############################################################
-// # VERSION: 1.1.6-PRINT-FIDELITY (CHROME A4 OPTIMIZED)
+// # VERSION: 1.1.7-PRINT-FIX (CHROME VISIBILITY OPTIMIZED)
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
@@ -278,50 +278,44 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               @media print {
                 @page { 
                   size: A4; 
-                  margin: 0 !important; 
+                  margin: 0; 
                 }
-                html, body { 
-                  margin: 0 !important; 
-                  padding: 0 !important; 
-                  width: 210mm !important;
-                  height: 297mm !important;
-                  overflow: visible !important;
+                body { 
+                  visibility: hidden; 
                   background: white !important;
                 }
-                /* Esconde tudo que não for o container de PDF */
-                body * { 
-                  visibility: hidden !important; 
-                  display: none !important;
-                }
-                #pdf-root, #pdf-root * { 
+                /* Garante que o container do PDF seja a única coisa visível */
+                #pdf-root { 
                   visibility: visible !important; 
-                  display: block !important;
-                }
-                #pdf-root {
-                  display: flex !important;
-                  flex-direction: column !important;
                   position: absolute !important; 
                   top: 0 !important; 
                   left: 0 !important; 
                   width: 210mm !important; 
-                  height: 297mm !important;
-                  padding: 15mm !important; 
+                  height: 297mm !important; 
                   margin: 0 !important;
+                  padding: 15mm !important;
                   background: white !important;
+                  display: flex !important;
+                  flex-direction: column !important;
                   box-sizing: border-box !important;
                 }
-                .no-print { display: none !important; }
+                #pdf-root * { 
+                  visibility: visible !important; 
+                }
+                /* Remove elementos desnecessários da impressão */
+                .no-print, .no-print * { 
+                  display: none !important; 
+                  visibility: hidden !important;
+                }
+                /* Força renderização de cores e fundos no Chrome */
                 * { 
                   -webkit-print-color-adjust: exact !important; 
                   print-color-adjust: exact !important; 
                 }
-                /* Correção de tabelas e cores no Chrome */
+                /* Corrige cores de fundo específicas */
                 .bg-\\[\\#005a9c\\], table thead tr { 
                   background-color: #005a9c !important; 
                   box-shadow: inset 0 0 0 1000px #005a9c !important; 
-                }
-                .recharts-bar-rectangle path { 
-                  fill: inherit !important; 
                 }
               }
             `}
@@ -380,7 +374,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                           <div className="h-[140px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={[{ n: 'Alunos', v: stat.students, c: '#005a9c' },{ n: 'Estudos', v: stat.studies, c: '#3b82f6' },{ n: 'Classes', v: stat.classes, c: '#6366f1' },{ n: 'PGs', v: stat.groups, c: '#10b981' },{ n: 'Visitas', v: stat.visits, c: '#f43f5e' }]} margin={{ top: 30, bottom: 0, left: 0, right: 0 }}>
-                                <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 800, fill: '#64748b'}} />
+                                <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeights: 800, fill: '#64748b'}} />
                                 <YAxis hide domain={[0, (dataMax) => Math.ceil(dataMax + (dataMax * 0.2) + 2)]} />
                                 <Bar dataKey="v" radius={[4, 4, 0, 0]} barSize={40}>
                                   {[0,1,2,3,4].map((_, i) => <Cell key={i} fill={['#005a9c', '#3b82f6', '#6366f1', '#10b981', '#f43f5e'][i]} />)}
@@ -407,7 +401,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </section>
 
                 <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
-                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.6-Fidelity</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
+                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.1.7-Fidelity</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
                   <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
                 </footer>
               </div>
