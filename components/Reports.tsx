@@ -1,5 +1,5 @@
 // ############################################################
-// # VERSION: 1.2.2-PRINT-WINDOW-ULTIMATE
+// # VERSION: 1.2.3-PRINT-DIRECT-SHORTCUT
 // # STATUS: VERIFIED & PRODUCTION READY
 // # DATE: 2025-04-11
 // ############################################################
@@ -137,66 +137,50 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
    * MOTOR DE IMPRESSÃO ISOLADO (SOLUÇÃO DEFINITIVA)
    */
   const handlePrintIsolated = () => {
+    // Busca o container de relatório (seja o do modal ou o invisível de fundo)
     const printContent = document.getElementById('pdf-root');
     if (!printContent) return;
 
-    // Criar uma nova aba/janela
-    const printWindow = window.open('', '_blank', 'width=900,height=900');
+    const printWindow = window.open('', '_blank', 'width=950,height=900');
     if (!printWindow) {
       alert('Por favor, permita pop-ups para imprimir o relatório.');
       return;
     }
 
-    // Coletar todos os estilos CSS externos (Tailwind, FontAwesome, Google Fonts)
     const styles = Array.from(document.querySelectorAll('link, style'))
       .map(s => s.outerHTML)
       .join('\n');
 
-    // Injetar o documento HTML puro e otimizado para A4
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Impressão - Capelania Pro</title>
+          <title>Relatório Capelania - Impressão Direta</title>
           ${styles}
           <style>
             @media print {
               @page { size: A4; margin: 0; }
               body { margin: 0; padding: 0; background: white; }
-              .no-print { display: none !important; }
             }
             body { 
-              background: #f8fafc; 
+              background: #f1f5f9; 
               display: flex; 
               justify-content: center; 
               padding: 0;
               margin: 0;
               font-family: 'Inter', sans-serif;
             }
-            /* O segredo da fidelidade: Container fixo de 800px igual ao Admin Panel */
             #pdf-isolated-container {
               background: white !important;
               width: 800px !important;
               min-height: 1130px !important;
               padding: 40px !important;
-              position: relative !important;
               box-sizing: border-box !important;
-              /* Ajuste de escala para o A4 (210mm) */
               transform: scale(0.96);
               transform-origin: top center;
             }
-            /* Garantia de renderização de cores e imagens */
-            * { 
-              -webkit-print-color-adjust: exact !important; 
-              print-color-adjust: exact !important; 
-            }
-            header { 
-              position: relative !important;
-              height: 140px !important;
-            }
-            /* Reset para tabelas e gráficos */
-            table { width: 100% !important; border-collapse: collapse !important; }
-            .recharts-responsive-container { width: 100% !important; height: 140px !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .no-print { display: none !important; }
           </style>
         </head>
         <body>
@@ -204,18 +188,15 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             ${printContent.innerHTML}
           </div>
           <script>
-            // Garante que tudo carregue antes de abrir a janela de impressão
             window.onload = () => {
               setTimeout(() => {
                 window.print();
-                // A janela permanece aberta caso o usuário queira salvar como PDF
-              }, 500);
+              }, 600);
             };
           </script>
         </body>
       </html>
     `);
-    
     printWindow.document.close();
   };
 
@@ -227,17 +208,101 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     { label: 'Visitas Colab.', val: totalStats.visits, icon: 'fa-handshake', color: 'bg-rose-500' },
   ];
 
+  // Componente interno para evitar repetição de código no PDF
+  const PdfTemplate = () => (
+    <div id="pdf-root" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
+      <header className="relative border-b-4 border-[#005a9c] flex-shrink-0" style={{ height: '140px' }}>
+        {config.reportLogo && <img src={config.reportLogo} style={{ position: 'absolute', left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px`, width: `${config.reportLogoWidth}px` }} alt="Logo" />}
+        <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '300px', textAlign: 'center' }}><h1 style={{fontSize: `${config.fontSize1}px`, color: '#005a9c', margin: 0}} className="font-black uppercase">{config.headerLine1}</h1></div>
+        <div style={{ position: 'absolute', left: `${config.headerLine2X}px`, top: `${config.headerLine2Y}px`, width: '300px', textAlign: 'center' }}><h2 style={{fontSize: `${config.fontSize2}px`, margin: 0}} className="font-bold text-slate-600 uppercase">{config.headerLine2}</h2></div>
+        <div style={{ position: 'absolute', left: `${config.headerLine3X}px`, top: `${config.headerLine3Y}px`, width: '300px', textAlign: 'center' }}><h3 style={{fontSize: `${config.fontSize3}px`, margin: 0}} className="font-medium text-slate-400 uppercase">{config.headerLine3}</h3></div>
+        <div style={{ position: 'absolute', right: 0, top: '10px', textAlign: 'right' }}><p className="text-[9px] font-bold uppercase text-slate-400">Emissão: {new Date().toLocaleDateString()}</p><p className="text-[8px] font-black text-blue-600 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p></div>
+      </header>
+
+      <section className="space-y-10 mt-4 flex-1">
+          {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
+          <div className="space-y-4">
+            <h3 className="text-[11px] font-black uppercase text-[#005a9c] border-b-2 border-slate-100 pb-1 flex items-center gap-2"><i className="fas fa-hospital"></i> Atividades HAB</h3>
+            <table className="w-full text-left text-[9px] border-collapse">
+              <thead><tr className="bg-[#005a9c] text-white font-black uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Alunos</th><th className="p-3 text-center">Estudos</th><th className="p-3 text-center">Classes</th><th className="p-3 text-center">PGs</th><th className="p-3 text-center">Visitas</th></tr></thead>
+              <tbody className="divide-y divide-slate-100">{chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
+                <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}><td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td><td className="p-3 text-center font-black text-sm text-slate-900">{stat.hab.students}</td><td className="p-3 text-center font-black text-sm text-blue-800">{stat.hab.studies}</td><td className="p-3 text-center font-black text-sm text-indigo-800">{stat.hab.classes}</td><td className="p-3 text-center font-black text-sm text-emerald-800">{stat.hab.groups}</td><td className="p-3 text-center font-black text-sm text-rose-800">{stat.hab.visits}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+
+        {(selectedUnit === 'all' || selectedUnit === Unit.HABA) && (
+          <div className="space-y-4">
+            <h3 className="text-[11px] font-black uppercase text-[#005a9c] border-b-2 border-slate-100 pb-1 flex items-center gap-2"><i className="fas fa-hospital-alt"></i> Atividades HABA</h3>
+            <table className="w-full text-left text-[9px] border-collapse">
+              <thead><tr className="bg-[#005a9c] text-white font-black uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Alunos</th><th className="p-3 text-center">Estudos</th><th className="p-3 text-center">Classes</th><th className="p-3 text-center">PGs</th><th className="p-3 text-center">Visitas</th></tr></thead>
+              <tbody className="divide-y divide-slate-100">{chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
+                <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}><td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td><td className="p-3 text-center font-black text-sm text-slate-900">{stat.haba.students}</td><td className="p-3 text-center font-black text-sm text-blue-800">{stat.haba.studies}</td><td className="p-3 text-center font-black text-sm text-indigo-800">{stat.haba.classes}</td><td className="p-3 text-center font-black text-sm text-emerald-800">{stat.haba.groups}</td><td className="p-3 text-center font-black text-sm text-rose-800">{stat.haba.visits}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="space-y-6">
+          <h3 className="text-[11px] font-black uppercase text-[#005a9c] text-center italic tracking-widest border-y border-slate-50 py-2">Desempenho Gráfico por Capelão</h3>
+          <div className="grid grid-cols-1 gap-14">
+            {chaplainStats.map((stat, idx) => (
+              <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-slate-100 page-break-inside-avoid">
+                <h4 className="text-[10px] font-black text-slate-800 uppercase mb-4 flex justify-between"><span>{stat.name}</span><span className="text-blue-600 uppercase tracking-tighter">Ações: {stat.totalActions}</span></h4>
+                <div className="h-[140px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[{ n: 'Alunos', v: stat.students, c: '#005a9c' },{ n: 'Estudos', v: stat.studies, c: '#3b82f6' },{ n: 'Classes', v: stat.classes, c: '#6366f1' },{ n: 'PGs', v: stat.groups, c: '#10b981' },{ n: 'Visitas', v: stat.visits, c: '#f43f5e' }]} margin={{ top: 30, bottom: 0, left: 0, right: 0 }}>
+                      <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 800, fill: '#64748b'}} />
+                      <YAxis hide domain={[0, (dataMax) => Math.ceil(dataMax + (dataMax * 0.2) + 2)]} />
+                      <Bar dataKey="v" radius={[4, 4, 0, 0]} barSize={40}>
+                        {[0,1,2,3,4].map((_, i) => <Cell key={i} fill={['#005a9c', '#3b82f6', '#6366f1', '#10b981', '#f43f5e'][i]} />)}
+                        <LabelList dataKey="v" position="top" offset={10} style={{ fontSize: '14px', fontWeight: '900', fill: '#000000' }} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="pt-8 border-t-2 border-slate-100 page-break-inside-avoid">
+          <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-6 text-center tracking-widest">Resumo Consolidado de Atividades</h3>
+          <div className="grid grid-cols-5 gap-3">
+            <div className="bg-[#005a9c] p-4 rounded-xl text-white text-center shadow-lg border border-blue-700"><p className="text-[7px] font-black uppercase tracking-widest opacity-80 mb-1 leading-none">Total Alunos</p><p className="text-2xl font-black leading-none">{totalStats.totalStudents}</p></div>
+            <div className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center"><p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">Estudos</p><p className="text-xl font-black leading-none">{totalStats.studies}</p></div>
+            <div className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center"><p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">Classes</p><p className="text-xl font-black leading-none">{totalStats.classes}</p></div>
+            <div className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center"><p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">P. Grupos</p><p className="text-xl font-black leading-none">{totalStats.groups}</p></div>
+            <div className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center"><p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">Visitas</p><p className="text-xl font-black leading-none">{totalStats.visits}</p></div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
+        <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.2.3-Ultimate</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
+        <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
+      </footer>
+    </div>
+  );
+
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Relatórios e Estatísticas</h1>
           <div className="flex flex-wrap gap-3">
-            <button onClick={() => onRefresh && onRefresh()} className="px-8 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95 hover:bg-emerald-700">
-              <i className="fas fa-sync-alt"></i> Sincronizar Banco
+            <button onClick={() => onRefresh && onRefresh()} className="px-6 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 hover:bg-emerald-700">
+              <i className="fas fa-sync-alt"></i> Sincronizar
             </button>
-            <button onClick={() => setShowPdfPreview(true)} className="px-8 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95">
-              <i className="fas fa-file-pdf"></i> Gerar Relatório PDF
+            
+            {/* NOVO BOTÃO DE IMPRESSÃO DIRETA */}
+            <button onClick={handlePrintIsolated} className="px-6 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 hover:bg-black">
+              <i className="fas fa-print"></i> Impressão Direta
+            </button>
+
+            <button onClick={() => setShowPdfPreview(true)} className="px-6 py-4 bg-[#005a9c] text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95">
+              <i className="fas fa-file-pdf"></i> Visualizar PDF
             </button>
           </div>
         </div>
@@ -360,88 +425,22 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
               <div className="flex items-center gap-3"><div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center"><i className="fas fa-file-pdf"></i></div><h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Visualização de Impressão</h2></div>
               <div className="flex items-center gap-3">
-                <button onClick={handlePrintIsolated} className="px-8 py-3.5 bg-[#005a9c] text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest active:scale-95 transition-all flex items-center gap-3"><i className="fas fa-print"></i> Imprimir Agora</button>
+                <button onClick={handlePrintIsolated} className="px-8 py-3.5 bg-slate-900 text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest active:scale-95 transition-all flex items-center gap-3"><i className="fas fa-print"></i> Imprimir Agora</button>
                 <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all"><i className="fas fa-times"></i></button>
               </div>
             </div>
 
             <div className="flex-1 bg-slate-100 p-4 md:p-10 overflow-y-auto no-scrollbar">
-              <div id="pdf-root" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto shadow-2xl p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
-                <header className="relative border-b-4 border-[#005a9c] flex-shrink-0" style={{ height: '140px' }}>
-                  {config.reportLogo && <img src={config.reportLogo} style={{ position: 'absolute', left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px`, width: `${config.reportLogoWidth}px` }} alt="Logo" />}
-                  <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '300px', textAlign: 'center' }}><h1 style={{fontSize: `${config.fontSize1}px`, color: '#005a9c', margin: 0}} className="font-black uppercase">{config.headerLine1}</h1></div>
-                  <div style={{ position: 'absolute', left: `${config.headerLine2X}px`, top: `${config.headerLine2Y}px`, width: '300px', textAlign: 'center' }}><h2 style={{fontSize: `${config.fontSize2}px`, margin: 0}} className="font-bold text-slate-600 uppercase">{config.headerLine2}</h2></div>
-                  <div style={{ position: 'absolute', left: `${config.headerLine3X}px`, top: `${config.headerLine3Y}px`, width: '300px', textAlign: 'center' }}><h3 style={{fontSize: `${config.fontSize3}px`, margin: 0}} className="font-medium text-slate-400 uppercase">{config.headerLine3}</h3></div>
-                  <div style={{ position: 'absolute', right: 0, top: '10px', textAlign: 'right' }}><p className="text-[9px] font-bold uppercase text-slate-400">Emissão: {new Date().toLocaleDateString()}</p><p className="text-[8px] font-black text-blue-600 uppercase">Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p></div>
-                </header>
-
-                <section className="space-y-10 mt-4 flex-1">
-                   {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
-                    <div className="space-y-4">
-                      <h3 className="text-[11px] font-black uppercase text-[#005a9c] border-b-2 border-slate-100 pb-1 flex items-center gap-2"><i className="fas fa-hospital"></i> Atividades HAB</h3>
-                      <table className="w-full text-left text-[9px] border-collapse">
-                        <thead><tr className="bg-[#005a9c] text-white font-black uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Alunos</th><th className="p-3 text-center">Estudos</th><th className="p-3 text-center">Classes</th><th className="p-3 text-center">PGs</th><th className="p-3 text-center">Visitas</th></tr></thead>
-                        <tbody className="divide-y divide-slate-100">{chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
-                          <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}><td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td><td className="p-3 text-center font-black text-sm text-slate-900">{stat.hab.students}</td><td className="p-3 text-center font-black text-sm text-blue-800">{stat.hab.studies}</td><td className="p-3 text-center font-black text-sm text-indigo-800">{stat.hab.classes}</td><td className="p-3 text-center font-black text-sm text-emerald-800">{stat.hab.groups}</td><td className="p-3 text-center font-black text-sm text-rose-800">{stat.hab.visits}</td></tr>
-                        ))}</tbody>
-                      </table>
-                    </div>
-                  )}
-
-                  {(selectedUnit === 'all' || selectedUnit === Unit.HABA) && (
-                    <div className="space-y-4">
-                      <h3 className="text-[11px] font-black uppercase text-[#005a9c] border-b-2 border-slate-100 pb-1 flex items-center gap-2"><i className="fas fa-hospital-alt"></i> Atividades HABA</h3>
-                      <table className="w-full text-left text-[9px] border-collapse">
-                        <thead><tr className="bg-[#005a9c] text-white font-black uppercase"><th className="p-3">Capelão</th><th className="p-3 text-center">Alunos</th><th className="p-3 text-center">Estudos</th><th className="p-3 text-center">Classes</th><th className="p-3 text-center">PGs</th><th className="p-3 text-center">Visitas</th></tr></thead>
-                        <tbody className="divide-y divide-slate-100">{chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
-                          <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}><td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td><td className="p-3 text-center font-black text-sm text-slate-900">{stat.haba.students}</td><td className="p-3 text-center font-black text-sm text-blue-800">{stat.haba.studies}</td><td className="p-3 text-center font-black text-sm text-indigo-800">{stat.haba.classes}</td><td className="p-3 text-center font-black text-sm text-emerald-800">{stat.haba.groups}</td><td className="p-3 text-center font-black text-sm text-rose-800">{stat.haba.visits}</td></tr>
-                        ))}</tbody>
-                      </table>
-                    </div>
-                  )}
-
-                  <div className="space-y-6">
-                    <h3 className="text-[11px] font-black uppercase text-[#005a9c] text-center italic tracking-widest border-y border-slate-50 py-2">Desempenho Gráfico por Capelão</h3>
-                    <div className="grid grid-cols-1 gap-14">
-                      {chaplainStats.map((stat, idx) => (
-                        <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-slate-100 page-break-inside-avoid">
-                          <h4 className="text-[10px] font-black text-slate-800 uppercase mb-4 flex justify-between"><span>{stat.name}</span><span className="text-blue-600 uppercase tracking-tighter">Ações: {stat.totalActions}</span></h4>
-                          <div className="h-[140px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={[{ n: 'Alunos', v: stat.students, c: '#005a9c' },{ n: 'Estudos', v: stat.studies, c: '#3b82f6' },{ n: 'Classes', v: stat.classes, c: '#6366f1' },{ n: 'PGs', v: stat.groups, c: '#10b981' },{ n: 'Visitas', v: stat.visits, c: '#f43f5e' }]} margin={{ top: 30, bottom: 0, left: 0, right: 0 }}>
-                                <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 800, fill: '#64748b'}} />
-                                <YAxis hide domain={[0, (dataMax) => Math.ceil(dataMax + (dataMax * 0.2) + 2)]} />
-                                <Bar dataKey="v" radius={[4, 4, 0, 0]} barSize={40}>
-                                  {[0,1,2,3,4].map((_, i) => <Cell key={i} fill={['#005a9c', '#3b82f6', '#6366f1', '#10b981', '#f43f5e'][i]} />)}
-                                  <LabelList dataKey="v" position="top" offset={10} style={{ fontSize: '14px', fontWeight: '900', fill: '#000000' }} />
-                                </Bar>
-                              </BarChart>
-                            </ResponsiveContainer>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-8 border-t-2 border-slate-100 page-break-inside-avoid">
-                    <h3 className="text-[11px] font-black uppercase text-[#005a9c] mb-6 text-center tracking-widest">Resumo Consolidado de Atividades</h3>
-                    <div className="grid grid-cols-5 gap-3">
-                      <div className="bg-[#005a9c] p-4 rounded-xl text-white text-center shadow-lg border border-blue-700"><p className="text-[7px] font-black uppercase tracking-widest opacity-80 mb-1 leading-none">Total Alunos</p><p className="text-2xl font-black leading-none">{totalStats.totalStudents}</p></div>
-                      <div className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center"><p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">Estudos</p><p className="text-xl font-black leading-none">{totalStats.studies}</p></div>
-                      <div className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center"><p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">Classes</p><p className="text-xl font-black leading-none">{totalStats.classes}</p></div>
-                      <div className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center"><p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">P. Grupos</p><p className="text-xl font-black leading-none">{totalStats.groups}</p></div>
-                      <div className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center"><p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">Visitas</p><p className="text-xl font-black leading-none">{totalStats.visits}</p></div>
-                    </div>
-                  </div>
-                </section>
-
-                <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
-                  <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic"><span>Capelania Hospitalar Pro v1.2.2-Ultimate</span><span>Relatório Emitido em: {new Date().toLocaleDateString()}</span></div>
-                  <div className="flex justify-center gap-20 pt-10 opacity-40"><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p></div><div className="text-center"><div className="w-48 border-b border-slate-400 mb-1"></div><p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p></div></div>
-                </footer>
-              </div>
+              <PdfTemplate />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* CONTAINER DE RENDERIZAÇÃO EM SEGUNDO PLANO (Sempre presente, mas invisível) */}
+      {!showPdfPreview && (
+        <div style={{ position: 'fixed', left: '-9999px', top: 0, opacity: 0, pointerEvents: 'none' }}>
+           <PdfTemplate />
         </div>
       )}
     </div>
