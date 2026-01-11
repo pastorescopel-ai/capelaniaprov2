@@ -1,4 +1,4 @@
-// VERCEL_BUILD_FORCE_REFRESH: 2025-04-10-T12:30-FIX-FINAL
+// VERCEL_BUILD_ID: REF-20250410-1500-STABLE
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config } from '../types';
