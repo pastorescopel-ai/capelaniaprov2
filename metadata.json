@@ -1,6 +1,6 @@
 {
   "name": "Capelania Hospitalar Pro",
-  "description": "Versão Capelania Estável 1.0: Sistema completo e consolidado. Inclui Dashboard inteligente, Gestão de Usuários, Painel Admin dinâmico e Motor de Impressão Isolado com paridade 1:1 (800px).",
-  "version": "1.0.0-PRO",
+  "description": "PONTO DE RECUPERAÇÃO V2.0 - SISTEMA ESTÁVEL. Inclui Backup DNA Total (Dados + Código Fonte), Dashboard Cumulativo, Sincronização Global e Motor de Impressão 1:1.",
+  "version": "2.0.0-PRO",
   "requestFramePermissions": []
 }

@@ -1,7 +1,8 @@
 
 // ############################################################
-// # SYSTEM ENTRY POINT - RESTORE POINT V1.1.5-STABLE
-// # EVERYTHING IS WORKING PERFECTLY UP TO THIS POINT
+// # SYSTEM ENTRY POINT - RESTORE POINT V2.0.0-STABLE
+// # PONTO DE RECUPERAÇÃO GERAL DO SISTEMA
+// # DATA: 10/04/2024
 // ############################################################
 
 import React from 'react';

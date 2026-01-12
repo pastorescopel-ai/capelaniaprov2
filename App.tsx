@@ -1,4 +1,9 @@
 
+// ############################################################
+// # APP CORE - VERSION 2.0.0-STABLE
+// # TUDO FUNCIONANDO PERFEITAMENTE - PONTO DE RECUPERAÇÃO
+// ############################################################
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';

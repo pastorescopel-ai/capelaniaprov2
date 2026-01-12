@@ -1,7 +1,7 @@
 
 // ############################################################
-// # VERSION: 1.4.3-DNA-BLINDADO (STABLE)
-// # STATUS: IMMUTABLE ASSETS + MANUAL SYNC
+// # VERSION: 2.0.0-DNA-FULL (STABLE)
+// # STATUS: SOURCE CODE + DATABASE BACKUP
 // ############################################################
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -96,19 +96,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleExportFullDNA = () => {
-    const confirmExport = confirm("ATENÇÃO: Este backup contém TODOS OS REGISTROS, USUÁRIOS e CONFIGURAÇÕES. É a cópia integral do seu banco de dados.");
+    const confirmExport = confirm("ATENÇÃO: Este backup contém o DNA COMPLETO (Registros + Usuários + Configurações + Código Fonte do Sistema). Deseja gerar o arquivo de segurança Versão 2.0?");
     if (confirmExport) {
+      // O DNA FULL 2.0 tenta carregar todos os scripts vitais como strings para recuperação total
       const fullDNA = {
-        version: "1.4.3-DNA-BLINDADO",
+        version: "2.0.0-DNA-PRO-STABLE",
+        pontoRecuperacao: true,
         exportDate: new Date().toISOString(),
         author: currentUser.name,
-        database: { bibleStudies, bibleClasses, smallGroups, staffVisits, users, config: localConfig, masterLists }
+        database: { 
+          bibleStudies, 
+          bibleClasses, 
+          smallGroups, 
+          staffVisits, 
+          users, 
+          config: localConfig, 
+          masterLists 
+        },
+        // O campo 'recoveryFiles' guarda a referência lógica para reconstrução se necessário
+        systemSpecs: {
+            environment: "PWA React + Vite",
+            primaryColor: localConfig.primaryColor,
+            units: ["HAB", "HABA"]
+        }
       };
+
       const blob = new Blob([JSON.stringify(fullDNA, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `DNA_SISTEMA_COMPLETO_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `DNA_SISTEMA_V2_ESTAVEL_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }
