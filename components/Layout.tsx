@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { NAV_ITEMS } from '../constants';
+import { NAV_ITEMS, APP_LOGO_BASE64 } from '../constants';
 import { UserRole, Config } from '../types';
 
 interface LayoutProps {
@@ -21,10 +21,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
       <header className="h-16 md:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 z-40 shadow-sm flex-shrink-0">
         <div className="flex items-center space-x-4">
-          {/* Logo do Sistema ao lado do texto - Força a exibição se existir Base64 */}
           <div className="flex items-center justify-center overflow-hidden h-10 md:h-12 min-w-[40px]">
-            {config.appLogo ? (
-              <img src={config.appLogo} className="h-full w-auto object-contain" alt="Logo" />
+            {APP_LOGO_BASE64 ? (
+              <img src={APP_LOGO_BASE64} className="h-full w-auto object-contain" alt="Logo" />
             ) : (
               <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
                 <i className="fas fa-hospital-symbol text-[#005a9c] text-xl"></i>
@@ -74,7 +73,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
           </nav>
 
           <div className="p-6 border-t border-slate-100 flex items-center justify-center">
-             {config.appLogo && <img src={config.appLogo} className="h-8 opacity-20 grayscale hover:grayscale-0 transition-all cursor-help" alt="Logo Footer" />}
+             {APP_LOGO_BASE64 && <img src={APP_LOGO_BASE64} className="h-8 opacity-20 grayscale hover:grayscale-0 transition-all cursor-help" alt="Logo Footer" />}
           </div>
         </aside>
 

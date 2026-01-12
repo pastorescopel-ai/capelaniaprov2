@@ -1,13 +1,13 @@
 
 // ############################################################
-// # VERSION: 1.0.1-ESTAVEL (PRINT AUTO-CLOSE)
-// # STATUS: VERIFIED & PRODUCTION READY + ADMIN SYNC (1.3)
-// # DATE: 2025-04-12
+// # VERSION: 1.0.4-TOTALIZER-FIX (STABLE)
+// # STATUS: CUMULATIVE STUDENT COUNTING
 // ############################################################
 
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, UserRole } from '../types';
+import { REPORT_LOGO_BASE64 } from '../constants';
 
 interface ReportsProps {
   studies: BibleStudy[];
@@ -30,7 +30,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
   const pColor = config.primaryColor || '#005a9c';
 
-  // 1. Filtragem de Dados
+  // Dados filtrados apenas para contagem de AÇÕES (Estudos, Classes, PGs, Visitas) no período
   const filteredData = useMemo(() => {
     const sList = Array.isArray(studies) ? studies : [];
     const cList = Array.isArray(classes) ? classes : [];
@@ -55,16 +55,18 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // 2. Estatísticas Globais
+  // ESTATÍSTICAS TOTAIS (Alunos é absoluto do banco, Ações é do período)
   const totalStats = useMemo(() => {
     const uniqueStudentContexts = new Set<string>();
-    filteredData.studies.forEach(s => { 
+    
+    // Contagem absoluta de alunos em toda a base (independente de filtro de data)
+    studies.forEach(s => { 
       if (s.name) {
         const studentKey = `${s.userId}-${s.unit || Unit.HAB}-${s.name.trim().toLowerCase()}`;
         uniqueStudentContexts.add(studentKey); 
       }
     });
-    filteredData.classes.forEach(c => { 
+    classes.forEach(c => { 
       if (Array.isArray(c.students)) {
         c.students.forEach(name => { 
           if (name) {
@@ -74,6 +76,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         });
       }
     });
+
     return {
       studies: filteredData.studies.length,
       classes: filteredData.classes.length,
@@ -81,15 +84,15 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       visits: filteredData.visits.length,
       totalStudents: uniqueStudentContexts.size
     };
-  }, [filteredData]);
+  }, [studies, classes, filteredData]);
 
-  // 3. Estatísticas por Capelão
+  // ESTATÍSTICAS POR CAPELÃO
   const chaplainStats = useMemo(() => {
     const allUserIdsFromData = new Set<string>([
-        ...filteredData.studies.map(s => s.userId),
-        ...filteredData.classes.map(c => c.userId),
-        ...filteredData.groups.map(g => g.userId),
-        ...filteredData.visits.map(v => v.userId)
+        ...studies.map(s => s.userId),
+        ...classes.map(c => c.userId),
+        ...groups.map(g => g.userId),
+        ...visits.map(v => v.userId)
     ]);
     const activeUsers = Array.isArray(users) ? users : [];
     activeUsers.forEach(u => allUserIdsFromData.add(u.id));
@@ -98,23 +101,32 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const existingUser = activeUsers.find(u => u.id === uid);
       const userObj: User = existingUser || { id: uid, name: `Capelão Antigo`, email: '---', role: UserRole.CHAPLAIN };
 
-      const uStudies = filteredData.studies.filter(s => s.userId === uid);
-      const uClasses = filteredData.classes.filter(c => c.userId === uid);
-      const uVisits = filteredData.visits.filter(v => v.userId === uid);
-      const uGroups = filteredData.groups.filter(g => g.userId === uid);
+      // Histórico COMPLETO (Para Alunos e Detalhamento)
+      const uStudiesFull = studies.filter(s => s.userId === uid);
+      const uClassesFull = classes.filter(c => c.userId === uid);
       
+      // Histórico do PERÍODO (Para contagem de ações e gráficos)
+      const uStudiesFiltered = filteredData.studies.filter(s => s.userId === uid);
+      const uClassesFiltered = filteredData.classes.filter(c => c.userId === uid);
+      const uVisitsFiltered = filteredData.visits.filter(v => v.userId === uid);
+      const uGroupsFiltered = filteredData.groups.filter(g => g.userId === uid);
+      
+      // Unicidade de alunos baseada no HISTÓRICO COMPLETO do capelão
       const uniqueNames = new Set<string>();
-      uStudies.forEach(s => { if (s.name) uniqueNames.add(s.name.trim().toLowerCase()); });
-      uClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
+      uStudiesFull.forEach(s => { if (s.name) uniqueNames.add(s.name.trim().toLowerCase()); });
+      uClassesFull.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
 
       const getUnitStats = (unit: Unit) => {
-          const unitStudies = uStudies.filter(s => (s.unit || Unit.HAB) === unit);
-          const unitClasses = uClasses.filter(c => (c.unit || Unit.HAB) === unit);
-          const unitGroups = uGroups.filter(g => (g.unit || Unit.HAB) === unit);
-          const unitVisits = uVisits.filter(v => (v.unit || Unit.HAB) === unit);
+          const unitStudies = uStudiesFiltered.filter(s => (s.unit || Unit.HAB) === unit);
+          const unitClasses = uClassesFiltered.filter(c => (c.unit || Unit.HAB) === unit);
+          const unitGroups = uGroupsFiltered.filter(g => (g.unit || Unit.HAB) === unit);
+          const unitVisits = uVisitsFiltered.filter(v => (v.unit || Unit.HAB) === unit);
+          
+          // Alunos únicos na unidade (Base Histórica da Unidade)
           const unitUniqueNames = new Set<string>();
-          unitStudies.forEach(s => { if (s.name) unitUniqueNames.add(s.name.trim().toLowerCase()); });
-          unitClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => unitUniqueNames.add(n.trim().toLowerCase())); });
+          uStudiesFull.filter(s => (s.unit || Unit.HAB) === unit).forEach(s => { if (s.name) unitUniqueNames.add(s.name.trim().toLowerCase()); });
+          uClassesFull.filter(c => (c.unit || Unit.HAB) === unit).forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => unitUniqueNames.add(n.trim().toLowerCase())); });
+          
           return {
               students: unitUniqueNames.size,
               studies: unitStudies.length,
@@ -122,23 +134,23 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               groups: unitGroups.length,
               visits: unitVisits.length,
               total: unitStudies.length + unitClasses.length + unitGroups.length + unitVisits.length,
-              rawStudies: unitStudies,
-              rawClasses: unitClasses
+              // Mantemos o raw como o HISTÓRICO COMPLETO para o modal exibir o progresso do aluno
+              rawStudies: uStudiesFull.filter(s => (s.unit || Unit.HAB) === unit).sort((a,b) => b.createdAt - a.createdAt),
+              rawClasses: uClassesFull.filter(c => (c.unit || Unit.HAB) === unit).sort((a,b) => b.createdAt - a.createdAt)
           };
       };
 
       return { 
-        user: userObj, name: userObj.name, students: uniqueNames.size, studies: uStudies.length, classes: uClasses.length, visits: uVisits.length, groups: uGroups.length,
-        hab: getUnitStats(Unit.HAB), haba: getUnitStats(Unit.HABA), totalActions: uStudies.length + uClasses.length + uVisits.length + uGroups.length,
-        rawStudies: uStudies, rawClasses: uClasses
+        user: userObj, name: userObj.name, students: uniqueNames.size, 
+        studies: uStudiesFiltered.length, classes: uClassesFiltered.length, 
+        visits: uVisitsFiltered.length, groups: uGroupsFiltered.length,
+        hab: getUnitStats(Unit.HAB), haba: getUnitStats(Unit.HABA), 
+        totalActions: uStudiesFiltered.length + uClassesFiltered.length + uVisitsFiltered.length + uGroupsFiltered.length,
       };
     }).filter(s => (selectedChaplain !== 'all' ? s.user.id === selectedChaplain : s.totalActions > 0 || s.students > 0))
       .sort((a, b) => b.totalActions - a.totalActions);
-  }, [users, filteredData, selectedChaplain]);
+  }, [users, studies, classes, groups, visits, filteredData, selectedChaplain]);
 
-  /**
-   * MOTOR DE IMPRESSÃO ISOLADO (FECHAMENTO AUTOMÁTICO ADICIONADO)
-   */
   const handlePrintIsolated = () => {
     const printContent = document.getElementById('pdf-root');
     if (!printContent) return;
@@ -161,41 +173,13 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           ${styles}
           <style>
             @media print {
-              @page { 
-                size: A4; 
-                margin: 0mm !important; 
-              }
-              html, body { 
-                margin: 0 !important; 
-                padding: 0 !important; 
-                width: 210mm !important;
-                background: white !important;
-              }
+              @page { size: A4; margin: 0mm !important; }
+              html, body { margin: 0 !important; padding: 0 !important; width: 210mm !important; background: white !important; }
               .no-print { display: none !important; }
-              #pdf-isolated-container {
-                box-shadow: none !important;
-                margin: 0 !important;
-                width: 210mm !important;
-                transform: none !important;
-              }
+              #pdf-isolated-container { box-shadow: none !important; margin: 0 !important; width: 210mm !important; transform: none !important; }
             }
-            body { 
-              background: #f1f5f9; 
-              display: flex; 
-              justify-content: center; 
-              padding: 20px 0;
-              margin: 0;
-              font-family: 'Inter', sans-serif;
-            }
-            #pdf-isolated-container {
-              background: white !important;
-              width: 210mm !important;
-              min-height: 297mm !important;
-              padding: 15mm !important;
-              box-sizing: border-box !important;
-              position: relative !important;
-              box-shadow: 0 0 40px rgba(0,0,0,0.1);
-            }
+            body { background: #f1f5f9; display: flex; justify-content: center; padding: 20px 0; margin: 0; font-family: 'Inter', sans-serif; }
+            #pdf-isolated-container { background: white !important; width: 210mm !important; min-height: 297mm !important; padding: 15mm !important; box-sizing: border-box !important; position: relative !important; box-shadow: 0 0 40px rgba(0,0,0,0.1); }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             header { position: relative !important; height: 140px !important; }
             #pdf-root { width: 100% !important; max-width: none !important; box-shadow: none !important; border: none !important; padding: 0 !important; }
@@ -209,7 +193,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             window.onload = () => {
               setTimeout(() => {
                 window.print();
-                // FECHA A ABA AUTOMATICAMENTE APÓS IMPRIMIR OU CANCELAR
                 window.close();
               }, 800);
             };
@@ -228,177 +211,184 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     { label: 'Visitas Colab.', val: totalStats.visits, icon: 'fa-handshake', color: 'bg-rose-500' },
   ];
 
-  const PdfTemplate = () => (
-    <div id="pdf-root" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
-      <header className="relative border-b-4 flex-shrink-0" style={{ height: '140px', borderColor: pColor }}>
-        {config.reportLogo && (
-          <img 
-            src={config.reportLogo} 
-            style={{ 
-              position: 'absolute', 
-              left: `${config.reportLogoX}px`, 
-              top: `${config.reportLogoY}px`, 
-              width: `${config.reportLogoWidth}px` 
-            }} 
-            alt="Logo" 
-          />
-        )}
-        <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
-          <h1 style={{ fontSize: `${config.fontSize1}px`, color: pColor }} className="font-black uppercase m-0 leading-tight">{config.headerLine1}</h1>
-        </div>
-        <div style={{ position: 'absolute', left: `${config.headerLine2X}px`, top: `${config.headerLine2Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
-          <h2 style={{ fontSize: `${config.fontSize2}px` }} className="font-bold text-slate-600 uppercase m-0 leading-tight">{config.headerLine2}</h2>
-        </div>
-        <div style={{ position: 'absolute', left: `${config.headerLine3X}px`, top: `${config.headerLine3Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
-          <h3 style={{ fontSize: `${config.fontSize3}px` }} className="font-medium text-slate-400 uppercase m-0 leading-tight">{config.headerLine3}</h3>
-        </div>
-        <div style={{ position: 'absolute', right: 0, top: '10px', textAlign: 'right' }}>
-          <p className="text-[9px] font-bold uppercase text-slate-300">Emissão: {new Date().toLocaleDateString()}</p>
-          <p className="text-[8px] font-black uppercase" style={{ color: pColor }}>Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
-        </div>
-      </header>
-
-      <section className="space-y-10 mt-4 flex-1">
-          {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
-          <div className="space-y-4">
-            <h3 className="text-[11px] font-black uppercase border-b-2 border-slate-100 pb-1 flex items-center gap-2" style={{ color: pColor }}>
-              <i className="fas fa-hospital"></i> Atividades HAB
-            </h3>
-            <table className="w-full text-left text-[9px] border-collapse">
-              <thead>
-                <tr className="text-white font-black uppercase" style={{ backgroundColor: pColor }}>
-                  <th className="p-3">Capelão</th>
-                  <th className="p-3 text-center">Alunos</th>
-                  <th className="p-3 text-center">Estudos</th>
-                  <th className="p-3 text-center">Classes</th>
-                  <th className="p-3 text-center">PGs</th>
-                  <th className="p-3 text-center">Visitas</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
-                <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                  <td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td>
-                  <td className="p-3 text-center font-black text-sm text-slate-900">{stat.hab.students}</td>
-                  <td className="p-3 text-center font-black text-sm text-blue-800">{stat.hab.studies}</td>
-                  <td className="p-3 text-center font-black text-sm text-indigo-800">{stat.hab.classes}</td>
-                  <td className="p-3 text-center font-black text-sm text-emerald-800">{stat.hab.groups}</td>
-                  <td className="p-3 text-center font-black text-sm text-rose-800">{stat.hab.visits}</td>
-                </tr>
-              ))}
-              </tbody>
-            </table>
+  const PdfTemplate = () => {
+    const safeWidth = config.reportLogoWidth > 0 ? config.reportLogoWidth : 150;
+    
+    return (
+      <div id="pdf-root" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
+        <header className="relative border-b-4 flex-shrink-0" style={{ height: '140px', borderColor: pColor }}>
+          {REPORT_LOGO_BASE64 && (
+            <img 
+              src={REPORT_LOGO_BASE64} 
+              style={{ 
+                position: 'absolute', 
+                left: `${config.reportLogoX}px`, 
+                top: `${config.reportLogoY}px`, 
+                width: `${safeWidth}px`,
+                zIndex: 10
+              }} 
+              alt="Logo" 
+              onError={(e) => {
+                console.error("Erro ao carregar logo Base64");
+              }}
+            />
+          )}
+          <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
+            <h1 style={{ fontSize: `${config.fontSize1}px`, color: pColor }} className="font-black uppercase m-0 leading-tight">{config.headerLine1}</h1>
           </div>
-        )}
-
-        {(selectedUnit === 'all' || selectedUnit === Unit.HABA) && (
-          <div className="space-y-4">
-            <h3 className="text-[11px] font-black uppercase border-b-2 border-slate-100 pb-1 flex items-center gap-2" style={{ color: pColor }}>
-              <i className="fas fa-hospital-alt"></i> Atividades HABA
-            </h3>
-            <table className="w-full text-left text-[9px] border-collapse">
-              <thead>
-                <tr className="text-white font-black uppercase" style={{ backgroundColor: pColor }}>
-                  <th className="p-3">Capelão</th>
-                  <th className="p-3 text-center">Alunos</th>
-                  <th className="p-3 text-center">Estudos</th>
-                  <th className="p-3 text-center">Classes</th>
-                  <th className="p-3 text-center">PGs</th>
-                  <th className="p-3 text-center">Visitas</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
-                <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                  <td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td>
-                  <td className="p-3 text-center font-black text-sm text-slate-900">{stat.haba.students}</td>
-                  <td className="p-3 text-center font-black text-sm text-blue-800">{stat.haba.studies}</td>
-                  <td className="p-3 text-center font-black text-sm text-indigo-800">{stat.haba.classes}</td>
-                  <td className="p-3 text-center font-black text-sm text-emerald-800">{stat.haba.groups}</td>
-                  <td className="p-3 text-center font-black text-sm text-rose-800">{stat.haba.visits}</td>
-                </tr>
-              ))}
-              </tbody>
-            </table>
+          <div style={{ position: 'absolute', left: `${config.headerLine2X}px`, top: `${config.headerLine2Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
+            <h2 style={{ fontSize: `${config.fontSize2}px` }} className="font-bold text-slate-600 uppercase m-0 leading-tight">{config.headerLine2}</h2>
           </div>
-        )}
-
-        <div className="space-y-6">
-          <h3 className="text-[11px] font-black uppercase text-center italic tracking-widest border-y border-slate-50 py-2" style={{ color: pColor }}>Desempenho Gráfico por Capelão</h3>
-          <div className="grid grid-cols-1 gap-14">
-            {chaplainStats.map((stat, idx) => (
-              <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-slate-100 page-break-inside-avoid">
-                <h4 className="text-[10px] font-black text-slate-800 uppercase mb-4 flex justify-between">
-                  <span>{stat.name}</span>
-                  <span className="uppercase tracking-tighter" style={{ color: pColor }}>Ações: {stat.totalActions}</span>
-                </h4>
-                <div className="h-[140px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={[
-                      { n: 'Alunos', v: stat.students, nColor: pColor },
-                      { n: 'Estudos', v: stat.studies, nColor: '#3b82f6' },
-                      { n: 'Classes', v: stat.classes, nColor: '#6366f1' },
-                      { n: 'PGs', v: stat.groups, nColor: '#10b981' },
-                      { n: 'Visitas', v: stat.visits, nColor: '#f43f5e' }
-                    ]} margin={{ top: 30, bottom: 0, left: 0, right: 0 }}>
-                      <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 800, fill: '#64748b'}} />
-                      <YAxis hide domain={[0, (dataMax: number) => Math.ceil(dataMax + (dataMax * 0.2) + 2)]} />
-                      <Bar dataKey="v" radius={[4, 4, 0, 0]} barSize={40}>
-                        {[0,1,2,3,4].map((_, i) => <Cell key={i} fill={[pColor, '#3b82f6', '#6366f1', '#10b981', '#f43f5e'][i]} />)}
-                        <LabelList dataKey="v" position="top" offset={10} style={{ fontSize: '14px', fontWeight: '900', fill: '#000000' }} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            ))}
+          <div style={{ position: 'absolute', left: `${config.headerLine3X}px`, top: `${config.headerLine3Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
+            <h3 style={{ fontSize: `${config.fontSize3}px` }} className="font-medium text-slate-400 uppercase m-0 leading-tight">{config.headerLine3}</h3>
           </div>
-        </div>
+          <div style={{ position: 'absolute', right: 0, top: '10px', textAlign: 'right' }}>
+            <p className="text-[9px] font-bold uppercase text-slate-300">Emissão: {new Date().toLocaleDateString()}</p>
+            <p className="text-[8px] font-black uppercase" style={{ color: pColor }}>Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
+          </div>
+        </header>
 
-        <div className="pt-8 border-t-2 border-slate-100 page-break-inside-avoid">
-          <h3 className="text-[11px] font-black uppercase mb-6 text-center tracking-widest" style={{ color: pColor }}>Resumo Consolidado de Atividades</h3>
-          <div className="grid grid-cols-5 gap-3">
-            <div className="p-4 rounded-xl text-white text-center shadow-lg border" style={{ backgroundColor: pColor, borderColor: pColor }}>
-              <p className="text-[7px] font-black uppercase tracking-widest opacity-80 mb-1 leading-none">Total Alunos</p>
-              <p className="text-2xl font-black leading-none">{totalStats.totalStudents}</p>
+        <section className="space-y-10 mt-4 flex-1">
+            {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
+            <div className="space-y-4">
+              <h3 className="text-[11px] font-black uppercase border-b-2 border-slate-100 pb-1 flex items-center gap-2" style={{ color: pColor }}>
+                <i className="fas fa-hospital"></i> Atividades HAB
+              </h3>
+              <table className="w-full text-left text-[9px] border-collapse">
+                <thead>
+                  <tr className="text-white font-black uppercase" style={{ backgroundColor: pColor }}>
+                    <th className="p-3">Capelão</th>
+                    <th className="p-3 text-center">Alunos</th>
+                    <th className="p-3 text-center">Estudos</th>
+                    <th className="p-3 text-center">Classes</th>
+                    <th className="p-3 text-center">PGs</th>
+                    <th className="p-3 text-center">Visitas</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
+                  <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                    <td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td>
+                    <td className="p-3 text-center font-black text-sm text-slate-900">{stat.hab.students}</td>
+                    <td className="p-3 text-center font-black text-sm text-blue-800">{stat.hab.studies}</td>
+                    <td className="p-3 text-center font-black text-sm text-indigo-800">{stat.hab.classes}</td>
+                    <td className="p-3 text-center font-black text-sm text-emerald-800">{stat.hab.groups}</td>
+                    <td className="p-3 text-center font-black text-sm text-rose-800">{stat.hab.visits}</td>
+                  </tr>
+                ))}
+                </tbody>
+              </table>
             </div>
-            {[
-              { label: 'Estudos', val: totalStats.studies },
-              { label: 'Classes', val: totalStats.classes },
-              { label: 'P. Grupos', val: totalStats.groups },
-              { label: 'Visitas', val: totalStats.visits }
-            ].map((s, i) => (
-              <div key={i} className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center">
-                <p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">{s.label}</p>
-                <p className="text-xl font-black leading-none">{s.val}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+          )}
 
-      <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
-        <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic">
-          <span>Capelania Hospitalar Pro - Auditoria: {config.lastModifiedBy || 'Master'}</span>
-          <span>Relatório Emitido em: {new Date().toLocaleDateString()}</span>
-        </div>
-        <div className="flex justify-center gap-20 pt-10 opacity-40">
-          <div className="text-center">
-            <div className="w-48 border-b border-slate-400 mb-1"></div>
-            <p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p>
+          {(selectedUnit === 'all' || selectedUnit === Unit.HABA) && (
+            <div className="space-y-4">
+              <h3 className="text-[11px] font-black uppercase border-b-2 border-slate-100 pb-1 flex items-center gap-2" style={{ color: pColor }}>
+                <i className="fas fa-hospital-alt"></i> Atividades HABA
+              </h3>
+              <table className="w-full text-left text-[9px] border-collapse">
+                <thead>
+                  <tr className="text-white font-black uppercase" style={{ backgroundColor: pColor }}>
+                    <th className="p-3">Capelão</th>
+                    <th className="p-3 text-center">Alunos</th>
+                    <th className="p-3 text-center">Estudos</th>
+                    <th className="p-3 text-center">Classes</th>
+                    <th className="p-3 text-center">PGs</th>
+                    <th className="p-3 text-center">Visitas</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
+                  <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                    <td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td>
+                    <td className="p-3 text-center font-black text-sm text-slate-900">{stat.haba.students}</td>
+                    <td className="p-3 text-center font-black text-sm text-blue-800">{stat.haba.studies}</td>
+                    <td className="p-3 text-center font-black text-sm text-indigo-800">{stat.haba.classes}</td>
+                    <td className="p-3 text-center font-black text-sm text-emerald-800">{stat.haba.groups}</td>
+                    <td className="p-3 text-center font-black text-sm text-rose-800">{stat.haba.visits}</td>
+                  </tr>
+                ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="space-y-6">
+            <h3 className="text-[11px] font-black uppercase text-center italic tracking-widest border-y border-slate-50 py-2" style={{ color: pColor }}>Desempenho Gráfico por Capelão</h3>
+            <div className="grid grid-cols-1 gap-14">
+              {chaplainStats.map((stat, idx) => (
+                <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-slate-100 page-break-inside-avoid">
+                  <h4 className="text-[10px] font-black text-slate-800 uppercase mb-4 flex justify-between">
+                    <span>{stat.name}</span>
+                    <span className="uppercase tracking-tighter" style={{ color: pColor }}>Ações: {stat.totalActions}</span>
+                  </h4>
+                  <div className="h-[140px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[
+                        { n: 'Alunos', v: stat.students, nColor: pColor },
+                        { n: 'Estudos', v: stat.studies, nColor: '#3b82f6' },
+                        { n: 'Classes', v: stat.classes, nColor: '#6366f1' },
+                        { n: 'PGs', v: stat.groups, nColor: '#10b981' },
+                        { n: 'Visitas', v: stat.visits, nColor: '#f43f5e' }
+                      ]} margin={{ top: 30, bottom: 0, left: 0, right: 0 }}>
+                        <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 800, fill: '#64748b'}} />
+                        <YAxis hide domain={[0, (dataMax: number) => Math.ceil(dataMax + (dataMax * 0.2) + 2)]} />
+                        <Bar dataKey="v" radius={[4, 4, 0, 0]} barSize={40}>
+                          {[0,1,2,3,4].map((_, i) => <Cell key={i} fill={[pColor, '#3b82f6', '#6366f1', '#10b981', '#f43f5e'][i]} />)}
+                          <LabelList dataKey="v" position="top" offset={10} style={{ fontSize: '14px', fontWeight: '900', fill: '#000000' }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="text-center">
-            <div className="w-48 border-b border-slate-400 mb-1"></div>
-            <p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p>
+
+          <div className="pt-8 border-t-2 border-slate-100 page-break-inside-avoid">
+            <h3 className="text-[11px] font-black uppercase mb-6 text-center tracking-widest" style={{ color: pColor }}>Resumo Consolidado de Atividades</h3>
+            <div className="grid grid-cols-5 gap-3">
+              <div className="p-4 rounded-xl text-white text-center shadow-lg border" style={{ backgroundColor: pColor, borderColor: pColor }}>
+                <p className="text-[7px] font-black uppercase tracking-widest opacity-80 mb-1 leading-none">Total Alunos</p>
+                <p className="text-2xl font-black leading-none">{totalStats.totalStudents}</p>
+              </div>
+              {[
+                { label: 'Estudos', val: totalStats.studies },
+                { label: 'Classes', val: totalStats.classes },
+                { label: 'P. Grupos', val: totalStats.groups },
+                { label: 'Visitas', val: totalStats.visits }
+              ].map((s, i) => (
+                <div key={i} className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center">
+                  <p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">{s.label}</p>
+                  <p className="text-xl font-black leading-none">{s.val}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </footer>
-    </div>
-  );
+        </section>
+
+        <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
+          <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic">
+            <span>Capelania Hospitalar Pro - Auditoria: {config.lastModifiedBy || 'Master'}</span>
+            <span>Relatório Emitido em: {new Date().toLocaleDateString()}</span>
+          </div>
+          <div className="flex justify-center gap-20 pt-10 opacity-40">
+            <div className="text-center">
+              <div className="w-48 border-b border-slate-400 mb-1"></div>
+              <p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p>
+            </div>
+            <div className="text-center">
+              <div className="w-48 border-b border-slate-400 mb-1"></div>
+              <p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p>
+            </div>
+          </div>
+        </footer>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
-      {/* SEÇÃO DE FILTROS 1.0 */}
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Relatórios e Estatísticas</h1>
@@ -433,7 +423,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </div>
         </div>
 
-        {/* CARDS DE RESUMO 1.0 */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {summaryCards.map((card, i) => (
             <div key={i} className={`${card.color} p-6 rounded-[2.5rem] text-white shadow-xl shadow-blue-100/20 group hover:scale-[1.03] transition-all`}>
@@ -449,7 +438,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      {/* DASHBOARD POR CAPELÃO */}
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
         <h2 className="text-xl font-black text-slate-800 mb-8 uppercase tracking-tighter flex items-center gap-3">
           <i className="fas fa-id-card-alt" style={{ color: pColor }}></i> Desempenho por Capelão
@@ -481,7 +469,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      {/* MODAL DE DETALHES (1.3) */}
       {selectedDetailUser && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[900] flex items-center justify-center p-4">
            <div className="bg-white w-full max-w-4xl rounded-[3rem] p-10 space-y-8 animate-in zoom-in duration-300 relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -493,16 +480,16 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-8">
                 {['HAB', 'HABA'].map(u => {
                   const stat = chaplainStats.find(s => s.user.id === selectedDetailUser.id)?.[u.toLowerCase() as 'hab' | 'haba'];
-                  if (!stat || (stat.studies === 0 && stat.classes === 0)) return null;
+                  if (!stat) return null;
                   return (
                     <div key={u} className="space-y-6">
                       <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-2">
                         <i className={`fas fa-hospital text-xl`} style={{ color: pColor }}></i>
-                        <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight">Atividades Unidade {u}</h4>
+                        <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight">Histórico Completo Unidade {u}</h4>
                       </div>
                       {stat.rawStudies.length > 0 && (
                         <div className="space-y-3">
-                          <h5 className="text-[10px] font-black uppercase tracking-[0.2em] ml-2" style={{ color: pColor }}>Estudos Bíblicos (Histórico Completo)</h5>
+                          <h5 className="text-[10px] font-black uppercase tracking-[0.2em] ml-2" style={{ color: pColor }}>Estudos Bíblicos</h5>
                           <div className="grid gap-3">{stat.rawStudies.map((item, idx) => (
                               <div key={idx} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex justify-between items-center group hover:border-blue-200 transition-all">
                                 <div className="space-y-1"><p className="font-black text-slate-800 uppercase text-sm">{item.name}</p><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{item.sector} • {item.date.split('T')[0].split('-').reverse().join('/')}</p></div>
@@ -513,7 +500,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                       )}
                       {stat.rawClasses.length > 0 && (
                         <div className="space-y-3">
-                          <h5 className="text-[10px] font-black uppercase tracking-[0.2em] ml-2" style={{ color: pColor }}>Classes Bíblicas (Histórico Completo)</h5>
+                          <h5 className="text-[10px] font-black uppercase tracking-[0.2em] ml-2" style={{ color: pColor }}>Classes Bíblicas</h5>
                           <div className="grid gap-3">{stat.rawClasses.map((item, idx) => (
                               <div key={idx} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex justify-between items-center group hover:border-indigo-200 transition-all">
                                 <div className="space-y-1 max-w-[60%]"><p className="font-black text-slate-800 uppercase text-xs line-clamp-1">{item.students.join(', ')}</p><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{item.sector} • {item.date.split('T')[0].split('-').reverse().join('/')}</p></div>

@@ -1,15 +1,15 @@
 
 import React, { useState } from 'react';
+import { APP_LOGO_BASE64 } from '../constants';
 
 interface LoginProps {
   onLogin: (email: string, pass: string) => void;
   isSyncing: boolean;
   errorMsg: string | null;
   isConnected: boolean;
-  logo: string;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected, logo }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -20,13 +20,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-md p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 space-y-8 animate-in zoom-in duration-300">
-        <div className="text-center space-y-2">
-          {/* Espaço da logo ajustado para preencher o tamanho original da imagem selecionada */}
-          <div className="w-full flex items-center justify-center mb-6 min-h-[120px]">
-            {logo ? (
+      {/* Card com largura fixa para simular mobile em qualquer dispositivo */}
+      <div className="bg-white w-full max-w-[420px] p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 space-y-8 animate-in zoom-in duration-300">
+        <div className="text-center space-y-4">
+          <div className="w-full flex items-center justify-center min-h-[120px]">
+            {APP_LOGO_BASE64 && APP_LOGO_BASE64.length > 200 ? (
               <img 
-                src={logo} 
+                src={APP_LOGO_BASE64} 
                 className="max-w-full max-h-32 object-contain" 
                 alt="Logo do Sistema" 
               />
@@ -36,11 +36,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
               </div>
             )}
           </div>
-          <h1 className="text-3xl font-bold text-slate-800">Capelania Pro</h1>
-          <p className="text-slate-500 font-medium">Sistema de Gestão Hospitalar</p>
+          
+          <div className="space-y-2">
+            <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Capelania Pro</h1>
+            <p className="text-blue-600 font-black text-[10px] uppercase tracking-[0.2em] leading-relaxed px-4">
+              Bem-vindo ao sistema de capelania do hospital adventista de Belém
+            </p>
+          </div>
           
           {isConnected && (
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 mt-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
               <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
               <span className="text-[9px] font-black uppercase tracking-widest">Servidor Online</span>
             </div>

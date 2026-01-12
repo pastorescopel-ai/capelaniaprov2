@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Unit, RecordStatus, VisitReason, BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole } from '../types';
 import { STATUS_OPTIONS, VISIT_REASONS } from '../constants';
@@ -148,8 +149,8 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, hist
       return;
     }
 
-    // Tenta extrair o número da lição e incrementar - FIX: use String() to avoid replace error if lesson is a number
-    const lastLessonStr = String(last.lesson || "");
+    // Tenta extrair o número da lição e incrementar - Garantindo apenas números inteiros e positivos
+    const lastLessonStr = String(last.lesson || "0");
     const lastLessonNum = parseInt(lastLessonStr.replace(/\D/g, '')) || 0;
     const nextLesson = (lastLessonNum + 1).toString();
 
@@ -201,7 +202,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, hist
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Aluno *</label><input required placeholder="Nome completo" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">WhatsApp *</label><input required placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-mono" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Guia de Estudo *</label><Autocomplete options={studySuggestions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Selecione ou digite o guia..." /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada (Número) *</label><input required type="number" placeholder="Somente números" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada (Número) *</label><input required type="number" min="1" placeholder="Somente números positivos" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Status *</label>
             <div className="flex gap-2">
               {STATUS_OPTIONS.map(opt => (
@@ -275,8 +276,8 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, hist
       return;
     }
 
-    // Tenta extrair o número da lição e incrementar - FIX: use String() to avoid replace error
-    const lastLessonStr = String(last.lesson || "");
+    // Tenta extrair o número da lição e incrementar - Garantindo apenas números inteiros e positivos
+    const lastLessonStr = String(last.lesson || "0");
     const lastLessonNum = parseInt(lastLessonStr.replace(/\D/g, '')) || 0;
     const nextLesson = (lastLessonNum + 1).toString();
 
@@ -339,7 +340,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, hist
             </div>
           </div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Guia de Estudo *</label><Autocomplete options={studySuggestions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Selecione ou digite o guia..." /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada (Número) *</label><input required type="number" placeholder="Somente números" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada (Número) *</label><input required type="number" min="1" placeholder="Somente números positivos" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Status da Classe *</label>
             <div className="flex gap-2">
               {STATUS_OPTIONS.map(opt => (
@@ -404,7 +405,7 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, grou
           </div>
 
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Líder *</label><input required placeholder="Líder do PG" value={formData.leader} onChange={e => setFormData({...formData, leader: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Participantes *</label><input required type="number" value={formData.participantsCount || ''} onChange={e => setFormData({...formData, participantsCount: parseInt(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Participantes *</label><input required type="number" min="0" value={formData.participantsCount || ''} onChange={e => setFormData({...formData, participantsCount: parseInt(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Observações</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none" /></div>
         </div>
         <button type="submit" className="w-full py-5 bg-emerald-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs">Salvar PG</button>

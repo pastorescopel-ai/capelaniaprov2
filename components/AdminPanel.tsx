@@ -1,11 +1,12 @@
 
 // ############################################################
-// # VERSION: 1.4.2-DNA-TOTAL (STABLE)
-// # STATUS: FULLY FUNCTIONAL + MANUAL SYNC ENABLED
+// # VERSION: 1.4.3-DNA-BLINDADO (STABLE)
+// # STATUS: IMMUTABLE ASSETS + MANUAL SYNC
 // ############################################################
 
 import React, { useState, useRef, useEffect } from 'react';
 import { MasterLists, Config, User, BibleStudy, BibleClass, SmallGroup, StaffVisit } from '../types';
+import { REPORT_LOGO_BASE64 } from '../constants';
 
 interface AdminPanelProps {
   config: Config;
@@ -17,7 +18,7 @@ interface AdminPanelProps {
   smallGroups: SmallGroup[];
   staffVisits: StaffVisit[];
   onSaveAllData: (config: Config, lists: MasterLists) => Promise<void>;
-  onRefreshData: () => Promise<void>; // Nova prop para sincronia manual
+  onRefreshData: () => Promise<void>;
 }
 
 type DragType = 'logo' | 'line1' | 'line2' | 'line3' | 'resize' | null;
@@ -89,9 +90,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsRefreshing(true);
     try {
       await onRefreshData();
-      alert('Dados atualizados com sucesso da nuvem!');
-    } catch (e) {
-      alert('Erro ao atualizar dados.');
     } finally {
       setIsRefreshing(false);
     }
@@ -101,7 +99,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const confirmExport = confirm("ATENÇÃO: Este backup contém TODOS OS REGISTROS, USUÁRIOS e CONFIGURAÇÕES. É a cópia integral do seu banco de dados.");
     if (confirmExport) {
       const fullDNA = {
-        version: "1.4.2-DNA-TOTAL",
+        version: "1.4.3-DNA-BLINDADO",
         exportDate: new Date().toISOString(),
         author: currentUser.name,
         database: { bibleStudies, bibleClasses, smallGroups, staffVisits, users, config: localConfig, masterLists }
@@ -193,7 +191,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         <div className="bg-slate-300 p-8 md:p-16 rounded-[3rem] shadow-inner border border-slate-400 relative flex justify-center overflow-x-auto">
           <div ref={previewRef} onMouseMove={handleMouseMove} className="bg-white shadow-2xl relative overflow-hidden flex-shrink-0" style={{ width: '800px', height: '220px' }}>
             <div className={`absolute transition-shadow ${activeDrag === 'logo' ? 'ring-2 ring-blue-500 z-50 shadow-2xl' : 'hover:ring-2 hover:ring-blue-100'}`} style={{ left: `${localConfig.reportLogoX}px`, top: `${localConfig.reportLogoY}px`, cursor: 'move' }} onMouseDown={(e) => { e.preventDefault(); setActiveDrag('logo'); }}>
-              <img src={localConfig.reportLogo} style={{ width: `${localConfig.reportLogoWidth}px` }} alt="Logo" />
+              {REPORT_LOGO_BASE64 && <img src={REPORT_LOGO_BASE64} style={{ width: `${localConfig.reportLogoWidth}px` }} alt="Logo" />}
               <div onMouseDown={(e) => { e.stopPropagation(); setActiveDrag('resize'); }} className="absolute -right-2 -bottom-2 w-6 h-6 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center text-white text-[10px] cursor-nwse-resize"><i className="fas fa-expand"></i></div>
             </div>
             {['Line1', 'Line2', 'Line3'].map((l, i) => {

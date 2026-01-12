@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole, Config, RecordStatus } from '../types';
@@ -18,7 +19,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
   const [isEditingMural, setIsEditingMural] = useState(false);
   const [muralDraft, setMuralDraft] = useState(config?.muralText || "");
 
-  // Filtros baseados no usuário logado
+  // Atividades do período (para gráficos e avisos)
   const userStudies = (studies || []).filter(s => s && s.userId === currentUser?.id);
   const userClasses = (classes || []).filter(c => c && c.userId === currentUser?.id);
   const userGroups = (groups || []).filter(g => g && g.userId === currentUser?.id);
@@ -33,27 +34,30 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
     v.returnDate === today
   );
 
-  // FÓRMULA DE SOMA ÚNICA DE ALUNOS ATIVOS (Status Início ou Continuação)
-  const uniqueActiveStudents = new Set<string>();
+  // FÓRMULA DE TOTALIZADOR DE ALUNOS (ABSOLUTO/HISTÓRICO)
+  // Contabiliza todos os alunos vinculados ao capelão no banco de dados, independente de status ou data
+  const uniqueStudents = new Set<string>();
   
-  // Adiciona alunos de estudos bíblicos ativos
+  // Percorre todo o histórico de estudos do usuário
   userStudies.forEach(s => {
-    if (s.status !== RecordStatus.TERMINO) {
-      uniqueActiveStudents.add(s.name.trim().toLowerCase());
+    if (s.name) {
+      uniqueStudents.add(s.name.trim().toLowerCase());
     }
   });
 
-  // Adiciona alunos de classes bíblicas ativas
+  // Percorre todo o histórico de classes do usuário
   userClasses.forEach(c => {
-    if (c.status !== RecordStatus.TERMINO && Array.isArray(c.students)) {
-      c.students.forEach(name => uniqueActiveStudents.add(name.trim().toLowerCase()));
+    if (Array.isArray(c.students)) {
+      c.students.forEach(name => {
+        if (name) uniqueStudents.add(name.trim().toLowerCase());
+      });
     }
   });
 
   const totalActions = userStudies.length + userClasses.length + userGroups.length + userVisits.length;
 
   const stats = [
-    { label: 'Total de alunos (HAB/HABA)', value: uniqueActiveStudents.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
+    { label: 'Total de alunos (HAB/HABA)', value: uniqueStudents.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
     { label: 'Meus PGs', value: userGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-500' },
     { label: 'Minhas Ações', value: totalActions, icon: <i className="fas fa-bolt"></i>, color: 'bg-amber-500' },
     { label: 'Minhas Visitas', value: userVisits.length, icon: <i className="fas fa-hands-helping"></i>, color: 'bg-rose-500' },

@@ -8,9 +8,9 @@ import Reports from './components/Reports';
 import Login from './components/Login';
 import Profile from './components/Profile';
 import UserManagement from './components/UserManagement';
-import { User, UserRole, Unit, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, RecordStatus } from './types';
+import { User, UserRole, Unit, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config } from './types';
 import { syncService } from './services/syncService';
-import { INITIAL_CONFIG, GOOGLE_SCRIPT_URL, APP_LOGO_BASE64, REPORT_LOGO_BASE64 } from './constants';
+import { INITIAL_CONFIG, GOOGLE_SCRIPT_URL } from './constants';
 
 const encodeData = (str: string) => btoa(unescape(encodeURIComponent(str)));
 const decodeData = (str: string) => {
@@ -48,9 +48,7 @@ const App: React.FC = () => {
     if (!baseConfig) return INITIAL_CONFIG;
     return {
       ...baseConfig,
-      googleSheetUrl: GOOGLE_SCRIPT_URL,
-      appLogo: APP_LOGO_BASE64,
-      reportLogo: REPORT_LOGO_BASE64
+      googleSheetUrl: GOOGLE_SCRIPT_URL
     };
   };
 
@@ -112,12 +110,9 @@ const App: React.FC = () => {
           }));
           setUsers(freshUsers);
 
-          // Atualiza o perfil do usuário logado caso tenha mudado em outro dispositivo
           if (currentUser) {
             const updatedMe = freshUsers.find(u => u.id === currentUser.id);
-            if (updatedMe) {
-              setCurrentUser(updatedMe);
-            }
+            if (updatedMe) setCurrentUser(updatedMe);
           }
         }
         if (cloudData.bibleStudies && Array.isArray(cloudData.bibleStudies)) setBibleStudies(cloudData.bibleStudies);
@@ -136,16 +131,6 @@ const App: React.FC = () => {
     }
   }, [currentUser, users]);
 
-  useEffect(() => {
-    if (!isAuthenticated || !isConnected || !isInitialized) return;
-    const interval = setInterval(() => {
-      if (!isSyncing && !editingItem) {
-        loadFromCloud();
-      }
-    }, 5 * 60 * 1000); 
-    return () => clearInterval(interval);
-  }, [isAuthenticated, isConnected, isInitialized, isSyncing, editingItem, loadFromCloud]);
-
   const saveToCloud = useCallback(async (overrides?: any) => {
     if (!isInitialized || !GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('URL_EXEMPLO')) return;
     setIsSyncing(true);
@@ -160,7 +145,7 @@ const App: React.FC = () => {
 
     let cloudConfig = overrides?.config !== undefined ? { ...overrides.config } : { ...config };
     // @ts-ignore
-    delete cloudConfig.appLogo; delete cloudConfig.reportLogo; delete cloudConfig.googleSheetUrl;
+    delete cloudConfig.googleSheetUrl;
 
     const payload = {
       users: securedUsers,
@@ -184,6 +169,48 @@ const App: React.FC = () => {
       setIsSyncing(false);
     }
   }, [isInitialized, config, users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists]);
+
+  // Efeito para processar a exclusão de itens quando itemToDelete for definido
+  useEffect(() => {
+    if (itemToDelete) {
+      const { type, id } = itemToDelete;
+      const confirm = window.confirm("Tem certeza que deseja excluir este registro? Esta ação removerá o aluno da contagem total.");
+      if (confirm) {
+        let updatedStudies = [...bibleStudies];
+        let updatedClasses = [...bibleClasses];
+        let updatedGroups = [...smallGroups];
+        let updatedVisits = [...staffVisits];
+
+        if (type === 'study') updatedStudies = bibleStudies.filter(s => s.id !== id);
+        if (type === 'class') updatedClasses = bibleClasses.filter(c => c.id !== id);
+        if (type === 'pg') updatedGroups = smallGroups.filter(g => g.id !== id);
+        if (type === 'visit') updatedVisits = staffVisits.filter(v => v.id !== id);
+
+        setBibleStudies(updatedStudies);
+        setBibleClasses(updatedClasses);
+        setSmallGroups(updatedGroups);
+        setStaffVisits(updatedVisits);
+
+        saveToCloud({
+          bibleStudies: updatedStudies,
+          bibleClasses: updatedClasses,
+          smallGroups: updatedGroups,
+          staffVisits: updatedVisits
+        });
+      }
+      setItemToDelete(null);
+    }
+  }, [itemToDelete, bibleStudies, bibleClasses, smallGroups, staffVisits, saveToCloud]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isConnected || !isInitialized) return;
+    const interval = setInterval(() => {
+      if (!isSyncing && !editingItem) {
+        loadFromCloud();
+      }
+    }, 5 * 60 * 1000); 
+    return () => clearInterval(interval);
+  }, [isAuthenticated, isConnected, isInitialized, isSyncing, editingItem, loadFromCloud]);
 
   const handleLogin = async (email: string, pass: string) => {
     setLoginError(null);
@@ -236,48 +263,73 @@ const App: React.FC = () => {
   };
 
   if (!isAuthenticated || !currentUser) {
-    return <Login logo={config.appLogo} onLogin={handleLogin} isSyncing={isSyncing} errorMsg={loginError} isConnected={isConnected} />;
+    return <Login onLogin={handleLogin} isSyncing={isSyncing} errorMsg={loginError} isConnected={isConnected} />;
   }
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab} userRole={currentUser.role} isSyncing={isSyncing} isConnected={isConnected} config={config} onLogout={handleLogout}>
-      <div className="max-w-7xl mx-auto px-4 md:px-0">
-        <div className="mb-8 flex flex-col md:flex-row gap-4 items-start md:items-center">
-          {['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab) && (
-            <div className="flex bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 max-w-fit">
-              <button onClick={() => setCurrentUnit(Unit.HAB)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HAB ? 'text-white shadow-lg' : 'text-slate-400'}`} style={{ backgroundColor: currentUnit === Unit.HAB ? (config.primaryColor || '#005a9c') : undefined }}>Unidade HAB</button>
-              <button onClick={() => setCurrentUnit(Unit.HABA)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HABA ? 'text-white shadow-lg' : 'text-slate-400'}`} style={{ backgroundColor: currentUnit === Unit.HABA ? (config.primaryColor || '#005a9c') : undefined }}>Unidade HABA</button>
-            </div>
+    <>
+      <Layout activeTab={activeTab} setActiveTab={setActiveTab} userRole={currentUser.role} isSyncing={isSyncing} isConnected={isConnected} config={config} onLogout={handleLogout}>
+        <div className="max-w-7xl mx-auto px-4 md:px-0">
+          <div className="mb-8 flex flex-col md:flex-row gap-4 items-start md:items-center">
+            {['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab) && (
+              <div className="flex bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 max-w-fit">
+                <button onClick={() => setCurrentUnit(Unit.HAB)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HAB ? 'text-white shadow-lg' : 'text-slate-400'}`} style={{ backgroundColor: currentUnit === Unit.HAB ? (config.primaryColor || '#005a9c') : undefined }}>Unidade HAB</button>
+                <button onClick={() => setCurrentUnit(Unit.HABA)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase transition-all ${currentUnit === Unit.HABA ? 'text-white shadow-lg' : 'text-slate-400'}`} style={{ backgroundColor: currentUnit === Unit.HABA ? (config.primaryColor || '#005a9c') : undefined }}>Unidade HABA</button>
+              </div>
+            )}
+          </div>
+          {activeTab === 'dashboard' && currentUser && <Dashboard studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} currentUser={currentUser} config={config} onGoToTab={setActiveTab} onUpdateConfig={c => {setConfig(c); saveToCloud({config: c});}} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
+          {activeTab === 'bibleStudy' && <BibleStudyForm users={users} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleStudies).slice(0, 15)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} />}
+          {activeTab === 'bibleClass' && <BibleClassForm users={users} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleClasses).slice(0, 15)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} />}
+          {activeTab === 'smallGroup' && <SmallGroupForm users={users} groupsList={currentUnit === Unit.HAB ? masterLists.groupsHAB : masterLists.groupsHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(smallGroups).slice(0, 15)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />}
+          {activeTab === 'staffVisit' && <StaffVisitForm users={users} onToggleReturn={id => { const up = staffVisits.map(x=>x.id===id?{...x, returnCompleted: !x.returnCompleted}:x); setStaffVisits(up); saveToCloud({staffVisits: up}); }} staffList={currentUnit === Unit.HAB ? masterLists.staffHAB : masterLists.staffHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(staffVisits).slice(0, 15)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />}
+          {activeTab === 'reports' && <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} config={config} onRefresh={loadFromCloud} />}
+          {activeTab === 'users' && <UserManagement users={users} currentUser={currentUser} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
+          {activeTab === 'profile' && currentUser && <Profile user={currentUser} isSyncing={isSyncing} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
+          {activeTab === 'admin' && (
+            <AdminPanel 
+              config={config} 
+              masterLists={masterLists} 
+              users={users} 
+              currentUser={currentUser}
+              bibleStudies={bibleStudies}
+              bibleClasses={bibleClasses}
+              smallGroups={smallGroups}
+              staffVisits={staffVisits}
+              onSaveAllData={async (c, l) => { 
+                setConfig(applySystemOverrides(c)); 
+                setMasterLists(l); 
+                await saveToCloud({ config: c, masterLists: l }); 
+              }}
+              onRefreshData={loadFromCloud}
+            />
           )}
         </div>
-        {activeTab === 'dashboard' && currentUser && <Dashboard studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} currentUser={currentUser} config={config} onGoToTab={setActiveTab} onUpdateConfig={c => {setConfig(c); saveToCloud({config: c});}} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
-        {activeTab === 'bibleStudy' && <BibleStudyForm users={users} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleStudies).slice(0, 15)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} />}
-        {activeTab === 'bibleClass' && <BibleClassForm users={users} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(bibleClasses).slice(0, 15)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} />}
-        {activeTab === 'smallGroup' && <SmallGroupForm users={users} groupsList={currentUnit === Unit.HAB ? masterLists.groupsHAB : masterLists.groupsHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(smallGroups).slice(0, 15)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />}
-        {activeTab === 'staffVisit' && <StaffVisitForm users={users} onToggleReturn={id => { const up = staffVisits.map(x=>x.id===id?{...x, returnCompleted: !x.returnCompleted}:x); setStaffVisits(up); saveToCloud({staffVisits: up}); }} staffList={currentUnit === Unit.HAB ? masterLists.staffHAB : masterLists.staffHABA} editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} sectors={currentUnit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA} history={getVisibleHistory(staffVisits).slice(0, 15)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />}
-        {activeTab === 'reports' && <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} config={config} onRefresh={loadFromCloud} />}
-        {activeTab === 'users' && <UserManagement users={users} currentUser={currentUser} onUpdateUsers={async u => { setUsers(u); await saveToCloud({ users: u }); }} />}
-        {activeTab === 'profile' && currentUser && <Profile user={currentUser} isSyncing={isSyncing} onUpdateUser={u => { setCurrentUser(u); const updated = users.map(usr => usr.id === u.id ? u : usr); setUsers(updated); saveToCloud({users: updated}); }} />}
-        {activeTab === 'admin' && (
-          <AdminPanel 
-            config={config} 
-            masterLists={masterLists} 
-            users={users} 
-            currentUser={currentUser}
-            bibleStudies={bibleStudies}
-            bibleClasses={bibleClasses}
-            smallGroups={smallGroups}
-            staffVisits={staffVisits}
-            onSaveAllData={async (c, l) => { 
-              setConfig(applySystemOverrides(c)); 
-              setMasterLists(l); 
-              await saveToCloud({ config: c, masterLists: l }); 
-            }}
-            onRefreshData={loadFromCloud}
-          />
-        )}
-      </div>
-    </Layout>
+      </Layout>
+
+      {/* TELA DE SINCRONIZAÇÃO GLOBAL - BLOQUEANTE */}
+      {isSyncing && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[9999] flex items-center justify-center p-6">
+          <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-8 max-w-sm w-full text-center border-4 border-white animate-in zoom-in duration-300">
+            <div className="relative">
+              <div className="w-20 h-20 border-8 border-slate-100 border-t-[#005a9c] rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <i className="fas fa-cloud-upload-alt text-[#005a9c] text-2xl animate-bounce"></i>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Sincronizando</h3>
+              <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest leading-relaxed">
+                Aguarde um momento... <br/> Estamos salvando seus dados com segurança na nuvem.
+              </p>
+            </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-[#005a9c] h-full animate-progress"></div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

@@ -92,8 +92,6 @@ export interface StaffVisit {
 
 export interface Config {
   googleSheetUrl: string;
-  appLogo: string;
-  reportLogo: string;
   muralText: string;
   headerLine1: string;
   headerLine2: string;

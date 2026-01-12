@@ -4,7 +4,7 @@ import { User } from '../types';
 
 interface ProfileProps {
   user: User;
-  isSyncing?: boolean; // Nova prop para controle visual
+  isSyncing?: boolean;
   onUpdateUser: (updatedUser: User) => void;
 }
 
@@ -39,7 +39,7 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.7)); // Qualidade 70%
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
       };
     });
   };
@@ -59,26 +59,19 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
 
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    
     let updatedUser = { ...user, name, profilePic };
-
-    // Se houver tentativa de mudar senha
     if (passData.new || passData.confirm) {
       if (passData.new !== passData.confirm) {
         return alert('As novas senhas não coincidem!');
       }
       updatedUser.password = passData.new;
     }
-
     onUpdateUser(updatedUser);
     setPassData({ current: '', new: '', confirm: '' });
-    // O alerta agora será secundário ao processo de sincronia visual
   };
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500 pb-24">
-      
-      {/* OVERLAY DE SINCRONIZAÇÃO PADRÃO */}
       {isSyncing && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[1000] flex items-center justify-center p-4">
           <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl flex flex-col items-center gap-8 max-w-md w-full text-center border-4 border-blue-50 animate-in zoom-in duration-300">
