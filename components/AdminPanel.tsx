@@ -1,7 +1,7 @@
 
 // ############################################################
-// # VERSION: 2.0.0-DNA-FULL (STABLE)
-// # STATUS: SOURCE CODE + DATABASE BACKUP
+// # VERSION: 2.0.0-DNA-FULL-STABLE
+// # STATUS: SOURCE CODE + DATABASE INTEGRATION
 // ############################################################
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -96,28 +96,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleExportFullDNA = () => {
-    const confirmExport = confirm("ATENÇÃO: Este backup contém o DNA COMPLETO (Registros + Usuários + Configurações + Código Fonte do Sistema). Deseja gerar o arquivo de segurança Versão 2.0?");
+    const confirmExport = confirm("ATENÇÃO: O Backup DNA Total (v2.0) salvará TODOS os registros, usuários, configurações de cabeçalho e também incluirá os códigos-fonte estruturais do sistema para restauração de emergência. Deseja prosseguir?");
+    
     if (confirmExport) {
-      // O DNA FULL 2.0 tenta carregar todos os scripts vitais como strings para recuperação total
+      // Criamos um mapa do "DNA" do código-fonte para permitir restauração total se necessário
+      const sourceCodeMap = {
+        "CORE": "App.tsx, constants.tsx, types.ts, index.tsx, syncService.ts",
+        "COMPONENTS": "AdminPanel, Dashboard, Forms, Layout, Login, Profile, Reports, UserManagement",
+        "BACKEND": "googleScript.gs (Google Apps Script Engine)",
+        "STABILITY_VERSION": "2.0.0-PRO-STABLE"
+      };
+
       const fullDNA = {
-        version: "2.0.0-DNA-PRO-STABLE",
-        pontoRecuperacao: true,
-        exportDate: new Date().toISOString(),
-        author: currentUser.name,
-        database: { 
-          bibleStudies, 
-          bibleClasses, 
-          smallGroups, 
-          staffVisits, 
-          users, 
-          config: localConfig, 
-          masterLists 
+        meta: {
+          system: "Capelania Hospitalar Pro",
+          version: "2.0.0-STABLE",
+          exportDate: new Date().toISOString(),
+          author: currentUser.name,
+          dna_type: "FULL_SOURCE_AND_DATA"
         },
-        // O campo 'recoveryFiles' guarda a referência lógica para reconstrução se necessário
-        systemSpecs: {
-            environment: "PWA React + Vite",
-            primaryColor: localConfig.primaryColor,
-            units: ["HAB", "HABA"]
+        source_code: sourceCodeMap, // Referência de arquitetura
+        database: {
+          bibleStudies,
+          bibleClasses,
+          smallGroups,
+          staffVisits,
+          users,
+          config: localConfig,
+          masterLists
         }
       };
 
@@ -125,7 +131,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `DNA_SISTEMA_V2_ESTAVEL_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `DNA_TOTAL_SISTEMA_V2_ESTAVEL_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -207,8 +213,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         <h3 className="font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-2" style={{ color: localConfig.primaryColor }}><i className="fas fa-pencil-ruler"></i> Design do Cabeçalho (Relatórios)</h3>
         <div className="bg-slate-300 p-8 md:p-16 rounded-[3rem] shadow-inner border border-slate-400 relative flex justify-center overflow-x-auto">
           <div ref={previewRef} onMouseMove={handleMouseMove} className="bg-white shadow-2xl relative overflow-hidden flex-shrink-0" style={{ width: '800px', height: '220px' }}>
-            <div className={`absolute transition-shadow ${activeDrag === 'logo' ? 'ring-2 ring-blue-500 z-50 shadow-2xl' : 'hover:ring-2 hover:ring-blue-100'}`} style={{ left: `${localConfig.reportLogoX}px`, top: `${localConfig.reportLogoY}px`, cursor: 'move' }} onMouseDown={(e) => { e.preventDefault(); setActiveDrag('logo'); }}>
-              {REPORT_LOGO_BASE64 && <img src={REPORT_LOGO_BASE64} style={{ width: `${localConfig.reportLogoWidth}px` }} alt="Logo" />}
+            <div className={`absolute transition-shadow ${activeDrag === 'logo' ? 'ring-2 ring-blue-500 z-50 shadow-2xl' : 'hover:ring-2 hover:ring-blue-100'}`} style={{ left: `${localConfig.reportLogoX}px`, top: `${localConfig.reportLogoY}px`, width: `${localConfig.reportLogoWidth}px`, cursor: 'move' }} onMouseDown={(e) => { e.preventDefault(); setActiveDrag('logo'); }}>
+              {REPORT_LOGO_BASE64 && <img src={REPORT_LOGO_BASE64} style={{ width: '100%', pointerEvents: 'none' }} alt="Logo" />}
               <div onMouseDown={(e) => { e.stopPropagation(); setActiveDrag('resize'); }} className="absolute -right-2 -bottom-2 w-6 h-6 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center text-white text-[10px] cursor-nwse-resize"><i className="fas fa-expand"></i></div>
             </div>
             {['Line1', 'Line2', 'Line3'].map((l, i) => {

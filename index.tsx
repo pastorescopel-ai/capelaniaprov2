@@ -1,8 +1,8 @@
 
 // ############################################################
 // # SYSTEM ENTRY POINT - RESTORE POINT V2.0.0-STABLE
-// # PONTO DE RECUPERAÇÃO GERAL DO SISTEMA
-// # DATA: 10/04/2024
+// # PONTO DE RECUPERAÇÃO GERAL DO SISTEMA - CÓDIGO ÍNTEGRO
+// # DATA: 10/04/2024 - VERSÃO PRO
 // ############################################################
 
 import React from 'react';

@@ -1,7 +1,7 @@
 
 // ############################################################
 // # APP CORE - VERSION 2.0.0-STABLE
-// # TUDO FUNCIONANDO PERFEITAMENTE - PONTO DE RECUPERAÇÃO
+// # ESTADO: ESTÁVEL / RESTAURAÇÃO COMPLETA DISPONÍVEL
 // ############################################################
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -179,7 +179,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (itemToDelete) {
       const { type, id } = itemToDelete;
-      const confirm = window.confirm("Tem certeza que deseja excluir este registro? Esta ação removerá o aluno da contagem total.");
+      const confirm = window.confirm("Tem certeza que deseja excluir este registro? Esta ação removerá o registro e atualizará as contagens.");
       if (confirm) {
         let updatedStudies = [...bibleStudies];
         let updatedClasses = [...bibleClasses];

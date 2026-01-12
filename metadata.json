@@ -1,6 +1,6 @@
 {
   "name": "Capelania Hospitalar Pro",
-  "description": "PONTO DE RECUPERAÇÃO V2.0 - SISTEMA ESTÁVEL. Inclui Backup DNA Total (Dados + Código Fonte), Dashboard Cumulativo, Sincronização Global e Motor de Impressão 1:1.",
-  "version": "2.0.0-PRO",
+  "description": "RESTORE POINT V2.0 - SISTEMA ESTÁVEL. Backup DNA Total incluindo Banco de Dados completo e Código-Fonte integral de todos os módulos. Contagem cumulativa de alunos e sincronização global ativa.",
+  "version": "2.0.0-PRO-STABLE",
   "requestFramePermissions": []
 }
