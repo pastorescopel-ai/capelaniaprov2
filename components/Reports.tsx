@@ -1,12 +1,11 @@
 
 // ############################################################
-// # VERSION: 1.0.4-TOTALIZER-FIX (STABLE)
-// # STATUS: CUMULATIVE STUDENT COUNTING
+// # VERSION: 1.0.7-FILTER-INTEGRITY (STABLE)
+// # STATUS: CLICKABLE CARDS + FULL FILTER SYNC
 // ############################################################
 
 import React, { useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
-import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, UserRole } from '../types';
+import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config } from '../types';
 import { REPORT_LOGO_BASE64 } from '../constants';
 
 interface ReportsProps {
@@ -23,20 +22,15 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [selectedDetailUser, setSelectedDetailUser] = useState<User | null>(null);
   
-  const [startDate, setStartDate] = useState(new Date(2020, 0, 1).toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedChaplain, setSelectedChaplain] = useState('all');
   const [selectedUnit, setSelectedUnit] = useState<'all' | Unit>('all');
 
   const pColor = config.primaryColor || '#005a9c';
 
-  // Dados filtrados apenas para contagem de AÇÕES (Estudos, Classes, PGs, Visitas) no período
+  // DADOS FILTRADOS POR PERÍODO, UNIDADE E CAPELÃO
   const filteredData = useMemo(() => {
-    const sList = Array.isArray(studies) ? studies : [];
-    const cList = Array.isArray(classes) ? classes : [];
-    const gList = Array.isArray(groups) ? groups : [];
-    const vList = Array.isArray(visits) ? visits : [];
-
     const filterFn = (item: any) => {
       if (!item || !item.date) return false;
       const itemDate = item.date.split('T')[0];
@@ -48,31 +42,25 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
 
     return {
-      studies: sList.filter(filterFn),
-      classes: cList.filter(filterFn),
-      groups: gList.filter(filterFn),
-      visits: vList.filter(filterFn),
+      studies: (studies || []).filter(filterFn),
+      classes: (classes || []).filter(filterFn),
+      groups: (groups || []).filter(filterFn),
+      visits: (visits || []).filter(filterFn),
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
 
-  // ESTATÍSTICAS TOTAIS (Alunos é absoluto do banco, Ações é do período)
+  // ESTATÍSTICAS TOTAIS RESPEITANDO OS FILTROS
   const totalStats = useMemo(() => {
-    const uniqueStudentContexts = new Set<string>();
+    const uniqueStudentsInFilter = new Set<string>();
     
-    // Contagem absoluta de alunos em toda a base (independente de filtro de data)
-    studies.forEach(s => { 
-      if (s.name) {
-        const studentKey = `${s.userId}-${s.unit || Unit.HAB}-${s.name.trim().toLowerCase()}`;
-        uniqueStudentContexts.add(studentKey); 
-      }
+    filteredData.studies.forEach(s => {
+      if (s.name) uniqueStudentsInFilter.add(s.name.trim().toLowerCase());
     });
-    classes.forEach(c => { 
+    
+    filteredData.classes.forEach(c => {
       if (Array.isArray(c.students)) {
-        c.students.forEach(name => { 
-          if (name) {
-            const studentKey = `${c.userId}-${c.unit || Unit.HAB}-${name.trim().toLowerCase()}`;
-            uniqueStudentContexts.add(studentKey); 
-          }
+        c.students.forEach(name => {
+          if (name) uniqueStudentsInFilter.add(name.trim().toLowerCase());
         });
       }
     });
@@ -82,39 +70,34 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       classes: filteredData.classes.length,
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,
-      totalStudents: uniqueStudentContexts.size
+      totalStudents: uniqueStudentsInFilter.size
     };
-  }, [studies, classes, filteredData]);
+  }, [filteredData]);
 
-  // ESTATÍSTICAS POR CAPELÃO
   const chaplainStats = useMemo(() => {
-    const allUserIdsFromData = new Set<string>([
-        ...studies.map(s => s.userId),
-        ...classes.map(c => c.userId),
-        ...groups.map(g => g.userId),
-        ...visits.map(v => v.userId)
-    ]);
-    const activeUsers = Array.isArray(users) ? users : [];
-    activeUsers.forEach(u => allUserIdsFromData.add(u.id));
+    return users.map(userObj => {
+      const uid = userObj.id;
 
-    return Array.from(allUserIdsFromData).map(uid => {
-      const existingUser = activeUsers.find(u => u.id === uid);
-      const userObj: User = existingUser || { id: uid, name: `Capelão Antigo`, email: '---', role: UserRole.CHAPLAIN };
-
-      // Histórico COMPLETO (Para Alunos e Detalhamento)
-      const uStudiesFull = studies.filter(s => s.userId === uid);
-      const uClassesFull = classes.filter(c => c.userId === uid);
-      
-      // Histórico do PERÍODO (Para contagem de ações e gráficos)
       const uStudiesFiltered = filteredData.studies.filter(s => s.userId === uid);
       const uClassesFiltered = filteredData.classes.filter(c => c.userId === uid);
       const uVisitsFiltered = filteredData.visits.filter(v => v.userId === uid);
       const uGroupsFiltered = filteredData.groups.filter(g => g.userId === uid);
       
-      // Unicidade de alunos baseada no HISTÓRICO COMPLETO do capelão
       const uniqueNames = new Set<string>();
-      uStudiesFull.forEach(s => { if (s.name) uniqueNames.add(s.name.trim().toLowerCase()); });
-      uClassesFull.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
+      uStudiesFiltered.forEach(s => { if (s.name) uniqueNames.add(s.name.trim().toLowerCase()); });
+      uClassesFiltered.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uniqueNames.add(n.trim().toLowerCase())); });
+
+      const missingForms = [];
+      if (uStudiesFiltered.length === 0) missingForms.push("Estudo Bíblico");
+      if (uClassesFiltered.length === 0) missingForms.push("Classe Bíblica");
+      if (uGroupsFiltered.length === 0) missingForms.push("Pequeno Grupo");
+      if (uVisitsFiltered.length === 0) missingForms.push("Visita Colaborador");
+
+      const totalActions = uStudiesFiltered.length + uClassesFiltered.length + uVisitsFiltered.length + uGroupsFiltered.length;
+      
+      let flag = null;
+      if (totalActions === 0) flag = 'red';
+      else if (missingForms.length > 0) flag = 'yellow';
 
       const getUnitStats = (unit: Unit) => {
           const unitStudies = uStudiesFiltered.filter(s => (s.unit || Unit.HAB) === unit);
@@ -122,10 +105,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           const unitGroups = uGroupsFiltered.filter(g => (g.unit || Unit.HAB) === unit);
           const unitVisits = uVisitsFiltered.filter(v => (v.unit || Unit.HAB) === unit);
           
-          // Alunos únicos na unidade (Base Histórica da Unidade)
           const unitUniqueNames = new Set<string>();
-          uStudiesFull.filter(s => (s.unit || Unit.HAB) === unit).forEach(s => { if (s.name) unitUniqueNames.add(s.name.trim().toLowerCase()); });
-          uClassesFull.filter(c => (c.unit || Unit.HAB) === unit).forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => unitUniqueNames.add(n.trim().toLowerCase())); });
+          unitStudies.forEach(s => { if (s.name) unitUniqueNames.add(s.name.trim().toLowerCase()); });
+          unitClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => unitUniqueNames.add(n.trim().toLowerCase())); });
           
           return {
               students: unitUniqueNames.size,
@@ -134,9 +116,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               groups: unitGroups.length,
               visits: unitVisits.length,
               total: unitStudies.length + unitClasses.length + unitGroups.length + unitVisits.length,
-              // Mantemos o raw como o HISTÓRICO COMPLETO para o modal exibir o progresso do aluno
-              rawStudies: uStudiesFull.filter(s => (s.unit || Unit.HAB) === unit).sort((a,b) => b.createdAt - a.createdAt),
-              rawClasses: uClassesFull.filter(c => (c.unit || Unit.HAB) === unit).sort((a,b) => b.createdAt - a.createdAt)
+              rawStudies: unitStudies.sort((a,b) => b.createdAt - a.createdAt),
+              rawClasses: unitClasses.sort((a,b) => b.createdAt - a.createdAt)
           };
       };
 
@@ -145,58 +126,39 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         studies: uStudiesFiltered.length, classes: uClassesFiltered.length, 
         visits: uVisitsFiltered.length, groups: uGroupsFiltered.length,
         hab: getUnitStats(Unit.HAB), haba: getUnitStats(Unit.HABA), 
-        totalActions: uStudiesFiltered.length + uClassesFiltered.length + uVisitsFiltered.length + uGroupsFiltered.length,
+        totalActions, flag, missingForms
       };
-    }).filter(s => (selectedChaplain !== 'all' ? s.user.id === selectedChaplain : s.totalActions > 0 || s.students > 0))
-      .sort((a, b) => b.totalActions - a.totalActions);
-  }, [users, studies, classes, groups, visits, filteredData, selectedChaplain]);
+    })
+    .filter(s => selectedChaplain === 'all' || s.user.id === selectedChaplain)
+    .sort((a, b) => b.totalActions - a.totalActions);
+  }, [users, filteredData, selectedChaplain]);
 
   const handlePrintIsolated = () => {
     const printContent = document.getElementById('pdf-root');
     if (!printContent) return;
-
     const printWindow = window.open('', '_blank', 'width=1000,height=900');
-    if (!printWindow) {
-      alert('Por favor, permita pop-ups para imprimir o relatório.');
-      return;
-    }
-
-    const styles = Array.from(document.querySelectorAll('link, style'))
-      .map(s => s.outerHTML)
-      .join('\n');
-
+    if (!printWindow) return;
+    const styles = Array.from(document.querySelectorAll('link, style')).map(s => s.outerHTML).join('\n');
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Relatório Capelania - Impressão Estável 1.0</title>
+          <title>Relatório Capelania Hospitalar - Filtro Ativo</title>
           ${styles}
           <style>
             @media print {
               @page { size: A4; margin: 0mm !important; }
               html, body { margin: 0 !important; padding: 0 !important; width: 210mm !important; background: white !important; }
               .no-print { display: none !important; }
-              #pdf-isolated-container { box-shadow: none !important; margin: 0 !important; width: 210mm !important; transform: none !important; }
             }
-            body { background: #f1f5f9; display: flex; justify-content: center; padding: 20px 0; margin: 0; font-family: 'Inter', sans-serif; }
-            #pdf-isolated-container { background: white !important; width: 210mm !important; min-height: 297mm !important; padding: 15mm !important; box-sizing: border-box !important; position: relative !important; box-shadow: 0 0 40px rgba(0,0,0,0.1); }
+            body { background: #f1f5f9; display: flex; justify-content: center; padding: 20px 0; margin: 0; }
+            #pdf-isolated-container { background: white !important; width: 210mm !important; min-height: 297mm !important; padding: 15mm !important; box-shadow: 0 0 40px rgba(0,0,0,0.1); }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            header { position: relative !important; height: 140px !important; }
-            #pdf-root { width: 100% !important; max-width: none !important; box-shadow: none !important; border: none !important; padding: 0 !important; }
           </style>
         </head>
         <body>
-          <div id="pdf-isolated-container">
-            ${printContent.innerHTML}
-          </div>
-          <script>
-            window.onload = () => {
-              setTimeout(() => {
-                window.print();
-                window.close();
-              }, 800);
-            };
-          </script>
+          <div id="pdf-isolated-container">${printContent.innerHTML}</div>
+          <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 800); };</script>
         </body>
       </html>
     `);
@@ -204,69 +166,49 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   };
 
   const summaryCards = [
-    { label: 'Total de Alunos', val: totalStats.totalStudents, icon: 'fa-user-graduate', color: 'bg-blue-600' },
+    { label: 'Alunos no Período', val: totalStats.totalStudents, icon: 'fa-user-graduate', color: 'bg-blue-600' },
     { label: 'Estudos Bíblicos', val: totalStats.studies, icon: 'fa-book', color: 'bg-blue-500' },
     { label: 'Classes Bíblicas', val: totalStats.classes, icon: 'fa-users', color: 'bg-indigo-500' },
     { label: 'Pequenos Grupos', val: totalStats.groups, icon: 'fa-house-user', color: 'bg-emerald-500' },
     { label: 'Visitas Colab.', val: totalStats.visits, icon: 'fa-handshake', color: 'bg-rose-500' },
   ];
 
-  const PdfTemplate = () => {
-    const safeWidth = config.reportLogoWidth > 0 ? config.reportLogoWidth : 150;
-    
-    return (
-      <div id="pdf-root" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
-        <header className="relative border-b-4 flex-shrink-0" style={{ height: '140px', borderColor: pColor }}>
-          {REPORT_LOGO_BASE64 && (
-            <img 
-              src={REPORT_LOGO_BASE64} 
-              style={{ 
-                position: 'absolute', 
-                left: `${config.reportLogoX}px`, 
-                top: `${config.reportLogoY}px`, 
-                width: `${safeWidth}px`,
-                zIndex: 10
-              }} 
-              alt="Logo" 
-              onError={(e) => {
-                console.error("Erro ao carregar logo Base64");
-              }}
-            />
-          )}
-          <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
-            <h1 style={{ fontSize: `${config.fontSize1}px`, color: pColor }} className="font-black uppercase m-0 leading-tight">{config.headerLine1}</h1>
-          </div>
-          <div style={{ position: 'absolute', left: `${config.headerLine2X}px`, top: `${config.headerLine2Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
-            <h2 style={{ fontSize: `${config.fontSize2}px` }} className="font-bold text-slate-600 uppercase m-0 leading-tight">{config.headerLine2}</h2>
-          </div>
-          <div style={{ position: 'absolute', left: `${config.headerLine3X}px`, top: `${config.headerLine3Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
-            <h3 style={{ fontSize: `${config.fontSize3}px` }} className="font-medium text-slate-400 uppercase m-0 leading-tight">{config.headerLine3}</h3>
-          </div>
-          <div style={{ position: 'absolute', right: 0, top: '10px', textAlign: 'right' }}>
-            <p className="text-[9px] font-bold uppercase text-slate-300">Emissão: {new Date().toLocaleDateString()}</p>
-            <p className="text-[8px] font-black uppercase" style={{ color: pColor }}>Unidade: {selectedUnit === 'all' ? 'HAB + HABA' : selectedUnit}</p>
-          </div>
-        </header>
+  const PdfTemplate = () => (
+    <div id="pdf-root" className="bg-white w-full max-w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
+      <header className="relative border-b-4 flex-shrink-0" style={{ height: '140px', borderColor: pColor }}>
+        {REPORT_LOGO_BASE64 && <img src={REPORT_LOGO_BASE64} style={{ position: 'absolute', left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px`, width: `${config.reportLogoWidth}px`, zIndex: 10 }} alt="Logo" />}
+        <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
+          <h1 style={{ fontSize: `${config.fontSize1}px`, color: pColor }} className="font-black uppercase m-0">{config.headerLine1}</h1>
+        </div>
+        <div style={{ position: 'absolute', left: `${config.headerLine2X}px`, top: `${config.headerLine2Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
+          <h2 style={{ fontSize: `${config.fontSize2}px` }} className="font-bold text-slate-600 uppercase m-0">{config.headerLine2}</h2>
+        </div>
+        <div style={{ position: 'absolute', left: `${config.headerLine3X}px`, top: `${config.headerLine3Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
+          <h3 style={{ fontSize: `${config.fontSize3}px` }} className="font-medium text-slate-400 uppercase m-0">{config.headerLine3}</h3>
+        </div>
+        <div style={{ position: 'absolute', right: 0, top: '10px', textAlign: 'right' }}>
+          <p className="text-[9px] font-bold uppercase text-slate-300">Emissão: {new Date().toLocaleDateString()}</p>
+          <p className="text-[8px] font-black uppercase" style={{ color: pColor }}>Filtro: {startDate.split('-').reverse().join('/')} a {endDate.split('-').reverse().join('/')}</p>
+        </div>
+      </header>
 
-        <section className="space-y-10 mt-4 flex-1">
-            {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
-            <div className="space-y-4">
-              <h3 className="text-[11px] font-black uppercase border-b-2 border-slate-100 pb-1 flex items-center gap-2" style={{ color: pColor }}>
-                <i className="fas fa-hospital"></i> Atividades HAB
-              </h3>
-              <table className="w-full text-left text-[9px] border-collapse">
-                <thead>
-                  <tr className="text-white font-black uppercase" style={{ backgroundColor: pColor }}>
-                    <th className="p-3">Capelão</th>
-                    <th className="p-3 text-center">Alunos</th>
-                    <th className="p-3 text-center">Estudos</th>
-                    <th className="p-3 text-center">Classes</th>
-                    <th className="p-3 text-center">PGs</th>
-                    <th className="p-3 text-center">Visitas</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {chaplainStats.filter(s => s.hab.total > 0 || s.hab.students > 0).map((stat, idx) => (
+      <section className="space-y-10 mt-4 flex-1">
+        {(selectedUnit === 'all' || selectedUnit === Unit.HAB) && (
+          <div className="space-y-4">
+            <h3 className="text-[11px] font-black uppercase border-b-2 border-slate-100 pb-1 flex items-center gap-2" style={{ color: pColor }}><i className="fas fa-hospital"></i> Atividades HAB</h3>
+            <table className="w-full text-left text-[9px] border-collapse">
+              <thead>
+                <tr className="text-white font-black uppercase" style={{ backgroundColor: pColor }}>
+                  <th className="p-3">Capelão</th>
+                  <th className="p-3 text-center">Alunos</th>
+                  <th className="p-3 text-center">Estudos</th>
+                  <th className="p-3 text-center">Classes</th>
+                  <th className="p-3 text-center">PGs</th>
+                  <th className="p-3 text-center">Visitas</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {chaplainStats.map((stat, idx) => (
                   <tr key={`hab-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                     <td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td>
                     <td className="p-3 text-center font-black text-sm text-slate-900">{stat.hab.students}</td>
@@ -276,29 +218,27 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     <td className="p-3 text-center font-black text-sm text-rose-800">{stat.hab.visits}</td>
                   </tr>
                 ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-          {(selectedUnit === 'all' || selectedUnit === Unit.HABA) && (
-            <div className="space-y-4">
-              <h3 className="text-[11px] font-black uppercase border-b-2 border-slate-100 pb-1 flex items-center gap-2" style={{ color: pColor }}>
-                <i className="fas fa-hospital-alt"></i> Atividades HABA
-              </h3>
-              <table className="w-full text-left text-[9px] border-collapse">
-                <thead>
-                  <tr className="text-white font-black uppercase" style={{ backgroundColor: pColor }}>
-                    <th className="p-3">Capelão</th>
-                    <th className="p-3 text-center">Alunos</th>
-                    <th className="p-3 text-center">Estudos</th>
-                    <th className="p-3 text-center">Classes</th>
-                    <th className="p-3 text-center">PGs</th>
-                    <th className="p-3 text-center">Visitas</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {chaplainStats.filter(s => s.haba.total > 0 || s.haba.students > 0).map((stat, idx) => (
+        {(selectedUnit === 'all' || selectedUnit === Unit.HABA) && (
+          <div className="space-y-4">
+            <h3 className="text-[11px] font-black uppercase border-b-2 border-slate-100 pb-1 flex items-center gap-2" style={{ color: pColor }}><i className="fas fa-hospital-alt"></i> Atividades HABA</h3>
+            <table className="w-full text-left text-[9px] border-collapse">
+              <thead>
+                <tr className="text-white font-black uppercase" style={{ backgroundColor: pColor }}>
+                  <th className="p-3">Capelão</th>
+                  <th className="p-3 text-center">Alunos</th>
+                  <th className="p-3 text-center">Estudos</th>
+                  <th className="p-3 text-center">Classes</th>
+                  <th className="p-3 text-center">PGs</th>
+                  <th className="p-3 text-center">Visitas</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {chaplainStats.map((stat, idx) => (
                   <tr key={`haba-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                     <td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td>
                     <td className="p-3 text-center font-black text-sm text-slate-900">{stat.haba.students}</td>
@@ -308,84 +248,43 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     <td className="p-3 text-center font-black text-sm text-rose-800">{stat.haba.visits}</td>
                   </tr>
                 ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div className="space-y-6">
-            <h3 className="text-[11px] font-black uppercase text-center italic tracking-widest border-y border-slate-50 py-2" style={{ color: pColor }}>Desempenho Gráfico por Capelão</h3>
-            <div className="grid grid-cols-1 gap-14">
-              {chaplainStats.map((stat, idx) => (
-                <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-slate-100 page-break-inside-avoid">
-                  <h4 className="text-[10px] font-black text-slate-800 uppercase mb-4 flex justify-between">
-                    <span>{stat.name}</span>
-                    <span className="uppercase tracking-tighter" style={{ color: pColor }}>Ações: {stat.totalActions}</span>
-                  </h4>
-                  <div className="h-[140px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={[
-                        { n: 'Alunos', v: stat.students, nColor: pColor },
-                        { n: 'Estudos', v: stat.studies, nColor: '#3b82f6' },
-                        { n: 'Classes', v: stat.classes, nColor: '#6366f1' },
-                        { n: 'PGs', v: stat.groups, nColor: '#10b981' },
-                        { n: 'Visitas', v: stat.visits, nColor: '#f43f5e' }
-                      ]} margin={{ top: 30, bottom: 0, left: 0, right: 0 }}>
-                        <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 8, fontWeight: 800, fill: '#64748b'}} />
-                        <YAxis hide domain={[0, (dataMax: number) => Math.ceil(dataMax + (dataMax * 0.2) + 2)]} />
-                        <Bar dataKey="v" radius={[4, 4, 0, 0]} barSize={40}>
-                          {[0,1,2,3,4].map((_, i) => <Cell key={i} fill={[pColor, '#3b82f6', '#6366f1', '#10b981', '#f43f5e'][i]} />)}
-                          <LabelList dataKey="v" position="top" offset={10} style={{ fontSize: '14px', fontWeight: '900', fill: '#000000' }} />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              ))}
-            </div>
+              </tbody>
+            </table>
           </div>
+        )}
 
-          <div className="pt-8 border-t-2 border-slate-100 page-break-inside-avoid">
-            <h3 className="text-[11px] font-black uppercase mb-6 text-center tracking-widest" style={{ color: pColor }}>Resumo Consolidado de Atividades</h3>
-            <div className="grid grid-cols-5 gap-3">
-              <div className="p-4 rounded-xl text-white text-center shadow-lg border" style={{ backgroundColor: pColor, borderColor: pColor }}>
-                <p className="text-[7px] font-black uppercase tracking-widest opacity-80 mb-1 leading-none">Total Alunos</p>
-                <p className="text-2xl font-black leading-none">{totalStats.totalStudents}</p>
+        <div className="pt-8 border-t-2 border-slate-100 page-break-inside-avoid">
+          <h3 className="text-[11px] font-black uppercase mb-6 text-center tracking-widest" style={{ color: pColor }}>Resumo Geral do Período</h3>
+          <div className="grid grid-cols-5 gap-3">
+            <div className="p-4 rounded-xl text-white text-center shadow-lg border" style={{ backgroundColor: pColor, borderColor: pColor }}>
+              <p className="text-[7px] font-black uppercase tracking-widest opacity-80 mb-1 leading-none">Total Alunos</p>
+              <p className="text-2xl font-black leading-none">{totalStats.totalStudents}</p>
+            </div>
+            {[
+              { label: 'Estudos', val: totalStats.studies },
+              { label: 'Classes', val: totalStats.classes },
+              { label: 'P. Grupos', val: totalStats.groups },
+              { label: 'Visitas', val: totalStats.visits }
+            ].map((s, i) => (
+              <div key={i} className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center">
+                <p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">{s.label}</p>
+                <p className="text-xl font-black leading-none">{s.val}</p>
               </div>
-              {[
-                { label: 'Estudos', val: totalStats.studies },
-                { label: 'Classes', val: totalStats.classes },
-                { label: 'P. Grupos', val: totalStats.groups },
-                { label: 'Visitas', val: totalStats.visits }
-              ].map((s, i) => (
-                <div key={i} className="bg-slate-50 p-4 rounded-xl text-slate-800 border border-slate-100 text-center">
-                  <p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">{s.label}</p>
-                  <p className="text-xl font-black leading-none">{s.val}</p>
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
-          <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic">
-            <span>Capelania Hospitalar Pro - Auditoria: {config.lastModifiedBy || 'Master'}</span>
-            <span>Relatório Emitido em: {new Date().toLocaleDateString()}</span>
-          </div>
-          <div className="flex justify-center gap-20 pt-10 opacity-40">
-            <div className="text-center">
-              <div className="w-48 border-b border-slate-400 mb-1"></div>
-              <p className="text-[8px] font-bold text-slate-500 uppercase">Responsável pela Emissão</p>
-            </div>
-            <div className="text-center">
-              <div className="w-48 border-b border-slate-400 mb-1"></div>
-              <p className="text-[8px] font-bold text-slate-500 uppercase">Gestor da Unidade</p>
-            </div>
-          </div>
-        </footer>
-      </div>
-    );
-  };
+      <footer className="mt-auto border-t-2 border-slate-100 pt-4 flex flex-col gap-4 flex-shrink-0">
+        <div className="flex justify-between items-center text-[8px] font-black text-slate-300 uppercase italic">
+          <span>Capelania Hospitalar Pro - Auditoria: {config.lastModifiedBy || 'Admin'}</span>
+          <span>SISTEMA ESTÁVEL V2.0</span>
+        </div>
+      </footer>
+    </div>
+  );
+
+  const currentDetailStat = chaplainStats.find(s => s.user.id === selectedDetailUser?.id);
 
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
@@ -393,10 +292,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Relatórios e Estatísticas</h1>
           <div className="flex flex-wrap gap-3">
-            <button onClick={() => onRefresh && onRefresh()} className="px-6 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 hover:bg-emerald-700">
+            <button onClick={() => onRefresh && onRefresh()} className="px-6 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95">
               <i className="fas fa-sync-alt"></i> Sincronizar
             </button>
-            <button onClick={handlePrintIsolated} className="px-6 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 hover:bg-black">
+            <button onClick={handlePrintIsolated} className="px-6 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95">
               <i className="fas fa-print"></i> Impressão Direta
             </button>
             <button onClick={() => setShowPdfPreview(true)} className="px-6 py-4 text-white font-black rounded-2xl shadow-xl flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95" style={{ backgroundColor: pColor }}>
@@ -410,27 +309,27 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Capelão</label>
             <select value={selectedChaplain} onChange={e => setSelectedChaplain(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs">
-              <option value="all">Todos os Capelães (Ativos e Históricos)</option>
+              <option value="all">Todos os Capelães</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Unidade</label>
             <select value={selectedUnit} onChange={e => setSelectedUnit(e.target.value as any)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs">
-              <option value="all">Unidades HAB + HABA</option>
-              <option value={Unit.HAB}>Unidade HAB</option>
-              <option value={Unit.HABA}>Unidade HABA</option>
+              <option value="all">Todas as Unidades</option>
+              <option value={Unit.HAB}>HAB</option>
+              <option value={Unit.HABA}>HABA</option>
             </select>
           </div>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {summaryCards.map((card, i) => (
-            <div key={i} className={`${card.color} p-6 rounded-[2.5rem] text-white shadow-xl shadow-blue-100/20 group hover:scale-[1.03] transition-all`}>
+            <div key={i} className={`${card.color} p-6 rounded-[2.5rem] text-white shadow-xl`}>
               <div className="flex flex-col items-center text-center gap-3">
-                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-xl shadow-inner"><i className={`fas ${card.icon}`}></i></div>
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-lg shadow-inner"><i className={`fas ${card.icon}`}></i></div>
                 <div className="space-y-1">
                   <p className="text-[9px] font-black uppercase tracking-widest opacity-70 leading-none">{card.label}</p>
-                  <p className="text-3xl font-black leading-none">{card.val}</p>
+                  <p className="text-2xl font-black leading-none">{card.val}</p>
                 </div>
               </div>
             </div>
@@ -440,28 +339,54 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
         <h2 className="text-xl font-black text-slate-800 mb-8 uppercase tracking-tighter flex items-center gap-3">
-          <i className="fas fa-id-card-alt" style={{ color: pColor }}></i> Desempenho por Capelão
+          <i className="fas fa-id-card-alt" style={{ color: pColor }}></i> Monitoramento da Equipe
         </h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {chaplainStats.map((stat, idx) => (
-            <div key={idx} onClick={() => setSelectedDetailUser(stat.user)} className="p-6 bg-slate-50 rounded-[2.5rem] border-2 border-transparent hover:border-blue-200 cursor-pointer transition-all group">
+            <div key={idx} onClick={() => setSelectedDetailUser(stat.user)} className="p-6 bg-slate-50 rounded-[2.5rem] border-2 border-transparent hover:border-blue-200 cursor-pointer transition-all relative group">
+              
+              <div className="absolute top-6 right-6 flex gap-2">
+                {stat.flag === 'red' && (
+                  <div className="bg-rose-500 text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-lg animate-pulse" title="Sem registros no período">
+                    <i className="fas fa-flag text-xs"></i>
+                  </div>
+                )}
+                {stat.flag === 'yellow' && (
+                  <div className="bg-amber-400 text-slate-900 w-8 h-8 rounded-lg flex items-center justify-center shadow-lg" title="Faltam alguns formulários">
+                    <i className="fas fa-exclamation-triangle text-xs"></i>
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-2xl font-black shadow-sm border border-slate-100 group-hover:shadow-md transition-shadow" style={{ color: pColor }}>
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-2xl font-black shadow-sm border border-slate-100" style={{ color: pColor }}>
                   {stat.name[0]}
                 </div>
                 <div>
                   <h4 className="font-black text-slate-800 uppercase tracking-tight leading-none text-xs">{stat.name}</h4>
-                  <p className="text-[9px] font-black uppercase tracking-widest mt-1" style={{ color: pColor }}>Total: {stat.totalActions} Ações</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest mt-1" style={{ color: pColor }}>{stat.totalActions} Ações no Filtro</p>
                 </div>
               </div>
+
+              {stat.missingForms.length > 0 && (
+                <div className="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                  <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest mb-1">Ainda não lançou:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {stat.missingForms.map((f, i) => (
+                      <span key={i} className="text-[7px] font-bold bg-white text-amber-700 px-1.5 py-0.5 rounded border border-amber-200 uppercase">{f}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white p-3 rounded-xl border border-slate-100">
-                  <span className="block text-[8px] font-black text-slate-400 uppercase leading-none">Total Alunos</span>
+                <div className="bg-white p-3 rounded-xl border border-slate-100 text-center">
+                  <span className="block text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Alunos Período</span>
                   <span className="text-lg font-black text-slate-800">{stat.students}</span>
                 </div>
-                <div className="bg-white p-3 rounded-xl border border-slate-100">
-                  <span className="block text-[8px] font-black text-slate-400 uppercase leading-none">Estudos</span>
-                  <span className="text-lg font-black text-slate-800">{stat.studies}</span>
+                <div className="bg-white p-3 rounded-xl border border-slate-100 text-center">
+                  <span className="block text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Total Ações</span>
+                  <span className="text-lg font-black text-slate-800">{stat.totalActions}</span>
                 </div>
               </div>
             </div>
@@ -469,64 +394,103 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      {selectedDetailUser && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[900] flex items-center justify-center p-4">
-           <div className="bg-white w-full max-w-4xl rounded-[3rem] p-10 space-y-8 animate-in zoom-in duration-300 relative overflow-hidden flex flex-col max-h-[90vh]">
-              <button onClick={() => setSelectedDetailUser(null)} className="absolute top-8 right-8 w-12 h-12 bg-slate-50 rounded-2xl text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center z-10"><i className="fas fa-times"></i></button>
-              <div className="flex items-center gap-6 flex-shrink-0">
-                <div className="w-20 h-20 rounded-[2rem] flex items-center justify-center text-white text-3xl font-black shadow-xl" style={{ backgroundColor: pColor }}>{selectedDetailUser.name[0]}</div>
-                <div><h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">{selectedDetailUser.name}</h3><p className="text-slate-400 font-bold">{selectedDetailUser.email}</p></div>
+      {/* MODAL DE DETALHES DO CAPELÃO */}
+      {selectedDetailUser && currentDetailStat && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in duration-300">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-xl font-black shadow-sm border border-slate-100" style={{ color: pColor }}>
+                  {selectedDetailUser.name[0]}
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">{selectedDetailUser.name}</h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Detalhes de Alunos no Período</p>
+                </div>
               </div>
-              <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-8">
-                {['HAB', 'HABA'].map(u => {
-                  const stat = chaplainStats.find(s => s.user.id === selectedDetailUser.id)?.[u.toLowerCase() as 'hab' | 'haba'];
-                  if (!stat) return null;
-                  return (
-                    <div key={u} className="space-y-6">
-                      <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-2">
-                        <i className={`fas fa-hospital text-xl`} style={{ color: pColor }}></i>
-                        <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight">Histórico Completo Unidade {u}</h4>
-                      </div>
-                      {stat.rawStudies.length > 0 && (
-                        <div className="space-y-3">
-                          <h5 className="text-[10px] font-black uppercase tracking-[0.2em] ml-2" style={{ color: pColor }}>Estudos Bíblicos</h5>
-                          <div className="grid gap-3">{stat.rawStudies.map((item, idx) => (
-                              <div key={idx} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex justify-between items-center group hover:border-blue-200 transition-all">
-                                <div className="space-y-1"><p className="font-black text-slate-800 uppercase text-sm">{item.name}</p><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{item.sector} • {item.date.split('T')[0].split('-').reverse().join('/')}</p></div>
-                                <div className="text-right space-y-1"><p className="text-[9px] font-black uppercase tracking-tighter" style={{ color: pColor }}>Guia: {item.guide}</p><p className="text-xs font-black text-slate-700">{item.status}: {item.lesson}</p></div>
-                              </div>
-                            ))}</div>
-                        </div>
-                      )}
-                      {stat.rawClasses.length > 0 && (
-                        <div className="space-y-3">
-                          <h5 className="text-[10px] font-black uppercase tracking-[0.2em] ml-2" style={{ color: pColor }}>Classes Bíblicas</h5>
-                          <div className="grid gap-3">{stat.rawClasses.map((item, idx) => (
-                              <div key={idx} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex justify-between items-center group hover:border-indigo-200 transition-all">
-                                <div className="space-y-1 max-w-[60%]"><p className="font-black text-slate-800 uppercase text-xs line-clamp-1">{item.students.join(', ')}</p><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{item.sector} • {item.date.split('T')[0].split('-').reverse().join('/')}</p></div>
-                                <div className="text-right space-y-1"><p className="text-[9px] font-black uppercase tracking-tighter" style={{ color: pColor }}>Guia: {item.guide}</p><p className="text-xs font-black text-slate-700">{item.status}: {item.lesson}</p></div>
-                              </div>
-                            ))}</div>
-                        </div>
-                      )}
+              <button onClick={() => setSelectedDetailUser(null)} className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm transition-all"><i className="fas fa-times text-xl"></i></button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 space-y-10 no-scrollbar">
+              {['HAB', 'HABA'].map((unitKey) => {
+                const uStat = unitKey === 'HAB' ? currentDetailStat.hab : currentDetailStat.haba;
+                if (uStat.total === 0) return null;
+                return (
+                  <div key={unitKey} className="space-y-6">
+                    <div className="flex items-center gap-3">
+                      <div className="h-px bg-slate-100 flex-1"></div>
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Unidade {unitKey}</h4>
+                      <div className="h-px bg-slate-100 flex-1"></div>
                     </div>
-                  );
-                })}
-              </div>
-           </div>
+
+                    <div className="grid gap-4">
+                      {uStat.rawStudies.map((s, i) => (
+                        <div key={`study-${i}`} className="p-5 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-blue-500 text-white rounded-xl flex items-center justify-center shadow-lg"><i className="fas fa-book-open"></i></div>
+                            <div>
+                              <p className="font-black text-slate-800 uppercase text-xs">{s.name}</p>
+                              <p className="text-[9px] font-bold text-blue-600 uppercase tracking-widest">{s.whatsapp || 'Sem WhatsApp'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <div className="text-right">
+                              <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Guia / Lição</p>
+                              <p className="text-[10px] font-bold text-slate-700">{s.guide} - Lição {s.lesson}</p>
+                            </div>
+                            <div className="bg-white px-3 py-1.5 rounded-lg border border-blue-100 text-[8px] font-black text-blue-600 uppercase shadow-sm">Estudo</div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {uStat.rawClasses.map((c, i) => (
+                        <div key={`class-${i}`} className="p-5 bg-indigo-50/50 rounded-3xl border border-indigo-100 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 bg-indigo-500 text-white rounded-xl flex items-center justify-center shadow-lg"><i className="fas fa-users"></i></div>
+                              <div>
+                                <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">{c.guide} - Lição {c.lesson}</p>
+                                <p className="font-black text-indigo-700 uppercase text-xs">Classe Bíblica ({c.students?.length || 0} Alunos)</p>
+                              </div>
+                            </div>
+                            <div className="bg-white px-3 py-1.5 rounded-lg border border-indigo-100 text-[8px] font-black text-indigo-600 uppercase shadow-sm">Classe</div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 pt-2 border-t border-indigo-100/50">
+                            {c.students?.map((name, si) => (
+                              <span key={si} className="text-[8px] font-bold bg-white text-slate-600 px-2.5 py-1 rounded-full border border-indigo-50 uppercase shadow-sm">{name}</span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {currentDetailStat.totalActions === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                  <div className="w-20 h-20 bg-slate-50 text-slate-200 rounded-full flex items-center justify-center text-4xl">
+                    <i className="fas fa-folder-open"></i>
+                  </div>
+                  <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Nenhum aluno registrado neste filtro</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-center">
+               <button onClick={() => setSelectedDetailUser(null)} className="px-10 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest hover:bg-black transition-all">Fechar Detalhamento</button>
+            </div>
+          </div>
         </div>
       )}
 
       {showPdfPreview && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[950] flex items-center justify-center p-4 overflow-y-auto">
-          <div id="pdf-container-outer" className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
+          <div className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
+              <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Relatório PDF</h2>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center"><i className="fas fa-file-pdf"></i></div>
-                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Visualização Estável 1.0</h2>
-              </div>
-              <div className="flex items-center gap-3">
-                <button onClick={handlePrintIsolated} className="px-8 py-3.5 bg-slate-900 text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest active:scale-95 transition-all flex items-center gap-3"><i className="fas fa-print"></i> Imprimir Agora</button>
+                <button onClick={handlePrintIsolated} className="px-8 py-3.5 bg-slate-900 text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest active:scale-95 transition-all flex items-center gap-3"><i className="fas fa-print"></i> Imprimir</button>
                 <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all"><i className="fas fa-times"></i></button>
               </div>
             </div>
@@ -536,10 +500,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </div>
         </div>
       )}
-
-      <div style={{ position: 'fixed', left: '-9999px', top: 0, opacity: 0, pointerEvents: 'none' }}>
-         <PdfTemplate />
-      </div>
     </div>
   );
 };
