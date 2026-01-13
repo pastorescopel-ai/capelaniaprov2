@@ -1,10 +1,10 @@
 
 // ############################################################
-// # VERSION: 2.4.0-GRID-CARDS-RESTORE (STABLE)
-// # STATUS: PREMIUM CARDS + DYNAMIC NAME RESOLUTION
+// # VERSION: 2.5.0-PDF-GRAPHICS-INTEGRATED (STABLE)
+// # STATUS: BAR CHARTS + FOOTER CARDS + ESC KEY SUPPORT
 // ############################################################
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, MasterLists } from '../types';
 import { REPORT_LOGO_BASE64 } from '../constants';
 
@@ -36,6 +36,18 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const [selectedUnit, setSelectedUnit] = useState<'all' | Unit>('all');
 
   const pColor = config.primaryColor || '#005a9c';
+
+  // SUPORTE A TECLA ESC
+  useEffect(() => {
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowPdfPreview(false);
+        setSelectedDetailUser(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
 
   const filteredData = useMemo(() => {
     const filterFn = (item: any) => {
@@ -114,6 +126,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       };
     })
     .filter(s => selectedChaplain === 'all' || s.user.id === selectedChaplain)
+    .filter(s => s.totalActions > 0 || s.students > 0) // REGRA: SÓ APARECE SE TIVER DADOS
     .sort((a, b) => b.totalActions - a.totalActions);
   }, [users, filteredData, selectedChaplain]);
 
@@ -127,18 +140,25 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Relatório Capelania - Inteligência de Dados</title>
+          <title>Relatório Capelania - Impressão Oficial</title>
           ${styles}
-          <style>@media print { @page { size: A4; margin: 0; } .no-print { display: none; } } body { background: #f1f5f9; padding: 20px; }</style>
+          <style>
+            @media print { 
+              @page { size: A4; margin: 10mm; } 
+              .no-print { display: none; } 
+            } 
+            body { background: #fff; padding: 0; margin: 0; }
+            .pdf-container { width: 210mm; margin: auto; padding: 5mm; }
+          </style>
         </head>
-        <body><div style="background:white; width:210mm; margin:auto; padding:15mm;">${printContent.innerHTML}</div></body>
+        <body><div class="pdf-container">${printContent.innerHTML}</div></body>
       </html>
     `);
     printWindow.document.close();
   };
 
   const PdfTemplate = () => (
-    <div id="pdf-root" className="bg-white p-[15mm] flex flex-col gap-6 text-slate-900 border border-slate-100">
+    <div id="pdf-root" className="bg-white p-[5mm] flex flex-col gap-6 text-slate-900">
       <header className="relative border-b-4 flex-shrink-0" style={{ height: '140px', borderColor: pColor }}>
         {REPORT_LOGO_BASE64 && <img src={REPORT_LOGO_BASE64} style={{ position: 'absolute', left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px`, width: `${config.reportLogoWidth}px` }} alt="Logo" />}
         <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
@@ -152,21 +172,22 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </header>
 
-      <section className="space-y-10 mt-4 flex-1">
+      <section className="space-y-8 mt-4">
+        {/* TABELAS DE UNIDADES */}
         {[Unit.HAB, Unit.HABA].map(unitKey => {
             if (selectedUnit !== 'all' && selectedUnit !== unitKey) return null;
             return (
-              <div key={unitKey} className="space-y-4">
-                <h3 className="text-[11px] font-black uppercase border-b-2 border-slate-100 pb-1" style={{ color: pColor }}>Unidade {unitKey}</h3>
-                <table className="w-full text-left text-[9px] border-collapse">
+              <div key={unitKey} className="space-y-2">
+                <h3 className="text-[10px] font-black uppercase border-b border-slate-200 pb-1" style={{ color: pColor }}>Unidade {unitKey}</h3>
+                <table className="w-full text-left text-[8px] border-collapse">
                   <thead>
                     <tr className="text-white font-black uppercase" style={{ backgroundColor: pColor }}>
-                      <th className="p-3">Capelão</th>
-                      <th className="p-3 text-center">Alunos</th>
-                      <th className="p-3 text-center">Estudos</th>
-                      <th className="p-3 text-center">Classes</th>
-                      <th className="p-3 text-center">PGs</th>
-                      <th className="p-3 text-center">Visitas</th>
+                      <th className="p-2">Capelão</th>
+                      <th className="p-2 text-center">Alunos</th>
+                      <th className="p-2 text-center">Estudos</th>
+                      <th className="p-2 text-center">Classes</th>
+                      <th className="p-2 text-center">PGs</th>
+                      <th className="p-2 text-center">Visitas</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -174,12 +195,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                       const uS = unitKey === Unit.HAB ? stat.hab : stat.haba;
                       return (
                         <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                          <td className="p-3 font-bold text-slate-700 uppercase">{stat.name}</td>
-                          <td className="p-3 text-center font-black text-sm">{uS.students}</td>
-                          <td className="p-3 text-center font-black text-sm">{uS.studies}</td>
-                          <td className="p-3 text-center font-black text-sm">{uS.classes}</td>
-                          <td className="p-3 text-center font-black text-sm">{uS.groups}</td>
-                          <td className="p-3 text-center font-black text-sm">{uS.visits}</td>
+                          <td className="p-2 font-bold text-slate-700 uppercase border-b border-slate-100">{stat.name}</td>
+                          <td className="p-2 text-center font-black border-b border-slate-100">{uS.students}</td>
+                          <td className="p-2 text-center font-black border-b border-slate-100">{uS.studies}</td>
+                          <td className="p-2 text-center font-black border-b border-slate-100">{uS.classes}</td>
+                          <td className="p-2 text-center font-black border-b border-slate-100">{uS.groups}</td>
+                          <td className="p-2 text-center font-black border-b border-slate-100">{uS.visits}</td>
                         </tr>
                       );
                     })}
@@ -188,6 +209,66 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               </div>
             );
         })}
+
+        {/* GRÁFICOS DE BARRAS POR CAPELÃO */}
+        <div className="pt-6 border-t-2 border-slate-100">
+           <h3 className="text-[11px] font-black uppercase text-center mb-6 tracking-widest text-slate-400">Desempenho Gráfico por Capelão</h3>
+           <div className="grid grid-cols-2 gap-x-10 gap-y-12">
+              {chaplainStats.map((stat) => {
+                const totalS = stat.students;
+                const totalE = stat.hab.studies + stat.haba.studies;
+                const totalC = stat.hab.classes + stat.haba.classes;
+                const totalP = stat.hab.groups + stat.haba.groups;
+                const totalV = stat.hab.visits + stat.haba.visits;
+                const maxVal = Math.max(totalS, totalE, totalC, totalP, totalV, 5);
+
+                const dataBars = [
+                  { label: 'Alunos', val: totalS, color: '#3b82f6' },
+                  { label: 'Estudos', val: totalE, color: '#6366f1' },
+                  { label: 'Classes', val: totalC, color: '#8b5cf6' },
+                  { label: 'PGs', val: totalP, color: '#10b981' },
+                  { label: 'Visitas', val: totalV, color: '#f43f5e' }
+                ];
+
+                return (
+                  <div key={stat.user.id} className="space-y-4">
+                    <p className="text-[9px] font-black uppercase text-center border-b border-slate-100 pb-1">{stat.name}</p>
+                    <div className="flex items-end justify-between h-[80px] px-2 relative">
+                       {dataBars.map((bar, bi) => {
+                         const heightPerc = (bar.val / maxVal) * 100;
+                         return (
+                           <div key={bi} className="flex flex-col items-center gap-1 w-[15%]">
+                              <span className="text-[8px] font-black" style={{ color: bar.color }}>{bar.val}</span>
+                              <div style={{ height: `${heightPerc}%`, backgroundColor: bar.color, width: '100%', borderRadius: '2px 2px 0 0' }}></div>
+                              <span className="text-[5px] font-bold uppercase text-slate-400 truncate w-full text-center">{bar.label}</span>
+                           </div>
+                         );
+                       })}
+                    </div>
+                  </div>
+                );
+              })}
+           </div>
+        </div>
+
+        {/* RODAPÉ COM OS 5 CARDS DE RESUMO */}
+        <div className="pt-10 mt-auto">
+          <div className="grid grid-cols-5 gap-2">
+            {[
+              { label: 'Alunos', val: totalStats.totalStudents, color: pColor, textColor: 'white' },
+              { label: 'Estudos', val: totalStats.studies, color: '#3b82f6', textColor: 'white' },
+              { label: 'Classes', val: totalStats.classes, color: '#6366f1', textColor: 'white' },
+              { label: 'PGs', val: totalStats.groups, color: '#10b981', textColor: 'white' },
+              { label: 'Visitas', val: totalStats.visits, color: '#f43f5e', textColor: 'white' }
+            ].map((card, ci) => (
+              <div key={ci} className="p-3 rounded-2xl text-center shadow-sm border border-white" style={{ backgroundColor: card.color }}>
+                <p className="text-[7px] font-black uppercase tracking-tighter opacity-80" style={{ color: card.textColor }}>{card.label}</p>
+                <p className="text-sm font-black" style={{ color: card.textColor }}>{card.val}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-[6px] text-slate-300 uppercase font-bold mt-4 tracking-[0.5em]">Gerado pelo Sistema de Capelania Pro - {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</p>
+        </div>
       </section>
     </div>
   );
@@ -232,7 +313,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      {/* RESTAURAÇÃO DOS CARDS DOS CAPELÃES */}
+      {/* CARDS DOS CAPELÃES (FRONTEND) */}
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
         {chaplainStats.map((stat) => (
           <div key={stat.user.id} className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-6 group hover:border-blue-300 transition-all flex flex-col">
@@ -250,7 +331,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              {/* Stats HAB */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
                 <p className="text-[8px] font-black uppercase text-slate-400 text-center tracking-widest border-b border-slate-200 pb-1 mb-2">Unidade HAB</p>
                 <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-slate-500">Estudos</span><span className="text-xs font-black text-slate-800">{stat.hab.studies}</span></div>
@@ -258,7 +338,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-slate-500">PGs</span><span className="text-xs font-black text-slate-800">{stat.hab.groups}</span></div>
                 <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-slate-500">Visitas</span><span className="text-xs font-black text-slate-800">{stat.hab.visits}</span></div>
               </div>
-              {/* Stats HABA */}
               <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-2">
                 <p className="text-[8px] font-black uppercase text-blue-400 text-center tracking-widest border-b border-blue-200 pb-1 mb-2">Unidade HABA</p>
                 <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-blue-500">Estudos</span><span className="text-xs font-black text-blue-800">{stat.haba.studies}</span></div>
@@ -278,16 +357,16 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         ))}
       </div>
 
-      {/* Detalhamento Modal */}
+      {/* MODAL DETALHAMENTO COM SUPORTE ESC */}
       {selectedDetailUser && (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4" onClick={(e) => { if(e.target === e.currentTarget) setSelectedDetailUser(null); }}>
+          <div className="bg-white w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in duration-200">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">{selectedDetailUser.name}</h3>
                 <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Registros Detalhados no Período</p>
               </div>
-              <button onClick={() => setSelectedDetailUser(null)} className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm"><i className="fas fa-times text-xl"></i></button>
+              <button onClick={() => setSelectedDetailUser(null)} className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm transition-all"><i className="fas fa-times text-xl"></i></button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-8 space-y-10 no-scrollbar">
@@ -306,7 +385,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     </h4>
                     
                     <div className="grid gap-4">
-                      {/* Estudos */}
                       {uStat.rawStudies.map((s, i) => (
                         <div key={`study-${i}`} className="p-5 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <div>
@@ -321,7 +399,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                           </div>
                         </div>
                       ))}
-                      {/* Classes */}
                       {uStat.rawClasses.map((c, i) => (
                         <div key={`class-${i}`} className="p-5 bg-indigo-50/50 rounded-3xl border border-indigo-100 space-y-3">
                           <div className="flex justify-between items-center">
@@ -342,7 +419,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                           </div>
                         </div>
                       ))}
-                      {/* PGs */}
                       {uStat.rawGroups.map((g, i) => (
                         <div key={`group-${i}`} className="p-5 bg-emerald-50/50 rounded-3xl border border-emerald-100 flex justify-between items-center">
                           <div>
@@ -356,7 +432,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                           <span className="text-xs font-black text-emerald-700">{g.participantsCount} Membros</span>
                         </div>
                       ))}
-                      {/* Visitas */}
                       {uStat.rawVisits.map((v, i) => (
                         <div key={`visit-${i}`} className="p-5 bg-rose-50/50 rounded-3xl border border-rose-100 flex justify-between items-center">
                           <div>
@@ -379,20 +454,21 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             </div>
             
             <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-center">
-               <button onClick={() => setSelectedDetailUser(null)} className="px-10 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Fechar Detalhamento</button>
+               <button onClick={() => setSelectedDetailUser(null)} className="px-10 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Fechar Detalhamento (Esc)</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* MODAL PDF COM SUPORTE ESC */}
       {showPdfPreview && (
-        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[950] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
-              <h2 className="text-xl font-black text-slate-800 uppercase">Pré-visualização do Relatório</h2>
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[950] flex items-center justify-center p-4 overflow-y-auto" onClick={(e) => { if(e.target === e.currentTarget) setShowPdfPreview(false); }}>
+          <div className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print bg-slate-50/80">
+              <h2 className="text-xl font-black text-slate-800 uppercase">Pré-visualização do Relatório Oficial</h2>
               <div className="flex items-center gap-3">
-                <button onClick={handlePrintIsolated} className="px-8 py-3.5 bg-slate-900 text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest">Imprimir</button>
-                <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors"><i className="fas fa-times"></i></button>
+                <button onClick={handlePrintIsolated} className="px-8 py-3.5 bg-slate-900 text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest hover:bg-black transition-all">Imprimir Relatório</button>
+                <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm transition-all"><i className="fas fa-times"></i></button>
               </div>
             </div>
             <div className="flex-1 bg-slate-100 p-4 md:p-10 overflow-y-auto no-scrollbar"><PdfTemplate /></div>

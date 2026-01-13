@@ -1,6 +1,6 @@
 {
   "name": "Capelania Hospitalar Pro",
-  "description": "RESTORE POINT V2.4 - Layout Premium + Inteligência de Âncora. Resolução dinâmica de nomes via ID prefixado (ID_NOME) mantendo integridade total.",
-  "version": "2.4.0-PRO-STABLE",
+  "description": "RESTORE POINT V2.5 - Gráficos no PDF + Rodapé Inteligente. Inclui fechamento via ESC e exclusão automática de capelães sem dados no relatório.",
+  "version": "2.5.0-PRO-STABLE",
   "requestFramePermissions": []
 }
