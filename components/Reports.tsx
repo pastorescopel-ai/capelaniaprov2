@@ -1,7 +1,7 @@
 
 // ############################################################
-// # VERSION: 2.7.0-PREMIUM-PDF-ENGINE (STABLE)
-// # STATUS: BAR CHARTS + FOOTER CARDS + ESC SUPPORT
+// # VERSION: 2.7.1-PREMIUM-REPORTS-FINAL (STABLE)
+// # STATUS: FULL FEATURE CONSOLIDATION
 // ############################################################
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -126,7 +126,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       };
     })
     .filter(s => selectedChaplain === 'all' || s.user.id === selectedChaplain)
-    .filter(s => s.totalActions > 0 || s.students > 0) // FILTRO: OMITIR SE TUDO FOR ZERO
+    .filter(s => s.totalActions > 0 || s.students > 0)
     .sort((a, b) => b.totalActions - a.totalActions);
   }, [users, filteredData, selectedChaplain]);
 
@@ -154,7 +154,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
-    printWindow.close(); // Fecha a aba aberta após comando de impressão/cancelamento
+    printWindow.close();
   };
 
   const PdfTemplate = () => (
@@ -173,7 +173,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       </header>
 
       <section className="space-y-8 mt-4">
-        {/* TABELAS DE UNIDADES */}
         {[Unit.HAB, Unit.HABA].map(unitKey => {
             if (selectedUnit !== 'all' && selectedUnit !== unitKey) return null;
             return (
@@ -210,7 +209,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             );
         })}
 
-        {/* GRÁFICOS DE BARRAS AGRUPADOS */}
         <div className="pt-6 border-t-2 border-slate-100">
            <h3 className="text-[11px] font-black uppercase text-center mb-6 tracking-widest text-slate-400">Desempenho Gráfico por Capelão</h3>
            <div className="grid grid-cols-2 gap-x-12 gap-y-12">
@@ -220,10 +218,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 const totalC = stat.hab.classes + stat.haba.classes;
                 const totalP = stat.hab.groups + stat.haba.groups;
                 const totalV = stat.hab.visits + stat.haba.visits;
-                
-                // Escala do gráfico: 10 unidades ou o maior valor (para garantir altura mínima)
                 const maxVal = Math.max(totalS, totalE, totalC, totalP, totalV, 10);
-
                 const bars = [
                   { label: 'Alunos', val: totalS, color: '#3b82f6' },
                   { label: 'Estudos', val: totalE, color: '#6366f1' },
@@ -231,7 +226,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   { label: 'PGs', val: totalP, color: '#10b981' },
                   { label: 'Visitas', val: totalV, color: '#f43f5e' }
                 ];
-
                 return (
                   <div key={stat.user.id} className="flex flex-col items-center">
                     <p className="text-[9px] font-black uppercase mb-3 text-slate-600 border-b w-full text-center pb-1 border-slate-100">{stat.name}</p>
@@ -253,7 +247,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
            </div>
         </div>
 
-        {/* RODAPÉ COM 5 CARDS DE RESUMO */}
         <div className="pt-12 mt-auto">
           <div className="grid grid-cols-5 gap-3">
             {[
@@ -318,7 +311,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      {/* GRID DE CARDS DOS CAPELÃES NA TELA (RESTAURADO) */}
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
         {chaplainStats.map((stat) => (
           <div key={stat.user.id} className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-6 group hover:border-blue-300 transition-all flex flex-col">
@@ -357,7 +349,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         ))}
       </div>
 
-      {/* MODAL DE DETALHAMENTO (ESC HABILITADO) */}
       {selectedDetailUser && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4" onClick={(e) => { if(e.target === e.currentTarget) setSelectedDetailUser(null); }}>
           <div className="bg-white w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in duration-200">
@@ -368,14 +359,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               </div>
               <button onClick={() => setSelectedDetailUser(null)} className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm transition-all"><i className="fas fa-times text-xl"></i></button>
             </div>
-            
             <div className="flex-1 overflow-y-auto p-8 space-y-10 no-scrollbar">
               {['HAB', 'HABA'].map((unitKey) => {
                 const currentStat = chaplainStats.find(s => s.user.id === selectedDetailUser.id);
                 if (!currentStat) return null;
                 const uStat = unitKey === 'HAB' ? currentStat.hab : currentStat.haba;
                 if (uStat.total === 0) return null;
-
                 return (
                   <div key={unitKey} className="space-y-6">
                     <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 text-center flex items-center gap-4">
@@ -420,7 +409,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       )}
 
-      {/* PREVIEW DO PDF (ESC HABILITADO) */}
       {showPdfPreview && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[950] flex items-center justify-center p-4 overflow-y-auto" onClick={(e) => { if(e.target === e.currentTarget) setShowPdfPreview(false); }}>
           <div className="bg-white w-full max-w-5xl my-auto rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300">

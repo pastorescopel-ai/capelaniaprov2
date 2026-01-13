@@ -1,6 +1,6 @@
 {
   "name": "Capelania Hospitalar Pro",
-  "description": "RESTORE POINT V2.7 - PDF Premium (Gráficos + Cards Rodapé) + Suporte ESC + Filtro de Inatividade em Relatórios Impressos. Integridade de formulários preservada.",
-  "version": "2.7.0-PRO-STABLE",
+  "description": "RESTORE POINT V2.7.1 - FINAL STABLE. PDF com Gráficos e Cards, Inteligência de Filtro de Impressão e UX otimizada com suporte a tecla ESC.",
+  "version": "2.7.1-PRO-FINAL",
   "requestFramePermissions": []
 }
