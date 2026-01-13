@@ -1,6 +1,6 @@
 {
   "name": "Capelania Hospitalar Pro",
-  "description": "RESTORE POINT V2.1 - SISTEMA ESTÁVEL. Inclui Filtros de Histórico Avançados (Admin), Backup DNA Total com Código-Fonte Integral e Sincronização Global v2.1.",
-  "version": "2.1.0-PRO-STABLE",
+  "description": "RESTORE POINT V2.2 - GOVERNANÇA ATIVA. Inclui Trava de Edição de Meses Anteriores, Filtros de Histórico para Capelães e Auditoria Semanal Automática.",
+  "version": "2.2.0-PRO-STABLE",
   "requestFramePermissions": []
 }

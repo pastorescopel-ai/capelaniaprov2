@@ -1,7 +1,7 @@
 
 // ############################################################
-// # APP CORE - VERSION 2.1.0-STABLE (MARCO DE ESTABILIDADE)
-// # ESTADO: FILTRAGEM DE HISTÓRICO + BACKUP DNA INTEGRADO
+// # APP CORE - VERSION 2.2.0-STABLE (MARCO DE GOVERNANÇA)
+// # ESTADO: TRAVA DE MÊS + FILTROS GLOBAIS DE HISTÓRICO
 // ############################################################
 
 import React, { useState, useEffect, useCallback } from 'react';
