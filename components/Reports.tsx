@@ -1,7 +1,7 @@
 
 // ############################################################
-// # VERSION: 1.0.8-DYNAMIC-ID-RECOGNITION (STABLE)
-// # STATUS: RELATIONAL NAME RESOLUTION IMPLEMENTED
+// # VERSION: 2.4.0-GRID-CARDS-RESTORE (STABLE)
+// # STATUS: PREMIUM CARDS + DYNAMIC NAME RESOLUTION
 // ############################################################
 
 import React, { useState, useMemo } from 'react';
@@ -14,7 +14,7 @@ interface ReportsProps {
   groups: SmallGroup[];
   visits: StaffVisit[];
   users: User[];
-  masterLists: MasterLists; // Adicionado para resolução
+  masterLists: MasterLists; 
   config: Config;
   onRefresh?: () => Promise<void>;
 }
@@ -101,7 +101,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               visits: uV.length,
               total: uS.length + uC.length + uG.length + uV.length,
               rawStudies: uS.sort((a,b) => b.createdAt - a.createdAt),
-              rawClasses: uC.sort((a,b) => b.createdAt - a.createdAt)
+              rawClasses: uC.sort((a,b) => b.createdAt - a.createdAt),
+              rawGroups: uG.sort((a,b) => b.createdAt - a.createdAt),
+              rawVisits: uV.sort((a,b) => b.createdAt - a.createdAt)
           };
       };
 
@@ -125,7 +127,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Relatório Capelania - Filtro Inteligente</title>
+          <title>Relatório Capelania - Inteligência de Dados</title>
           ${styles}
           <style>@media print { @page { size: A4; margin: 0; } .no-print { display: none; } } body { background: #f1f5f9; padding: 20px; }</style>
         </head>
@@ -190,8 +192,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     </div>
   );
 
-  const currentDetailStat = chaplainStats.find(s => s.user.id === selectedDetailUser?.id);
-
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
@@ -232,31 +232,144 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </div>
       </section>
 
-      {selectedDetailUser && currentDetailStat && (
+      {/* RESTAURAÇÃO DOS CARDS DOS CAPELÃES */}
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {chaplainStats.map((stat) => (
+          <div key={stat.user.id} className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-6 group hover:border-blue-300 transition-all flex flex-col">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-blue-600 font-black text-2xl shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-all">
+                {stat.name[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter truncate">{stat.name}</h3>
+                <div className="flex gap-2 mt-1">
+                  <span className="text-[8px] font-black uppercase bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md border border-blue-100">Alunos: {stat.students}</span>
+                  <span className="text-[8px] font-black uppercase bg-slate-50 text-slate-500 px-2 py-0.5 rounded-md border border-slate-100">Total: {stat.totalActions}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Stats HAB */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                <p className="text-[8px] font-black uppercase text-slate-400 text-center tracking-widest border-b border-slate-200 pb-1 mb-2">Unidade HAB</p>
+                <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-slate-500">Estudos</span><span className="text-xs font-black text-slate-800">{stat.hab.studies}</span></div>
+                <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-slate-500">Classes</span><span className="text-xs font-black text-slate-800">{stat.hab.classes}</span></div>
+                <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-slate-500">PGs</span><span className="text-xs font-black text-slate-800">{stat.hab.groups}</span></div>
+                <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-slate-500">Visitas</span><span className="text-xs font-black text-slate-800">{stat.hab.visits}</span></div>
+              </div>
+              {/* Stats HABA */}
+              <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-2">
+                <p className="text-[8px] font-black uppercase text-blue-400 text-center tracking-widest border-b border-blue-200 pb-1 mb-2">Unidade HABA</p>
+                <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-blue-500">Estudos</span><span className="text-xs font-black text-blue-800">{stat.haba.studies}</span></div>
+                <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-blue-500">Classes</span><span className="text-xs font-black text-blue-800">{stat.haba.classes}</span></div>
+                <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-blue-500">PGs</span><span className="text-xs font-black text-blue-800">{stat.haba.groups}</span></div>
+                <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-blue-500">Visitas</span><span className="text-xs font-black text-blue-800">{stat.haba.visits}</span></div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setSelectedDetailUser(stat.user)}
+              className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest hover:bg-black active:scale-95 transition-all mt-auto"
+            >
+              Ver Detalhamento
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Detalhamento Modal */}
+      {selectedDetailUser && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="text-xl font-black text-slate-800 uppercase">{selectedDetailUser.name} - Detalhamento</h3>
-              <button onClick={() => setSelectedDetailUser(null)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500"><i className="fas fa-times text-xl"></i></button>
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">{selectedDetailUser.name}</h3>
+                <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Registros Detalhados no Período</p>
+              </div>
+              <button onClick={() => setSelectedDetailUser(null)} className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm"><i className="fas fa-times text-xl"></i></button>
             </div>
+            
             <div className="flex-1 overflow-y-auto p-8 space-y-10 no-scrollbar">
               {['HAB', 'HABA'].map((unitKey) => {
-                const uStat = unitKey === 'HAB' ? currentDetailStat.hab : currentDetailStat.haba;
+                const currentStat = chaplainStats.find(s => s.user.id === selectedDetailUser.id);
+                if (!currentStat) return null;
+                const uStat = unitKey === 'HAB' ? currentStat.hab : currentStat.haba;
                 if (uStat.total === 0) return null;
+
                 return (
                   <div key={unitKey} className="space-y-6">
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 text-center">Unidade {unitKey}</h4>
+                    <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 text-center flex items-center gap-4">
+                      <div className="h-[1px] bg-slate-200 flex-1"></div>
+                      Unidade {unitKey}
+                      <div className="h-[1px] bg-slate-200 flex-1"></div>
+                    </h4>
+                    
                     <div className="grid gap-4">
+                      {/* Estudos */}
                       {uStat.rawStudies.map((s, i) => (
                         <div key={`study-${i}`} className="p-5 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div><p className="font-black text-slate-800 uppercase text-xs">{s.name}</p><p className="text-[9px] font-bold text-blue-600 uppercase">{resolveDynamicName(s.sector, unitKey === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA)}</p></div>
-                          <div className="text-right"><p className="text-[10px] font-bold text-slate-700">{s.guide} - Lição {s.lesson}</p></div>
+                          <div>
+                            <p className="font-black text-slate-800 uppercase text-xs">{s.name}</p>
+                            <p className="text-[9px] font-bold text-blue-600 uppercase">
+                              {resolveDynamicName(s.sector, unitKey === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-[10px] font-bold text-slate-700">{s.guide} - Lição {s.lesson}</p>
+                             <p className="text-[8px] font-black text-slate-400 uppercase">{new Date(s.date).toLocaleDateString()}</p>
+                          </div>
                         </div>
                       ))}
+                      {/* Classes */}
                       {uStat.rawClasses.map((c, i) => (
                         <div key={`class-${i}`} className="p-5 bg-indigo-50/50 rounded-3xl border border-indigo-100 space-y-3">
-                          <div className="flex justify-between items-center"><p className="font-black text-indigo-700 uppercase text-xs">Classe: {c.guide} (Lição {c.lesson})</p><p className="text-[9px] font-black text-indigo-400">{resolveDynamicName(c.sector, unitKey === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA)}</p></div>
-                          <div className="flex flex-wrap gap-2 pt-2 border-t border-indigo-100/50">{c.students?.map((name, si) => <span key={si} className="text-[8px] font-bold bg-white text-slate-600 px-2.5 py-1 rounded-full border border-indigo-50 uppercase">{name}</span>)}</div>
+                          <div className="flex justify-between items-center">
+                            <div>
+                               <p className="font-black text-indigo-700 uppercase text-xs">Classe: {c.guide} (Lição {c.lesson})</p>
+                               <p className="text-[9px] font-black text-indigo-400">
+                                 {resolveDynamicName(c.sector, unitKey === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA)}
+                               </p>
+                            </div>
+                            <span className="text-[8px] font-black text-slate-400 uppercase">{new Date(c.date).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2 pt-2 border-t border-indigo-100/30">
+                            {c.students?.map((name, si) => (
+                              <span key={si} className="text-[8px] font-bold bg-white text-slate-600 px-2.5 py-1 rounded-full border border-indigo-50 uppercase shadow-sm">
+                                {name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      {/* PGs */}
+                      {uStat.rawGroups.map((g, i) => (
+                        <div key={`group-${i}`} className="p-5 bg-emerald-50/50 rounded-3xl border border-emerald-100 flex justify-between items-center">
+                          <div>
+                            <p className="font-black text-emerald-800 uppercase text-xs">
+                              {resolveDynamicName(g.groupName, unitKey === 'HAB' ? masterLists.groupsHAB : masterLists.groupsHABA)}
+                            </p>
+                            <p className="text-[9px] font-bold text-emerald-600 uppercase">
+                              Setor: {resolveDynamicName(g.sector, unitKey === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA)}
+                            </p>
+                          </div>
+                          <span className="text-xs font-black text-emerald-700">{g.participantsCount} Membros</span>
+                        </div>
+                      ))}
+                      {/* Visitas */}
+                      {uStat.rawVisits.map((v, i) => (
+                        <div key={`visit-${i}`} className="p-5 bg-rose-50/50 rounded-3xl border border-rose-100 flex justify-between items-center">
+                          <div>
+                            <p className="font-black text-rose-800 uppercase text-xs">
+                              {resolveDynamicName(v.staffName, unitKey === 'HAB' ? masterLists.staffHAB : masterLists.staffHABA)}
+                            </p>
+                            <p className="text-[9px] font-bold text-rose-600 uppercase">{v.reason}</p>
+                          </div>
+                          {v.requiresReturn && (
+                            <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md ${v.returnCompleted ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white animate-pulse'}`}>
+                              {v.returnCompleted ? 'Retorno Ok' : 'Retorno Pendente'}
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -264,8 +377,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 );
               })}
             </div>
+            
             <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-center">
-               <button onClick={() => setSelectedDetailUser(null)} className="px-10 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest">Fechar</button>
+               <button onClick={() => setSelectedDetailUser(null)} className="px-10 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Fechar Detalhamento</button>
             </div>
           </div>
         </div>
@@ -278,7 +392,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               <h2 className="text-xl font-black text-slate-800 uppercase">Pré-visualização do Relatório</h2>
               <div className="flex items-center gap-3">
                 <button onClick={handlePrintIsolated} className="px-8 py-3.5 bg-slate-900 text-white font-black rounded-xl shadow-2xl uppercase text-[12px] tracking-widest">Imprimir</button>
-                <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500"><i className="fas fa-times"></i></button>
+                <button onClick={() => setShowPdfPreview(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors"><i className="fas fa-times"></i></button>
               </div>
             </div>
             <div className="flex-1 bg-slate-100 p-4 md:p-10 overflow-y-auto no-scrollbar"><PdfTemplate /></div>

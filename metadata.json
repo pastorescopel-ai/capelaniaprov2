@@ -1,6 +1,6 @@
 {
   "name": "Capelania Hospitalar Pro",
-  "description": "RESTORE POINT V2.3 - INTELIGÊNCIA DE DADOS. Inclui Resolução Dinâmica por Âncora Numérica (ID_NOME), mantendo a integridade total do banco de dados e layout.",
-  "version": "2.3.0-PRO-STABLE",
+  "description": "RESTORE POINT V2.4 - Layout Premium + Inteligência de Âncora. Resolução dinâmica de nomes via ID prefixado (ID_NOME) mantendo integridade total.",
+  "version": "2.4.0-PRO-STABLE",
   "requestFramePermissions": []
 }

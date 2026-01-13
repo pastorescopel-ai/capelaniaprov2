@@ -10,7 +10,7 @@ interface FormProps {
   staffList?: string[];
   users: User[];
   currentUser: User;
-  masterLists: MasterLists; // Adicionado para resolução de nomes
+  masterLists: MasterLists;
   history: any[];
   allHistory?: any[]; 
   editingItem?: any;
@@ -30,7 +30,11 @@ const isRecordLocked = (dateStr: string, userRole: UserRole) => {
          (recordDate.getFullYear() === now.getFullYear() && recordDate.getMonth() < now.getMonth());
 };
 
-// RESOLUÇÃO DINÂMICA POR ÂNCORA (ID_TEXTO)
+/**
+ * RESOLUÇÃO DINÂMICA POR ÂNCORA (ID_TEXTO)
+ * Permite que se o Admin mudar o nome na lista mestre mas manter o ID_, 
+ * o histórico se atualize visualmente.
+ */
 const resolveDynamicName = (val: string, list: string[] = []) => {
   if (!val || !val.includes('_')) return val;
   const prefix = val.split('_')[0] + '_';
@@ -191,9 +195,7 @@ const HistoryFilterBar: React.FC<{
 
 export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory, editingItem, onSubmit, onDelete, onEdit }) => {
   const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
-  const [showContinuity, setShowContinuity] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
+  
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
@@ -222,13 +224,6 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
   return (
     <div className="space-y-10 pb-20">
-      {errorMsg && (
-        <div className="bg-rose-600 p-6 rounded-[2rem] text-white flex items-center gap-5 shadow-2xl shadow-rose-200 animate-in slide-in-from-top duration-300">
-          <i className="fas fa-exclamation-circle text-3xl"></i>
-          <p className="font-black text-sm uppercase tracking-tight leading-relaxed">{errorMsg}</p>
-        </div>
-      )}
-
       <form onSubmit={(e) => { e.preventDefault(); onSubmit({ ...formData, unit }); setFormData({ date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-slate-800">Estudo Bíblico ({unit})</h2>
