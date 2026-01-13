@@ -1,6 +1,6 @@
 {
   "name": "Capelania Hospitalar Pro",
-  "description": "RESTORE POINT V2.2 - GOVERNANÇA ATIVA. Inclui Trava de Edição de Meses Anteriores, Filtros de Histórico para Capelães e Auditoria Semanal Automática.",
-  "version": "2.2.0-PRO-STABLE",
+  "description": "RESTORE POINT V2.3 - INTELIGÊNCIA DE DADOS. Inclui Resolução Dinâmica por Âncora Numérica (ID_NOME), mantendo a integridade total do banco de dados e layout.",
+  "version": "2.3.0-PRO-STABLE",
   "requestFramePermissions": []
 }

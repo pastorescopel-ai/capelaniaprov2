@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Unit, RecordStatus, VisitReason, BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole } from '../types';
+import { Unit, RecordStatus, VisitReason, BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole, MasterLists } from '../types';
 import { STATUS_OPTIONS, VISIT_REASONS } from '../constants';
 
 interface FormProps {
@@ -10,6 +10,7 @@ interface FormProps {
   staffList?: string[];
   users: User[];
   currentUser: User;
+  masterLists: MasterLists; // Adicionado para resolução de nomes
   history: any[];
   allHistory?: any[]; 
   editingItem?: any;
@@ -22,14 +23,19 @@ interface FormProps {
 
 // Lógica de Trava de Mês: Verifica se a data do registro é de um mês anterior ao atual
 const isRecordLocked = (dateStr: string, userRole: UserRole) => {
-  if (userRole === UserRole.ADMIN) return false; // Admin nunca é travado
-  
+  if (userRole === UserRole.ADMIN) return false;
   const now = new Date();
   const recordDate = new Date(dateStr);
-  
-  // Se o ano for menor, ou se o ano for igual mas o mês for menor que o atual
   return (recordDate.getFullYear() < now.getFullYear()) || 
          (recordDate.getFullYear() === now.getFullYear() && recordDate.getMonth() < now.getMonth());
+};
+
+// RESOLUÇÃO DINÂMICA POR ÂNCORA (ID_TEXTO)
+const resolveDynamicName = (val: string, list: string[] = []) => {
+  if (!val || !val.includes('_')) return val;
+  const prefix = val.split('_')[0] + '_';
+  const currentMatch = list.find(item => item.startsWith(prefix));
+  return currentMatch || val;
 };
 
 const formatWhatsApp = (value: string) => {
@@ -133,7 +139,6 @@ const HistoryCard: React.FC<{
   </div>
 );
 
-// BARRA DE FILTRO INTEGRADA (ADMIN E CAPELÃO)
 const HistoryFilterBar: React.FC<{
   users: User[],
   selectedChaplain: string,
@@ -184,12 +189,11 @@ const HistoryFilterBar: React.FC<{
   );
 };
 
-export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, history, allHistory, editingItem, onSubmit, onDelete, onEdit }) => {
+export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory, editingItem, onSubmit, onDelete, onEdit }) => {
   const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
   const [showContinuity, setShowContinuity] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Estados de Filtro para Histórico (Padrão 7 dias para todos)
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
@@ -207,18 +211,6 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
     }
   }, [editingItem]);
 
-  const activeStudentsInHistory = React.useMemo(() => {
-    if (!allHistory) return [];
-    const latestByStudent: Record<string, BibleStudy> = {};
-    allHistory.forEach(h => {
-      const currentLatest = latestByStudent[h.name];
-      if (!currentLatest || new Date(h.date) > new Date(currentLatest.date)) {
-        latestByStudent[h.name] = h;
-      }
-    });
-    return Object.values(latestByStudent).filter(h => h.status !== RecordStatus.TERMINO);
-  }, [allHistory]);
-
   const filteredHistory = useMemo(() => {
     return history.filter(item => {
       const itemDate = item.date.split('T')[0];
@@ -227,23 +219,6 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
       return matchChaplain && matchRange;
     });
   }, [history, filterChaplain, filterStart, filterEnd]);
-
-  const handleSelectHistorical = (last: BibleStudy) => {
-    const selectedDate = formData.date;
-    if (selectedDate <= last.date) {
-      setErrorMsg(`Atenção: Não é possível registrar uma continuação na mesma data ou em data anterior ao último atendimento (${last.date.split('-').reverse().join('/')}). Escolha uma data futura.`);
-      setTimeout(() => setErrorMsg(null), 6000);
-      return;
-    }
-    const lastLessonStr = String(last.lesson || "0");
-    const lastLessonNum = parseInt(lastLessonStr.replace(/\D/g, '')) || 0;
-    const nextLesson = (lastLessonNum + 1).toString();
-    if (onEdit) {
-      onEdit({ ...last, status: RecordStatus.CONTINUACAO, date: selectedDate, lesson: nextLesson });
-      setShowContinuity(false);
-      setErrorMsg(null);
-    }
-  };
 
   return (
     <div className="space-y-10 pb-20">
@@ -257,24 +232,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
       <form onSubmit={(e) => { e.preventDefault(); onSubmit({ ...formData, unit }); setFormData({ date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-slate-800">Estudo Bíblico ({unit})</h2>
-          <button type="button" onClick={() => setShowContinuity(!showContinuity)} className="text-blue-600 font-bold text-xs bg-blue-50 px-4 py-2 rounded-xl flex items-center gap-2">
-            <i className={`fas ${showContinuity ? 'fa-times' : 'fa-search'}`}></i>
-            {showContinuity ? 'Fechar' : 'Buscar Aluno'}
-          </button>
         </div>
-        {showContinuity && (
-          <div className="bg-slate-50 p-6 rounded-[1.5rem] border border-slate-200 animate-in zoom-in duration-200">
-            <h4 className="font-bold text-slate-700 mb-4 text-[10px] uppercase tracking-widest">Alunos Ativos</h4>
-            <div className="grid gap-2 max-h-40 overflow-y-auto no-scrollbar">
-              {activeStudentsInHistory.map(last => (
-                <button key={last.id} type="button" onClick={() => handleSelectHistorical(last)} className="text-left p-3 bg-white rounded-xl border border-slate-100 hover:border-blue-300 transition-all flex justify-between items-center">
-                  <span className="font-bold text-slate-800">{last.name}</span>
-                  <span className="text-[9px] bg-slate-100 px-2 py-1 rounded-lg text-slate-500 font-black uppercase">Último: {last.date.split('-').reverse().join('/')}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Selecione o setor..." /></div>
@@ -295,82 +253,41 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
       </form>
 
       <div className="space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2 mb-2">
-          <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Histórico de Atividades</h3>
-        </div>
-
-        <HistoryFilterBar 
-          users={users} 
-          isAdmin={currentUser.role === UserRole.ADMIN}
-          selectedChaplain={filterChaplain}
-          onChaplainChange={setFilterChaplain}
-          startDate={filterStart}
-          onStartChange={setFilterStart}
-          endDate={filterEnd}
-          onEndChange={setFilterEnd}
-        />
-
+        <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Histórico de Atividades</h3>
+        <HistoryFilterBar users={users} isAdmin={currentUser.role === UserRole.ADMIN} selectedChaplain={filterChaplain} onChaplainChange={setFilterChaplain} startDate={filterStart} onStartChange={setFilterStart} endDate={filterEnd} onEndChange={setFilterEnd} />
         <div className="grid gap-4">
           {filteredHistory.length > 0 ? filteredHistory.map(item => (
             <HistoryCard 
-              key={item.id} 
-              icon="📖" 
-              color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-blue-600"} 
+              key={item.id} icon="📖" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-blue-600"} 
               title={item.name} 
-              subtitle={`${item.sector} • Lição ${item.lesson} • ${item.status}`} 
+              subtitle={`${resolveDynamicName(item.sector, item.unit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA)} • Lição ${item.lesson} • ${item.status}`} 
               chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
               isLocked={isRecordLocked(item.date, currentUser.role)}
-              onEdit={() => onEdit?.(item)} 
-              onDelete={() => onDelete(item.id)} 
+              onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} 
               extra={item.status === RecordStatus.TERMINO && <span className="text-[8px] bg-rose-50 text-rose-600 px-2 py-1 rounded-lg font-black uppercase">Terminado</span>}
             />
-          )) : (
-            <div className="p-12 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
-               <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Nenhum registro encontrado para este filtro.</p>
-            </div>
-          )}
+          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro para este filtro.</p>}
         </div>
       </div>
     </div>
   );
 };
 
-export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, history, allHistory, editingItem, onSubmit, onDelete, onEdit }) => {
+export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory, editingItem, onSubmit, onDelete, onEdit }) => {
   const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' });
   const [newStudent, setNewStudent] = useState('');
-  const [showClassSearch, setShowClassSearch] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Estados de Filtro para Histórico
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
 
-  const studySuggestions = ["Ouvindo a voz de Deus", "Verdade e Vida", "Apocalipse", "Daniel"];
-
   useEffect(() => {
     if (editingItem) {
-      setFormData({
-        ...editingItem,
-        date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0]
-      });
+      setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0] });
     } else {
       setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
     }
   }, [editingItem]);
-
-  const activeClassesInHistory = React.useMemo(() => {
-    if (!allHistory) return [];
-    const latestByClass: Record<string, BibleClass> = {};
-    allHistory.forEach(h => {
-      const key = `${h.guide}-${h.sector}`;
-      const currentLatest = latestByClass[key];
-      if (!currentLatest || new Date(h.date) > new Date(currentLatest.date)) {
-        latestByClass[key] = h;
-      }
-    });
-    return Object.values(latestByClass).filter(h => h.status !== RecordStatus.TERMINO);
-  }, [allHistory]);
 
   const filteredHistory = useMemo(() => {
     return history.filter(item => {
@@ -383,52 +300,10 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
   const addStudent = () => { if (newStudent.trim()) { setFormData({...formData, students: [...formData.students, newStudent.trim()]}); setNewStudent(''); } };
 
-  const handleSelectHistorical = (last: BibleClass) => {
-    const selectedDate = formData.date;
-    if (selectedDate <= last.date) {
-      setErrorMsg(`Atenção: Não é possível registrar uma continuação na mesma data ou em data anterior à última aula (${last.date.split('-').reverse().join('/')}). Escolha uma data futura.`);
-      setTimeout(() => setErrorMsg(null), 6000);
-      return;
-    }
-    const lastLessonStr = String(last.lesson || "0");
-    const lastLessonNum = parseInt(lastLessonStr.replace(/\D/g, '')) || 0;
-    const nextLesson = (lastLessonNum + 1).toString();
-    if (onEdit) {
-      onEdit({ ...last, status: RecordStatus.CONTINUACAO, date: selectedDate, lesson: nextLesson });
-      setShowClassSearch(false);
-      setErrorMsg(null);
-    }
-  };
-
   return (
     <div className="space-y-10 pb-20">
-      {errorMsg && (
-        <div className="bg-rose-600 p-6 rounded-[2rem] text-white flex items-center gap-5 shadow-2xl shadow-rose-200 animate-in slide-in-from-top duration-300">
-          <i className="fas fa-exclamation-triangle text-3xl"></i>
-          <p className="font-black text-sm uppercase tracking-tight leading-relaxed">{errorMsg}</p>
-        </div>
-      )}
       <form onSubmit={(e) => { e.preventDefault(); if(formData.students.length===0) return; onSubmit({...formData, unit}); setFormData({ date: new Date().toISOString().split('T')[0], sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-slate-800">Classe Bíblica ({unit})</h2>
-          <button type="button" onClick={() => setShowClassSearch(!showClassSearch)} className="text-indigo-600 font-bold text-xs bg-indigo-50 px-4 py-2 rounded-xl flex items-center gap-2">
-            <i className={`fas ${showClassSearch ? 'fa-times' : 'fa-search'}`}></i>
-            {showClassSearch ? 'Fechar' : 'Buscar Classe'}
-          </button>
-        </div>
-        {showClassSearch && (
-          <div className="bg-slate-50 p-6 rounded-[1.5rem] border border-slate-200 animate-in zoom-in duration-200">
-            <h4 className="font-bold text-slate-700 mb-4 text-[10px] uppercase tracking-widest">Classes Ativas</h4>
-            <div className="grid gap-2 max-h-48 overflow-y-auto no-scrollbar">
-              {activeClassesInHistory.map(last => (
-                <button key={last.id} type="button" onClick={() => handleSelectHistorical(last)} className="text-left p-3 bg-white rounded-xl border border-slate-100 hover:border-indigo-300 transition-all flex justify-between items-center">
-                  <div><span className="font-bold text-slate-800 block">{last.guide}</span><span className="text-[8px] text-slate-400 font-black uppercase">Setor: {last.sector}</span></div>
-                  <span className="text-[10px] bg-indigo-50 px-2 py-1 rounded-lg text-indigo-600 font-black uppercase">{last.date.split('-').reverse().join('/')}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <h2 className="text-2xl font-bold text-slate-800">Classe Bíblica ({unit})</h2>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Escolha o setor..." /></div>
@@ -446,7 +321,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               ))}
             </div>
           </div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Guia de Estudo *</label><Autocomplete options={studySuggestions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Selecione ou digite o guia..." /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Guia de Estudo *</label><Autocomplete options={["Ouvindo a voz de Deus", "Verdade e Vida", "Apocalipse", "Daniel"]} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Selecione ou digite o guia..." /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada (Número) *</label><input required type="number" min="1" placeholder="Somente números positivos" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Status da Classe *</label>
             <div className="flex gap-2">
@@ -462,57 +337,33 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
       <div className="space-y-4">
         <h3 className="text-xl font-black text-slate-800 px-2 uppercase tracking-tight">Histórico de Atividades</h3>
-        
-        <HistoryFilterBar 
-          users={users} 
-          isAdmin={currentUser.role === UserRole.ADMIN}
-          selectedChaplain={filterChaplain}
-          onChaplainChange={setFilterChaplain}
-          startDate={filterStart}
-          onStartChange={setFilterStart}
-          endDate={filterEnd}
-          onEndChange={setFilterEnd}
-        />
-
+        <HistoryFilterBar users={users} isAdmin={currentUser.role === UserRole.ADMIN} selectedChaplain={filterChaplain} onChaplainChange={setFilterChaplain} startDate={filterStart} onStartChange={setFilterStart} endDate={filterEnd} onEndChange={setFilterEnd} />
         <div className="grid gap-4">
           {filteredHistory.length > 0 ? filteredHistory.map(item => (
             <HistoryCard 
-              key={item.id} 
-              icon="👥" 
-              color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-indigo-600"} 
-              title={item.lesson || 'Classe Bíblica'} 
-              subtitle={`${item.sector} • ${item.students.length} alunos • ${item.status}`} 
+              key={item.id} icon="👥" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-indigo-600"} 
+              title={item.guide || 'Classe Bíblica'} 
+              subtitle={`${resolveDynamicName(item.sector, item.unit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA)} • ${item.students.length} alunos • ${item.status}`} 
               chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
               isLocked={isRecordLocked(item.date, currentUser.role)}
-              onEdit={() => onEdit?.(item)} 
-              onDelete={() => onDelete(item.id)} 
-              extra={item.status === RecordStatus.TERMINO && <span className="text-[8px] bg-rose-50 text-rose-600 px-2 py-1 rounded-lg font-black uppercase">Terminado</span>}
+              onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} 
             />
-          )) : (
-            <div className="p-12 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
-               <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Nenhum registro encontrado para este filtro.</p>
-            </div>
-          )}
+          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro para este filtro.</p>}
         </div>
       </div>
     </div>
   );
 };
 
-export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, groupsList = [], history, editingItem, onSubmit, onDelete, onEdit }) => {
+export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, groupsList = [], history, editingItem, onSubmit, onDelete, onEdit }) => {
   const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' });
-  
-  // Estados de Filtro para Histórico
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     if (editingItem) {
-      setFormData({
-        ...editingItem,
-        date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0]
-      });
+      setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0] });
     } else {
       setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
     }
@@ -534,17 +385,7 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local do PG..." /></div>
-          
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Grupo *</label>
-            <Autocomplete 
-              options={groupsList} 
-              value={formData.groupName} 
-              onChange={v => setFormData({...formData, groupName: v})} 
-              placeholder="Pesquise o nome do grupo..." 
-              isStrict={true}
-            />
-          </div>
-
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Grupo *</label><Autocomplete options={groupsList} value={formData.groupName} onChange={v => setFormData({...formData, groupName: v})} placeholder="Pesquise o nome do grupo..." isStrict={true} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Líder *</label><input required placeholder="Líder do PG" value={formData.leader} onChange={e => setFormData({...formData, leader: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Participantes *</label><input required type="number" min="0" value={formData.participantsCount || ''} onChange={e => setFormData({...formData, participantsCount: parseInt(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Observações</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none" /></div>
@@ -554,66 +395,33 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
       <div className="space-y-4">
         <h3 className="text-xl font-black text-slate-800 px-2 uppercase tracking-tight">Histórico de Atividades</h3>
-        
-        <HistoryFilterBar 
-          users={users} 
-          isAdmin={currentUser.role === UserRole.ADMIN}
-          selectedChaplain={filterChaplain}
-          onChaplainChange={setFilterChaplain}
-          startDate={filterStart}
-          onStartChange={setFilterStart}
-          endDate={filterEnd}
-          onEndChange={setFilterEnd}
-        />
-
+        <HistoryFilterBar users={users} isAdmin={currentUser.role === UserRole.ADMIN} selectedChaplain={filterChaplain} onChaplainChange={setFilterChaplain} startDate={filterStart} onStartChange={setFilterStart} endDate={filterEnd} onEndChange={setFilterEnd} />
         <div className="grid gap-4">
           {filteredHistory.length > 0 ? filteredHistory.map(item => (
             <HistoryCard 
-              key={item.id} 
-              icon="🏠" 
-              color="text-emerald-600" 
-              title={item.groupName} 
-              subtitle={`${item.sector} • ${item.participantsCount} participantes`} 
+              key={item.id} icon="🏠" color="text-emerald-600" 
+              title={resolveDynamicName(item.groupName, item.unit === Unit.HAB ? masterLists.groupsHAB : masterLists.groupsHABA)} 
+              subtitle={`${resolveDynamicName(item.sector, item.unit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA)} • ${item.participantsCount} participantes`} 
               chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} 
               isLocked={isRecordLocked(item.date, currentUser.role)}
-              onEdit={() => onEdit?.(item)} 
-              onDelete={() => onDelete(item.id)} 
+              onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} 
             />
-          )) : (
-            <div className="p-12 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
-               <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Nenhum registro encontrado para este filtro.</p>
-            </div>
-          )}
+          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro para este filtro.</p>}
         </div>
       </div>
     </div>
   );
 };
 
-export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, staffList = [], history, editingItem, onSubmit, onDelete, onEdit, onToggleReturn }) => {
-  const [formData, setFormData] = useState({ 
-    date: new Date().toISOString().split('T')[0], 
-    sector: '', 
-    reason: VisitReason.AGENDAMENTO, 
-    staffName: '', 
-    requiresReturn: false, 
-    returnDate: new Date().toISOString().split('T')[0],
-    returnCompleted: false, 
-    observations: '' 
-  });
-
-  // Estados de Filtro para Histórico
+export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, staffList = [], history, editingItem, onSubmit, onDelete, onEdit, onToggleReturn }) => {
+  const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' });
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     if (editingItem) {
-      setFormData({
-        ...editingItem,
-        date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0],
-        returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : new Date().toISOString().split('T')[0]
-      });
+      setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0], returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : new Date().toISOString().split('T')[0] });
     } else {
       setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
     }
@@ -641,27 +449,18 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               {Object.values(VisitReason).map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
-          
           <div className="space-y-1 md:col-span-2">
             <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border-2 border-transparent hover:border-rose-100 transition-colors">
               <input type="checkbox" id="requiresReturn" checked={formData.requiresReturn} onChange={e => setFormData({...formData, requiresReturn: e.target.checked})} className="w-6 h-6 rounded-lg text-rose-600 focus:ring-rose-500 cursor-pointer" />
-              <label htmlFor="requiresReturn" className="font-black text-slate-700 text-xs uppercase tracking-widest cursor-pointer">Necessita Retorno / Acompanhamento?</label>
+              <label htmlFor="requiresReturn" className="font-black text-slate-700 text-xs uppercase tracking-widest cursor-pointer">Necessita Retorno?</label>
             </div>
           </div>
-
           {formData.requiresReturn && (
             <div className="space-y-1 md:col-span-2 animate-in slide-in-from-left duration-300">
               <label className="text-[10px] font-black text-rose-500 ml-2 uppercase">Agendar Retorno para *</label>
-              <input 
-                required 
-                type="date" 
-                value={formData.returnDate} 
-                onChange={e => setFormData({...formData, returnDate: e.target.value})} 
-                className="w-full p-4 rounded-2xl bg-rose border-2 border-rose-100 text-rose-700 font-bold" 
-              />
+              <input required type="date" value={formData.returnDate} onChange={e => setFormData({...formData, returnDate: e.target.value})} className="w-full p-4 rounded-2xl bg-rose border-2 border-rose-100 text-rose-700 font-bold" />
             </div>
           )}
-
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Observações</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none" /></div>
         </div>
         <button type="submit" className="w-full py-5 bg-rose-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs">Salvar Visita</button>
@@ -669,53 +468,29 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
       <div className="space-y-4">
         <h3 className="text-xl font-black text-slate-800 px-2 uppercase tracking-tight">Histórico de Visitas</h3>
-        
-        <HistoryFilterBar 
-          users={users} 
-          isAdmin={currentUser.role === UserRole.ADMIN}
-          selectedChaplain={filterChaplain}
-          onChaplainChange={setFilterChaplain}
-          startDate={filterStart}
-          onStartChange={setFilterStart}
-          endDate={filterEnd}
-          onEndChange={setFilterEnd}
-        />
-
+        <HistoryFilterBar users={users} isAdmin={currentUser.role === UserRole.ADMIN} selectedChaplain={filterChaplain} onChaplainChange={setFilterChaplain} startDate={filterStart} onStartChange={setFilterStart} endDate={filterEnd} onEndChange={setFilterEnd} />
         <div className="grid gap-4">
           {filteredHistory.length > 0 ? filteredHistory.map(item => (
             <HistoryCard 
-              key={item.id} 
-              icon="🤝" 
-              color="text-rose-600" 
-              title={item.staffName} 
-              subtitle={`${item.sector} • ${item.reason}`} 
+              key={item.id} icon="🤝" color="text-rose-600" 
+              title={resolveDynamicName(item.staffName, item.unit === Unit.HAB ? masterLists.staffHAB : masterLists.staffHABA)} 
+              subtitle={`${resolveDynamicName(item.sector, item.unit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA)} • ${item.reason}`} 
               chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
               isLocked={isRecordLocked(item.date, currentUser.role)}
-              onEdit={() => onEdit?.(item)} 
-              onDelete={() => onDelete(item.id)} 
+              onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} 
               middle={item.requiresReturn && !item.returnCompleted && item.returnDate && (
-                <div className="bg-rose-500 text-white px-5 py-3 rounded-2xl flex flex-col items-center justify-center shadow-lg shadow-rose-200 border-2 border-white transform hover:scale-105 transition-all animate-in zoom-in duration-300">
-                  <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-80 leading-none mb-1">Retorno em</span>
-                  <span className="text-base md:text-lg font-black tracking-tighter leading-none">
-                    {item.returnDate.split('-').reverse().join('/')}
-                  </span>
+                <div className="bg-rose-500 text-white px-5 py-3 rounded-2xl flex flex-col items-center justify-center shadow-lg border-2 border-white animate-in zoom-in">
+                  <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-80 mb-1 leading-none">Retorno em</span>
+                  <span className="text-base md:text-lg font-black tracking-tighter leading-none">{item.returnDate.split('-').reverse().join('/')}</span>
                 </div>
               )}
               extra={item.requiresReturn && (
-                <button 
-                  onClick={() => onToggleReturn?.(item.id)} 
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-md ${item.returnCompleted ? 'bg-emerald-500 text-white' : 'bg-rose-100 text-rose-500 animate-pulse'}`}
-                  title={item.returnCompleted ? "Atendimento Concluído" : "Pendente de Retorno"}
-                >
+                <button onClick={() => onToggleReturn?.(item.id)} className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-md ${item.returnCompleted ? 'bg-emerald-500 text-white' : 'bg-rose-100 text-rose-500 animate-pulse'}`}>
                   <i className={`fas ${item.returnCompleted ? 'fa-check' : 'fa-flag'} text-base`}></i>
                 </button>
               )}
             />
-          )) : (
-            <div className="p-12 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
-               <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Nenhum registro encontrado para este filtro.</p>
-            </div>
-          )}
+          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro para este filtro.</p>}
         </div>
       </div>
     </div>
