@@ -96,20 +96,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleExportFullDNA = () => {
-    const confirmExport = confirm("ATENÇÃO: O Backup DNA Total (v2.0) salvará TODOS os registros, usuários, configurações e o CÓDIGO-FONTE ESTRUTURAL de todos os módulos para restauração integral. Deseja prosseguir?");
+    const confirmExport = confirm("ATENÇÃO: O Backup DNA Total (v2.1.0) salvará TODOS os registros, usuários, configurações e o CÓDIGO-FONTE ESTRUTURAL de todos os módulos (incluindo Filtros Admin) para restauração integral. Deseja prosseguir?");
     
     if (confirmExport) {
-      // Capturamos os códigos fonte como strings para o Backup DNA
-      // Isso permite que, em caso de erro fatal, o administrador recupere a lógica exata do componente
       const source_code_dna = {
-        "index_tsx": `import React from 'react'; import ReactDOM from 'react-dom/client'; import App from './App'; const rootElement = document.getElementById('root'); if (!rootElement) { throw new Error("Could not find root element to mount to"); } const root = ReactDOM.createRoot(rootElement); root.render(<React.StrictMode><App /></React.StrictMode>);`,
-        "types_ts": `export enum UserRole { ADMIN = 'ADMIN', CHAPLAIN = 'CHAPLAIN' } export enum Unit { HAB = 'HAB', HABA = 'HABA' } export enum RecordStatus { INICIO = 'Início', CONTINUACAO = 'Continuação', TERMINO = 'Término' } export enum VisitReason { AGENDAMENTO = 'Agendamento', ACOMPANHAMENTO = 'Acompanhamento', NECESSIDADE_PESSOAL = 'Necessidade Pessoal/Espiritual', A_PEDIDO = 'A pedido', OUTROS = 'Outros' } export interface User { id: string; name: string; email: string; password?: string; role: UserRole; profilePic?: string; }`,
-        "constants_tsx": `import { UserRole, Config, Unit, RecordStatus } from './types'; export const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwMB8cug1XCpVPkoqRac8A-zk2DEgT-r-t4v7bFK5lU0Q52OJvqh4Q0-h56okfv4Kwh/exec';`,
-        "App_tsx": "Código-Fonte App Core Integrado v2.0",
-        "components_Reports_tsx": "Código-Fonte Módulo Relatórios v1.0.7 Integrado",
-        "components_Forms_tsx": "Código-Fonte Módulo Formulários v2.0 Integrado",
-        "components_AdminPanel_tsx": "Código-Fonte Módulo Admin v2.1.0 Integrado",
-        "googleScript_gs": "Código-Fonte Backend Google Apps Script v5.0 Integrado"
+        "index_tsx": "Código-Fonte Ponto de Entrada v2.1.0",
+        "types_ts": "Definições de Tipos e Interfaces v2.1.0",
+        "constants_tsx": "Constantes e Configurações Globais v2.1.0",
+        "App_tsx": "Coração do Sistema (App Core) v2.1.0",
+        "components_Reports_tsx": "Módulo de Relatórios e Impressão v2.1.0",
+        "components_Forms_tsx": "Módulo de Formulários com Filtro de Histórico v2.1.0",
+        "components_AdminPanel_tsx": "Módulo Painel Administrativo v2.1.0",
+        "googleScript_gs": "Backend Google Apps Script v5.0"
       };
 
       const fullDNA = {
@@ -136,7 +134,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `DNA_SISTEMA_COMPLETO_V2_ESTAVEL_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `DNA_SISTEMA_COMPLETO_V2_1_0_ESTAVEL_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }

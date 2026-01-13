@@ -1,6 +1,6 @@
 {
   "name": "Capelania Hospitalar Pro",
-  "description": "RESTORE POINT V2.0 - SISTEMA ESTÁVEL. Backup DNA Total incluindo Banco de Dados completo e Código-Fonte integral de todos os módulos. Contagem cumulativa de alunos e sincronização global ativa.",
-  "version": "2.0.0-PRO-STABLE",
+  "description": "RESTORE POINT V2.1 - SISTEMA ESTÁVEL. Inclui Filtros de Histórico Avançados (Admin), Backup DNA Total com Código-Fonte Integral e Sincronização Global v2.1.",
+  "version": "2.1.0-PRO-STABLE",
   "requestFramePermissions": []
 }
