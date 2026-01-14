@@ -1,7 +1,7 @@
 
 // ############################################################
-// # VERSION: 2.7.1-PREMIUM-REPORTS-FINAL (STABLE)
-// # STATUS: FULL FEATURE CONSOLIDATION
+// # VERSION: 2.7.2-PREMIUM-REPORTS-FINAL (STABLE)
+// # STATUS: 4-COLUMN CHARTS + UNIT-SPECIFIC ROW FILTERING
 // ############################################################
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -173,6 +173,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       </header>
 
       <section className="space-y-8 mt-4">
+        {/* TABELAS COM FILTRO DE LINHA VAZIA POR UNIDADE */}
         {[Unit.HAB, Unit.HABA].map(unitKey => {
             if (selectedUnit !== 'all' && selectedUnit !== unitKey) return null;
             return (
@@ -192,6 +193,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   <tbody>
                     {chaplainStats.map((stat, idx) => {
                       const uS = unitKey === Unit.HAB ? stat.hab : stat.haba;
+                      // REGRA: Se a produção na unidade específica for zero em todos os indicadores, oculta a linha
+                      if (uS.total === 0 && uS.students === 0) return null;
+                      
                       return (
                         <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                           <td className="p-2 font-bold text-slate-700 uppercase border-b border-slate-100">{stat.name}</td>
@@ -209,9 +213,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             );
         })}
 
+        {/* GRÁFICOS COMPRIMIDOS EM 4 COLUNAS */}
         <div className="pt-6 border-t-2 border-slate-100">
            <h3 className="text-[11px] font-black uppercase text-center mb-6 tracking-widest text-slate-400">Desempenho Gráfico por Capelão</h3>
-           <div className="grid grid-cols-2 gap-x-12 gap-y-12">
+           <div className="grid grid-cols-4 gap-x-4 gap-y-8">
               {chaplainStats.map((stat) => {
                 const totalS = stat.students;
                 const totalE = stat.hab.studies + stat.haba.studies;
@@ -220,23 +225,23 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 const totalV = stat.hab.visits + stat.haba.visits;
                 const maxVal = Math.max(totalS, totalE, totalC, totalP, totalV, 10);
                 const bars = [
-                  { label: 'Alunos', val: totalS, color: '#3b82f6' },
-                  { label: 'Estudos', val: totalE, color: '#6366f1' },
-                  { label: 'Classes', val: totalC, color: '#8b5cf6' },
-                  { label: 'PGs', val: totalP, color: '#10b981' },
-                  { label: 'Visitas', val: totalV, color: '#f43f5e' }
+                  { label: 'ALU', val: totalS, color: '#3b82f6' },
+                  { label: 'EST', val: totalE, color: '#6366f1' },
+                  { label: 'CLA', val: totalC, color: '#8b5cf6' },
+                  { label: 'PGS', val: totalP, color: '#10b981' },
+                  { label: 'VIS', val: totalV, color: '#f43f5e' }
                 ];
                 return (
                   <div key={stat.user.id} className="flex flex-col items-center">
-                    <p className="text-[9px] font-black uppercase mb-3 text-slate-600 border-b w-full text-center pb-1 border-slate-100">{stat.name}</p>
-                    <div className="flex items-end justify-center h-[90px] w-full px-4 gap-0.5">
+                    <p className="text-[7px] font-black uppercase mb-2 text-slate-600 border-b w-full text-center pb-0.5 border-slate-100 truncate">{stat.name}</p>
+                    <div className="flex items-end justify-center h-[60px] w-full px-1 gap-0.5">
                        {bars.map((bar, bi) => {
                          const heightPerc = (bar.val / maxVal) * 100;
                          return (
                            <div key={bi} className="flex flex-col items-center justify-end h-full w-[18%]">
-                              <span className="text-[9px] font-black mb-1" style={{ color: bar.color }}>{bar.val}</span>
-                              <div style={{ height: `${Math.max(heightPerc, 2)}%`, backgroundColor: bar.color }} className="w-full rounded-t-sm shadow-sm"></div>
-                              <span className="text-[5px] font-black uppercase mt-1 text-slate-400 truncate w-full text-center">{bar.label}</span>
+                              <span className="text-[7px] font-black mb-0.5" style={{ color: bar.color }}>{bar.val}</span>
+                              <div style={{ height: `${Math.max(heightPerc, 2)}%`, backgroundColor: bar.color }} className="w-full rounded-t-xs shadow-xs"></div>
+                              <span className="text-[4px] font-black uppercase mt-0.5 text-slate-400 truncate w-full text-center">{bar.label}</span>
                            </div>
                          );
                        })}
