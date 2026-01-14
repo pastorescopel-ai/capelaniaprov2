@@ -1,7 +1,6 @@
-
 // ############################################################
-// # VERSION: 2.7.2-PREMIUM-REPORTS-FINAL (STABLE)
-// # STATUS: 4-COLUMN CHARTS + UNIT-SPECIFIC ROW FILTERING
+// # VERSION: 2.7.3-PREMIUM-REPORTS-FINAL (STABLE)
+// # STATUS: COLOR-FIX + DYNAMIC HEADER + 4-COLUMN DASHBOARD
 // ############################################################
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -133,148 +132,172 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const handlePrintIsolated = () => {
     const printContent = document.getElementById('pdf-root');
     if (!printContent) return;
-    const printWindow = window.open('', '_blank', 'width=1000,height=900');
+    const printWindow = window.open('', '_blank', 'width=1100,height=900');
     if (!printWindow) return;
     const styles = Array.from(document.querySelectorAll('link, style')).map(s => s.outerHTML).join('\n');
+    
+    // Formatação de data brasileira
+    const formatDate = (date: string) => date.split('-').reverse().join('/');
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Relatório Capelania - Impressão Oficial</title>
+          <title>Relatório Oficial de Atividades</title>
           ${styles}
           <style>
-            @media print { @page { size: A4; margin: 10mm; } .no-print { display: none; } } 
-            body { background: #fff; padding: 0; margin: 0; }
+            @media print { 
+              @page { size: A4; margin: 12mm; } 
+              .no-print { display: none; } 
+              * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            } 
+            body { background: #fff; padding: 0; margin: 0; -webkit-print-color-adjust: exact !important; }
             .pdf-wrap { width: 210mm; margin: auto; padding: 5mm; }
           </style>
         </head>
-        <body><div class="pdf-wrap">${printContent.innerHTML}</div></body>
+        <body>
+          <div class="pdf-wrap">${printContent.innerHTML}</div>
+          <script>
+            window.onload = () => {
+              window.print();
+              setTimeout(() => { window.close(); }, 500);
+            };
+          </script>
+        </body>
       </html>
     `);
     printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
   };
 
-  const PdfTemplate = () => (
-    <div id="pdf-root" className="bg-white p-[5mm] flex flex-col gap-6 text-slate-900">
-      <header className="relative border-b-4 flex-shrink-0" style={{ height: '140px', borderColor: pColor }}>
-        {REPORT_LOGO_BASE64 && <img src={REPORT_LOGO_BASE64} style={{ position: 'absolute', left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px`, width: `${config.reportLogoWidth}px` }} alt="Logo" />}
-        <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
-          <h1 style={{ fontSize: `${config.fontSize1}px`, color: pColor }} className="font-black uppercase">{config.headerLine1}</h1>
-        </div>
-        <div style={{ position: 'absolute', left: `${config.headerLine2X}px`, top: `${config.headerLine2Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
-          <h2 style={{ fontSize: `${config.fontSize2}px` }} className="font-bold text-slate-600 uppercase">{config.headerLine2}</h2>
-        </div>
-        <div style={{ position: 'absolute', left: `${config.headerLine3X}px`, top: `${config.headerLine3Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
-          <h3 style={{ fontSize: `${config.fontSize3}px` }} className="font-medium text-slate-400 uppercase">{config.headerLine3}</h3>
-        </div>
-      </header>
+  const PdfTemplate = () => {
+    const formatDate = (date: string) => date.split('-').reverse().join('/');
+    return (
+      <div id="pdf-root" className="bg-white p-[5mm] flex flex-col gap-6 text-slate-900">
+        <header className="relative border-b-4 flex-shrink-0" style={{ height: '140px', borderColor: pColor }}>
+          {REPORT_LOGO_BASE64 && <img src={REPORT_LOGO_BASE64} style={{ position: 'absolute', left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px`, width: `${config.reportLogoWidth}px` }} alt="Logo" />}
+          
+          {/* PERÍODO DINÂMICO - LADO OPOSTO AO LOGO */}
+          <div className="absolute top-4 right-0 text-right">
+             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Relatório Consolidado</p>
+             <p className="text-[12px] font-black text-slate-800 uppercase" style={{ color: pColor }}>Período: {formatDate(startDate)} - {formatDate(endDate)}</p>
+          </div>
 
-      <section className="space-y-8 mt-4">
-        {/* TABELAS COM FILTRO DE LINHA VAZIA POR UNIDADE */}
-        {[Unit.HAB, Unit.HABA].map(unitKey => {
-            if (selectedUnit !== 'all' && selectedUnit !== unitKey) return null;
-            return (
-              <div key={unitKey} className="space-y-2">
-                <h3 className="text-[10px] font-black uppercase border-b border-slate-200 pb-1" style={{ color: pColor }}>Unidade {unitKey}</h3>
-                <table className="w-full text-left text-[8px] border-collapse">
-                  <thead>
-                    <tr className="text-white font-black uppercase" style={{ backgroundColor: pColor }}>
-                      <th className="p-2">Capelão</th>
-                      <th className="p-2 text-center">Alunos</th>
-                      <th className="p-2 text-center">Estudos</th>
-                      <th className="p-2 text-center">Classes</th>
-                      <th className="p-2 text-center">PGs</th>
-                      <th className="p-2 text-center">Visitas</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {chaplainStats.map((stat, idx) => {
-                      const uS = unitKey === Unit.HAB ? stat.hab : stat.haba;
-                      // REGRA: Se a produção na unidade específica for zero em todos os indicadores, oculta a linha
-                      if (uS.total === 0 && uS.students === 0) return null;
-                      
-                      return (
-                        <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                          <td className="p-2 font-bold text-slate-700 uppercase border-b border-slate-100">{stat.name}</td>
-                          <td className="p-2 text-center font-black border-b border-slate-100">{uS.students}</td>
-                          <td className="p-2 text-center font-black border-b border-slate-100">{uS.studies}</td>
-                          <td className="p-2 text-center font-black border-b border-slate-100">{uS.classes}</td>
-                          <td className="p-2 text-center font-black border-b border-slate-100">{uS.groups}</td>
-                          <td className="p-2 text-center font-black border-b border-slate-100">{uS.visits}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            );
-        })}
+          <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
+            <h1 style={{ fontSize: `${config.fontSize1}px`, color: pColor }} className="font-black uppercase">{config.headerLine1}</h1>
+          </div>
+          <div style={{ position: 'absolute', left: `${config.headerLine2X}px`, top: `${config.headerLine2Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
+            <h2 style={{ fontSize: `${config.fontSize2}px` }} className="font-bold text-slate-600 uppercase">{config.headerLine2}</h2>
+          </div>
+          <div style={{ position: 'absolute', left: `${config.headerLine3X}px`, top: `${config.headerLine3Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
+            <h3 style={{ fontSize: `${config.fontSize3}px` }} className="font-medium text-slate-400 uppercase">{config.headerLine3}</h3>
+          </div>
+        </header>
 
-        {/* GRÁFICOS COMPRIMIDOS EM 4 COLUNAS */}
-        <div className="pt-6 border-t-2 border-slate-100">
-           <h3 className="text-[11px] font-black uppercase text-center mb-6 tracking-widest text-slate-400">Desempenho Gráfico por Capelão</h3>
-           <div className="grid grid-cols-4 gap-x-4 gap-y-8">
-              {chaplainStats.map((stat) => {
-                const totalS = stat.students;
-                const totalE = stat.hab.studies + stat.haba.studies;
-                const totalC = stat.hab.classes + stat.haba.classes;
-                const totalP = stat.hab.groups + stat.haba.groups;
-                const totalV = stat.hab.visits + stat.haba.visits;
-                const maxVal = Math.max(totalS, totalE, totalC, totalP, totalV, 10);
-                const bars = [
-                  { label: 'ALU', val: totalS, color: '#3b82f6' },
-                  { label: 'EST', val: totalE, color: '#6366f1' },
-                  { label: 'CLA', val: totalC, color: '#8b5cf6' },
-                  { label: 'PGS', val: totalP, color: '#10b981' },
-                  { label: 'VIS', val: totalV, color: '#f43f5e' }
-                ];
-                return (
-                  <div key={stat.user.id} className="flex flex-col items-center">
-                    <p className="text-[7px] font-black uppercase mb-2 text-slate-600 border-b w-full text-center pb-0.5 border-slate-100 truncate">{stat.name}</p>
-                    <div className="flex items-end justify-center h-[60px] w-full px-1 gap-0.5">
-                       {bars.map((bar, bi) => {
-                         const heightPerc = (bar.val / maxVal) * 100;
-                         return (
-                           <div key={bi} className="flex flex-col items-center justify-end h-full w-[18%]">
-                              <span className="text-[7px] font-black mb-0.5" style={{ color: bar.color }}>{bar.val}</span>
-                              <div style={{ height: `${Math.max(heightPerc, 2)}%`, backgroundColor: bar.color }} className="w-full rounded-t-xs shadow-xs"></div>
-                              <span className="text-[4px] font-black uppercase mt-0.5 text-slate-400 truncate w-full text-center">{bar.label}</span>
-                           </div>
-                         );
-                       })}
+        <section className="space-y-8 mt-4">
+          {/* TABELAS COM FILTRO DE LINHA VAZIA POR UNIDADE */}
+          {[Unit.HAB, Unit.HABA].map(unitKey => {
+              if (selectedUnit !== 'all' && selectedUnit !== unitKey) return null;
+              return (
+                <div key={unitKey} className="space-y-2">
+                  <h3 className="text-[10px] font-black uppercase border-b border-slate-200 pb-1" style={{ color: pColor }}>Unidade {unitKey}</h3>
+                  <table className="w-full text-left text-[9px] border-collapse">
+                    <thead>
+                      <tr className="text-white font-black uppercase" style={{ backgroundColor: pColor }}>
+                        <th className="p-2">Capelão</th>
+                        <th className="p-2 text-center">Alunos</th>
+                        <th className="p-2 text-center">Estudos</th>
+                        <th className="p-2 text-center">Classes</th>
+                        <th className="p-2 text-center">PGs</th>
+                        <th className="p-2 text-center">Visitas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {chaplainStats.map((stat, idx) => {
+                        const uS = unitKey === Unit.HAB ? stat.hab : stat.haba;
+                        if (uS.total === 0 && uS.students === 0) return null;
+                        
+                        return (
+                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                            <td className="p-2 font-bold text-slate-700 uppercase border-b border-slate-100">{stat.name}</td>
+                            <td className="p-2 text-center font-black border-b border-slate-100">{uS.students}</td>
+                            <td className="p-2 text-center font-black border-b border-slate-100">{uS.studies}</td>
+                            <td className="p-2 text-center font-black border-b border-slate-100">{uS.classes}</td>
+                            <td className="p-2 text-center font-black border-b border-slate-100">{uS.groups}</td>
+                            <td className="p-2 text-center font-black border-b border-slate-100">{uS.visits}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+          })}
+
+          {/* DASHBOARD GRÁFICO 4 COLUNAS */}
+          <div className="pt-6 border-t-2 border-slate-100">
+             <h3 className="text-[11px] font-black uppercase text-center mb-6 tracking-widest text-slate-400">Indicadores Gráficos (Total HAB + HABA)</h3>
+             <div className="grid grid-cols-4 gap-x-4 gap-y-10">
+                {chaplainStats.map((stat) => {
+                  const totalS = stat.students;
+                  const totalE = stat.hab.studies + stat.haba.studies;
+                  const totalC = stat.hab.classes + stat.haba.classes;
+                  const totalP = stat.hab.groups + stat.haba.groups;
+                  const totalV = stat.hab.visits + stat.haba.visits;
+                  const maxVal = Math.max(totalS, totalE, totalC, totalP, totalV, 5);
+                  const bars = [
+                    { label: 'ALU', val: totalS, color: '#3b82f6' },
+                    { label: 'EST', val: totalE, color: '#6366f1' },
+                    { label: 'CLA', val: totalC, color: '#8b5cf6' },
+                    /* Fix line 260: Change val: pColor to val: totalP and add color: pColor */
+                    { label: 'PGS', val: totalP, color: pColor },
+                    { label: 'VIS', val: totalV, color: '#f43f5e' }
+                  ];
+                  return (
+                    <div key={stat.user.id} className="flex flex-col items-center">
+                      <p className="text-[7px] font-black uppercase mb-3 text-slate-600 border-b w-full text-center pb-1 border-slate-100 truncate">{stat.name}</p>
+                      <div className="flex items-end justify-center h-[70px] w-full px-1 gap-0.5">
+                         {bars.map((bar, bi) => {
+                           const heightPerc = (bar.val / maxVal) * 100;
+                           return (
+                             <div key={bi} className="flex flex-col items-center justify-end h-full w-[18%]">
+                                <span className="text-[7px] font-black mb-0.5" style={{ color: bar.color }}>{bar.val}</span>
+                                <div style={{ height: `${Math.max(heightPerc, 2)}%`, backgroundColor: bar.color }} className="w-full rounded-t-sm shadow-sm"></div>
+                                <span className="text-[4px] font-black uppercase mt-1 text-slate-400 truncate w-full text-center">{bar.label}</span>
+                             </div>
+                           );
+                         })}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-           </div>
-        </div>
+                  );
+                })}
+             </div>
+          </div>
 
-        <div className="pt-12 mt-auto">
-          <div className="grid grid-cols-5 gap-3">
-            {[
-              { label: 'Alunos', val: totalStats.totalStudents, color: pColor },
-              { label: 'Estudos', val: totalStats.studies, color: '#3b82f6' },
-              { label: 'Classes', val: totalStats.classes, color: '#6366f1' },
-              { label: 'PGs', val: totalStats.groups, color: '#10b981' },
-              { label: 'Visitas', val: totalStats.visits, color: '#f43f5e' }
-            ].map((card, ci) => (
-              <div key={ci} className="p-4 rounded-3xl text-center shadow-md border-2 border-white" style={{ backgroundColor: card.color }}>
-                <p className="text-[8px] font-black uppercase tracking-tighter text-white opacity-80 mb-0.5">{card.label}</p>
-                <p className="text-lg font-black text-white">{card.val}</p>
-              </div>
-            ))}
+          {/* RODAPÉ DE CARDS RESUMO */}
+          <div className="pt-10 mt-auto">
+            <div className="grid grid-cols-5 gap-3">
+              {[
+                { label: 'Total Alunos', val: totalStats.totalStudents, color: pColor },
+                { label: 'Total Estudos', val: totalStats.studies, color: '#3b82f6' },
+                { label: 'Total Classes', val: totalStats.classes, color: '#6366f1' },
+                { label: 'Total PGs', val: totalStats.groups, color: '#10b981' },
+                { label: 'Total Visitas', val: totalStats.visits, color: '#f43f5e' }
+              ].map((card, ci) => (
+                <div key={ci} className="p-4 rounded-3xl text-center shadow-md border-2 border-white" style={{ backgroundColor: card.color }}>
+                  <p className="text-[8px] font-black uppercase tracking-tighter text-white opacity-80 mb-0.5 leading-none">{card.label}</p>
+                  <p className="text-xl font-black text-white leading-none">{card.val}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 flex justify-between items-center px-2">
+              <p className="text-[6px] text-slate-300 uppercase font-black tracking-[0.4em]">Emissão: {new Date().toLocaleString('pt-BR')}</p>
+              <p className="text-[6px] text-slate-300 uppercase font-black tracking-[0.4em]">Gerado via Capelania Pro</p>
+            </div>
           </div>
-          <div className="mt-6 flex justify-between items-center px-2">
-            <p className="text-[6px] text-slate-300 uppercase font-black tracking-[0.4em]">Gerado via Capelania Pro</p>
-            <p className="text-[6px] text-slate-300 uppercase font-black tracking-[0.4em]">{new Date().toLocaleDateString()} - {new Date().toLocaleTimeString()}</p>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
+        </section>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
@@ -283,7 +306,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Relatórios e Estatísticas</h1>
           <div className="flex flex-wrap gap-3">
             <button onClick={() => onRefresh && onRefresh()} className="px-6 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all"><i className="fas fa-sync-alt"></i> Sincronizar</button>
-            <button onClick={handlePrintIsolated} className="px-6 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all"><i className="fas fa-print"></i> Impressão Direta</button>
+            <button onClick={handlePrintIsolated} className="px-6 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all"><i className="fas fa-print"></i> Imprimir Relatório</button>
             <button onClick={() => setShowPdfPreview(true)} className="px-6 py-4 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all" style={{ backgroundColor: pColor }}><i className="fas fa-file-pdf"></i> Visualizar PDF</button>
           </div>
         </div>

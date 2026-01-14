@@ -1,6 +1,6 @@
 {
   "name": "Capelania Hospitalar Pro",
-  "description": "RESTORE POINT V2.7.2 - PDF Dashboard Executivo (4 Colunas) + Filtro de Linhas Vazias por Unidade + Integridade Total de UI.",
-  "version": "2.7.2-PRO-FINAL",
+  "description": "RESTORE POINT V2.7.3 - PDF Cores Reais + Período Dinâmico + Dashboard 4 Colunas + Auto-Close Impressão.",
+  "version": "2.7.3-PRO-FINAL",
   "requestFramePermissions": []
 }
