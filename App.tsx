@@ -1,7 +1,7 @@
 
 // ############################################################
-// # APP CORE - VERSION 2.3.0-STABLE (MARCO DE INTELIGÊNCIA)
-// # ESTADO: TRAVA DE MÊS + RESOLUÇÃO DINÂMICA POR ID
+// # APP CORE - VERSION 2.8.0-STABLE (SMART TRACKING)
+// # ESTADO: TRAVA DE MÊS + ATUALIZAÇÃO DE REGISTRO ÚNICO
 // ############################################################
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -246,12 +246,15 @@ const App: React.FC = () => {
     if (!isInitialized) return;
     let updatedStudies = [...bibleStudies], updatedClasses = [...bibleClasses], updatedVisits = [...staffVisits], updatedGroups = [...smallGroups];
     const targetId = data.id || editingItem?.id;
+    
     if (targetId) {
-      if (type === 'study') updatedStudies = bibleStudies.map(s => s.id === targetId ? { ...data, id: targetId } : s);
-      if (type === 'class') updatedClasses = bibleClasses.map(c => c.id === targetId ? { ...data, id: targetId } : c);
-      if (type === 'visit') updatedVisits = staffVisits.map(v => v.id === targetId ? { ...data, id: targetId } : v);
-      if (type === 'pg') updatedGroups = smallGroups.map(g => g.id === targetId ? { ...data, id: targetId } : g);
+      // MODO ATUALIZAÇÃO (Registro Único)
+      if (type === 'study') updatedStudies = bibleStudies.map(s => s.id === targetId ? { ...data, id: targetId, createdAt: s.createdAt } : s);
+      if (type === 'class') updatedClasses = bibleClasses.map(c => c.id === targetId ? { ...data, id: targetId, createdAt: c.createdAt } : c);
+      if (type === 'visit') updatedVisits = staffVisits.map(v => v.id === targetId ? { ...data, id: targetId, createdAt: v.createdAt } : v);
+      if (type === 'pg') updatedGroups = smallGroups.map(g => g.id === targetId ? { ...data, id: targetId, createdAt: g.createdAt } : g);
     } else {
+      // MODO NOVO REGISTRO
       const newItem = { ...data, userId: currentUser?.id, id: crypto.randomUUID(), createdAt: Date.now() };
       if (type === 'study') updatedStudies = [newItem, ...bibleStudies];
       if (type === 'class') updatedClasses = [newItem, ...bibleClasses];

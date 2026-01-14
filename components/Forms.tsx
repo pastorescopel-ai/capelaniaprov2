@@ -21,7 +21,6 @@ interface FormProps {
   onToggleReturn?: (id: string) => void;
 }
 
-// Lógica de Trava de Mês: Verifica se a data do registro é de um mês anterior ao atual
 const isRecordLocked = (dateStr: string, userRole: UserRole) => {
   if (userRole === UserRole.ADMIN) return false;
   const now = new Date();
@@ -30,11 +29,6 @@ const isRecordLocked = (dateStr: string, userRole: UserRole) => {
          (recordDate.getFullYear() === now.getFullYear() && recordDate.getMonth() < now.getMonth());
 };
 
-/**
- * RESOLUÇÃO DINÂMICA POR ÂNCORA (ID_TEXTO)
- * Permite que se o Admin mudar o nome na lista mestre mas manter o ID_, 
- * o histórico se atualize visualmente.
- */
 const resolveDynamicName = (val: string, list: string[] = []) => {
   if (!val || !val.includes('_')) return val;
   const prefix = val.split('_')[0] + '_';
@@ -50,7 +44,15 @@ const formatWhatsApp = (value: string) => {
   return `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7, 11)}`;
 };
 
-const Autocomplete: React.FC<{ options: string[], value: string, onChange: (v: string) => void, placeholder: string, isStrict?: boolean }> = ({ options, value, onChange, placeholder, isStrict }) => {
+const Autocomplete: React.FC<{ 
+  options: string[], 
+  value: string, 
+  onChange: (v: string) => void, 
+  onSelectOption?: (v: string) => void,
+  placeholder: string, 
+  isStrict?: boolean,
+  className?: string
+}> = ({ options, value, onChange, onSelectOption, placeholder, isStrict, className }) => {
   const [open, setOpen] = useState(false);
   const filtered = options.filter(o => o.toLowerCase().includes(String(value || "").toLowerCase()));
 
@@ -70,7 +72,7 @@ const Autocomplete: React.FC<{ options: string[], value: string, onChange: (v: s
              }
            }, 250);
         }}
-        className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-800"
+        className={className || "w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-800"}
       />
       {open && filtered.length > 0 && (
         <div className="absolute z-[100] w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 max-h-48 overflow-y-auto no-scrollbar">
@@ -81,7 +83,8 @@ const Autocomplete: React.FC<{ options: string[], value: string, onChange: (v: s
               className="w-full text-left p-4 hover:bg-slate-50 text-sm font-bold text-slate-700 transition-colors border-b border-slate-50 last:border-none" 
               onMouseDown={(e) => { 
                 e.preventDefault(); 
-                onChange(o); 
+                onChange(o);
+                if(onSelectOption) onSelectOption(o);
                 setOpen(false); 
               }}
             >
@@ -187,20 +190,27 @@ const HistoryFilterBar: React.FC<{
         />
       </div>
       <div className="bg-blue-50 px-4 py-3 rounded-xl border border-blue-100 flex items-center justify-center">
-         <span className="text-[8px] font-black text-blue-600 uppercase tracking-tighter leading-none">Visão: Últimos 7 dias</span>
+         <span className="text-[8px] font-black text-blue-600 uppercase tracking-tighter leading-none">Visão: Período Filtrado</span>
       </div>
     </div>
   );
 };
 
-export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory, editingItem, onSubmit, onDelete, onEdit }) => {
-  const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
+export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, onSubmit, onDelete, onEdit }) => {
+  const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
   
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
 
   const studySuggestions = ["Ouvindo a voz de Deus", "Verdade e Vida", "Apocalipse", "Daniel"];
+
+  // Lista de alunos únicos baseada no histórico TOTAL para o Autocomplete
+  const studentNames = useMemo(() => {
+    const names = new Set<string>();
+    allHistory.forEach(s => { if(s.name) names.add(s.name.trim()); });
+    return Array.from(names);
+  }, [allHistory]);
 
   useEffect(() => {
     if (editingItem) {
@@ -209,7 +219,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
         date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0]
       });
     } else {
-      setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+      setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
     }
   }, [editingItem]);
 
@@ -222,19 +232,50 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
     });
   }, [history, filterChaplain, filterStart, filterEnd]);
 
+  // Função disparada ao selecionar um aluno existente na lista
+  const handleSelectStudent = (name: string) => {
+    // Busca o registro mais recente deste aluno no histórico geral
+    const lastRecord = [...allHistory]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .find(s => s.name.trim().toLowerCase() === name.trim().toLowerCase());
+
+    if (lastRecord) {
+      setFormData({
+        ...lastRecord,
+        id: lastRecord.id, // IMPORTANTE: Vincula ao ID existente para atualizar em vez de criar novo
+        date: new Date().toISOString().split('T')[0], // Atualiza para hoje
+        status: lastRecord.status === RecordStatus.TERMINO ? RecordStatus.TERMINO : RecordStatus.CONTINUACAO,
+        lesson: lastRecord.status === RecordStatus.TERMINO ? lastRecord.lesson : (parseInt(lastRecord.lesson) + 1).toString(),
+        observations: '' // Limpa obs para novo atendimento
+      });
+    }
+  };
+
   return (
     <div className="space-y-10 pb-20">
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit({ ...formData, unit }); setFormData({ date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+      <form onSubmit={(e) => { e.preventDefault(); onSubmit({ ...formData, unit }); setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-slate-800">Estudo Bíblico ({unit})</h2>
+          {formData.id && (
+            <button type="button" onClick={() => setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' })} className="text-[10px] font-black text-rose-500 uppercase bg-rose-50 px-4 py-2 rounded-full border border-rose-100">Limpar / Novo Aluno</button>
+          )}
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Selecione o setor..." /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Aluno *</label><input required placeholder="Nome completo" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Aluno (Busca Inteligente) *</label>
+            <Autocomplete 
+              options={studentNames} 
+              value={formData.name} 
+              onChange={v => setFormData({...formData, name: v})} 
+              onSelectOption={handleSelectStudent}
+              placeholder="Digite para buscar ou cadastrar..." 
+            />
+          </div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">WhatsApp *</label><input required placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-mono" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Guia de Estudo *</label><Autocomplete options={studySuggestions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Selecione ou digite o guia..." /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada (Número) *</label><input required type="number" min="1" placeholder="Somente números positivos" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Atual *</label><input required type="number" min="1" placeholder="Ex: 5" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-black" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Status *</label>
             <div className="flex gap-2">
               {STATUS_OPTIONS.map(opt => (
@@ -242,9 +283,11 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               ))}
             </div>
           </div>
-          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Observações</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none" /></div>
+          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Observações do Encontro</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none" /></div>
         </div>
-        <button type="submit" className="w-full py-5 bg-blue-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs">Salvar Estudo</button>
+        <button type="submit" className="w-full py-5 bg-blue-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs tracking-widest active:scale-95 transition-all">
+          {formData.id ? 'Atualizar Progresso do Aluno' : 'Salvar Novo Aluno'}
+        </button>
       </form>
 
       <div className="space-y-4">
@@ -259,7 +302,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
               isLocked={isRecordLocked(item.date, currentUser.role)}
               onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} 
-              extra={item.status === RecordStatus.TERMINO && <span className="text-[8px] bg-rose-50 text-rose-600 px-2 py-1 rounded-lg font-black uppercase">Terminado</span>}
+              extra={item.status === RecordStatus.TERMINO && <span className="text-[8px] bg-rose-50 text-rose-600 px-2 py-1 rounded-lg font-black uppercase">Concluído</span>}
             />
           )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro para este filtro.</p>}
         </div>
@@ -268,19 +311,26 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
   );
 };
 
-export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory, editingItem, onSubmit, onDelete, onEdit }) => {
-  const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' });
+export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, onSubmit, onDelete, onEdit }) => {
+  const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' });
   const [newStudent, setNewStudent] = useState('');
 
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
 
+  // Lista de todas as classes para Smart-Resume
+  const classGuides = useMemo(() => {
+    const guides = new Set<string>();
+    allHistory.forEach(c => { if(c.guide) guides.add(c.guide.trim()); });
+    return Array.from(guides);
+  }, [allHistory]);
+
   useEffect(() => {
     if (editingItem) {
       setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0] });
     } else {
-      setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+      setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' });
     }
   }, [editingItem]);
 
@@ -293,17 +343,40 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
     });
   }, [history, filterChaplain, filterStart, filterEnd]);
 
+  // Função disparada ao selecionar uma classe existente
+  const handleSelectClass = (guideName: string) => {
+    const lastClass = [...allHistory]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .find(c => c.guide.trim().toLowerCase() === guideName.trim().toLowerCase());
+
+    if (lastClass) {
+      setFormData({
+        ...lastClass,
+        id: lastClass.id,
+        date: new Date().toISOString().split('T')[0],
+        status: lastClass.status === RecordStatus.TERMINO ? RecordStatus.TERMINO : RecordStatus.CONTINUACAO,
+        lesson: lastClass.status === RecordStatus.TERMINO ? lastClass.lesson : (parseInt(lastClass.lesson) + 1).toString(),
+        observations: ''
+      });
+    }
+  };
+
   const addStudent = () => { if (newStudent.trim()) { setFormData({...formData, students: [...formData.students, newStudent.trim()]}); setNewStudent(''); } };
 
   return (
     <div className="space-y-10 pb-20">
-      <form onSubmit={(e) => { e.preventDefault(); if(formData.students.length===0) return; onSubmit({...formData, unit}); setFormData({ date: new Date().toISOString().split('T')[0], sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
-        <h2 className="text-2xl font-bold text-slate-800">Classe Bíblica ({unit})</h2>
+      <form onSubmit={(e) => { e.preventDefault(); if(formData.students.length===0) return; onSubmit({...formData, unit}); setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-slate-800">Classe Bíblica ({unit})</h2>
+          {formData.id && (
+            <button type="button" onClick={() => setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' })} className="text-[10px] font-black text-rose-500 uppercase bg-rose-50 px-4 py-2 rounded-full border border-rose-100">Criar Nova Classe</button>
+          )}
+        </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Escolha o setor..." /></div>
           <div className="space-y-1 md:col-span-2">
-            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Alunos (Adicionar/Excluir) *</label>
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lista de Presença *</label>
             <div className="flex gap-2">
               <input value={newStudent} onChange={e => setNewStudent(e.target.value)} onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addStudent())} placeholder="Nome do aluno" className="flex-1 p-4 rounded-2xl bg-slate-50 border-none" />
               <button type="button" onClick={addStudent} className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg hover:bg-indigo-700 transition-all"><i className="fas fa-plus"></i></button>
@@ -316,8 +389,16 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               ))}
             </div>
           </div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Guia de Estudo *</label><Autocomplete options={["Ouvindo a voz de Deus", "Verdade e Vida", "Apocalipse", "Daniel"]} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Selecione ou digite o guia..." /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada (Número) *</label><input required type="number" min="1" placeholder="Somente números positivos" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome da Classe / Guia *</label>
+            <Autocomplete 
+              options={classGuides} 
+              value={formData.guide} 
+              onChange={v => setFormData({...formData, guide: v})} 
+              onSelectOption={handleSelectClass}
+              placeholder="Selecione ou digite o guia..." 
+            />
+          </div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada *</label><input required type="number" min="1" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 font-black" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Status da Classe *</label>
             <div className="flex gap-2">
               {STATUS_OPTIONS.map(opt => (
@@ -327,11 +408,13 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
           </div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Observações</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none" /></div>
         </div>
-        <button type="submit" className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs">Salvar Classe</button>
+        <button type="submit" className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs tracking-widest active:scale-95 transition-all">
+          {formData.id ? 'Atualizar Classe Existente' : 'Salvar Nova Classe'}
+        </button>
       </form>
 
       <div className="space-y-4">
-        <h3 className="text-xl font-black text-slate-800 px-2 uppercase tracking-tight">Histórico de Atividades</h3>
+        <h3 className="text-xl font-black text-slate-800 px-2 uppercase tracking-tight">Histórico de Classes</h3>
         <HistoryFilterBar users={users} isAdmin={currentUser.role === UserRole.ADMIN} selectedChaplain={filterChaplain} onChaplainChange={setFilterChaplain} startDate={filterStart} onStartChange={setFilterStart} endDate={filterEnd} onEndChange={setFilterEnd} />
         <div className="grid gap-4">
           {filteredHistory.length > 0 ? filteredHistory.map(item => (
@@ -351,7 +434,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 };
 
 export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, groupsList = [], history, editingItem, onSubmit, onDelete, onEdit }) => {
-  const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' });
+  const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' });
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
@@ -360,7 +443,7 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
     if (editingItem) {
       setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0] });
     } else {
-      setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+      setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' });
     }
   }, [editingItem]);
 
@@ -375,7 +458,7 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
   return (
     <div className="space-y-10 pb-20">
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit({...formData, unit}); setFormData({ date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+      <form onSubmit={(e) => { e.preventDefault(); onSubmit({...formData, unit}); setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <h2 className="text-2xl font-bold text-slate-800">Pequeno Grupo ({unit})</h2>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
@@ -409,7 +492,7 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 };
 
 export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, staffList = [], history, editingItem, onSubmit, onDelete, onEdit, onToggleReturn }) => {
-  const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' });
+  const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' });
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
@@ -418,7 +501,7 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
     if (editingItem) {
       setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0], returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : new Date().toISOString().split('T')[0] });
     } else {
-      setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+      setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' });
     }
   }, [editingItem]);
 
@@ -433,7 +516,7 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
   return (
     <div className="space-y-10 pb-20">
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit({...formData, unit}); setFormData({ date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+      <form onSubmit={(e) => { e.preventDefault(); onSubmit({...formData, unit}); setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <h2 className="text-2xl font-bold text-slate-800">Visita a Colaborador ({unit})</h2>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
