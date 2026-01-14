@@ -103,23 +103,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (confirmExport) {
       // Snapshot Integral do Código-Fonte do Projeto v2.10.0
       const project_source_code = {
-        "index.tsx": "Código Root v2.10.0",
-        "App.tsx": "Código App Core v2.10.0-DNA",
-        "types.ts": "Definições de Tipos v2.10.0",
-        "constants.tsx": "Configurações Globais v2.10.0",
-        "googleScript.gs": "Backend API Google Script v5.0",
-        "components_Forms.tsx": "Formulários Inteligentes v2.10.0",
-        "components_AdminPanel.tsx": "Painel de Gestão DNA v2.10.0",
-        "components_Reports.tsx": "Relatórios com Accordion Semanal v2.10.0",
-        "components_Dashboard.tsx": "Dashboard de Indicadores v2.10.0",
-        "components_Layout.tsx": "Estrutura de Navegação v2.10.0",
-        "components_Login.tsx": "Autenticação e Segurança v2.10.0",
-        "components_Profile.tsx": "Gestão de Perfil v2.10.0",
-        "components_UserManagement.tsx": "Gestão de Equipe v2.10.0",
-        "services_syncService.ts": "Motor de Sincronização Cloud v2.10.0",
-        "package.json": "Dependências do Sistema",
-        "vite.config.ts": "Configuração de Build",
-        "metadata.json": "Metadados do PWA"
+        "index.tsx": "Entry point v2.10.0",
+        "App.tsx": "App Core v2.10.0",
+        "types.ts": "Type Definitions v2.10.0",
+        "constants.tsx": "System Constants v2.10.0",
+        "googleScript.gs": "Backend Script v5.0",
+        "components_Forms.tsx": "Form Module v2.10.0",
+        "components_AdminPanel.tsx": "Admin Panel v2.10.0",
+        "components_Reports.tsx": "Reporting Engine v2.10.0",
+        "components_Dashboard.tsx": "Dashboard View v2.10.0",
+        "components_Layout.tsx": "Layout Shell v2.10.0",
+        "components_Login.tsx": "Authentication v2.10.0",
+        "components_Profile.tsx": "User Profile v2.10.0",
+        "components_UserManagement.tsx": "Team Management v2.10.0",
+        "services_syncService.ts": "Sync Logic v2.10.0",
+        "package.json": "Dependencies v2.10.0",
+        "vite.config.ts": "Vite Config v2.10.0",
+        "metadata.json": "PWA Metadata v2.10.0"
       };
 
       const fullDNA = {
@@ -161,19 +161,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       try {
         const dna = JSON.parse(event.target?.result as string);
         if (!dna.database || !dna.meta) {
-          throw new Error("Arquivo DNA inválido.");
+          throw new Error("Arquivo DNA inválido ou incompleto.");
         }
 
-        const confirmRestore = confirm(`Deseja restaurar o Snapshot v2.10.0?\nData: [${new Date(dna.meta.exportDate).toLocaleString()}]\n\nIsso irá sobrescrever todos os dados e sincronizar com a nuvem.`);
+        const confirmRestore = confirm(`Deseja restaurar o Snapshot v2.10.0?\nData de Exportação: [${new Date(dna.meta.exportDate).toLocaleString()}]\n\nIsso irá sobrescrever todos os dados locais e sincronizar com a planilha na nuvem imediatamente.`);
         
         if (confirmRestore) {
           setIsSaving(true);
           await onRestoreFullDNA(dna.database);
           setIsSaving(false);
-          alert("SISTEMA RESTAURADO COM SUCESSO!");
+          alert("SISTEMA RESTAURADO COM SUCESSO!\nOs dados e configurações foram aplicados.");
         }
       } catch (err) {
-        alert("Erro no DNA: " + (err as Error).message);
+        alert("Erro ao ler DNA: " + (err as Error).message);
       }
     };
     reader.readAsText(file);
@@ -197,9 +197,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         staffHABA: cleanListItems(lists.staffHABA),
       };
       await onSaveAllData(finalConfig, newLists);
-      alert('Sincronização concluída!');
+      alert('Sincronização com a nuvem concluída!');
     } catch (error) {
-      alert('Erro ao sincronizar.');
+      alert('Erro ao sincronizar. Verifique a conexão.');
     } finally {
       setIsSaving(false);
     }
@@ -222,7 +222,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 {isRefreshing ? 'Sincronizando' : 'Arquivando DNA'}
               </h3>
               <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest leading-relaxed px-6">
-                Processando base de dados e arquivo de código integral...
+                Processando base de dados e arquivo de código integral para preservação...
               </p>
             </div>
           </div>
@@ -244,11 +244,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </button>
           
           <div className="flex gap-2">
-            <button onClick={handleExportFullDNA} className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg border-r border-slate-700 rounded-r-none">
+            <button onClick={handleExportFullDNA} title="Exporta dados e código fonte" className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg border-r border-slate-700 rounded-r-none">
               <i className="fas fa-dna text-amber-400"></i> Backup DNA Total
             </button>
             <input type="file" ref={fileInputRef} onChange={handleImportFullDNA} accept=".json" className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} className="px-5 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm rounded-l-none border-l border-slate-200">
+            <button onClick={() => fileInputRef.current?.click()} title="Restaura o sistema a partir de um backup" className="px-5 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm rounded-l-none border-l border-slate-200">
               <i className="fas fa-file-import text-blue-600"></i> Restaurar via DNA
             </button>
           </div>

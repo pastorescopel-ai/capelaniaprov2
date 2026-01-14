@@ -1,6 +1,6 @@
 
 // ############################################################
-// # APP CORE - VERSION 2.9.0-STABLE (DNA SNAPSHOT)
+// # APP CORE - VERSION 2.10.0-STABLE (DNA SNAPSHOT)
 // # ESTADO: TRAVA DE MÊS + DNA RESTORE INTEGRADO
 // ############################################################
 
@@ -180,7 +180,7 @@ const App: React.FC = () => {
   }, [isInitialized, config, users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists]);
 
   const handleRestoreFullDNA = async (db: any) => {
-    // Restaura o estado em memória
+    // Restaura o estado em memória localmente
     setUsers(db.users);
     setBibleStudies(db.bibleStudies);
     setBibleClasses(db.bibleClasses);
@@ -189,7 +189,7 @@ const App: React.FC = () => {
     setConfig(applySystemOverrides(db.config));
     setMasterLists(db.masterLists);
 
-    // Sincroniza imediatamente com o Cloud para garantir persistência
+    // Persiste imediatamente na planilha remota para garantir integridade do ecossistema
     await saveToCloud({
       users: db.users,
       bibleStudies: db.bibleStudies,
@@ -204,7 +204,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (itemToDelete) {
       const { type, id } = itemToDelete;
-      const confirm = window.confirm("Tem certeza que deseja excluir este registro? Esta ação removerá o registro e atualizará as contagens.");
+      const confirm = window.confirm("Tem certeza que deseja excluir este registro?");
       if (confirm) {
         let updatedStudies = [...bibleStudies];
         let updatedClasses = [...bibleClasses];
@@ -270,13 +270,11 @@ const App: React.FC = () => {
     const targetId = data.id || editingItem?.id;
     
     if (targetId) {
-      // MODO ATUALIZAÇÃO (Registro Único)
       if (type === 'study') updatedStudies = bibleStudies.map(s => s.id === targetId ? { ...data, id: targetId, createdAt: s.createdAt } : s);
       if (type === 'class') updatedClasses = bibleClasses.map(c => c.id === targetId ? { ...data, id: targetId, createdAt: c.createdAt } : c);
       if (type === 'visit') updatedVisits = staffVisits.map(v => v.id === targetId ? { ...data, id: targetId, createdAt: v.createdAt } : v);
       if (type === 'pg') updatedGroups = smallGroups.map(g => g.id === targetId ? { ...data, id: targetId, createdAt: g.createdAt } : g);
     } else {
-      // MODO NOVO REGISTRO
       const newItem = { ...data, userId: currentUser?.id, id: crypto.randomUUID(), createdAt: Date.now() };
       if (type === 'study') updatedStudies = [newItem, ...bibleStudies];
       if (type === 'class') updatedClasses = [newItem, ...bibleClasses];

@@ -26,10 +26,11 @@ const resolveDynamicName = (val: string, list: string[] = []) => {
   return currentMatch || val;
 };
 
-// Auxiliar para calcular a semana do ano e o intervalo de datas
-const getWeekRange = (dateStr: string) => {
+// Auxiliar para calcular o intervalo de datas da semana (Segunda a Domingo)
+const getWeekRangeLabel = (dateStr: string) => {
   const d = new Date(dateStr);
   const day = d.getDay();
+  // Ajuste para segunda-feira como início da semana
   const diffToMonday = d.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(d.setDate(diffToMonday));
   const sunday = new Date(monday);
@@ -296,21 +297,21 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     if (items.length === 0) return null;
     
     // Agrupa itens por semana
-    const grouped = items.reduce((acc: any, item) => {
-      const week = getWeekRange(item.date);
-      if (!acc[week]) acc[week] = [];
-      acc[week].push(item);
+    const groupedByWeek = items.reduce((acc: any, item) => {
+      const weekLabel = getWeekRangeLabel(item.date);
+      if (!acc[weekLabel]) acc[weekLabel] = [];
+      acc[weekLabel].push(item);
       return acc;
     }, {});
 
-    const sortedWeeks = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+    const sortedWeekLabels = Object.keys(groupedByWeek).sort((a, b) => b.localeCompare(a));
     
     // Auto-expande a primeira semana se nada estiver expandido ainda
     useEffect(() => {
-      if (expandedWeeks.length === 0 && sortedWeeks.length > 0) {
-        setExpandedWeeks([sortedWeeks[0]]);
+      if (expandedWeeks.length === 0 && sortedWeekLabels.length > 0) {
+        setExpandedWeeks([sortedWeekLabels[0]]);
       }
-    }, [sortedWeeks]);
+    }, [sortedWeekLabels]);
 
     return (
       <div className="space-y-4">
@@ -318,23 +319,23 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           {title} ({items.length})
         </h4>
         <div className="space-y-3">
-          {sortedWeeks.map(week => {
-            const isOpen = expandedWeeks.includes(week);
+          {sortedWeekLabels.map(weekLabel => {
+            const isOpen = expandedWeeks.includes(weekLabel);
             return (
-              <div key={week} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden transition-all">
+              <div key={weekLabel} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden transition-all">
                 <button 
-                  onClick={() => toggleWeek(week)}
+                  onClick={() => toggleWeek(weekLabel)}
                   className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
                 >
-                  <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{week}</span>
+                  <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{weekLabel}</span>
                   <div className="flex items-center gap-3">
-                    <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">{grouped[week].length} Atendimentos</span>
+                    <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">{groupedByWeek[weekLabel].length} Atendimentos</span>
                     <i className={`fas fa-chevron-${isOpen ? 'up' : 'down'} text-slate-300 text-xs`}></i>
                   </div>
                 </button>
                 {isOpen && (
                   <div className="px-6 pb-6 pt-2 space-y-3 animate-in slide-in-from-top duration-300">
-                    {grouped[week].map((item: any, idx: number) => (
+                    {groupedByWeek[weekLabel].map((item: any, idx: number) => (
                       <div key={idx} className={`p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${colorClass}`}>
                          <div>
                             <p className="font-black text-slate-800 uppercase text-[11px]">{item.name || item.guide || resolveDynamicName(item.groupName, masterLists.groupsHAB) || resolveDynamicName(item.staffName, masterLists.staffHAB)}</p>
