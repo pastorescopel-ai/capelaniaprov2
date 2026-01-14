@@ -19,6 +19,7 @@ interface FormProps {
   onEdit?: (item: any) => void;
   onSubmit: (data: any) => void;
   onToggleReturn?: (id: string) => void;
+  onTransfer?: (type: string, id: string, newUserId: string) => void;
 }
 
 const isRecordLocked = (dateStr: string, userRole: UserRole) => {
@@ -104,47 +105,81 @@ const HistoryCard: React.FC<{
   subtitle: string, 
   chaplainName: string,
   isLocked?: boolean,
+  isAdmin?: boolean,
+  users?: User[],
   onEdit: () => void, 
   onDelete: () => void, 
+  onTransfer?: (newUserId: string) => void,
   extra?: React.ReactNode,
   middle?: React.ReactNode 
-}> = ({ icon, color, title, subtitle, chaplainName, isLocked, onEdit, onDelete, extra, middle }) => (
-  <div className="bg-white p-5 md:p-6 rounded-[2.5rem] border border-slate-100 flex flex-col md:flex-row md:items-center justify-between shadow-sm hover:border-blue-200 transition-all group gap-4">
-    <div className="flex items-center gap-4 flex-1">
-      <div className={`w-12 h-12 ${color} bg-opacity-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0`}>{icon}</div>
-      <div className="min-w-0">
-        <h4 className="font-bold text-slate-800 leading-tight truncate">{title}</h4>
-        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none mt-1 truncate">{subtitle}</p>
-        <div className="flex items-center gap-1 mt-1">
-           <i className="fas fa-user-tie text-[8px] text-blue-400"></i>
-           <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tighter">Capelão: {chaplainName}</span>
-        </div>
-      </div>
-    </div>
-    
-    {middle && (
-      <div className="flex flex-1 justify-center items-center">
-        {middle}
-      </div>
-    )}
+}> = ({ icon, color, title, subtitle, chaplainName, isLocked, isAdmin, users, onEdit, onDelete, onTransfer, extra, middle }) => {
+  const [showTransfer, setShowTransfer] = useState(false);
 
-    <div className="flex items-center justify-between md:justify-end gap-3 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-4">
-      {extra}
-      
-      {isLocked ? (
-        <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100" title="Mês encerrado. Edição permitida apenas para administradores.">
-          <i className="fas fa-lock text-slate-300 text-xs"></i>
-          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Somente Leitura</span>
+  return (
+    <div className="bg-white p-5 md:p-6 rounded-[2.5rem] border border-slate-100 flex flex-col md:flex-row md:items-center justify-between shadow-sm hover:border-blue-200 transition-all group gap-4">
+      <div className="flex items-center gap-4 flex-1">
+        <div className={`w-12 h-12 ${color} bg-opacity-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0`}>{icon}</div>
+        <div className="min-w-0">
+          <h4 className="font-bold text-slate-800 leading-tight truncate">{title}</h4>
+          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none mt-1 truncate">{subtitle}</p>
+          <div className="flex items-center gap-1 mt-1">
+             <i className="fas fa-user-tie text-[8px] text-blue-400"></i>
+             <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tighter">Responsável: {chaplainName}</span>
+          </div>
         </div>
-      ) : (
-        <div className="flex items-center gap-1.5 ml-auto md:ml-0">
-          <button onClick={onEdit} className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors"><i className="fas fa-edit text-xs"></i></button>
-          <button onClick={onDelete} className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl hover:bg-rose-50 hover:text-rose-500 transition-colors"><i className="fas fa-trash text-xs"></i></button>
+      </div>
+      
+      {middle && (
+        <div className="flex flex-1 justify-center items-center">
+          {middle}
         </div>
       )}
+
+      <div className="flex items-center justify-between md:justify-end gap-3 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-4">
+        {extra}
+        
+        {isLocked ? (
+          <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100" title="Mês encerrado. Edição permitida apenas para administradores.">
+            <i className="fas fa-lock text-slate-300 text-xs"></i>
+            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Somente Leitura</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 ml-auto md:ml-0">
+            {isAdmin && users && (
+              <div className="relative">
+                <button 
+                  onClick={() => setShowTransfer(!showTransfer)} 
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${showTransfer ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-400 hover:bg-amber-50 hover:text-amber-600'}`}
+                  title="Transferir Responsável"
+                >
+                  <i className="fas fa-exchange-alt text-xs"></i>
+                </button>
+                {showTransfer && (
+                  <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[110] animate-in zoom-in duration-200">
+                    <p className="text-[8px] font-black uppercase text-slate-400 p-2 border-b border-slate-50 mb-1">Transferir para:</p>
+                    <div className="max-h-40 overflow-y-auto no-scrollbar">
+                      {users.map(u => (
+                        <button 
+                          key={u.id} 
+                          onClick={() => { onTransfer?.(u.id); setShowTransfer(false); }}
+                          className="w-full text-left px-3 py-2 hover:bg-blue-50 rounded-lg text-[10px] font-bold text-slate-700 transition-colors uppercase"
+                        >
+                          {u.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <button onClick={onEdit} className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors"><i className="fas fa-edit text-xs"></i></button>
+            <button onClick={onDelete} className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl hover:bg-rose-50 hover:text-rose-500 transition-colors"><i className="fas fa-trash text-xs"></i></button>
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const HistoryFilterBar: React.FC<{
   users: User[],
@@ -196,7 +231,7 @@ const HistoryFilterBar: React.FC<{
   );
 };
 
-export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, onSubmit, onDelete, onEdit }) => {
+export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, onSubmit, onDelete, onEdit, onTransfer }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
   
   const [filterChaplain, setFilterChaplain] = useState('all');
@@ -205,12 +240,15 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
   const studySuggestions = ["Ouvindo a voz de Deus", "Verdade e Vida", "Apocalipse", "Daniel"];
 
-  // Lista de alunos únicos baseada no histórico TOTAL para o Autocomplete
+  // SEGREGRAÇÃO: Lista de alunos filtrada pelo usuário logado para o Autocomplete
   const studentNames = useMemo(() => {
     const names = new Set<string>();
-    allHistory.forEach(s => { if(s.name) names.add(s.name.trim()); });
+    // Filtra o histórico global apenas pelos alunos que pertencem ao usuário atual
+    allHistory
+      .filter(s => s.userId === currentUser.id)
+      .forEach(s => { if(s.name) names.add(s.name.trim()); });
     return Array.from(names);
-  }, [allHistory]);
+  }, [allHistory, currentUser.id]);
 
   useEffect(() => {
     if (editingItem) {
@@ -232,21 +270,20 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
     });
   }, [history, filterChaplain, filterStart, filterEnd]);
 
-  // Função disparada ao selecionar um aluno existente na lista
   const handleSelectStudent = (name: string) => {
-    // Busca o registro mais recente deste aluno no histórico geral
     const lastRecord = [...allHistory]
+      .filter(s => s.userId === currentUser.id) // Garante que busca o progresso apenas dos seus alunos
       .sort((a, b) => b.createdAt - a.createdAt)
       .find(s => s.name.trim().toLowerCase() === name.trim().toLowerCase());
 
     if (lastRecord) {
       setFormData({
         ...lastRecord,
-        id: lastRecord.id, // IMPORTANTE: Vincula ao ID existente para atualizar em vez de criar novo
-        date: new Date().toISOString().split('T')[0], // Atualiza para hoje
+        id: lastRecord.id,
+        date: new Date().toISOString().split('T')[0],
         status: lastRecord.status === RecordStatus.TERMINO ? RecordStatus.TERMINO : RecordStatus.CONTINUACAO,
         lesson: lastRecord.status === RecordStatus.TERMINO ? lastRecord.lesson : (parseInt(lastRecord.lesson) + 1).toString(),
-        observations: '' // Limpa obs para novo atendimento
+        observations: ''
       });
     }
   };
@@ -264,13 +301,13 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Selecione o setor..." /></div>
           <div className="space-y-1">
-            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Aluno (Busca Inteligente) *</label>
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Aluno (Seus Alunos) *</label>
             <Autocomplete 
               options={studentNames} 
               value={formData.name} 
               onChange={v => setFormData({...formData, name: v})} 
               onSelectOption={handleSelectStudent}
-              placeholder="Digite para buscar ou cadastrar..." 
+              placeholder="Digite para buscar seu aluno..." 
             />
           </div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">WhatsApp *</label><input required placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-mono" /></div>
@@ -301,6 +338,9 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               subtitle={`${resolveDynamicName(item.sector, item.unit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA)} • Lição ${item.lesson} • ${item.status}`} 
               chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
               isLocked={isRecordLocked(item.date, currentUser.role)}
+              isAdmin={currentUser.role === UserRole.ADMIN}
+              users={users}
+              onTransfer={(newUid) => onTransfer?.('study', item.id, newUid)}
               onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} 
               extra={item.status === RecordStatus.TERMINO && <span className="text-[8px] bg-rose-50 text-rose-600 px-2 py-1 rounded-lg font-black uppercase">Concluído</span>}
             />
@@ -311,7 +351,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
   );
 };
 
-export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, onSubmit, onDelete, onEdit }) => {
+export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, onSubmit, onDelete, onEdit, onTransfer }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' });
   const [newStudent, setNewStudent] = useState('');
 
@@ -319,12 +359,14 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
 
-  // Lista de todas as classes para Smart-Resume
+  // SEGREGRAÇÃO: Lista de classes filtrada pelo usuário logado para o Autocomplete
   const classGuides = useMemo(() => {
     const guides = new Set<string>();
-    allHistory.forEach(c => { if(c.guide) guides.add(c.guide.trim()); });
+    allHistory
+      .filter(c => c.userId === currentUser.id)
+      .forEach(c => { if(c.guide) guides.add(c.guide.trim()); });
     return Array.from(guides);
-  }, [allHistory]);
+  }, [allHistory, currentUser.id]);
 
   useEffect(() => {
     if (editingItem) {
@@ -343,9 +385,9 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
     });
   }, [history, filterChaplain, filterStart, filterEnd]);
 
-  // Função disparada ao selecionar uma classe existente
   const handleSelectClass = (guideName: string) => {
     const lastClass = [...allHistory]
+      .filter(c => c.userId === currentUser.id)
       .sort((a, b) => b.createdAt - a.createdAt)
       .find(c => c.guide.trim().toLowerCase() === guideName.trim().toLowerCase());
 
@@ -389,13 +431,13 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               ))}
             </div>
           </div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome da Classe / Guia *</label>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome da Classe (Suas Classes) *</label>
             <Autocomplete 
               options={classGuides} 
               value={formData.guide} 
               onChange={v => setFormData({...formData, guide: v})} 
               onSelectOption={handleSelectClass}
-              placeholder="Selecione ou digite o guia..." 
+              placeholder="Digite para buscar sua classe..." 
             />
           </div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada *</label><input required type="number" min="1" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 font-black" /></div>
@@ -424,6 +466,9 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               subtitle={`${resolveDynamicName(item.sector, item.unit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA)} • ${item.students.length} alunos • ${item.status}`} 
               chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
               isLocked={isRecordLocked(item.date, currentUser.role)}
+              isAdmin={currentUser.role === UserRole.ADMIN}
+              users={users}
+              onTransfer={(newUid) => onTransfer?.('class', item.id, newUid)}
               onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} 
             />
           )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro para este filtro.</p>}
