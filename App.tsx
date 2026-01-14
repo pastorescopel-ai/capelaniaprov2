@@ -1,7 +1,7 @@
 
 // ############################################################
-// # APP CORE - VERSION 2.8.0-STABLE (SMART TRACKING)
-// # ESTADO: TRAVA DE MÊS + ATUALIZAÇÃO DE REGISTRO ÚNICO
+// # APP CORE - VERSION 2.9.0-STABLE (DNA SNAPSHOT)
+// # ESTADO: TRAVA DE MÊS + DNA RESTORE INTEGRADO
 // ############################################################
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -179,6 +179,28 @@ const App: React.FC = () => {
     }
   }, [isInitialized, config, users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists]);
 
+  const handleRestoreFullDNA = async (db: any) => {
+    // Restaura o estado em memória
+    setUsers(db.users);
+    setBibleStudies(db.bibleStudies);
+    setBibleClasses(db.bibleClasses);
+    setSmallGroups(db.smallGroups);
+    setStaffVisits(db.staffVisits);
+    setConfig(applySystemOverrides(db.config));
+    setMasterLists(db.masterLists);
+
+    // Sincroniza imediatamente com o Cloud para garantir persistência
+    await saveToCloud({
+      users: db.users,
+      bibleStudies: db.bibleStudies,
+      bibleClasses: db.bibleClasses,
+      smallGroups: db.smallGroups,
+      staffVisits: db.staffVisits,
+      config: db.config,
+      masterLists: db.masterLists
+    });
+  };
+
   useEffect(() => {
     if (itemToDelete) {
       const { type, id } = itemToDelete;
@@ -312,6 +334,7 @@ const App: React.FC = () => {
                 setMasterLists(l); 
                 await saveToCloud({ config: c, masterLists: l }); 
               }}
+              onRestoreFullDNA={handleRestoreFullDNA}
               onRefreshData={loadFromCloud}
             />
           )}

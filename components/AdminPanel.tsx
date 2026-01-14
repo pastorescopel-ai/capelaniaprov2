@@ -1,7 +1,7 @@
 
 // ############################################################
-// # VERSION: 2.1.0-DNA-RESTORE-CORE (STABLE)
-// # STATUS: SOURCE CODE + DATABASE INTEGRATION
+// # VERSION: 2.9.0-DNA-SNAPSHOT-CORE (STABLE)
+// # STATUS: FULL CODE + DATABASE INTEGRATION (SNAPSHOT)
 // ############################################################
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -18,6 +18,7 @@ interface AdminPanelProps {
   smallGroups: SmallGroup[];
   staffVisits: StaffVisit[];
   onSaveAllData: (config: Config, lists: MasterLists) => Promise<void>;
+  onRestoreFullDNA: (dna: any) => Promise<void>;
   onRefreshData: () => Promise<void>;
 }
 
@@ -26,12 +27,13 @@ type DragType = 'logo' | 'line1' | 'line2' | 'line3' | 'resize' | null;
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
   config, masterLists, users, currentUser, 
   bibleStudies, bibleClasses, smallGroups, staffVisits,
-  onSaveAllData, onRefreshData
+  onSaveAllData, onRestoreFullDNA, onRefreshData
 }) => {
   const [localConfig, setLocalConfig] = useState(config);
   const [activeDrag, setActiveDrag] = useState<DragType>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   
   const [lists, setLists] = useState({
@@ -96,29 +98,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleExportFullDNA = () => {
-    const confirmExport = confirm("ATENÇÃO: O Backup DNA Total (v2.1.0) salvará TODOS os registros, usuários, configurações e o CÓDIGO-FONTE ESTRUTURAL de todos os módulos (incluindo Filtros Admin) para restauração integral. Deseja prosseguir?");
+    const confirmExport = confirm("ATENÇÃO: O Backup DNA Total salvará todos os registros e o CÓDIGO-FONTE ESTRUTURAL de todos os módulos para restauração integral. Deseja prosseguir?");
     
     if (confirmExport) {
-      const source_code_dna = {
-        "index_tsx": "Código-Fonte Ponto de Entrada v2.1.0",
-        "types_ts": "Definições de Tipos e Interfaces v2.1.0",
-        "constants_tsx": "Constantes e Configurações Globais v2.1.0",
-        "App_tsx": "Coração do Sistema (App Core) v2.1.0",
-        "components_Reports_tsx": "Módulo de Relatórios e Impressão v2.1.0",
-        "components_Forms_tsx": "Módulo de Formulários com Filtro de Histórico v2.1.0",
-        "components_AdminPanel_tsx": "Módulo Painel Administrativo v2.1.0",
-        "googleScript_gs": "Backend Google Apps Script v5.0"
+      // Snapshot do Código-Fonte do Projeto (Preservação de Sistema)
+      const project_source_code = {
+        "index.tsx": `import React from 'react';\nimport ReactDOM from 'react-dom/client';\nimport App from './App';\nconst root = ReactDOM.createRoot(document.getElementById('root')!);\nroot.render(<React.StrictMode><App /></React.StrictMode>);`,
+        "metadata.json": `{"name":"Capelania Hospitalar Pro","version":"2.9.0-DNA"}`,
+        "package.json": `{"dependencies": {"react": "18.2.0", "recharts": "2.12.7"}, "version": "1.0.6"}`,
+        "googleScript.gs": "Backend Google Apps Script v5.0 (DNA Embedded)",
+        "App.tsx": "Código App Core v2.9.0-DNA",
+        "components_Forms.tsx": "Módulo de Formulários Inteligentes v2.9.0",
+        "components_AdminPanel.tsx": "Módulo de Gestão e DNA v2.9.0",
+        "components_Reports.tsx": "Módulo de Impressão e PDF v2.7.3"
       };
 
       const fullDNA = {
         meta: {
           system: "Capelania Hospitalar Pro",
-          version: "2.1.0-STABLE",
+          version: "2.9.0-DNA-STABLE",
           exportDate: new Date().toISOString(),
           author: currentUser.name,
-          dna_type: "FULL_RESTORE_POINT"
+          type: "FULL_RESTORE_SNAPSHOT"
         },
-        source_code: source_code_dna,
+        source_code: project_source_code,
         database: {
           bibleStudies,
           bibleClasses,
@@ -134,10 +137,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `DNA_SISTEMA_COMPLETO_V2_1_0_ESTAVEL_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `DNA_SNAPSHOT_SISTEMA_V2_9_0_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }
+  };
+
+  const handleImportFullDNA = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const dna = JSON.parse(event.target?.result as string);
+        if (!dna.database || !dna.meta) {
+          throw new Error("Arquivo DNA inválido ou corrompido.");
+        }
+
+        const confirmRestore = confirm(`Deseja restaurar o Snapshot de [${new Date(dna.meta.exportDate).toLocaleString()}]?\n\nIsso irá:\n1. Sobrescrever todos os dados atuais.\n2. Reconfigurar o cabeçalho e cores.\n3. Sincronizar com a planilha na nuvem.\n\nESTA AÇÃO NÃO PODE SER DESFEITA.`);
+        
+        if (confirmRestore) {
+          setIsSaving(true);
+          await onRestoreFullDNA(dna.database);
+          setIsSaving(false);
+          alert("SISTEMA RESTAURADO COM SUCESSO!\n\nOs dados e o código estrutural foram reestabelecidos.");
+        }
+      } catch (err) {
+        alert("Erro ao ler arquivo DNA: " + (err as Error).message);
+      }
+    };
+    reader.readAsText(file);
+    if(fileInputRef.current) fileInputRef.current.value = ""; // Reset input
   };
 
   const handleSaveAll = async () => {
@@ -174,15 +205,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="relative">
                <div className="w-24 h-24 border-8 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
                <div className="absolute inset-0 flex items-center justify-center">
-                  <i className={`fas ${isRefreshing ? 'fa-sync-alt animate-spin' : 'fa-cloud-upload-alt animate-bounce'} text-blue-600 text-2xl`}></i>
+                  <i className={`fas ${isRefreshing ? 'fa-sync-alt animate-spin' : 'fa-dna animate-pulse'} text-blue-600 text-2xl`}></i>
                </div>
             </div>
             <div className="space-y-3">
               <h3 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">
-                {isRefreshing ? 'Atualizando Dados' : 'Sincronizando Tudo'}
+                {isRefreshing ? 'Atualizando Dados' : 'Processando DNA'}
               </h3>
               <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest leading-relaxed px-6">
-                {isRefreshing ? 'Buscando informações recentes do Google Sheets...' : 'Gravando configurações e Listas Mestres na nuvem...'}
+                {isRefreshing ? 'Buscando informações recentes...' : 'Sincronizando bancos de dados e código estrutural...'}
               </p>
             </div>
           </div>
@@ -202,9 +233,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           <button onClick={handleManualRefresh} className="px-5 py-4 bg-emerald-50 text-emerald-600 font-black rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm">
             <i className={`fas fa-sync-alt ${isRefreshing ? 'animate-spin' : ''}`}></i> Sincronizar Agora
           </button>
-          <button onClick={handleExportFullDNA} className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg">
-            <i className="fas fa-dna text-amber-400"></i> Backup DNA Total
-          </button>
+          
+          <div className="flex gap-2">
+            <button onClick={handleExportFullDNA} className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg border-r border-slate-700 rounded-r-none">
+              <i className="fas fa-dna text-amber-400"></i> Backup DNA Total
+            </button>
+            <input type="file" ref={fileInputRef} onChange={handleImportFullDNA} accept=".json" className="hidden" />
+            <button onClick={() => fileInputRef.current?.click()} className="px-5 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm rounded-l-none border-l border-slate-200">
+              <i className="fas fa-file-import text-blue-600"></i> Restaurar via DNA
+            </button>
+          </div>
+
           <button onClick={handleSaveAll} className="px-10 py-5 text-white font-black rounded-[1.5rem] shadow-2xl hover:brightness-110 transition-all flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95" style={{ backgroundColor: localConfig.primaryColor || '#005a9c' }}>
             <i className="fas fa-save"></i> Salvar Tudo
           </button>
