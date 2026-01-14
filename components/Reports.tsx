@@ -1,7 +1,7 @@
 
 // ############################################################
-// # VERSION: 2.7.3-PREMIUM-REPORTS-FINAL (STABLE)
-// # STATUS: COLOR-FIX + DYNAMIC HEADER + 4-COLUMN DASHBOARD
+// # VERSION: 2.10.0-REPORTS-WEEKLY (STABLE)
+// # STATUS: WEEKLY ACCORDION + PDF INTEGRITY
 // ############################################################
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -26,9 +26,23 @@ const resolveDynamicName = (val: string, list: string[] = []) => {
   return currentMatch || val;
 };
 
+// Auxiliar para calcular a semana do ano e o intervalo de datas
+const getWeekRange = (dateStr: string) => {
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  const diffToMonday = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d.setDate(diffToMonday));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  
+  const fmt = (date: Date) => date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  return `Semana de ${fmt(monday)} a ${fmt(sunday)}`;
+};
+
 const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, users, masterLists, config, onRefresh }) => {
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [selectedDetailUser, setSelectedDetailUser] = useState<User | null>(null);
+  const [expandedWeeks, setExpandedWeeks] = useState<string[]>([]);
   
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -37,7 +51,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
   const pColor = config.primaryColor || '#005a9c';
 
-  // SUPORTE A TECLA ESC PARA FECHAR MODAIS
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -130,6 +143,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     .sort((a, b) => b.totalActions - a.totalActions);
   }, [users, filteredData, selectedChaplain]);
 
+  const toggleWeek = (week: string) => {
+    setExpandedWeeks(prev => prev.includes(week) ? prev.filter(w => w !== week) : [...prev, week]);
+  };
+
   const handlePrintIsolated = () => {
     const printContent = document.getElementById('pdf-root');
     if (!printContent) return;
@@ -173,13 +190,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       <div id="pdf-root" className="bg-white p-[5mm] flex flex-col gap-6 text-slate-900">
         <header className="relative border-b-4 flex-shrink-0" style={{ height: '140px', borderColor: pColor }}>
           {REPORT_LOGO_BASE64 && <img src={REPORT_LOGO_BASE64} style={{ position: 'absolute', left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px`, width: `${config.reportLogoWidth}px` }} alt="Logo" />}
-          
-          {/* PERÍODO DINÂMICO - LADO OPOSTO AO LOGO */}
           <div className="absolute top-4 right-0 text-right">
              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Relatório Consolidado</p>
              <p className="text-[12px] font-black text-slate-800 uppercase" style={{ color: pColor }}>Período: {formatDate(startDate)} - {formatDate(endDate)}</p>
           </div>
-
           <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
             <h1 style={{ fontSize: `${config.fontSize1}px`, color: pColor }} className="font-black uppercase">{config.headerLine1}</h1>
           </div>
@@ -192,7 +206,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         </header>
 
         <section className="space-y-8 mt-4">
-          {/* TABELAS COM FILTRO DE LINHA VAZIA POR UNIDADE */}
           {[Unit.HAB, Unit.HABA].map(unitKey => {
               if (selectedUnit !== 'all' && selectedUnit !== unitKey) return null;
               return (
@@ -213,7 +226,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                       {chaplainStats.map((stat, idx) => {
                         const uS = unitKey === Unit.HAB ? stat.hab : stat.haba;
                         if (uS.total === 0 && uS.students === 0) return null;
-                        
                         return (
                           <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                             <td className="p-2 font-bold text-slate-700 uppercase border-b border-slate-100">{stat.name}</td>
@@ -230,8 +242,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </div>
               );
           })}
-
-          {/* DASHBOARD GRÁFICO 4 COLUNAS */}
           <div className="pt-6 border-t-2 border-slate-100">
              <h3 className="text-[11px] font-black uppercase text-center mb-6 tracking-widest text-slate-400">Indicadores Gráficos (Total HAB + HABA)</h3>
              <div className="grid grid-cols-4 gap-x-4 gap-y-10">
@@ -242,13 +252,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   const totalP = stat.hab.groups + stat.haba.groups;
                   const totalV = stat.hab.visits + stat.haba.visits;
                   const maxVal = Math.max(totalS, totalE, totalC, totalP, totalV, 5);
-                  const bars = [
-                    { label: 'ALU', val: totalS, color: '#3b82f6' },
-                    { label: 'EST', val: totalE, color: '#6366f1' },
-                    { label: 'CLA', val: totalC, color: '#8b5cf6' },
-                    { label: 'PGS', val: totalP, color: pColor },
-                    { label: 'VIS', val: totalV, color: '#f43f5e' }
-                  ];
+                  const bars = [{ label: 'ALU', val: totalS, color: '#3b82f6' }, { label: 'EST', val: totalE, color: '#6366f1' }, { label: 'CLA', val: totalC, color: '#8b5cf6' }, { label: 'PGS', val: totalP, color: pColor }, { label: 'VIS', val: totalV, color: '#f43f5e' }];
                   return (
                     <div key={stat.user.id} className="flex flex-col items-center">
                       <p className="text-[7px] font-black uppercase mb-3 text-slate-600 border-b w-full text-center pb-1 border-slate-100 truncate">{stat.name}</p>
@@ -269,17 +273,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 })}
              </div>
           </div>
-
-          {/* RODAPÉ DE CARDS RESUMO */}
           <div className="pt-10 mt-auto">
             <div className="grid grid-cols-5 gap-3">
-              {[
-                { label: 'Total Alunos', val: totalStats.totalStudents, color: pColor },
-                { label: 'Total Estudos', val: totalStats.studies, color: '#3b82f6' },
-                { label: 'Total Classes', val: totalStats.classes, color: '#6366f1' },
-                { label: 'Total PGs', val: totalStats.groups, color: '#10b981' },
-                { label: 'Total Visitas', val: totalStats.visits, color: '#f43f5e' }
-              ].map((card, ci) => (
+              {[{ label: 'Total Alunos', val: totalStats.totalStudents, color: pColor }, { label: 'Total Estudos', val: totalStats.studies, color: '#3b82f6' }, { label: 'Total Classes', val: totalStats.classes, color: '#6366f1' }, { label: 'Total PGs', val: totalStats.groups, color: '#10b981' }, { label: 'Total Visitas', val: totalStats.visits, color: '#f43f5e' }].map((card, ci) => (
                 <div key={ci} className="p-4 rounded-3xl text-center shadow-md border-2 border-white" style={{ backgroundColor: card.color }}>
                   <p className="text-[8px] font-black uppercase tracking-tighter text-white opacity-80 mb-0.5 leading-none">{card.label}</p>
                   <p className="text-xl font-black text-white leading-none">{card.val}</p>
@@ -296,6 +292,72 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     );
   };
 
+  const AccordionSection = ({ title, items, colorClass }: { title: string, items: any[], colorClass: string }) => {
+    if (items.length === 0) return null;
+    
+    // Agrupa itens por semana
+    const grouped = items.reduce((acc: any, item) => {
+      const week = getWeekRange(item.date);
+      if (!acc[week]) acc[week] = [];
+      acc[week].push(item);
+      return acc;
+    }, {});
+
+    const sortedWeeks = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+    
+    // Auto-expande a primeira semana se nada estiver expandido ainda
+    useEffect(() => {
+      if (expandedWeeks.length === 0 && sortedWeeks.length > 0) {
+        setExpandedWeeks([sortedWeeks[0]]);
+      }
+    }, [sortedWeeks]);
+
+    return (
+      <div className="space-y-4">
+        <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full border bg-white ${colorClass.replace('bg-', 'text-').replace('-50/50', '')} border-slate-100 w-fit shadow-sm`}>
+          {title} ({items.length})
+        </h4>
+        <div className="space-y-3">
+          {sortedWeeks.map(week => {
+            const isOpen = expandedWeeks.includes(week);
+            return (
+              <div key={week} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden transition-all">
+                <button 
+                  onClick={() => toggleWeek(week)}
+                  className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                >
+                  <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{week}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">{grouped[week].length} Atendimentos</span>
+                    <i className={`fas fa-chevron-${isOpen ? 'up' : 'down'} text-slate-300 text-xs`}></i>
+                  </div>
+                </button>
+                {isOpen && (
+                  <div className="px-6 pb-6 pt-2 space-y-3 animate-in slide-in-from-top duration-300">
+                    {grouped[week].map((item: any, idx: number) => (
+                      <div key={idx} className={`p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${colorClass}`}>
+                         <div>
+                            <p className="font-black text-slate-800 uppercase text-[11px]">{item.name || item.guide || resolveDynamicName(item.groupName, masterLists.groupsHAB) || resolveDynamicName(item.staffName, masterLists.staffHAB)}</p>
+                            <p className="text-[9px] font-bold opacity-70 uppercase">
+                              {resolveDynamicName(item.sector, item.unit === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA)}
+                              {item.lesson ? ` • Lição ${item.lesson}` : ''}
+                            </p>
+                         </div>
+                         <div className="text-right">
+                            <span className="text-[8px] font-black text-slate-400 uppercase">{new Date(item.date).toLocaleDateString()}</span>
+                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
@@ -307,7 +369,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             <button onClick={() => setShowPdfPreview(true)} className="px-6 py-4 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all" style={{ backgroundColor: pColor }}><i className="fas fa-file-pdf"></i> Visualizar PDF</button>
           </div>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Início</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm" /></div>
@@ -325,7 +386,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             </select>
           </div>
         </div>
-
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {[{label: 'Alunos', val: totalStats.totalStudents, color: 'bg-blue-600'}, {label: 'Estudos', val: totalStats.studies, color: 'bg-blue-500'}, {label: 'Classes', val: totalStats.classes, color: 'bg-indigo-500'}, {label: 'PGs', val: totalStats.groups, color: 'bg-emerald-500'}, {label: 'Visitas', val: totalStats.visits, color: 'bg-rose-500'}].map((card, i) => (
             <div key={i} className={`${card.color} p-6 rounded-[2.5rem] text-white shadow-xl flex flex-col items-center group hover:scale-105 transition-all`}>
@@ -351,7 +411,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </div>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
                 <p className="text-[8px] font-black uppercase text-slate-400 text-center tracking-widest border-b border-slate-200 pb-1 mb-2">Unidade HAB</p>
@@ -368,7 +427,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-blue-500">Visitas</span><span className="text-xs font-black text-blue-800">{stat.haba.visits}</span></div>
               </div>
             </div>
-
             <button onClick={() => setSelectedDetailUser(stat.user)} className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest hover:bg-black active:scale-95 transition-all mt-auto">Ver Detalhamento</button>
           </div>
         ))}
@@ -380,49 +438,28 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">{selectedDetailUser.name}</h3>
-                <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Registros Detalhados no Período</p>
+                <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Cronograma Semanal de Atividades</p>
               </div>
               <button onClick={() => setSelectedDetailUser(null)} className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm transition-all"><i className="fas fa-times text-xl"></i></button>
             </div>
-            <div className="flex-1 overflow-y-auto p-8 space-y-10 no-scrollbar">
+            <div className="flex-1 overflow-y-auto p-8 space-y-12 no-scrollbar">
               {['HAB', 'HABA'].map((unitKey) => {
                 const currentStat = chaplainStats.find(s => s.user.id === selectedDetailUser.id);
                 if (!currentStat) return null;
                 const uStat = unitKey === 'HAB' ? currentStat.hab : currentStat.haba;
                 if (uStat.total === 0) return null;
                 return (
-                  <div key={unitKey} className="space-y-6">
-                    <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 text-center flex items-center gap-4">
-                      <div className="h-[1px] bg-slate-200 flex-1"></div>
+                  <div key={unitKey} className="space-y-8">
+                    <h4 className="text-[12px] font-black uppercase tracking-[0.5em] text-slate-300 text-center flex items-center gap-4">
+                      <div className="h-[1px] bg-slate-100 flex-1"></div>
                       Unidade {unitKey}
-                      <div className="h-[1px] bg-slate-200 flex-1"></div>
+                      <div className="h-[1px] bg-slate-100 flex-1"></div>
                     </h4>
-                    <div className="grid gap-4">
-                      {uStat.rawStudies.map((s, i) => (
-                        <div key={`study-${i}`} className="p-5 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div><p className="font-black text-slate-800 uppercase text-xs">{s.name}</p><p className="text-[9px] font-bold text-blue-600 uppercase">{resolveDynamicName(s.sector, unitKey === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA)}</p></div>
-                          <div className="text-right"><p className="text-[10px] font-bold text-slate-700">{s.guide} - Lição {s.lesson}</p><p className="text-[8px] font-black text-slate-400 uppercase">{new Date(s.date).toLocaleDateString()}</p></div>
-                        </div>
-                      ))}
-                      {uStat.rawClasses.map((c, i) => (
-                        <div key={`class-${i}`} className="p-5 bg-indigo-50/50 rounded-3xl border border-indigo-100 space-y-3">
-                          <div className="flex justify-between items-center"><div><p className="font-black text-indigo-700 uppercase text-xs">Classe: {c.guide} (Lição {c.lesson})</p><p className="text-[9px] font-black text-indigo-400">{resolveDynamicName(c.sector, unitKey === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA)}</p></div><span className="text-[8px] font-black text-slate-400 uppercase">{new Date(c.date).toLocaleDateString()}</span></div>
-                          <div className="flex flex-wrap gap-2 pt-2 border-t border-indigo-100/30">{c.students?.map((name, si) => (<span key={si} className="text-[8px] font-bold bg-white text-slate-600 px-2.5 py-1 rounded-full border border-indigo-50 uppercase shadow-sm">{name}</span>))}</div>
-                        </div>
-                      ))}
-                      {uStat.rawGroups.map((g, i) => (
-                        <div key={`group-${i}`} className="p-5 bg-emerald-50/50 rounded-3xl border border-emerald-100 flex justify-between items-center">
-                          <div><p className="font-black text-emerald-800 uppercase text-xs">{resolveDynamicName(g.groupName, unitKey === 'HAB' ? masterLists.groupsHAB : masterLists.groupsHABA)}</p><p className="text-[9px] font-bold text-emerald-600 uppercase">Setor: {resolveDynamicName(g.sector, unitKey === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA)}</p></div>
-                          <span className="text-xs font-black text-emerald-700">{g.participantsCount} Membros</span>
-                        </div>
-                      ))}
-                      {uStat.rawVisits.map((v, i) => (
-                        <div key={`visit-${i}`} className="p-5 bg-rose-50/50 rounded-3xl border border-rose-100 flex justify-between items-center">
-                          <div><p className="font-black text-rose-800 uppercase text-xs">{resolveDynamicName(v.staffName, unitKey === 'HAB' ? masterLists.staffHAB : masterLists.staffHABA)}</p><p className="text-[9px] font-bold text-rose-600 uppercase">{v.reason}</p></div>
-                          {v.requiresReturn && (<span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md ${v.returnCompleted ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white animate-pulse'}`}>{v.returnCompleted ? 'Retorno Ok' : 'Retorno Pendente'}</span>)}
-                        </div>
-                      ))}
-                    </div>
+                    
+                    <AccordionSection title="Estudos Bíblicos" items={uStat.rawStudies} colorClass="bg-blue-50/50" />
+                    <AccordionSection title="Classes Bíblicas" items={uStat.rawClasses} colorClass="bg-indigo-50/50" />
+                    <AccordionSection title="Pequenos Grupos" items={uStat.rawGroups} colorClass="bg-emerald-50/50" />
+                    <AccordionSection title="Visitas a Colaboradores" items={uStat.rawVisits} colorClass="bg-rose-50/50" />
                   </div>
                 );
               })}

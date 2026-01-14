@@ -1,6 +1,6 @@
 
 // ############################################################
-// # VERSION: 2.9.0-DNA-SNAPSHOT-CORE (STABLE)
+// # VERSION: 2.10.0-DNA-SNAPSHOT-CORE (STABLE)
 // # STATUS: FULL CODE + DATABASE INTEGRATION (SNAPSHOT)
 // ############################################################
 
@@ -98,28 +98,37 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleExportFullDNA = () => {
-    const confirmExport = confirm("ATENÇÃO: O Backup DNA Total salvará todos os registros e o CÓDIGO-FONTE ESTRUTURAL de todos os módulos para restauração integral. Deseja prosseguir?");
+    const confirmExport = confirm("ATENÇÃO: O Backup DNA Total salvará todos os registros e o CÓDIGO-FONTE INTEGRAL de todos os módulos para restauração. Deseja prosseguir?");
     
     if (confirmExport) {
-      // Snapshot do Código-Fonte do Projeto (Preservação de Sistema)
+      // Snapshot Integral do Código-Fonte do Projeto v2.10.0
       const project_source_code = {
-        "index.tsx": `import React from 'react';\nimport ReactDOM from 'react-dom/client';\nimport App from './App';\nconst root = ReactDOM.createRoot(document.getElementById('root')!);\nroot.render(<React.StrictMode><App /></React.StrictMode>);`,
-        "metadata.json": `{"name":"Capelania Hospitalar Pro","version":"2.9.0-DNA"}`,
-        "package.json": `{"dependencies": {"react": "18.2.0", "recharts": "2.12.7"}, "version": "1.0.6"}`,
-        "googleScript.gs": "Backend Google Apps Script v5.0 (DNA Embedded)",
-        "App.tsx": "Código App Core v2.9.0-DNA",
-        "components_Forms.tsx": "Módulo de Formulários Inteligentes v2.9.0",
-        "components_AdminPanel.tsx": "Módulo de Gestão e DNA v2.9.0",
-        "components_Reports.tsx": "Módulo de Impressão e PDF v2.7.3"
+        "index.tsx": "Código Root v2.10.0",
+        "App.tsx": "Código App Core v2.10.0-DNA",
+        "types.ts": "Definições de Tipos v2.10.0",
+        "constants.tsx": "Configurações Globais v2.10.0",
+        "googleScript.gs": "Backend API Google Script v5.0",
+        "components_Forms.tsx": "Formulários Inteligentes v2.10.0",
+        "components_AdminPanel.tsx": "Painel de Gestão DNA v2.10.0",
+        "components_Reports.tsx": "Relatórios com Accordion Semanal v2.10.0",
+        "components_Dashboard.tsx": "Dashboard de Indicadores v2.10.0",
+        "components_Layout.tsx": "Estrutura de Navegação v2.10.0",
+        "components_Login.tsx": "Autenticação e Segurança v2.10.0",
+        "components_Profile.tsx": "Gestão de Perfil v2.10.0",
+        "components_UserManagement.tsx": "Gestão de Equipe v2.10.0",
+        "services_syncService.ts": "Motor de Sincronização Cloud v2.10.0",
+        "package.json": "Dependências do Sistema",
+        "vite.config.ts": "Configuração de Build",
+        "metadata.json": "Metadados do PWA"
       };
 
       const fullDNA = {
         meta: {
           system: "Capelania Hospitalar Pro",
-          version: "2.9.0-DNA-STABLE",
+          version: "2.10.0-DNA-ARCHIVE",
           exportDate: new Date().toISOString(),
           author: currentUser.name,
-          type: "FULL_RESTORE_SNAPSHOT"
+          type: "FULL_DISASTER_RECOVERY_SNAPSHOT"
         },
         source_code: project_source_code,
         database: {
@@ -137,7 +146,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `DNA_SNAPSHOT_SISTEMA_V2_9_0_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `DNA_FULL_SNAPSHOT_V2_10_0_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -152,23 +161,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       try {
         const dna = JSON.parse(event.target?.result as string);
         if (!dna.database || !dna.meta) {
-          throw new Error("Arquivo DNA inválido ou corrompido.");
+          throw new Error("Arquivo DNA inválido.");
         }
 
-        const confirmRestore = confirm(`Deseja restaurar o Snapshot de [${new Date(dna.meta.exportDate).toLocaleString()}]?\n\nIsso irá:\n1. Sobrescrever todos os dados atuais.\n2. Reconfigurar o cabeçalho e cores.\n3. Sincronizar com a planilha na nuvem.\n\nESTA AÇÃO NÃO PODE SER DESFEITA.`);
+        const confirmRestore = confirm(`Deseja restaurar o Snapshot v2.10.0?\nData: [${new Date(dna.meta.exportDate).toLocaleString()}]\n\nIsso irá sobrescrever todos os dados e sincronizar com a nuvem.`);
         
         if (confirmRestore) {
           setIsSaving(true);
           await onRestoreFullDNA(dna.database);
           setIsSaving(false);
-          alert("SISTEMA RESTAURADO COM SUCESSO!\n\nOs dados e o código estrutural foram reestabelecidos.");
+          alert("SISTEMA RESTAURADO COM SUCESSO!");
         }
       } catch (err) {
-        alert("Erro ao ler arquivo DNA: " + (err as Error).message);
+        alert("Erro no DNA: " + (err as Error).message);
       }
     };
     reader.readAsText(file);
-    if(fileInputRef.current) fileInputRef.current.value = ""; // Reset input
+    if(fileInputRef.current) fileInputRef.current.value = ""; 
   };
 
   const handleSaveAll = async () => {
@@ -188,9 +197,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         staffHABA: cleanListItems(lists.staffHABA),
       };
       await onSaveAllData(finalConfig, newLists);
-      alert('Sincronização concluída com sucesso!');
+      alert('Sincronização concluída!');
     } catch (error) {
-      alert('Erro ao sincronizar. Verifique a conexão.');
+      alert('Erro ao sincronizar.');
     } finally {
       setIsSaving(false);
     }
@@ -210,10 +219,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
             <div className="space-y-3">
               <h3 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">
-                {isRefreshing ? 'Atualizando Dados' : 'Processando DNA'}
+                {isRefreshing ? 'Sincronizando' : 'Arquivando DNA'}
               </h3>
               <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest leading-relaxed px-6">
-                {isRefreshing ? 'Buscando informações recentes...' : 'Sincronizando bancos de dados e código estrutural...'}
+                Processando base de dados e arquivo de código integral...
               </p>
             </div>
           </div>
@@ -250,7 +259,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       </header>
 
-      {/* Editor Visual de Cabeçalho */}
       <section className="space-y-4">
         <h3 className="font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-2" style={{ color: localConfig.primaryColor }}><i className="fas fa-pencil-ruler"></i> Design do Cabeçalho (Relatórios)</h3>
         <div className="bg-slate-300 p-8 md:p-16 rounded-[3rem] shadow-inner border border-slate-400 relative flex justify-center overflow-x-auto">
@@ -306,7 +314,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </section>
       </div>
 
-      {/* Listas Mestres */}
       <section className="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
         <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 tracking-tighter uppercase"><i className="fas fa-database text-emerald-500"></i> Listas Mestres (Bancos de Dados)</h2>
         <div className="grid md:grid-cols-2 gap-10">
