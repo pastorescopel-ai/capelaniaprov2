@@ -1,3 +1,4 @@
+
 // ############################################################
 // # VERSION: 2.7.3-PREMIUM-REPORTS-FINAL (STABLE)
 // # STATUS: COLOR-FIX + DYNAMIC HEADER + 4-COLUMN DASHBOARD
@@ -136,9 +137,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     if (!printWindow) return;
     const styles = Array.from(document.querySelectorAll('link, style')).map(s => s.outerHTML).join('\n');
     
-    // Formatação de data brasileira
-    const formatDate = (date: string) => date.split('-').reverse().join('/');
-
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -248,7 +246,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                     { label: 'ALU', val: totalS, color: '#3b82f6' },
                     { label: 'EST', val: totalE, color: '#6366f1' },
                     { label: 'CLA', val: totalC, color: '#8b5cf6' },
-                    /* Fix line 260: Change val: pColor to val: totalP and add color: pColor */
                     { label: 'PGS', val: totalP, color: pColor },
                     { label: 'VIS', val: totalV, color: '#f43f5e' }
                   ];
