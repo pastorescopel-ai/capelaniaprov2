@@ -10,7 +10,7 @@ import Profile from './components/Profile';
 import UserManagement from './components/UserManagement';
 import { User, UserRole, Unit, RecordStatus } from './types';
 import { useAppData } from './hooks/useAppData';
-import { ToastProvider } from './contexts/ToastContext';
+import { ToastProvider, useToast } from './contexts/ToastContext';
 
 const AppContent: React.FC = () => {
   const {
@@ -18,6 +18,8 @@ const AppContent: React.FC = () => {
     smallGroups, setSmallGroups, staffVisits, setStaffVisits, masterLists, setMasterLists,
     config, setConfig, isSyncing, isConnected, loadFromCloud, saveToCloud, applySystemOverrides
   } = useAppData();
+
+  const { showToast } = useToast();
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -67,7 +69,11 @@ const AppContent: React.FC = () => {
 
     setBibleStudies(updatedStudies); setBibleClasses(updatedClasses); setStaffVisits(updatedVisits); setSmallGroups(updatedGroups);
     setEditingItem(null);
-    // Background Sync
+    
+    // Recibo Digital Instantâneo
+    showToast("Registro realizado com sucesso!", "success");
+    
+    // Background Sync silencioso
     saveToCloud({ bibleStudies: updatedStudies, bibleClasses: updatedClasses, staffVisits: updatedVisits, smallGroups: updatedGroups }, false);
   };
 
@@ -78,6 +84,8 @@ const AppContent: React.FC = () => {
     if (type === 'class') { payload.bibleClasses = bibleClasses.map(c => c.id === id ? { ...c, userId: newUserId, updatedAt: now } : c); setBibleClasses(payload.bibleClasses); }
     if (type === 'pg') { payload.smallGroups = smallGroups.map(g => g.id === id ? { ...g, userId: newUserId, updatedAt: now } : g); setSmallGroups(payload.smallGroups); }
     if (type === 'visit') { payload.staffVisits = staffVisits.map(v => v.id === id ? { ...v, userId: newUserId, updatedAt: now } : v); setStaffVisits(payload.staffVisits); }
+    
+    showToast("Registro transferido com sucesso!", "success");
     saveToCloud(payload, false);
   };
 
