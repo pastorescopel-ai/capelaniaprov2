@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Unit, RecordStatus, VisitReason, BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole, MasterLists } from '../types';
 import { STATUS_OPTIONS, VISIT_REASONS } from '../constants';
 import { useToast } from '../contexts/ToastContext';
@@ -263,6 +263,7 @@ const HistoryFilterBar: React.FC<{
 export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, onTransfer }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
   const { showToast } = useToast();
+  const firstInputRef = useRef<HTMLInputElement>(null);
   
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
@@ -285,6 +286,8 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
         ...editingItem,
         date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0]
       });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => firstInputRef.current?.focus(), 100);
     } else {
       setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
     }
@@ -338,7 +341,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
           )}
         </div>
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input ref={firstInputRef} type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Selecione o setor..." isStrict={true} /></div>
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Aluno (Seus Alunos) *</label>
@@ -412,6 +415,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' });
   const [newStudent, setNewStudent] = useState('');
   const { showToast } = useToast();
+  const firstInputRef = useRef<HTMLInputElement>(null);
 
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
@@ -429,6 +433,8 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
   useEffect(() => {
     if (editingItem) {
       setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0] });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => firstInputRef.current?.focus(), 100);
     } else {
       setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' });
     }
@@ -487,7 +493,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
           )}
         </div>
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data *</label><input ref={firstInputRef} type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Escolha o setor..." isStrict={true} /></div>
           <div className="space-y-1 md:col-span-2">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lista de Presença *</label>
@@ -576,6 +582,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, groupsList = [], history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' });
   const { showToast } = useToast();
+  const firstInputRef = useRef<HTMLInputElement>(null);
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
@@ -584,6 +591,8 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
   useEffect(() => {
     if (editingItem) {
       setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0] });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => firstInputRef.current?.focus(), 100);
     } else {
       setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' });
     }
@@ -614,7 +623,7 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
       <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <h2 className="text-2xl font-bold text-slate-800">Pequeno Grupo ({unit})</h2>
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input ref={firstInputRef} type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local do PG..." isStrict={true} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Grupo *</label><Autocomplete options={groupsList} value={formData.groupName} onChange={v => setFormData({...formData, groupName: v})} placeholder="Pesquise o nome do grupo..." isStrict={true} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Líder *</label><input placeholder="Líder do PG" value={formData.leader} onChange={e => setFormData({...formData, leader: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
@@ -663,6 +672,7 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, staffList = [], history, editingItem, isLoading, onSubmit, onDelete, onEdit, onToggleReturn }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' });
   const { showToast } = useToast();
+  const firstInputRef = useRef<HTMLInputElement>(null);
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
@@ -671,6 +681,8 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
   useEffect(() => {
     if (editingItem) {
       setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0], returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : new Date().toISOString().split('T')[0] });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => firstInputRef.current?.focus(), 100);
     } else {
       setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' });
     }
@@ -701,7 +713,7 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
       <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <h2 className="text-2xl font-bold text-slate-800">Visita a Colaborador ({unit})</h2>
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input ref={firstInputRef} type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local da visita..." isStrict={true} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Colaborador *</label><Autocomplete options={staffList} value={formData.staffName} onChange={v => setFormData({...formData, staffName: v})} placeholder="Nome do colaborador..." /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Motivo *</label>
