@@ -1,7 +1,7 @@
 
 // ############################################################
-// # VERSION: 2.13.0-REPORTS-AUDIT-GROUPED (STABLE)
-// # STATUS: ACTIVITY FILTER + GROUPED STUDENT AUDIT
+// # VERSION: 2.13.1-REPORTS-CLEANUP (STABLE)
+// # STATUS: ACTIVITY FILTER + GROUPED STUDENT AUDIT - PRINT BTN REMOVED
 // ############################################################
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -449,7 +449,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <div className="flex flex-wrap gap-3">
             <button onClick={() => onRefresh && onRefresh()} className="px-6 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all"><i className="fas fa-sync-alt"></i> Sincronizar</button>
             <button onClick={() => setShowStudentsAudit(true)} className="px-6 py-4 bg-blue-100 text-blue-700 font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all border border-blue-200"><i className="fas fa-list-ul"></i> Lista Geral de Alunos</button>
-            <button onClick={handlePrintIsolated} className="px-6 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all"><i className="fas fa-print"></i> Imprimir Relatório</button>
             <button onClick={() => setShowPdfPreview(true)} className="px-6 py-4 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all" style={{ backgroundColor: pColor }}><i className="fas fa-file-pdf"></i> Visualizar PDF</button>
           </div>
         </div>
