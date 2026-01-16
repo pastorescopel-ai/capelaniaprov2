@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Unit, RecordStatus, VisitReason, BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole, MasterLists } from '../types';
 import { STATUS_OPTIONS, VISIT_REASONS } from '../constants';
+import { useToast } from '../contexts/ToastContext';
 
 interface FormProps {
   unit: Unit;
@@ -21,22 +22,6 @@ interface FormProps {
   onToggleReturn?: (id: string) => void;
   onTransfer?: (type: string, id: string, newUserId: string) => void;
 }
-
-// Componente Interno de Notificação Flutuante (Toast)
-const Toast: React.FC<{ message: string; show: boolean; onClose: () => void }> = ({ message, show, onClose }) => {
-  if (!show) return null;
-  return (
-    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-top duration-300">
-      <div className="bg-slate-900/90 backdrop-blur-md text-white px-8 py-4 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-3">
-        <i className="fas fa-exclamation-circle text-amber-400 text-lg"></i>
-        <span className="font-black uppercase text-[10px] tracking-widest">{message}</span>
-        <button onClick={onClose} className="ml-4 hover:text-rose-400 transition-colors">
-          <i className="fas fa-times"></i>
-        </button>
-      </div>
-    </div>
-  );
-};
 
 const isRecordLocked = (dateStr: string, userRole: UserRole) => {
   if (userRole === UserRole.ADMIN) return false;
@@ -249,7 +234,7 @@ const HistoryFilterBar: React.FC<{
 
 export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, onSubmit, onDelete, onEdit, onTransfer }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
-  const [toast, setToast] = useState({ show: false, message: '' });
+  const { showToast } = useToast();
   
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
@@ -306,8 +291,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.date || !formData.sector || !formData.name || !formData.whatsapp || !formData.guide || !formData.lesson) {
-      setToast({ show: true, message: "Atenção: Todos os campos com (*) são obrigatórios!" });
-      setTimeout(() => setToast({ show: false, message: "" }), 3000);
+      showToast("Atenção: Todos os campos com (*) são obrigatórios!");
       return;
     }
     onSubmit({ ...formData, unit });
@@ -316,7 +300,6 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
   return (
     <div className="space-y-10 pb-20">
-      <Toast show={toast.show} message={toast.message} onClose={() => setToast({ show: false, message: "" })} />
       <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-slate-800">Estudo Bíblico ({unit})</h2>
@@ -381,7 +364,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, onSubmit, onDelete, onEdit, onTransfer }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' });
   const [newStudent, setNewStudent] = useState('');
-  const [toast, setToast] = useState({ show: false, message: '' });
+  const { showToast } = useToast();
 
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
@@ -435,8 +418,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.date || !formData.sector || !formData.guide || !formData.lesson || formData.students.length === 0) {
-      setToast({ show: true, message: "Atenção: Data, Setor, Classe, Lição e pelo menos um Aluno são obrigatórios!" });
-      setTimeout(() => setToast({ show: false, message: "" }), 3000);
+      showToast("Atenção: Data, Setor, Classe, Lição e pelo menos um Aluno são obrigatórios!");
       return;
     }
     onSubmit({...formData, unit});
@@ -445,7 +427,6 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
   return (
     <div className="space-y-10 pb-20">
-      <Toast show={toast.show} message={toast.message} onClose={() => setToast({ show: false, message: "" })} />
       <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-slate-800">Classe Bíblica ({unit})</h2>
@@ -519,7 +500,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
 export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, groupsList = [], history, editingItem, onSubmit, onDelete, onEdit }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' });
-  const [toast, setToast] = useState({ show: false, message: '' });
+  const { showToast } = useToast();
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
@@ -544,8 +525,7 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.date || !formData.sector || !formData.groupName || !formData.leader || formData.participantsCount === undefined) {
-      setToast({ show: true, message: "Atenção: Preencha todos os campos obrigatórios (*)" });
-      setTimeout(() => setToast({ show: false, message: "" }), 3000);
+      showToast("Atenção: Preencha todos os campos obrigatórios (*)");
       return;
     }
     onSubmit({...formData, unit});
@@ -554,7 +534,6 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
   return (
     <div className="space-y-10 pb-20">
-      <Toast show={toast.show} message={toast.message} onClose={() => setToast({ show: false, message: "" })} />
       <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <h2 className="text-2xl font-bold text-slate-800">Pequeno Grupo ({unit})</h2>
         <div className="grid md:grid-cols-2 gap-6">
@@ -590,7 +569,7 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
 export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, staffList = [], history, editingItem, onSubmit, onDelete, onEdit, onToggleReturn }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' });
-  const [toast, setToast] = useState({ show: false, message: '' });
+  const { showToast } = useToast();
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
@@ -615,8 +594,7 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.date || !formData.sector || !formData.staffName) {
-      setToast({ show: true, message: "Atenção: Data, Setor e Colaborador são obrigatórios!" });
-      setTimeout(() => setToast({ show: false, message: "" }), 3000);
+      showToast("Atenção: Data, Setor e Colaborador são obrigatórios!");
       return;
     }
     onSubmit({...formData, unit});
@@ -625,11 +603,10 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
   return (
     <div className="space-y-10 pb-20">
-      <Toast show={toast.show} message={toast.message} onClose={() => setToast({ show: false, message: "" })} />
       <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <h2 className="text-2xl font-bold text-slate-800">Visita a Colaborador ({unit})</h2>
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local da visita..." isStrict={true} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Colaborador *</label><Autocomplete options={staffList} value={formData.staffName} onChange={v => setFormData({...formData, staffName: v})} placeholder="Nome do colaborador..." /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Motivo *</label>
