@@ -4,6 +4,15 @@ import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Conf
 import { syncService } from '../services/syncService';
 import { INITIAL_CONFIG, GOOGLE_SCRIPT_URL } from '../constants';
 
+// Função de Segurança: SHA-256 para senhas (substituindo Base64 simples)
+const hashPassword = async (password: string) => {
+  if (!password || password === 'admin') return password; // Preserva admin root
+  const msgUint8 = new TextEncoder().encode("CP_SALT_" + password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
 const SEC_PREFIX = "CP_V2_";
 const encodeData = (str: string) => btoa(unescape(encodeURIComponent(SEC_PREFIX + str)));
 const decodeData = (str: string) => {
@@ -57,7 +66,7 @@ export const useAppData = () => {
           setUsers(cloudData.users.map((u: User) => ({
             ...u,
             email: decodeData(u.email),
-            password: decodeData(u.password || '')
+            password: u.password // Senha já vem em hash do cloud
           })));
         }
         if (Array.isArray(cloudData.bibleStudies)) setBibleStudies(cloudData.bibleStudies);
@@ -75,12 +84,10 @@ export const useAppData = () => {
     }
   }, []);
 
-  // Novo motor de salvamento inteligente: salva local e sincroniza em background
   const saveToCloud = useCallback(async (overrides?: any, showLoader = false) => {
     if (showLoader) setIsSyncing(true);
     syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
     
-    // Atualiza estados locais primeiro para resposta instantânea na UI
     if (overrides) {
       if (overrides.users) setUsers(overrides.users);
       if (overrides.bibleStudies) setBibleStudies(overrides.bibleStudies);
@@ -95,7 +102,7 @@ export const useAppData = () => {
     const securedUsers = currentUsers.map((u: User) => ({
       ...u,
       email: encodeData(u.email),
-      password: encodeData(u.password || '')
+      password: u.password // Assume que já foi hasheada no componente que chamou o save
     }));
 
     const payload = {
@@ -157,6 +164,6 @@ export const useAppData = () => {
   return {
     users, setUsers, bibleStudies, setBibleStudies, bibleClasses, setBibleClasses,
     smallGroups, setSmallGroups, staffVisits, setStaffVisits, masterLists, setMasterLists,
-    config, setConfig, isSyncing, isConnected, isInitialized, loadFromCloud, saveToCloud, applySystemOverrides
+    config, setConfig, isSyncing, isConnected, isInitialized, loadFromCloud, saveToCloud, applySystemOverrides, hashPassword
   };
 };

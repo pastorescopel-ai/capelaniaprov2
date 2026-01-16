@@ -15,6 +15,7 @@ interface FormProps {
   history: any[];
   allHistory?: any[]; 
   editingItem?: any;
+  isLoading?: boolean; // Novo prop para Skeleton
   onCancelEdit?: () => void;
   onDelete: (id: string) => void;
   onEdit?: (item: any) => void;
@@ -22,6 +23,20 @@ interface FormProps {
   onToggleReturn?: (id: string) => void;
   onTransfer?: (type: string, id: string, newUserId: string) => void;
 }
+
+// COMPONENTE SKELETON PARA CARREGAMENTO FLUIDO
+const SkeletonCard = () => (
+  <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 flex items-center justify-between animate-pulse">
+    <div className="flex items-center gap-4 flex-1">
+      <div className="w-12 h-12 bg-slate-100 rounded-2xl"></div>
+      <div className="space-y-2 flex-1">
+        <div className="h-4 bg-slate-100 rounded w-1/2"></div>
+        <div className="h-2 bg-slate-50 rounded w-1/4"></div>
+      </div>
+    </div>
+    <div className="w-24 h-10 bg-slate-50 rounded-xl"></div>
+  </div>
+);
 
 const isRecordLocked = (dateStr: string, userRole: UserRole) => {
   if (userRole === UserRole.ADMIN) return false;
@@ -190,55 +205,70 @@ const HistoryFilterBar: React.FC<{
   onStartChange: (v: string) => void,
   endDate: string,
   onEndChange: (v: string) => void,
+  searchQuery: string,
+  onSearchChange: (v: string) => void,
   isAdmin: boolean
-}> = ({ users, selectedChaplain, onChaplainChange, startDate, onStartChange, endDate, onEndChange, isAdmin }) => {
+}> = ({ users, selectedChaplain, onChaplainChange, startDate, onStartChange, endDate, onEndChange, searchQuery, onSearchChange, isAdmin }) => {
   return (
-    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm mb-6 flex flex-col md:flex-row items-end gap-4 animate-in fade-in duration-300">
-      {isAdmin && (
-        <div className="flex-1 w-full space-y-1">
-          <label className="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Filtrar por Capelão</label>
-          <select 
-            value={selectedChaplain} 
-            onChange={e => onChaplainChange(e.target.value)}
-            className="w-full p-3 bg-slate-50 border-none rounded-xl font-bold text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Todos os Capelães</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-          </select>
+    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm mb-6 space-y-4 animate-in fade-in duration-300">
+      <div className="relative group">
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+          <i className="fas fa-search"></i>
         </div>
-      )}
-      <div className="w-full md:w-44 space-y-1">
-        <label className="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Início</label>
         <input 
-          type="date" 
-          value={startDate} 
-          onChange={e => onStartChange(e.target.value)} 
-          className="w-full p-3 bg-slate-50 border-none rounded-xl font-bold text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+          type="text" 
+          placeholder="Busca rápida por nome de aluno ou colaborador..."
+          value={searchQuery}
+          onChange={e => onSearchChange(e.target.value)}
+          className="w-full pl-12 pr-4 py-4 bg-slate-50 border-none rounded-2xl font-bold text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner"
         />
       </div>
-      <div className="w-full md:w-44 space-y-1">
-        <label className="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Fim</label>
-        <input 
-          type="date" 
-          value={endDate} 
-          onChange={e => onEndChange(e.target.value)} 
-          className="w-full p-3 bg-slate-50 border-none rounded-xl font-bold text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-      <div className="bg-blue-50 px-4 py-3 rounded-xl border border-blue-100 flex items-center justify-center">
-         <span className="text-[8px] font-black text-blue-600 uppercase tracking-tighter leading-none">Visão: Período Filtrado</span>
+
+      <div className="flex flex-col md:flex-row items-end gap-4">
+        {isAdmin && (
+          <div className="flex-1 w-full space-y-1">
+            <label className="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Filtrar por Capelão</label>
+            <select 
+              value={selectedChaplain} 
+              onChange={e => onChaplainChange(e.target.value)}
+              className="w-full p-3 bg-slate-50 border-none rounded-xl font-bold text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Todos os Capelães</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+        )}
+        <div className="w-full md:w-44 space-y-1">
+          <label className="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Início</label>
+          <input 
+            type="date" 
+            value={startDate} 
+            onChange={e => onStartChange(e.target.value)} 
+            className="w-full p-3 bg-slate-50 border-none rounded-xl font-bold text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="w-full md:w-44 space-y-1">
+          <label className="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Fim</label>
+          <input 
+            type="date" 
+            value={endDate} 
+            onChange={e => onEndChange(e.target.value)} 
+            className="w-full p-3 bg-slate-50 border-none rounded-xl font-bold text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
     </div>
   );
 };
 
-export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, onSubmit, onDelete, onEdit, onTransfer }) => {
+export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, onTransfer }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
   const { showToast } = useToast();
   
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const studySuggestions = ["Ouvindo a voz de Deus", "Verdade e Vida", "Apocalipse", "Daniel"];
 
@@ -266,9 +296,10 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
       const itemDate = item.date.split('T')[0];
       const matchChaplain = filterChaplain === 'all' || item.userId === filterChaplain;
       const matchRange = itemDate >= filterStart && itemDate <= filterEnd;
-      return matchChaplain && matchRange;
+      const matchSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchChaplain && matchRange && matchSearch;
     });
-  }, [history, filterChaplain, filterStart, filterEnd]);
+  }, [history, filterChaplain, filterStart, filterEnd, searchQuery]);
 
   const handleSelectStudent = (name: string) => {
     const lastRecord = [...allHistory]
@@ -339,9 +370,26 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
       <div className="space-y-4">
         <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Histórico de Atividades</h3>
-        <HistoryFilterBar users={users} isAdmin={currentUser.role === UserRole.ADMIN} selectedChaplain={filterChaplain} onChaplainChange={setFilterChaplain} startDate={filterStart} onStartChange={setFilterStart} endDate={filterEnd} onEndChange={setFilterEnd} />
+        <HistoryFilterBar 
+          users={users} 
+          isAdmin={currentUser.role === UserRole.ADMIN} 
+          selectedChaplain={filterChaplain} 
+          onChaplainChange={setFilterChaplain} 
+          startDate={filterStart} 
+          onStartChange={setFilterStart} 
+          endDate={filterEnd} 
+          onEndChange={setFilterEnd} 
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
         <div className="grid gap-4">
-          {filteredHistory.length > 0 ? filteredHistory.map(item => (
+          {isLoading && filteredHistory.length === 0 ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : filteredHistory.length > 0 ? filteredHistory.map(item => (
             <HistoryCard 
               key={item.id} icon="📖" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-blue-600"} 
               title={item.name} 
@@ -354,14 +402,14 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} 
               extra={item.status === RecordStatus.TERMINO && <span className="text-[8px] bg-rose-50 text-rose-600 px-2 py-1 rounded-lg font-black uppercase">Concluído</span>}
             />
-          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro para este filtro.</p>}
+          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro encontrado.</p>}
         </div>
       </div>
     </div>
   );
 };
 
-export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, onSubmit, onDelete, onEdit, onTransfer }) => {
+export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, onTransfer }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' });
   const [newStudent, setNewStudent] = useState('');
   const { showToast } = useToast();
@@ -369,6 +417,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const classGuides = useMemo(() => {
     const guides = new Set<string>();
@@ -391,9 +440,10 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
       const itemDate = item.date.split('T')[0];
       const matchChaplain = filterChaplain === 'all' || item.userId === filterChaplain;
       const matchRange = itemDate >= filterStart && itemDate <= filterEnd;
-      return matchChaplain && matchRange;
+      const matchSearch = !searchQuery || (item.guide || "").toLowerCase().includes(searchQuery.toLowerCase());
+      return matchChaplain && matchRange && matchSearch;
     });
-  }, [history, filterChaplain, filterStart, filterEnd]);
+  }, [history, filterChaplain, filterStart, filterEnd, searchQuery]);
 
   const handleSelectClass = (guideName: string) => {
     const lastClass = [...allHistory]
@@ -477,9 +527,25 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
       <div className="space-y-4">
         <h3 className="text-xl font-black text-slate-800 px-2 uppercase tracking-tight">Histórico de Classes</h3>
-        <HistoryFilterBar users={users} isAdmin={currentUser.role === UserRole.ADMIN} selectedChaplain={filterChaplain} onChaplainChange={setFilterChaplain} startDate={filterStart} onStartChange={setFilterStart} endDate={filterEnd} onEndChange={setFilterEnd} />
+        <HistoryFilterBar 
+          users={users} 
+          isAdmin={currentUser.role === UserRole.ADMIN} 
+          selectedChaplain={filterChaplain} 
+          onChaplainChange={setFilterChaplain} 
+          startDate={filterStart} 
+          onStartChange={setFilterStart} 
+          endDate={filterEnd} 
+          onEndChange={setFilterEnd} 
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
         <div className="grid gap-4">
-          {filteredHistory.length > 0 ? filteredHistory.map(item => (
+          {isLoading && filteredHistory.length === 0 ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : filteredHistory.length > 0 ? filteredHistory.map(item => (
             <HistoryCard 
               key={item.id} icon="👥" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-indigo-600"} 
               title={item.guide || 'Classe Bíblica'} 
@@ -491,19 +557,20 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               onTransfer={(newUid) => onTransfer?.('class', item.id, newUid)}
               onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} 
             />
-          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro para este filtro.</p>}
+          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro encontrado.</p>}
         </div>
       </div>
     </div>
   );
 };
 
-export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, groupsList = [], history, editingItem, onSubmit, onDelete, onEdit }) => {
+export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, groupsList = [], history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' });
   const { showToast } = useToast();
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (editingItem) {
@@ -518,9 +585,10 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
       const itemDate = item.date.split('T')[0];
       const matchChaplain = filterChaplain === 'all' || item.userId === filterChaplain;
       const matchRange = itemDate >= filterStart && itemDate <= filterEnd;
-      return matchChaplain && matchRange;
+      const matchSearch = !searchQuery || (item.groupName || "").toLowerCase().includes(searchQuery.toLowerCase());
+      return matchChaplain && matchRange && matchSearch;
     });
-  }, [history, filterChaplain, filterStart, filterEnd]);
+  }, [history, filterChaplain, filterStart, filterEnd, searchQuery]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -549,9 +617,25 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
       <div className="space-y-4">
         <h3 className="text-xl font-black text-slate-800 px-2 uppercase tracking-tight">Histórico de Atividades</h3>
-        <HistoryFilterBar users={users} isAdmin={currentUser.role === UserRole.ADMIN} selectedChaplain={filterChaplain} onChaplainChange={setFilterChaplain} startDate={filterStart} onStartChange={setFilterStart} endDate={filterEnd} onEndChange={setFilterEnd} />
+        <HistoryFilterBar 
+          users={users} 
+          isAdmin={currentUser.role === UserRole.ADMIN} 
+          selectedChaplain={filterChaplain} 
+          onChaplainChange={setFilterChaplain} 
+          startDate={filterStart} 
+          onStartChange={setFilterStart} 
+          endDate={filterEnd} 
+          onEndChange={setFilterEnd} 
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
         <div className="grid gap-4">
-          {filteredHistory.length > 0 ? filteredHistory.map(item => (
+          {isLoading && filteredHistory.length === 0 ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : filteredHistory.length > 0 ? filteredHistory.map(item => (
             <HistoryCard 
               key={item.id} icon="🏠" color="text-emerald-600" 
               title={resolveDynamicName(item.groupName, item.unit === Unit.HAB ? masterLists.groupsHAB : masterLists.groupsHABA)} 
@@ -560,19 +644,20 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               isLocked={isRecordLocked(item.date, currentUser.role)}
               onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} 
             />
-          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro para este filtro.</p>}
+          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro encontrado.</p>}
         </div>
       </div>
     </div>
   );
 };
 
-export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, staffList = [], history, editingItem, onSubmit, onDelete, onEdit, onToggleReturn }) => {
+export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, staffList = [], history, editingItem, isLoading, onSubmit, onDelete, onEdit, onToggleReturn }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' });
   const { showToast } = useToast();
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (editingItem) {
@@ -587,9 +672,10 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
       const itemDate = item.date.split('T')[0];
       const matchChaplain = filterChaplain === 'all' || item.userId === filterChaplain;
       const matchRange = itemDate >= filterStart && itemDate <= filterEnd;
-      return matchChaplain && matchRange;
+      const matchSearch = !searchQuery || (item.staffName || "").toLowerCase().includes(searchQuery.toLowerCase());
+      return matchChaplain && matchRange && matchSearch;
     });
-  }, [history, filterChaplain, filterStart, filterEnd]);
+  }, [history, filterChaplain, filterStart, filterEnd, searchQuery]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -633,9 +719,26 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
       <div className="space-y-4">
         <h3 className="text-xl font-black text-slate-800 px-2 uppercase tracking-tight">Histórico de Visitas</h3>
-        <HistoryFilterBar users={users} isAdmin={currentUser.role === UserRole.ADMIN} selectedChaplain={filterChaplain} onChaplainChange={setFilterChaplain} startDate={filterStart} onStartChange={setFilterStart} endDate={filterEnd} onEndChange={setFilterEnd} />
+        <HistoryFilterBar 
+          users={users} 
+          isAdmin={currentUser.role === UserRole.ADMIN} 
+          selectedChaplain={filterChaplain} 
+          onChaplainChange={setFilterChaplain} 
+          startDate={filterStart} 
+          onStartChange={setFilterStart} 
+          endDate={filterEnd} 
+          onEndChange={setFilterEnd} 
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
         <div className="grid gap-4">
-          {filteredHistory.length > 0 ? filteredHistory.map(item => (
+          {isLoading && filteredHistory.length === 0 ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : filteredHistory.length > 0 ? filteredHistory.map(item => (
             <HistoryCard 
               key={item.id} icon="🤝" color="text-rose-600" 
               title={resolveDynamicName(item.staffName, item.unit === Unit.HAB ? masterLists.staffHAB : masterLists.staffHABA)} 
@@ -655,7 +758,7 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
                 </button>
               )}
             />
-          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro para este filtro.</p>}
+          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro encontrado.</p>}
         </div>
       </div>
     </div>

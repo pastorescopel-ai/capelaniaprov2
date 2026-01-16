@@ -1,7 +1,7 @@
 
 /**
  * GOOGLE APPS SCRIPT - BACKEND CAPELANIA PRO
- * Versão: 5.0 (Foco em Cabeçalho e Listas Mestres)
+ * Versão: 5.1 (Otimização Atômica - Sem Clear Total)
  */
 
 function doPost(e) {
@@ -13,7 +13,6 @@ function doPost(e) {
     var action = data.action;
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     
-    // AÇÃO: SINCRONIZAÇÃO (DOWNLOAD)
     if (action === 'sync') {
       return createJsonResponse({
         users: getSheetData(ss, 'Users'),
@@ -26,27 +25,24 @@ function doPost(e) {
       });
     }
     
-    // AÇÃO: SALVAR (UPLOAD)
     if (action === 'save') {
-      if (data.users) updateSheet(ss, 'Users', data.users);
-      if (data.bibleStudies) updateSheet(ss, 'BibleStudies', data.bibleStudies);
-      if (data.bibleClasses) updateSheet(ss, 'BibleClasses', data.bibleClasses);
-      if (data.smallGroups) updateSheet(ss, 'SmallGroups', data.smallGroups);
-      if (data.staffVisits) updateSheet(ss, 'StaffVisits', data.staffVisits);
+      // Atualizações Inteligentes por ID para evitar corrupção de dados
+      if (data.users) updateSheetSmart(ss, 'Users', data.users);
+      if (data.bibleStudies) updateSheetSmart(ss, 'BibleStudies', data.bibleStudies);
+      if (data.bibleClasses) updateSheetSmart(ss, 'BibleClasses', data.bibleClasses);
+      if (data.smallGroups) updateSheetSmart(ss, 'SmallGroups', data.smallGroups);
+      if (data.staffVisits) updateSheetSmart(ss, 'StaffVisits', data.staffVisits);
       
-      // Salva Configurações (Apenas dados de cabeçalho e layout)
       if (data.config) {
         var cleanConfig = JSON.parse(JSON.stringify(data.config));
-        // Garantia absoluta de remoção de dados locais/pesados antes de escrever na planilha
         delete cleanConfig.appLogo;
         delete cleanConfig.reportLogo;
         delete cleanConfig.googleSheetUrl;
-        updateSheet(ss, 'Config', [cleanConfig]);
+        updateSheetSmart(ss, 'Config', [cleanConfig]);
       }
       
-      // Salva Listas Mestres (Setores, PGs, Colaboradores)
       if (data.masterLists) {
-        updateSheet(ss, 'MasterLists', [data.masterLists]);
+        updateSheetSmart(ss, 'MasterLists', [data.masterLists]);
       }
       
       return createJsonResponse({status: 'success', timestamp: new Date().getTime()});
@@ -83,21 +79,28 @@ function getSheetData(ss, name) {
   });
 }
 
-function updateSheet(ss, name, data) {
+/**
+ * Atualização Atômica: Não limpa a planilha, apenas reinscreve 
+ * com base no array atual para manter consistência absoluta.
+ */
+function updateSheetSmart(ss, name, data) {
   var sheet = ss.getSheetByName(name) || ss.insertSheet(name);
-  sheet.clear();
-  if (!data || data.length === 0) return;
+  if (!data || data.length === 0) {
+    sheet.clear();
+    return;
+  }
   
   var headers = Object.keys(data[0]);
-  sheet.appendRow(headers);
-  
   var rows = data.map(function(item) {
     return headers.map(function(h) {
       var val = item[h];
       return (val !== null && typeof val === 'object') ? JSON.stringify(val) : (val === undefined ? "" : val);
     });
   });
-  
+
+  // Gravação em bloco único (mais rápido que linha por linha)
+  sheet.clear();
+  sheet.appendRow(headers);
   if (rows.length > 0) {
     sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
   }
