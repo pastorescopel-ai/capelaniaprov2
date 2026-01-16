@@ -15,7 +15,7 @@ interface FormProps {
   history: any[];
   allHistory?: any[]; 
   editingItem?: any;
-  isLoading?: boolean; // Novo prop para Skeleton
+  isLoading?: boolean;
   onCancelEdit?: () => void;
   onDelete: (id: string) => void;
   onEdit?: (item: any) => void;
@@ -24,7 +24,6 @@ interface FormProps {
   onTransfer?: (type: string, id: string, newUserId: string) => void;
 }
 
-// COMPONENTE SKELETON PARA CARREGAMENTO FLUIDO
 const SkeletonCard = () => (
   <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 flex items-center justify-between animate-pulse">
     <div className="flex items-center gap-4 flex-1">
@@ -440,7 +439,10 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
       const itemDate = item.date.split('T')[0];
       const matchChaplain = filterChaplain === 'all' || item.userId === filterChaplain;
       const matchRange = itemDate >= filterStart && itemDate <= filterEnd;
-      const matchSearch = !searchQuery || (item.guide || "").toLowerCase().includes(searchQuery.toLowerCase());
+      // BUSCA RECURSIVA: Verifica Guia OU se algum aluno no array bate com a busca
+      const matchSearch = !searchQuery || 
+        (item.guide || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.students.some((s: string) => s.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchChaplain && matchRange && matchSearch;
     });
   }, [history, filterChaplain, filterStart, filterEnd, searchQuery]);
@@ -545,19 +547,26 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               <SkeletonCard />
               <SkeletonCard />
             </>
-          ) : filteredHistory.length > 0 ? filteredHistory.map(item => (
-            <HistoryCard 
-              key={item.id} icon="👥" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-indigo-600"} 
-              title={item.guide || 'Classe Bíblica'} 
-              subtitle={`${resolveDynamicName(item.sector, item.unit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA)} • ${item.students.length} alunos • ${item.status}`} 
-              chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
-              isLocked={isRecordLocked(item.date, currentUser.role)}
-              isAdmin={currentUser.role === UserRole.ADMIN}
-              users={users}
-              onTransfer={(newUid) => onTransfer?.('class', item.id, newUid)}
-              onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} 
-            />
-          )) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro encontrado.</p>}
+          ) : filteredHistory.length > 0 ? filteredHistory.map(item => {
+            // EXIBIÇÃO NOMINAL TRUNCADA: Mostra primeiros alunos e contagem
+            const namesList = item.students.slice(0, 2).join(', ');
+            const remaining = item.students.length > 2 ? ` (+${item.students.length - 2})` : '';
+            const nominalSubtitle = `${namesList}${remaining}`;
+
+            return (
+              <HistoryCard 
+                key={item.id} icon="👥" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-indigo-600"} 
+                title={item.guide || 'Classe Bíblica'} 
+                subtitle={`${resolveDynamicName(item.sector, item.unit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA)} • ${nominalSubtitle} • ${item.status}`} 
+                chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
+                isLocked={isRecordLocked(item.date, currentUser.role)}
+                isAdmin={currentUser.role === UserRole.ADMIN}
+                users={users}
+                onTransfer={(newUid) => onTransfer?.('class', item.id, newUid)}
+                onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} 
+              />
+            );
+          }) : <p className="text-slate-400 text-center py-10 font-bold uppercase text-[10px]">Nenhum registro encontrado.</p>}
         </div>
       </div>
     </div>

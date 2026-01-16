@@ -89,11 +89,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit, selectedActivity, selectedStatus]);
 
-  // Lista Consolidada de Alunos para Auditoria (Ajustada para agrupamento de Classes)
   const auditList = useMemo(() => {
     const list: any[] = [];
-    
-    // Processa Estudos Bíblicos (Um por linha)
     filteredData.studies.forEach(s => {
       list.push({
         name: s.name,
@@ -109,12 +106,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       });
     });
 
-    // Processa Classes Bíblicas (Agrupado por Registro)
     filteredData.classes.forEach(c => {
       if (Array.isArray(c.students)) {
         list.push({
-          name: c.students[0] || 'Sem nomes', // Nome principal para ordenação
-          studentsList: c.students, // Lista completa para renderização vertical
+          name: c.students[0] || 'Sem nomes',
+          studentsList: c.students,
           isClass: true,
           sector: c.sector,
           unit: c.unit,
@@ -129,7 +125,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     });
 
     return list.sort((a, b) => {
-      // Ordenação primária por data e secundária por nome
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
       if (dateA !== dateB) return dateB - dateA;
@@ -207,6 +202,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           
           return {
               students: unitUniqueNames.size,
+              studentNames: Array.from(unitUniqueNames).map(n => n.charAt(0).toUpperCase() + n.slice(1)),
               studies: uS.length,
               classes: uC.length,
               groups: uG.length,
@@ -224,7 +220,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       return { 
         user: userObj, name: userObj.name, totalActions, 
         hab: getUnitStats(Unit.HAB), haba: getUnitStats(Unit.HABA), 
-        students: uniqueNames.size
+        students: uniqueNames.size,
+        allStudentNames: Array.from(uniqueNames).map(n => n.charAt(0).toUpperCase() + n.slice(1)).sort()
       };
     })
     .filter(s => selectedChaplain === 'all' || s.user.id === selectedChaplain)
@@ -517,9 +514,15 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter truncate">{stat.name}</h3>
-                <div className="flex gap-2 mt-1">
-                  <span className="text-[8px] font-black uppercase bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md border border-blue-100">Alunos: {stat.students}</span>
-                  <span className="text-[8px] font-black uppercase bg-slate-50 text-slate-500 px-2 py-0.5 rounded-md border border-slate-100">Total: {stat.totalActions}</span>
+                <div className="flex flex-col gap-1 mt-1">
+                  <div className="flex gap-2">
+                    <span className="text-[8px] font-black uppercase bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md border border-blue-100">Alunos: {stat.students}</span>
+                    <span className="text-[8px] font-black uppercase bg-slate-50 text-slate-500 px-2 py-0.5 rounded-md border border-slate-100">Total: {stat.totalActions}</span>
+                  </div>
+                  {/* LISTA NOMINAL DE ALUNOS (TRUNCADA) */}
+                  <p className="text-[9px] font-bold text-slate-400 italic truncate uppercase mt-1">
+                    {stat.allStudentNames.length > 0 ? stat.allStudentNames.join(', ') : 'Nenhum aluno ativo'}
+                  </p>
                 </div>
               </div>
             </div>
