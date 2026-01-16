@@ -1,7 +1,7 @@
 
 // ############################################################
-// # VERSION: 2.12.0-REPORTS-AUDIT (STABLE)
-// # STATUS: ACTIVITY FILTER + STUDENT AUDIT MODAL
+// # VERSION: 2.13.0-REPORTS-AUDIT-GROUPED (STABLE)
+// # STATUS: ACTIVITY FILTER + GROUPED STUDENT AUDIT
 // ############################################################
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -89,13 +89,15 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit, selectedActivity, selectedStatus]);
 
-  // Lista Consolidada de Alunos para Auditoria
+  // Lista Consolidada de Alunos para Auditoria (Ajustada para agrupamento de Classes)
   const auditList = useMemo(() => {
     const list: any[] = [];
     
+    // Processa Estudos Bíblicos (Um por linha)
     filteredData.studies.forEach(s => {
       list.push({
         name: s.name,
+        isClass: false,
         sector: s.sector,
         unit: s.unit,
         type: 'Estudo Bíblico',
@@ -107,25 +109,32 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       });
     });
 
+    // Processa Classes Bíblicas (Agrupado por Registro)
     filteredData.classes.forEach(c => {
       if (Array.isArray(c.students)) {
-        c.students.forEach(studentName => {
-          list.push({
-            name: studentName,
-            sector: c.sector,
-            unit: c.unit,
-            type: 'Classe Bíblica',
-            icon: '👥',
-            chaplain: users.find(u => u.id === c.userId)?.name || 'N/I',
-            status: c.status,
-            date: c.date,
-            original: c
-          });
+        list.push({
+          name: c.students[0] || 'Sem nomes', // Nome principal para ordenação
+          studentsList: c.students, // Lista completa para renderização vertical
+          isClass: true,
+          sector: c.sector,
+          unit: c.unit,
+          type: 'Classe Bíblica',
+          icon: '👥',
+          chaplain: users.find(u => u.id === c.userId)?.name || 'N/I',
+          status: c.status,
+          date: c.date,
+          original: c
         });
       }
     });
 
-    return list.sort((a, b) => a.name.localeCompare(b.name));
+    return list.sort((a, b) => {
+      // Ordenação primária por data e secundária por nome
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA !== dateB) return dateB - dateA;
+      return a.name.localeCompare(b.name);
+    });
   }, [filteredData, users]);
 
   const trendStats = useMemo(() => {
@@ -249,8 +258,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             body { background: #fff; padding: 20px; font-family: sans-serif; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th { background: #f1f5f9; text-transform: uppercase; font-size: 10px; padding: 10px; border: 1px solid #e2e8f0; }
-            td { padding: 10px; border: 1px solid #e2e8f0; font-size: 11px; }
+            td { padding: 10px; border: 1px solid #e2e8f0; font-size: 11px; vertical-align: top; }
             .termino { color: #e11d48 !important; font-weight: bold; }
+            .student-list { margin: 0; padding: 0; list-style-position: inside; }
+            .student-list li { margin-bottom: 2px; }
           </style>
         </head>
         <body>
@@ -557,7 +568,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 <thead className="sticky top-0 bg-slate-100 z-10">
                   <tr className="text-slate-500 font-black uppercase text-[10px] tracking-widest border-b border-slate-200">
                     <th className="p-6">Setor / Unidade</th>
-                    <th className="p-6">Nome do Aluno</th>
+                    <th className="p-6">Nomes dos Alunos</th>
                     <th className="p-6">Tipo</th>
                     <th className="p-6">Capelão Responsável</th>
                     <th className="p-6">Status / Situação</th>
@@ -566,22 +577,34 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 <tbody className="divide-y divide-slate-50">
                   {auditList.length > 0 ? auditList.map((item, idx) => (
                     <tr key={idx} className={`hover:bg-slate-50/50 transition-colors ${item.status === RecordStatus.TERMINO ? 'bg-rose-50/30' : ''}`}>
-                      <td className="p-6">
+                      <td className="p-6 align-top">
                         <span className="text-[10px] font-black text-slate-400 block uppercase mb-0.5">{item.unit}</span>
                         <span className="text-xs font-bold text-slate-700">{resolveDynamicName(item.sector, item.unit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA)}</span>
                       </td>
-                      <td className={`p-6 text-sm font-black uppercase tracking-tight ${item.status === RecordStatus.TERMINO ? 'text-rose-600' : 'text-slate-800'}`}>
-                        {item.name}
+                      <td className="p-6 align-top">
+                        {item.isClass && item.studentsList ? (
+                          <ol className="space-y-1 list-decimal list-inside">
+                            {item.studentsList.map((student: string, sIdx: number) => (
+                              <li key={sIdx} className={`text-sm font-black uppercase tracking-tight ${item.status === RecordStatus.TERMINO ? 'text-rose-600' : 'text-slate-800'}`}>
+                                {student}
+                              </li>
+                            ))}
+                          </ol>
+                        ) : (
+                          <span className={`text-sm font-black uppercase tracking-tight ${item.status === RecordStatus.TERMINO ? 'text-rose-600' : 'text-slate-800'}`}>
+                            {item.name}
+                          </span>
+                        )}
                       </td>
-                      <td className="p-6">
+                      <td className="p-6 align-top">
                         <span className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase">
                           <span className="text-lg">{item.icon}</span> {item.type}
                         </span>
                       </td>
-                      <td className="p-6 text-xs font-bold text-slate-600 uppercase">
+                      <td className="p-6 text-xs font-bold text-slate-600 uppercase align-top">
                         {item.chaplain}
                       </td>
-                      <td className="p-6">
+                      <td className="p-6 align-top">
                         {item.status === RecordStatus.TERMINO ? (
                           <div className="flex flex-col">
                             <span className="text-xs font-black text-rose-600 uppercase tracking-tighter">CONCLUÍDO (Término)</span>
