@@ -6,7 +6,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, MasterLists, ActivityFilter } from '../types';
-import { REPORT_LOGO_BASE64 } from '../constants';
+import { REPORT_LOGO_BASE64, STATUS_OPTIONS } from '../constants';
 
 interface ReportsProps {
   studies: BibleStudy[];
@@ -14,6 +14,7 @@ interface ReportsProps {
   groups: SmallGroup[];
   visits: StaffVisit[];
   users: User[];
+  currentUser: User;
   masterLists: MasterLists; 
   config: Config;
   onRefresh?: () => Promise<void>;
@@ -38,7 +39,7 @@ const getWeekRangeLabel = (dateStr: string) => {
   return `Semana de ${fmt(monday)} a ${fmt(sunday)}`;
 };
 
-const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, users, masterLists, config, onRefresh }) => {
+const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, users, currentUser, masterLists, config, onRefresh }) => {
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [selectedDetailUser, setSelectedDetailUser] = useState<User | null>(null);
   const [expandedWeeks, setExpandedWeeks] = useState<string[]>([]);
@@ -48,6 +49,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const [selectedChaplain, setSelectedChaplain] = useState('all');
   const [selectedUnit, setSelectedUnit] = useState<'all' | Unit>('all');
   const [selectedActivity, setSelectedActivity] = useState<ActivityFilter>(ActivityFilter.TODAS);
+  const [selectedStatus, setSelectedStatus] = useState<'all' | RecordStatus>('all');
 
   const pColor = config.primaryColor || '#005a9c';
 
@@ -70,7 +72,12 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const chaplainMatch = selectedChaplain === 'all' || item.userId === selectedChaplain;
       const itemUnit = item.unit || Unit.HAB;
       const unitMatch = selectedUnit === 'all' || itemUnit === selectedUnit;
-      return dateMatch && chaplainMatch && unitMatch;
+      
+      // Filtro de Status aplicado apenas a Estudos e Classes
+      const isStudyOrClass = item.status !== undefined;
+      const statusMatch = (selectedStatus === 'all' || !isStudyOrClass) || item.status === selectedStatus;
+      
+      return dateMatch && chaplainMatch && unitMatch && statusMatch;
     };
 
     return {
@@ -79,7 +86,40 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       groups: selectedActivity === ActivityFilter.TODAS || selectedActivity === ActivityFilter.PGS ? (groups || []).filter(filterFn) : [],
       visits: selectedActivity === ActivityFilter.TODAS || selectedActivity === ActivityFilter.VISITAS ? (visits || []).filter(filterFn) : [],
     };
-  }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit, selectedActivity]);
+  }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit, selectedActivity, selectedStatus]);
+
+  // Lógica de Tendência (Período anterior)
+  const trendStats = useMemo(() => {
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
+    const diff = end - start;
+    const prevEnd = start - 86400000;
+    const prevStart = prevEnd - diff;
+
+    const prevFilter = (item: any) => {
+      if (!item || !item.date) return false;
+      const d = new Date(item.date.split('T')[0]).getTime();
+      return d >= prevStart && d <= prevEnd;
+    };
+
+    const prevStudies = (studies || []).filter(prevFilter).length;
+    const prevClasses = (classes || []).filter(prevFilter).length;
+    const prevGroups = (groups || []).filter(prevFilter).length;
+    const prevVisits = (visits || []).filter(prevFilter).length;
+
+    const calcTrend = (curr: number, prev: number) => {
+      if (prev === 0) return null;
+      const pct = ((curr - prev) / prev) * 100;
+      return { pct: pct.toFixed(0), up: pct >= 0 };
+    };
+
+    return {
+      studies: calcTrend(filteredData.studies.length, prevStudies),
+      classes: calcTrend(filteredData.classes.length, prevClasses),
+      groups: calcTrend(filteredData.groups.length, prevGroups),
+      visits: calcTrend(filteredData.visits.length, prevVisits),
+    };
+  }, [studies, classes, groups, visits, startDate, endDate, filteredData]);
 
   const totalStats = useMemo(() => {
     const uniqueStudentsInFilter = new Set<string>();
@@ -255,7 +295,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               ))}
             </div>
             <div className="mt-8 flex justify-between items-center px-2">
-              <p className="text-[6px] text-slate-300 uppercase font-black tracking-[0.4em]">Emissão: {new Date().toLocaleString('pt-BR')}</p>
+              <p className="text-[6px] text-slate-300 uppercase font-black tracking-[0.4em]">Emitido por: {currentUser.name} em {new Date().toLocaleString('pt-BR')}</p>
               <p className="text-[6px] text-slate-300 uppercase font-black tracking-[0.4em]">Gerado via Capelania Pro</p>
             </div>
           </div>
@@ -318,7 +358,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             <button onClick={() => setShowPdfPreview(true)} className="px-6 py-4 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all" style={{ backgroundColor: pColor }}><i className="fas fa-file-pdf"></i> Visualizar PDF</button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Início</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Capelão</label>
@@ -339,12 +379,36 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               {Object.values(ActivityFilter).map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
           </div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Status Aluno</label>
+            <select 
+              value={selectedStatus} 
+              onChange={e => setSelectedStatus(e.target.value as any)} 
+              className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm"
+              disabled={selectedActivity === ActivityFilter.PGS || selectedActivity === ActivityFilter.VISITAS}
+            >
+              <option value="all">Todos os Status</option>
+              {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            </select>
+          </div>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {[{label: 'Alunos', val: totalStats.totalStudents, color: 'bg-blue-600'}, {label: 'Estudos', val: totalStats.studies, color: 'bg-blue-500'}, {label: 'Classes', val: totalStats.classes, color: 'bg-indigo-500'}, {label: 'PGs', val: totalStats.groups, color: 'bg-emerald-500'}, {label: 'Visitas', val: totalStats.visits, color: 'bg-rose-500'}].map((card, i) => (
+          {[
+            {label: 'Alunos', val: totalStats.totalStudents, color: 'bg-blue-600', trend: null }, 
+            {label: 'Estudos', val: totalStats.studies, color: 'bg-blue-500', trend: trendStats.studies }, 
+            {label: 'Classes', val: totalStats.classes, color: 'bg-indigo-500', trend: trendStats.classes }, 
+            {label: 'PGs', val: totalStats.groups, color: 'bg-emerald-500', trend: trendStats.groups }, 
+            {label: 'Visitas', val: totalStats.visits, color: 'bg-rose-500', trend: trendStats.visits }
+          ].map((card, i) => (
             <div key={i} className={`${card.color} p-6 rounded-[2.5rem] text-white shadow-xl flex flex-col items-center group hover:scale-105 transition-all`}>
               <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">{card.label}</p>
-              <p className="text-2xl font-black">{card.val}</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-black">{card.val}</p>
+                {card.trend && (
+                  <span className={`text-[10px] font-black flex items-center ${card.trend.up ? 'text-white' : 'text-white/70'}`}>
+                    {card.trend.up ? '↑' : '↓'}{Math.abs(Number(card.trend.pct))}%
+                  </span>
+                )}
+              </div>
             </div>
           ))}
         </div>
