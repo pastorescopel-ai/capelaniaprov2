@@ -42,7 +42,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
 
   const totalActions = userStudies.length + userClasses.length + userGroups.length + userVisits.length;
 
-  // Lógica de Impacto Global (Toda a Equipe) - 5 Pilares
+  // Lógica de Impacto Global (Toda a Equipe) - 5 Pilares com Cores Dinâmicas
   const getGlobalImpactData = () => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -259,7 +259,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
               <i className="fas fa-globe-americas text-[#005a9c]"></i> Impacto Global (Equipe)
             </h3>
             <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] mt-1">
-              Barra Colorida: Verde (Meta Superada) | Vermelho (Abaixo da Meta Anterior)
+              Comparativo de Metas: Verde (Superado) | Vermelho (Abaixo do Mês Anterior)
             </p>
           </div>
           <div className={`px-5 py-2 rounded-2xl flex items-center gap-2 border-2 ${globalImpact.isUp ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
@@ -290,9 +290,9 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
                 align="right" 
                 height={40} 
                 iconType="circle"
-                wrapperStyle={{ fontSize: '9px', fontBold: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', paddingBottom: '20px' }}
+                wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', paddingBottom: '20px' }}
               />
-              {/* Barra do Mês Anterior com Cor Dinâmica (Verde se Atual >= Anterior, senão Vermelho) */}
+              {/* Barra do Mês Anterior com Cor Dinâmica */}
               <Bar 
                 name="Mês Anterior" 
                 dataKey="anterior" 
@@ -306,7 +306,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
                   />
                 ))}
               </Bar>
-              {/* Barra do Mês Atual fixa no Azul Institucional */}
+              {/* Barra do Mês Atual */}
               <Bar 
                 name="Mês Atual" 
                 dataKey="atual" 
@@ -319,9 +319,9 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
         </div>
         
         <div className="mt-4 pt-4 border-t border-slate-50 flex flex-wrap gap-4 justify-center">
-           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#10b981]"></div><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Sucesso</span></div>
-           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#f43f5e]"></div><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Atenção</span></div>
-           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#005a9c]"></div><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Realizado</span></div>
+           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#10b981]"></div><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Sucesso (Igualado/Superado)</span></div>
+           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#f43f5e]"></div><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Atenção (Em andamento)</span></div>
+           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#005a9c]"></div><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Alcançado (Mês Atual)</span></div>
         </div>
       </div>
     </div>
