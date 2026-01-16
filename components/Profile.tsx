@@ -57,11 +57,16 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
     }
   };
 
-  const handleRemovePhoto = () => {
+  const handleRemovePhoto = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Evita abrir o seletor de arquivos ao clicar em remover
     if (confirm("Deseja realmente remover sua foto de perfil?")) {
       setProfilePic('');
       onUpdateUser({ ...user, profilePic: '' });
     }
+  };
+
+  const triggerFileInput = () => {
+    document.getElementById('fileInput')?.click();
   };
 
   const handleUpdateProfile = (e: React.FormEvent) => {
@@ -102,7 +107,7 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
       </header>
 
       <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center space-y-6">
-        <div className="relative group cursor-pointer" onClick={() => document.getElementById('fileInput')?.click()}>
+        <div className="relative group cursor-pointer" onClick={triggerFileInput}>
           <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 overflow-hidden border-4 border-white shadow-xl flex items-center justify-center">
             {profilePic ? (
               <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
@@ -117,19 +122,29 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
           </div>
           <input id="fileInput" type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
         </div>
-        <div className="text-center space-y-1">
-          <p className="text-xs font-black text-blue-600 uppercase tracking-[0.2em]">Inserir foto</p>
+        <div className="text-center space-y-2 flex flex-col items-center">
+          <button 
+            type="button"
+            onClick={triggerFileInput}
+            className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] hover:text-blue-800 transition-colors"
+          >
+            Inserir foto
+          </button>
+          
           {profilePic && (
             <button 
               type="button"
               onClick={handleRemovePhoto}
-              className="text-[9px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600 transition-colors"
+              className="text-[9px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-700 transition-colors"
             >
               Remover foto
             </button>
           )}
-          <h2 className="text-2xl font-bold text-slate-800 mt-2">{user.name}</h2>
-          <p className="text-slate-500 font-medium">{user.email}</p>
+          
+          <div className="pt-2">
+            <h2 className="text-2xl font-bold text-slate-800">{user.name}</h2>
+            <p className="text-slate-500 font-medium">{user.email}</p>
+          </div>
         </div>
       </div>
 
