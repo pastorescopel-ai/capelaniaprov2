@@ -22,6 +22,22 @@ interface FormProps {
   onTransfer?: (type: string, id: string, newUserId: string) => void;
 }
 
+// Componente Interno de Notificação Flutuante (Toast)
+const Toast: React.FC<{ message: string; show: boolean; onClose: () => void }> = ({ message, show, onClose }) => {
+  if (!show) return null;
+  return (
+    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-top duration-300">
+      <div className="bg-slate-900/90 backdrop-blur-md text-white px-8 py-4 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-3">
+        <i className="fas fa-exclamation-circle text-amber-400 text-lg"></i>
+        <span className="font-black uppercase text-[10px] tracking-widest">{message}</span>
+        <button onClick={onClose} className="ml-4 hover:text-rose-400 transition-colors">
+          <i className="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const isRecordLocked = (dateStr: string, userRole: UserRole) => {
   if (userRole === UserRole.ADMIN) return false;
   const now = new Date();
@@ -233,6 +249,7 @@ const HistoryFilterBar: React.FC<{
 
 export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, onSubmit, onDelete, onEdit, onTransfer }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
+  const [toast, setToast] = useState({ show: false, message: '' });
   
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
@@ -240,10 +257,8 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
   const studySuggestions = ["Ouvindo a voz de Deus", "Verdade e Vida", "Apocalipse", "Daniel"];
 
-  // SEGREGRAÇÃO: Lista de alunos filtrada pelo usuário logado para o Autocomplete
   const studentNames = useMemo(() => {
     const names = new Set<string>();
-    // Filtra o histórico global apenas pelos alunos que pertencem ao usuário atual
     allHistory
       .filter(s => s.userId === currentUser.id)
       .forEach(s => { if(s.name) names.add(s.name.trim()); });
@@ -272,7 +287,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
   const handleSelectStudent = (name: string) => {
     const lastRecord = [...allHistory]
-      .filter(s => s.userId === currentUser.id) // Garante que busca o progresso apenas dos seus alunos
+      .filter(s => s.userId === currentUser.id) 
       .sort((a, b) => b.createdAt - a.createdAt)
       .find(s => s.name.trim().toLowerCase() === name.trim().toLowerCase());
 
@@ -288,9 +303,21 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
     }
   };
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.date || !formData.sector || !formData.name || !formData.whatsapp || !formData.guide || !formData.lesson) {
+      setToast({ show: true, message: "Atenção: Todos os campos com (*) são obrigatórios!" });
+      setTimeout(() => setToast({ show: false, message: "" }), 3000);
+      return;
+    }
+    onSubmit({ ...formData, unit });
+    setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' });
+  };
+
   return (
     <div className="space-y-10 pb-20">
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit({ ...formData, unit }); setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, guide: '', lesson: '', observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+      <Toast show={toast.show} message={toast.message} onClose={() => setToast({ show: false, message: "" })} />
+      <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-slate-800">Estudo Bíblico ({unit})</h2>
           {formData.id && (
@@ -298,7 +325,7 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
           )}
         </div>
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Selecione o setor..." isStrict={true} /></div>
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Aluno (Seus Alunos) *</label>
@@ -310,9 +337,9 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               placeholder="Digite para buscar seu aluno..." 
             />
           </div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">WhatsApp *</label><input required placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-mono" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">WhatsApp *</label><input placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-mono" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Guia de Estudo *</label><Autocomplete options={studySuggestions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Selecione ou digite o guia..." /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Atual *</label><input required type="number" min="1" placeholder="Ex: 5" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-black" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Atual *</label><input type="number" min="1" placeholder="Ex: 5" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-black" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Status *</label>
             <div className="flex gap-2">
               {STATUS_OPTIONS.map(opt => (
@@ -354,12 +381,12 @@ export const BibleStudyForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, history, allHistory = [], editingItem, onSubmit, onDelete, onEdit, onTransfer }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' });
   const [newStudent, setNewStudent] = useState('');
+  const [toast, setToast] = useState({ show: false, message: '' });
 
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
 
-  // SEGREGRAÇÃO: Lista de classes filtrada pelo usuário logado para o Autocomplete
   const classGuides = useMemo(() => {
     const guides = new Set<string>();
     allHistory
@@ -405,9 +432,21 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
   const addStudent = () => { if (newStudent.trim()) { setFormData({...formData, students: [...formData.students, newStudent.trim()]}); setNewStudent(''); } };
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.date || !formData.sector || !formData.guide || !formData.lesson || formData.students.length === 0) {
+      setToast({ show: true, message: "Atenção: Data, Setor, Classe, Lição e pelo menos um Aluno são obrigatórios!" });
+      setTimeout(() => setToast({ show: false, message: "" }), 3000);
+      return;
+    }
+    onSubmit({...formData, unit});
+    setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' });
+  };
+
   return (
     <div className="space-y-10 pb-20">
-      <form onSubmit={(e) => { e.preventDefault(); if(formData.students.length===0) return; onSubmit({...formData, unit}); setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO, observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+      <Toast show={toast.show} message={toast.message} onClose={() => setToast({ show: false, message: "" })} />
+      <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-slate-800">Classe Bíblica ({unit})</h2>
           {formData.id && (
@@ -415,7 +454,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
           )}
         </div>
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Escolha o setor..." isStrict={true} /></div>
           <div className="space-y-1 md:col-span-2">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lista de Presença *</label>
@@ -440,7 +479,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
               placeholder="Digite para buscar sua classe..." 
             />
           </div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada *</label><input required type="number" min="1" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 font-black" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Lição Ministrada *</label><input type="number" min="1" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 font-black" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Status da Classe *</label>
             <div className="flex gap-2">
               {STATUS_OPTIONS.map(opt => (
@@ -480,6 +519,7 @@ export const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
 export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, groupsList = [], history, editingItem, onSubmit, onDelete, onEdit }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' });
+  const [toast, setToast] = useState({ show: false, message: '' });
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
@@ -501,16 +541,28 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
     });
   }, [history, filterChaplain, filterStart, filterEnd]);
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.date || !formData.sector || !formData.groupName || !formData.leader || formData.participantsCount === undefined) {
+      setToast({ show: true, message: "Atenção: Preencha todos os campos obrigatórios (*)" });
+      setTimeout(() => setToast({ show: false, message: "" }), 3000);
+      return;
+    }
+    onSubmit({...formData, unit});
+    setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' });
+  };
+
   return (
     <div className="space-y-10 pb-20">
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit({...formData, unit}); setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+      <Toast show={toast.show} message={toast.message} onClose={() => setToast({ show: false, message: "" })} />
+      <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <h2 className="text-2xl font-bold text-slate-800">Pequeno Grupo ({unit})</h2>
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data Atendimento *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local do PG..." isStrict={true} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Grupo *</label><Autocomplete options={groupsList} value={formData.groupName} onChange={v => setFormData({...formData, groupName: v})} placeholder="Pesquise o nome do grupo..." isStrict={true} /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Líder *</label><input required placeholder="Líder do PG" value={formData.leader} onChange={e => setFormData({...formData, leader: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Participantes *</label><input required type="number" min="0" value={formData.participantsCount || ''} onChange={e => setFormData({...formData, participantsCount: parseInt(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Líder *</label><input placeholder="Líder do PG" value={formData.leader} onChange={e => setFormData({...formData, leader: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Participantes *</label><input type="number" min="0" value={formData.participantsCount || ''} onChange={e => setFormData({...formData, participantsCount: parseInt(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Observações</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none" /></div>
         </div>
         <button type="submit" className="w-full py-5 bg-emerald-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs">Salvar PG</button>
@@ -538,6 +590,7 @@ export const SmallGroupForm: React.FC<FormProps> = ({ unit, sectors, users, curr
 
 export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, masterLists, staffList = [], history, editingItem, onSubmit, onDelete, onEdit, onToggleReturn }) => {
   const [formData, setFormData] = useState({ id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' });
+  const [toast, setToast] = useState({ show: false, message: '' });
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [filterStart, setFilterStart] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
@@ -559,12 +612,24 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
     });
   }, [history, filterChaplain, filterStart, filterEnd]);
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.date || !formData.sector || !formData.staffName) {
+      setToast({ show: true, message: "Atenção: Data, Setor e Colaborador são obrigatórios!" });
+      setTimeout(() => setToast({ show: false, message: "" }), 3000);
+      return;
+    }
+    onSubmit({...formData, unit});
+    setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' });
+  };
+
   return (
     <div className="space-y-10 pb-20">
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit({...formData, unit}); setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' }); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+      <Toast show={toast.show} message={toast.message} onClose={() => setToast({ show: false, message: "" })} />
+      <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <h2 className="text-2xl font-bold text-slate-800">Visita a Colaborador ({unit})</h2>
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local da visita..." isStrict={true} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Colaborador *</label><Autocomplete options={staffList} value={formData.staffName} onChange={v => setFormData({...formData, staffName: v})} placeholder="Nome do colaborador..." /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Motivo *</label>
@@ -581,7 +646,7 @@ export const StaffVisitForm: React.FC<FormProps> = ({ unit, sectors, users, curr
           {formData.requiresReturn && (
             <div className="space-y-1 md:col-span-2 animate-in slide-in-from-left duration-300">
               <label className="text-[10px] font-black text-rose-500 ml-2 uppercase">Agendar Retorno para *</label>
-              <input required type="date" value={formData.returnDate} onChange={e => setFormData({...formData, returnDate: e.target.value})} className="w-full p-4 rounded-2xl bg-rose border-2 border-rose-100 text-rose-700 font-bold" />
+              <input type="date" value={formData.returnDate} onChange={e => setFormData({...formData, returnDate: e.target.value})} className="w-full p-4 rounded-2xl bg-rose border-2 border-rose-100 text-rose-700 font-bold" />
             </div>
           )}
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Observações</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none" /></div>

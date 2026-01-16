@@ -1,11 +1,11 @@
 
 // ############################################################
-// # VERSION: 2.10.0-REPORTS-WEEKLY (STABLE)
-// # STATUS: WEEKLY ACCORDION + PDF INTEGRITY
+// # VERSION: 2.11.0-REPORTS-ACTIVITY (STABLE)
+// # STATUS: ACTIVITY FILTER + PDF INTEGRITY
 // ############################################################
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, MasterLists } from '../types';
+import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, MasterLists, ActivityFilter } from '../types';
 import { REPORT_LOGO_BASE64 } from '../constants';
 
 interface ReportsProps {
@@ -26,11 +26,9 @@ const resolveDynamicName = (val: string, list: string[] = []) => {
   return currentMatch || val;
 };
 
-// Auxiliar para calcular o intervalo de datas da semana (Segunda a Domingo)
 const getWeekRangeLabel = (dateStr: string) => {
   const d = new Date(dateStr);
   const day = d.getDay();
-  // Ajuste para segunda-feira como início da semana
   const diffToMonday = d.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(d.setDate(diffToMonday));
   const sunday = new Date(monday);
@@ -49,6 +47,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedChaplain, setSelectedChaplain] = useState('all');
   const [selectedUnit, setSelectedUnit] = useState<'all' | Unit>('all');
+  const [selectedActivity, setSelectedActivity] = useState<ActivityFilter>(ActivityFilter.TODAS);
 
   const pColor = config.primaryColor || '#005a9c';
 
@@ -75,17 +74,18 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
 
     return {
-      studies: (studies || []).filter(filterFn),
-      classes: (classes || []).filter(filterFn),
-      groups: (groups || []).filter(filterFn),
-      visits: (visits || []).filter(filterFn),
+      studies: selectedActivity === ActivityFilter.TODAS || selectedActivity === ActivityFilter.ESTUDOS ? (studies || []).filter(filterFn) : [],
+      classes: selectedActivity === ActivityFilter.TODAS || selectedActivity === ActivityFilter.CLASSES ? (classes || []).filter(filterFn) : [],
+      groups: selectedActivity === ActivityFilter.TODAS || selectedActivity === ActivityFilter.PGS ? (groups || []).filter(filterFn) : [],
+      visits: selectedActivity === ActivityFilter.TODAS || selectedActivity === ActivityFilter.VISITAS ? (visits || []).filter(filterFn) : [],
     };
-  }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit]);
+  }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit, selectedActivity]);
 
   const totalStats = useMemo(() => {
     const uniqueStudentsInFilter = new Set<string>();
     filteredData.studies.forEach(s => { if (s.name) uniqueStudentsInFilter.add(s.name.trim().toLowerCase()); });
     filteredData.classes.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(name => { if (name) uniqueStudentsInFilter.add(name.trim().toLowerCase()); }); });
+    
     return {
       studies: filteredData.studies.length,
       classes: filteredData.classes.length,
@@ -193,7 +193,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           {REPORT_LOGO_BASE64 && <img src={REPORT_LOGO_BASE64} style={{ position: 'absolute', left: `${config.reportLogoX}px`, top: `${config.reportLogoY}px`, width: `${config.reportLogoWidth}px` }} alt="Logo" />}
           <div className="absolute top-4 right-0 text-right">
              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Relatório Consolidado</p>
-             <p className="text-[12px] font-black text-slate-800 uppercase" style={{ color: pColor }}>Período: {formatDate(startDate)} - {formatDate(endDate)}</p>
+             <p className="text-[12px] font-black text-slate-800 uppercase" style={{ color: pColor }}>{selectedActivity === ActivityFilter.TODAS ? "Visão: Geral" : `Atividade: ${selectedActivity}`}</p>
+             <p className="text-[10px] font-bold text-slate-500 uppercase">Período: {formatDate(startDate)} - {formatDate(endDate)}</p>
           </div>
           <div style={{ position: 'absolute', left: `${config.headerLine1X}px`, top: `${config.headerLine1Y}px`, width: '450px', textAlign: config.headerTextAlign }}>
             <h1 style={{ fontSize: `${config.fontSize1}px`, color: pColor }} className="font-black uppercase">{config.headerLine1}</h1>
@@ -243,37 +244,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 </div>
               );
           })}
-          <div className="pt-6 border-t-2 border-slate-100">
-             <h3 className="text-[11px] font-black uppercase text-center mb-6 tracking-widest text-slate-400">Indicadores Gráficos (Total HAB + HABA)</h3>
-             <div className="grid grid-cols-4 gap-x-4 gap-y-10">
-                {chaplainStats.map((stat) => {
-                  const totalS = stat.students;
-                  const totalE = stat.hab.studies + stat.haba.studies;
-                  const totalC = stat.hab.classes + stat.haba.classes;
-                  const totalP = stat.hab.groups + stat.haba.groups;
-                  const totalV = stat.hab.visits + stat.haba.visits;
-                  const maxVal = Math.max(totalS, totalE, totalC, totalP, totalV, 5);
-                  const bars = [{ label: 'ALU', val: totalS, color: '#3b82f6' }, { label: 'EST', val: totalE, color: '#6366f1' }, { label: 'CLA', val: totalC, color: '#8b5cf6' }, { label: 'PGS', val: totalP, color: pColor }, { label: 'VIS', val: totalV, color: '#f43f5e' }];
-                  return (
-                    <div key={stat.user.id} className="flex flex-col items-center">
-                      <p className="text-[7px] font-black uppercase mb-3 text-slate-600 border-b w-full text-center pb-1 border-slate-100 truncate">{stat.name}</p>
-                      <div className="flex items-end justify-center h-[70px] w-full px-1 gap-0.5">
-                         {bars.map((bar, bi) => {
-                           const heightPerc = (bar.val / maxVal) * 100;
-                           return (
-                             <div key={bi} className="flex flex-col items-center justify-end h-full w-[18%]">
-                                <span className="text-[7px] font-black mb-0.5" style={{ color: bar.color }}>{bar.val}</span>
-                                <div style={{ height: `${Math.max(heightPerc, 2)}%`, backgroundColor: bar.color }} className="w-full rounded-t-sm shadow-sm"></div>
-                                <span className="text-[4px] font-black uppercase mt-1 text-slate-400 truncate w-full text-center">{bar.label}</span>
-                             </div>
-                           );
-                         })}
-                      </div>
-                    </div>
-                  );
-                })}
-             </div>
-          </div>
+          
           <div className="pt-10 mt-auto">
             <div className="grid grid-cols-5 gap-3">
               {[{ label: 'Total Alunos', val: totalStats.totalStudents, color: pColor }, { label: 'Total Estudos', val: totalStats.studies, color: '#3b82f6' }, { label: 'Total Classes', val: totalStats.classes, color: '#6366f1' }, { label: 'Total PGs', val: totalStats.groups, color: '#10b981' }, { label: 'Total Visitas', val: totalStats.visits, color: '#f43f5e' }].map((card, ci) => (
@@ -295,43 +266,25 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
   const AccordionSection = ({ title, items, colorClass }: { title: string, items: any[], colorClass: string }) => {
     if (items.length === 0) return null;
-    
-    // Agrupa itens por semana
     const groupedByWeek = items.reduce((acc: any, item) => {
       const weekLabel = getWeekRangeLabel(item.date);
       if (!acc[weekLabel]) acc[weekLabel] = [];
       acc[weekLabel].push(item);
       return acc;
     }, {});
-
     const sortedWeekLabels = Object.keys(groupedByWeek).sort((a, b) => b.localeCompare(a));
-    
-    // Auto-expande a primeira semana se nada estiver expandido ainda
-    useEffect(() => {
-      if (expandedWeeks.length === 0 && sortedWeekLabels.length > 0) {
-        setExpandedWeeks([sortedWeekLabels[0]]);
-      }
-    }, [sortedWeekLabels]);
-
+    useEffect(() => { if (expandedWeeks.length === 0 && sortedWeekLabels.length > 0) { setExpandedWeeks([sortedWeekLabels[0]]); } }, [sortedWeekLabels]);
     return (
       <div className="space-y-4">
-        <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full border bg-white ${colorClass.replace('bg-', 'text-').replace('-50/50', '')} border-slate-100 w-fit shadow-sm`}>
-          {title} ({items.length})
-        </h4>
+        <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full border bg-white ${colorClass.replace('bg-', 'text-').replace('-50/50', '')} border-slate-100 w-fit shadow-sm`}>{title} ({items.length})</h4>
         <div className="space-y-3">
           {sortedWeekLabels.map(weekLabel => {
             const isOpen = expandedWeeks.includes(weekLabel);
             return (
               <div key={weekLabel} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden transition-all">
-                <button 
-                  onClick={() => toggleWeek(weekLabel)}
-                  className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
-                >
+                <button onClick={() => toggleWeek(weekLabel)} className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                   <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{weekLabel}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">{groupedByWeek[weekLabel].length} Atendimentos</span>
-                    <i className={`fas fa-chevron-${isOpen ? 'up' : 'down'} text-slate-300 text-xs`}></i>
-                  </div>
+                  <div className="flex items-center gap-3"><span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">{groupedByWeek[weekLabel].length} Atendimentos</span><i className={`fas fa-chevron-${isOpen ? 'up' : 'down'} text-slate-300 text-xs`}></i></div>
                 </button>
                 {isOpen && (
                   <div className="px-6 pb-6 pt-2 space-y-3 animate-in slide-in-from-top duration-300">
@@ -339,14 +292,9 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                       <div key={idx} className={`p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${colorClass}`}>
                          <div>
                             <p className="font-black text-slate-800 uppercase text-[11px]">{item.name || item.guide || resolveDynamicName(item.groupName, masterLists.groupsHAB) || resolveDynamicName(item.staffName, masterLists.staffHAB)}</p>
-                            <p className="text-[9px] font-bold opacity-70 uppercase">
-                              {resolveDynamicName(item.sector, item.unit === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA)}
-                              {item.lesson ? ` • Lição ${item.lesson}` : ''}
-                            </p>
+                            <p className="text-[9px] font-bold opacity-70 uppercase">{resolveDynamicName(item.sector, item.unit === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA)}{item.lesson ? ` • Lição ${item.lesson}` : ''}</p>
                          </div>
-                         <div className="text-right">
-                            <span className="text-[8px] font-black text-slate-400 uppercase">{new Date(item.date).toLocaleDateString()}</span>
-                         </div>
+                         <div className="text-right"><span className="text-[8px] font-black text-slate-400 uppercase">{new Date(item.date).toLocaleDateString()}</span></div>
                       </div>
                     ))}
                   </div>
@@ -370,7 +318,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             <button onClick={() => setShowPdfPreview(true)} className="px-6 py-4 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all" style={{ backgroundColor: pColor }}><i className="fas fa-file-pdf"></i> Visualizar PDF</button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Início</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Capelão</label>
@@ -384,6 +332,11 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
               <option value="all">Todas as Unidades</option>
               <option value={Unit.HAB}>HAB</option>
               <option value={Unit.HABA}>HABA</option>
+            </select>
+          </div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Atividade</label>
+            <select value={selectedActivity} onChange={e => setSelectedActivity(e.target.value as any)} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm">
+              {Object.values(ActivityFilter).map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
           </div>
         </div>
@@ -437,10 +390,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4" onClick={(e) => { if(e.target === e.currentTarget) setSelectedDetailUser(null); }}>
           <div className="bg-white w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in duration-200">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <div>
-                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">{selectedDetailUser.name}</h3>
-                <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Cronograma Semanal de Atividades</p>
-              </div>
+              <div><h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">{selectedDetailUser.name}</h3><p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Cronograma Semanal de Atividades</p></div>
               <button onClick={() => setSelectedDetailUser(null)} className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm transition-all"><i className="fas fa-times text-xl"></i></button>
             </div>
             <div className="flex-1 overflow-y-auto p-8 space-y-12 no-scrollbar">
@@ -451,12 +401,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 if (uStat.total === 0) return null;
                 return (
                   <div key={unitKey} className="space-y-8">
-                    <h4 className="text-[12px] font-black uppercase tracking-[0.5em] text-slate-300 text-center flex items-center gap-4">
-                      <div className="h-[1px] bg-slate-100 flex-1"></div>
-                      Unidade {unitKey}
-                      <div className="h-[1px] bg-slate-100 flex-1"></div>
-                    </h4>
-                    
+                    <h4 className="text-[12px] font-black uppercase tracking-[0.5em] text-slate-300 text-center flex items-center gap-4"><div className="h-[1px] bg-slate-100 flex-1"></div>Unidade {unitKey}<div className="h-[1px] bg-slate-100 flex-1"></div></h4>
                     <AccordionSection title="Estudos Bíblicos" items={uStat.rawStudies} colorClass="bg-blue-50/50" />
                     <AccordionSection title="Classes Bíblicas" items={uStat.rawClasses} colorClass="bg-indigo-50/50" />
                     <AccordionSection title="Pequenos Grupos" items={uStat.rawGroups} colorClass="bg-emerald-50/50" />
@@ -464,9 +409,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                   </div>
                 );
               })}
-            </div>
-            <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-center">
-               <button onClick={() => setSelectedDetailUser(null)} className="px-10 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Fechar Detalhamento (Esc)</button>
             </div>
           </div>
         </div>

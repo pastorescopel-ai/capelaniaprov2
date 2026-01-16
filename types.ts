@@ -23,6 +23,14 @@ export enum VisitReason {
   OUTROS = 'Outros'
 }
 
+export enum ActivityFilter {
+  TODAS = 'Todas as Atividades',
+  ESTUDOS = 'Estudos Bíblicos',
+  CLASSES = 'Classes Bíblicas',
+  PGS = 'Pequenos Grupos',
+  VISITAS = 'Visitas a Colaboradores'
+}
+
 export interface User {
   id: string;
   name: string;
