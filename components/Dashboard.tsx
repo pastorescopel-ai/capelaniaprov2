@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell, Legend, YAxis } from 'recharts';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole, Config, RecordStatus } from '../types';
 
 interface DashboardProps {
@@ -19,42 +19,91 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
   const [isEditingMural, setIsEditingMural] = useState(false);
   const [muralDraft, setMuralDraft] = useState(config?.muralText || "");
 
-  // Atividades do período (para gráficos e avisos)
+  // Atividades do período (para gráficos e avisos individuais)
   const userStudies = (studies || []).filter(s => s && s.userId === currentUser?.id);
   const userClasses = (classes || []).filter(c => c && c.userId === currentUser?.id);
   const userGroups = (groups || []).filter(g => g && g.userId === currentUser?.id);
   const userVisits = (visits || []).filter(v => v && v.userId === currentUser?.id);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
 
   const pendingReturns = userVisits.filter(v => v.requiresReturn && !v.returnCompleted);
   const todaysReturns = userVisits.filter(v => 
     v.requiresReturn && 
     !v.returnCompleted && 
-    v.returnDate === today
+    v.returnDate === todayStr
   );
 
-  // FÓRMULA DE TOTALIZADOR DE ALUNOS (ABSOLUTO/HISTÓRICO)
-  // Contabiliza todos os alunos vinculados ao capelão no banco de dados, independente de status ou data
+  // FÓRMULA DE TOTALIZADOR DE ALUNOS (ABSOLUTO/HISTÓRICO INDIVIDUAL)
   const uniqueStudents = new Set<string>();
-  
-  // Percorre todo o histórico de estudos do usuário
-  userStudies.forEach(s => {
-    if (s.name) {
-      uniqueStudents.add(s.name.trim().toLowerCase());
-    }
-  });
-
-  // Percorre todo o histórico de classes do usuário
-  userClasses.forEach(c => {
-    if (Array.isArray(c.students)) {
-      c.students.forEach(name => {
-        if (name) uniqueStudents.add(name.trim().toLowerCase());
-      });
-    }
-  });
+  userStudies.forEach(s => { if (s.name) uniqueStudents.add(s.name.trim().toLowerCase()); });
+  userClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(name => { if (name) uniqueStudents.add(name.trim().toLowerCase()); }); });
 
   const totalActions = userStudies.length + userClasses.length + userGroups.length + userVisits.length;
+
+  // Lógica de Impacto Global (Toda a Equipe) - 5 Pilares
+  const getGlobalImpactData = () => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const prevMonthDate = new Date();
+    prevMonthDate.setMonth(now.getMonth() - 1);
+    const prevMonth = prevMonthDate.getMonth();
+    const prevYear = prevMonthDate.getFullYear();
+
+    const getMonthStats = (m: number, y: number) => {
+      const mStudies = (studies || []).filter(s => {
+        const d = new Date(s.date);
+        return d.getMonth() === m && d.getFullYear() === y;
+      });
+      const mClasses = (classes || []).filter(c => {
+        const d = new Date(c.date);
+        return d.getMonth() === m && d.getFullYear() === y;
+      });
+      const mGroups = (groups || []).filter(g => {
+        const d = new Date(g.date);
+        return d.getMonth() === m && d.getFullYear() === y;
+      });
+      const mVisits = (visits || []).filter(v => {
+        const d = new Date(v.date);
+        return d.getMonth() === m && d.getFullYear() === y;
+      });
+
+      // Alunos Únicos no Mês de Toda a Equipe
+      const uStudents = new Set<string>();
+      mStudies.forEach(s => { if (s.name) uStudents.add(s.name.trim().toLowerCase()); });
+      mClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => { if (n) uStudents.add(n.trim().toLowerCase()); }); });
+
+      return {
+        students: uStudents.size,
+        studies: mStudies.length,
+        classes: mClasses.length,
+        groups: mGroups.length,
+        visits: mVisits.length,
+        total: mStudies.length + mClasses.length + mGroups.length + mVisits.length
+      };
+    };
+
+    const curr = getMonthStats(currentMonth, currentYear);
+    const prev = getMonthStats(prevMonth, prevYear);
+
+    const diff = curr.total - prev.total;
+    const pct = prev.total > 0 ? Math.round((diff / prev.total) * 100) : 0;
+
+    const chartData = [
+      { name: 'Alunos', anterior: prev.students, atual: curr.students },
+      { name: 'Estudos', anterior: prev.studies, atual: curr.studies },
+      { name: 'Classes', anterior: prev.classes, atual: curr.classes },
+      { name: 'PGs', anterior: prev.groups, atual: curr.groups },
+      { name: 'Visitas', anterior: prev.visits, atual: curr.visits },
+    ];
+
+    return { chartData, pct, isUp: diff >= 0 };
+  };
+
+  const globalImpact = getGlobalImpactData();
 
   const stats = [
     { label: 'Total de alunos (HAB/HABA)', value: uniqueStudents.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
@@ -179,9 +228,10 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
         ))}
       </div>
 
+      {/* Gráfico Individual */}
       <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
         <h3 className="text-xl font-black text-slate-800 mb-8 flex items-center gap-2">
-          <i className="fas fa-chart-bar text-blue-600"></i> Meu Desempenho (HAB+HABA)
+          <i className="fas fa-chart-bar text-blue-600"></i> Meu Desempenho Individual
         </h3>
         <div className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -198,6 +248,70 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Gráfico de Impacto Global - 5 Pilares Side-by-Side */}
+      <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+          <div>
+            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter">
+              <i className="fas fa-globe-americas text-[#005a9c]"></i> Impacto Global (Equipe)
+            </h3>
+            <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] mt-1">
+              Comparativo detalhado por categoria de atendimento
+            </p>
+          </div>
+          <div className={`px-5 py-2 rounded-2xl flex items-center gap-2 border-2 ${globalImpact.isUp ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+            <i className={`fas fa-arrow-${globalImpact.isUp ? 'up' : 'down'} text-[10px]`}></i>
+            <span className="text-[11px] font-black uppercase tracking-widest">{globalImpact.isUp ? '+' : ''}{globalImpact.pct}% alcance total</span>
+          </div>
+        </div>
+
+        <div className="h-[320px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={globalImpact.chartData}
+              margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+            >
+              <XAxis 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{fill: '#475569', fontSize: 9, fontWeight: 900}} 
+              />
+              <YAxis hide />
+              <Tooltip 
+                cursor={{fill: '#f8fafc'}} 
+                contentStyle={{borderRadius: '1.5rem', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '15px'}} 
+              />
+              <Legend 
+                verticalAlign="top" 
+                align="right" 
+                height={40} 
+                iconType="circle"
+                wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', paddingBottom: '20px' }}
+              />
+              <Bar 
+                name="Mês Anterior" 
+                dataKey="anterior" 
+                fill="#cbd5e1" 
+                radius={[6, 6, 0, 0]} 
+                barSize={18} 
+              />
+              <Bar 
+                name="Mês Atual" 
+                dataKey="atual" 
+                fill="#005a9c" 
+                radius={[6, 6, 0, 0]} 
+                barSize={18} 
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        
+        <div className="mt-4 pt-4 border-t border-slate-50 flex justify-center">
+           <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.3em]">Auditoria de Impacto Hospitalar Coletivo</p>
         </div>
       </div>
     </div>
