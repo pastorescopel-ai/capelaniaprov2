@@ -1,7 +1,7 @@
 
 // ############################################################
-// # VERSION: 2.11.0-REPORTS-ACTIVITY (STABLE)
-// # STATUS: ACTIVITY FILTER + PDF INTEGRITY
+// # VERSION: 2.12.0-REPORTS-AUDIT (STABLE)
+// # STATUS: ACTIVITY FILTER + STUDENT AUDIT MODAL
 // ############################################################
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -41,6 +41,7 @@ const getWeekRangeLabel = (dateStr: string) => {
 
 const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, users, currentUser, masterLists, config, onRefresh }) => {
   const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [showStudentsAudit, setShowStudentsAudit] = useState(false);
   const [selectedDetailUser, setSelectedDetailUser] = useState<User | null>(null);
   const [expandedWeeks, setExpandedWeeks] = useState<string[]>([]);
   
@@ -57,6 +58,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setShowPdfPreview(false);
+        setShowStudentsAudit(false);
         setSelectedDetailUser(null);
       }
     };
@@ -73,7 +75,6 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       const itemUnit = item.unit || Unit.HAB;
       const unitMatch = selectedUnit === 'all' || itemUnit === selectedUnit;
       
-      // Filtro de Status aplicado apenas a Estudos e Classes
       const isStudyOrClass = item.status !== undefined;
       const statusMatch = (selectedStatus === 'all' || !isStudyOrClass) || item.status === selectedStatus;
       
@@ -88,7 +89,45 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     };
   }, [studies, classes, groups, visits, startDate, endDate, selectedChaplain, selectedUnit, selectedActivity, selectedStatus]);
 
-  // Lógica de Tendência (Período anterior)
+  // Lista Consolidada de Alunos para Auditoria
+  const auditList = useMemo(() => {
+    const list: any[] = [];
+    
+    filteredData.studies.forEach(s => {
+      list.push({
+        name: s.name,
+        sector: s.sector,
+        unit: s.unit,
+        type: 'Estudo Bíblico',
+        icon: '📖',
+        chaplain: users.find(u => u.id === s.userId)?.name || 'N/I',
+        status: s.status,
+        date: s.date,
+        original: s
+      });
+    });
+
+    filteredData.classes.forEach(c => {
+      if (Array.isArray(c.students)) {
+        c.students.forEach(studentName => {
+          list.push({
+            name: studentName,
+            sector: c.sector,
+            unit: c.unit,
+            type: 'Classe Bíblica',
+            icon: '👥',
+            chaplain: users.find(u => u.id === c.userId)?.name || 'N/I',
+            status: c.status,
+            date: c.date,
+            original: c
+          });
+        });
+      }
+    });
+
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [filteredData, users]);
+
   const trendStats = useMemo(() => {
     const start = new Date(startDate).getTime();
     const end = new Date(endDate).getTime();
@@ -186,6 +225,50 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
   const toggleWeek = (week: string) => {
     setExpandedWeeks(prev => prev.includes(week) ? prev.filter(w => w !== week) : [...prev, week]);
+  };
+
+  const handlePrintAuditList = () => {
+    const printContent = document.getElementById('audit-print-root');
+    if (!printContent) return;
+    const printWindow = window.open('', '_blank', 'width=1100,height=900');
+    if (!printWindow) return;
+    const styles = Array.from(document.querySelectorAll('link, style')).map(s => s.outerHTML).join('\n');
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Lista de Auditoria de Alunos</title>
+          ${styles}
+          <style>
+            @media print { 
+              @page { size: A4; margin: 15mm; } 
+              .no-print { display: none; } 
+              * { -webkit-print-color-adjust: exact !important; }
+            } 
+            body { background: #fff; padding: 20px; font-family: sans-serif; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { background: #f1f5f9; text-transform: uppercase; font-size: 10px; padding: 10px; border: 1px solid #e2e8f0; }
+            td { padding: 10px; border: 1px solid #e2e8f0; font-size: 11px; }
+            .termino { color: #e11d48 !important; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="margin:0; font-size: 18px; color: ${pColor}">LISTA GERAL DE ALUNOS</h1>
+            <p style="font-size: 10px; color: #64748b; margin-top: 5px;">FILTRO: ${new Date(startDate).toLocaleDateString()} ATÉ ${new Date(endDate).toLocaleDateString()}</p>
+          </div>
+          ${printContent.innerHTML}
+          <div style="margin-top: 30px; font-size: 8px; color: #94a3b8; border-top: 1px solid #eee; padding-top: 10px;">
+            Emitido por: ${currentUser.name} em ${new Date().toLocaleString()}
+          </div>
+          <script>
+            window.onload = () => { window.print(); setTimeout(() => { window.close(); }, 500); };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const handlePrintIsolated = () => {
@@ -354,6 +437,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Relatórios e Estatísticas</h1>
           <div className="flex flex-wrap gap-3">
             <button onClick={() => onRefresh && onRefresh()} className="px-6 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all"><i className="fas fa-sync-alt"></i> Sincronizar</button>
+            <button onClick={() => setShowStudentsAudit(true)} className="px-6 py-4 bg-blue-100 text-blue-700 font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all border border-blue-200"><i className="fas fa-list-ul"></i> Lista Geral de Alunos</button>
             <button onClick={handlePrintIsolated} className="px-6 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all"><i className="fas fa-print"></i> Imprimir Relatório</button>
             <button onClick={() => setShowPdfPreview(true)} className="px-6 py-4 text-white font-black rounded-2xl shadow-xl uppercase text-[9px] tracking-widest active:scale-95 transition-all" style={{ backgroundColor: pColor }}><i className="fas fa-file-pdf"></i> Visualizar PDF</button>
           </div>
@@ -449,6 +533,85 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           </div>
         ))}
       </div>
+
+      {showStudentsAudit && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[1100] flex items-center justify-center p-4" onClick={(e) => { if(e.target === e.currentTarget) setShowStudentsAudit(false); }}>
+          <div className="bg-white w-full max-w-6xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in duration-300">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div>
+                <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Lista Geral de Alunos</h3>
+                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Auditoria Detalhada de Atendimentos e Conclusões</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={handlePrintAuditList} className="px-6 py-3 bg-slate-900 text-white font-black rounded-xl uppercase text-[10px] tracking-widest hover:bg-black transition-all">
+                  <i className="fas fa-print mr-2"></i> Imprimir Lista
+                </button>
+                <button onClick={() => setShowStudentsAudit(false)} className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all shadow-sm">
+                  <i className="fas fa-times text-xl"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-0 no-scrollbar" id="audit-print-root">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                <thead className="sticky top-0 bg-slate-100 z-10">
+                  <tr className="text-slate-500 font-black uppercase text-[10px] tracking-widest border-b border-slate-200">
+                    <th className="p-6">Setor / Unidade</th>
+                    <th className="p-6">Nome do Aluno</th>
+                    <th className="p-6">Tipo</th>
+                    <th className="p-6">Capelão Responsável</th>
+                    <th className="p-6">Status / Situação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {auditList.length > 0 ? auditList.map((item, idx) => (
+                    <tr key={idx} className={`hover:bg-slate-50/50 transition-colors ${item.status === RecordStatus.TERMINO ? 'bg-rose-50/30' : ''}`}>
+                      <td className="p-6">
+                        <span className="text-[10px] font-black text-slate-400 block uppercase mb-0.5">{item.unit}</span>
+                        <span className="text-xs font-bold text-slate-700">{resolveDynamicName(item.sector, item.unit === Unit.HAB ? masterLists.sectorsHAB : masterLists.sectorsHABA)}</span>
+                      </td>
+                      <td className={`p-6 text-sm font-black uppercase tracking-tight ${item.status === RecordStatus.TERMINO ? 'text-rose-600' : 'text-slate-800'}`}>
+                        {item.name}
+                      </td>
+                      <td className="p-6">
+                        <span className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase">
+                          <span className="text-lg">{item.icon}</span> {item.type}
+                        </span>
+                      </td>
+                      <td className="p-6 text-xs font-bold text-slate-600 uppercase">
+                        {item.chaplain}
+                      </td>
+                      <td className="p-6">
+                        {item.status === RecordStatus.TERMINO ? (
+                          <div className="flex flex-col">
+                            <span className="text-xs font-black text-rose-600 uppercase tracking-tighter">CONCLUÍDO (Término)</span>
+                            <span className="text-[9px] font-bold text-rose-400 mt-0.5 uppercase">Data: {new Date(item.date).toLocaleDateString()}</span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] font-black text-blue-500 uppercase bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
+                            {item.status}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={5} className="p-20 text-center text-slate-400 uppercase font-black text-sm tracking-widest">
+                        Nenhum aluno encontrado para os filtros atuais.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+              <span className="text-[10px] font-black text-slate-400 uppercase">Total na lista: {auditList.length} registros</span>
+              <span className="text-[10px] font-black text-rose-500 uppercase">{auditList.filter(a => a.status === RecordStatus.TERMINO).length} Conclusões (Términos)</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedDetailUser && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4" onClick={(e) => { if(e.target === e.currentTarget) setSelectedDetailUser(null); }}>
