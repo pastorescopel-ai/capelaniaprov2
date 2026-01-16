@@ -57,6 +57,13 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
     }
   };
 
+  const handleRemovePhoto = () => {
+    if (confirm("Deseja realmente remover sua foto de perfil?")) {
+      setProfilePic('');
+      onUpdateUser({ ...user, profilePic: '' });
+    }
+  };
+
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
     let updatedUser = { ...user, name, profilePic };
@@ -112,7 +119,16 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
         </div>
         <div className="text-center space-y-1">
           <p className="text-xs font-black text-blue-600 uppercase tracking-[0.2em]">Inserir foto</p>
-          <h2 className="text-2xl font-bold text-slate-800">{user.name}</h2>
+          {profilePic && (
+            <button 
+              type="button"
+              onClick={handleRemovePhoto}
+              className="text-[9px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600 transition-colors"
+            >
+              Remover foto
+            </button>
+          )}
+          <h2 className="text-2xl font-bold text-slate-800 mt-2">{user.name}</h2>
           <p className="text-slate-500 font-medium">{user.email}</p>
         </div>
       </div>
