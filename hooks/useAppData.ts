@@ -52,7 +52,7 @@ export const useAppData = () => {
     try {
       syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
       const cloudData = await syncService.syncFromCloud();
-      if (cloudData && cloudData.users) {
+      if (cloudData) {
         if (Array.isArray(cloudData.users)) {
           setUsers(cloudData.users.map((u: User) => ({
             ...u,
@@ -75,12 +75,24 @@ export const useAppData = () => {
     }
   }, []);
 
+  // Novo motor de salvamento inteligente: salva local e sincroniza em background
   const saveToCloud = useCallback(async (overrides?: any, showLoader = false) => {
     if (showLoader) setIsSyncing(true);
     syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
     
-    const targetUsers = overrides?.users !== undefined ? overrides.users : users;
-    const securedUsers = targetUsers.map((u: User) => ({
+    // Atualiza estados locais primeiro para resposta instantânea na UI
+    if (overrides) {
+      if (overrides.users) setUsers(overrides.users);
+      if (overrides.bibleStudies) setBibleStudies(overrides.bibleStudies);
+      if (overrides.bibleClasses) setBibleClasses(overrides.bibleClasses);
+      if (overrides.smallGroups) setSmallGroups(overrides.smallGroups);
+      if (overrides.staffVisits) setStaffVisits(overrides.staffVisits);
+      if (overrides.config) setConfig(applySystemOverrides(overrides.config));
+      if (overrides.masterLists) setMasterLists(overrides.masterLists);
+    }
+
+    const currentUsers = overrides?.users || users;
+    const securedUsers = currentUsers.map((u: User) => ({
       ...u,
       email: encodeData(u.email),
       password: encodeData(u.password || '')
@@ -104,7 +116,7 @@ export const useAppData = () => {
       setIsConnected(false);
       return false;
     } finally {
-      setIsSyncing(false);
+      if (showLoader) setIsSyncing(false);
     }
   }, [config, users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists]);
 
