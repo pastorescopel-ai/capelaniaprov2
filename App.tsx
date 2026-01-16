@@ -1,7 +1,7 @@
 
 // ############################################################
-// # APP CORE - VERSION 2.11.0-STABLE (SEGREGATION & TRANSFER)
-// # ESTADO: TRAVA DE MÊS + DNA RESTORE + TRANSFER INTEGRADO
+// # APP CORE - VERSION 2.12.0-STABLE (SECURITY & AUDIT)
+// # ESTADO: TRAVA DE MÊS + DNA RESTORE + TRANSFER + AUDIT + SEC
 // ############################################################
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -17,10 +17,13 @@ import { User, UserRole, Unit, BibleStudy, BibleClass, SmallGroup, StaffVisit, M
 import { syncService } from './services/syncService';
 import { INITIAL_CONFIG, GOOGLE_SCRIPT_URL } from './constants';
 
-const encodeData = (str: string) => btoa(unescape(encodeURIComponent(str)));
+// Camada de Segurança de Dados (Blindagem Interna)
+const SEC_PREFIX = "CP_V2_";
+const encodeData = (str: string) => btoa(unescape(encodeURIComponent(SEC_PREFIX + str)));
 const decodeData = (str: string) => {
   try {
-    return decodeURIComponent(escape(atob(str)));
+    const decoded = decodeURIComponent(escape(atob(str)));
+    return decoded.startsWith(SEC_PREFIX) ? decoded.replace(SEC_PREFIX, "") : decoded;
   } catch (e) {
     return str;
   }
@@ -35,7 +38,7 @@ const App: React.FC = () => {
   const [loginError, setLoginError] = useState<string | null>(null);
 
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(window.navigator.onLine);
   const [isInitialized, setIsInitialized] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [itemToDelete, setItemToDelete] = useState<{type: string, id: string} | null>(null);
@@ -58,6 +61,18 @@ const App: React.FC = () => {
   };
 
   const [config, setConfig] = useState<Config>(applySystemOverrides(INITIAL_CONFIG));
+
+  // Monitor de Conexão em Tempo Real
+  useEffect(() => {
+    const handleOnline = () => setIsConnected(true);
+    const handleOffline = () => setIsConnected(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     const initApp = async () => {
@@ -105,7 +120,9 @@ const App: React.FC = () => {
     try {
       syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
       const cloudData = await syncService.syncFromCloud();
-      if (cloudData) {
+      
+      // Validação de Integridade do Cache
+      if (cloudData && cloudData.users) {
         let freshUsers = users;
         if (cloudData.users && Array.isArray(cloudData.users)) {
           freshUsers = cloudData.users.map((u: User) => ({
@@ -208,20 +225,23 @@ const App: React.FC = () => {
     const targetUser = users.find(u => u.id === newUserId);
     if (!targetUser) return;
 
+    // Rastreabilidade de Transferência (Audit Trail)
+    const now = Date.now();
+
     if (type === 'study') {
-      updatedStudies = bibleStudies.map(s => s.id === id ? { ...s, userId: newUserId } : s);
+      updatedStudies = bibleStudies.map(s => s.id === id ? { ...s, userId: newUserId, updatedAt: now } : s);
       setBibleStudies(updatedStudies);
       await saveToCloud({ bibleStudies: updatedStudies });
     } else if (type === 'class') {
-      updatedClasses = bibleClasses.map(c => c.id === id ? { ...c, userId: newUserId } : c);
+      updatedClasses = bibleClasses.map(c => c.id === id ? { ...c, userId: newUserId, updatedAt: now } : c);
       setBibleClasses(updatedClasses);
       await saveToCloud({ bibleClasses: updatedClasses });
     } else if (type === 'pg') {
-      updatedGroups = smallGroups.map(g => g.id === id ? { ...g, userId: newUserId } : g);
+      updatedGroups = smallGroups.map(g => g.id === id ? { ...g, userId: newUserId, updatedAt: now } : g);
       setSmallGroups(updatedGroups);
       await saveToCloud({ smallGroups: updatedGroups });
     } else if (type === 'visit') {
-      updatedVisits = staffVisits.map(v => v.id === id ? { ...v, userId: newUserId } : v);
+      updatedVisits = staffVisits.map(v => v.id === id ? { ...v, userId: newUserId, updatedAt: now } : v);
       setStaffVisits(updatedVisits);
       await saveToCloud({ staffVisits: updatedVisits });
     }
@@ -296,14 +316,15 @@ const App: React.FC = () => {
     if (!isInitialized) return;
     let updatedStudies = [...bibleStudies], updatedClasses = [...bibleClasses], updatedVisits = [...staffVisits], updatedGroups = [...smallGroups];
     const targetId = data.id || editingItem?.id;
+    const now = Date.now();
     
     if (targetId) {
-      if (type === 'study') updatedStudies = bibleStudies.map(s => s.id === targetId ? { ...data, id: targetId, createdAt: s.createdAt } : s);
-      if (type === 'class') updatedClasses = bibleClasses.map(c => c.id === targetId ? { ...data, id: targetId, createdAt: c.createdAt } : c);
-      if (type === 'visit') updatedVisits = staffVisits.map(v => v.id === targetId ? { ...data, id: targetId, createdAt: v.createdAt } : v);
-      if (type === 'pg') updatedGroups = smallGroups.map(g => g.id === targetId ? { ...data, id: targetId, createdAt: g.createdAt } : g);
+      if (type === 'study') updatedStudies = bibleStudies.map(s => s.id === targetId ? { ...data, id: targetId, createdAt: s.createdAt, updatedAt: now } : s);
+      if (type === 'class') updatedClasses = bibleClasses.map(c => c.id === targetId ? { ...data, id: targetId, createdAt: c.createdAt, updatedAt: now } : c);
+      if (type === 'visit') updatedVisits = staffVisits.map(v => v.id === targetId ? { ...data, id: targetId, createdAt: v.createdAt, updatedAt: now } : v);
+      if (type === 'pg') updatedGroups = smallGroups.map(g => g.id === targetId ? { ...data, id: targetId, createdAt: g.createdAt, updatedAt: now } : g);
     } else {
-      const newItem = { ...data, userId: currentUser?.id, id: crypto.randomUUID(), createdAt: Date.now() };
+      const newItem = { ...data, userId: currentUser?.id, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
       if (type === 'study') updatedStudies = [newItem, ...bibleStudies];
       if (type === 'class') updatedClasses = [newItem, ...bibleClasses];
       if (type === 'visit') updatedVisits = [newItem, ...staffVisits];

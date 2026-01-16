@@ -38,6 +38,7 @@ export interface User {
   password?: string;
   role: UserRole;
   profilePic?: string;
+  updatedAt?: number;
 }
 
 export interface BibleStudy {
@@ -53,6 +54,7 @@ export interface BibleStudy {
   lesson: string;
   observations?: string;
   createdAt: number;
+  updatedAt?: number;
 }
 
 export interface BibleClass {
@@ -67,6 +69,7 @@ export interface BibleClass {
   lesson: string;
   observations?: string;
   createdAt: number;
+  updatedAt?: number;
 }
 
 export interface SmallGroup {
@@ -81,6 +84,7 @@ export interface SmallGroup {
   participantsCount: number;
   observations?: string;
   createdAt: number;
+  updatedAt?: number;
 }
 
 export interface StaffVisit {
@@ -96,6 +100,7 @@ export interface StaffVisit {
   returnCompleted: boolean;
   observations?: string;
   createdAt: number;
+  updatedAt?: number;
 }
 
 export interface Config {
@@ -121,6 +126,7 @@ export interface Config {
   primaryColor?: string;
   lastModifiedBy?: string;
   lastModifiedAt?: number;
+  updatedAt?: number;
 }
 
 export interface MasterLists {
@@ -130,4 +136,5 @@ export interface MasterLists {
   staffHABA: string[];
   groupsHAB: string[];
   groupsHABA: string[];
+  updatedAt?: number;
 }
