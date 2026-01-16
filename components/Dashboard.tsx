@@ -251,7 +251,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
         </div>
       </div>
 
-      {/* Gráfico de Impacto Global - 5 Pilares Side-by-Side */}
+      {/* Gráfico de Impacto Global - 5 Pilares Side-by-Side com Cores Dinâmicas */}
       <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <div>
@@ -259,7 +259,7 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
               <i className="fas fa-globe-americas text-[#005a9c]"></i> Impacto Global (Equipe)
             </h3>
             <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] mt-1">
-              Comparativo detalhado por categoria de atendimento
+              Barra Colorida: Verde (Meta Superada) | Vermelho (Abaixo da Meta Anterior)
             </p>
           </div>
           <div className={`px-5 py-2 rounded-2xl flex items-center gap-2 border-2 ${globalImpact.isUp ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
@@ -290,15 +290,23 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
                 align="right" 
                 height={40} 
                 iconType="circle"
-                wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', paddingBottom: '20px' }}
+                wrapperStyle={{ fontSize: '9px', fontBold: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', paddingBottom: '20px' }}
               />
+              {/* Barra do Mês Anterior com Cor Dinâmica (Verde se Atual >= Anterior, senão Vermelho) */}
               <Bar 
                 name="Mês Anterior" 
                 dataKey="anterior" 
-                fill="#cbd5e1" 
                 radius={[6, 6, 0, 0]} 
-                barSize={18} 
-              />
+                barSize={18}
+              >
+                {globalImpact.chartData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-prev-${index}`} 
+                    fill={entry.atual >= entry.anterior ? '#10b981' : '#f43f5e'} 
+                  />
+                ))}
+              </Bar>
+              {/* Barra do Mês Atual fixa no Azul Institucional */}
               <Bar 
                 name="Mês Atual" 
                 dataKey="atual" 
@@ -310,8 +318,10 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
           </ResponsiveContainer>
         </div>
         
-        <div className="mt-4 pt-4 border-t border-slate-50 flex justify-center">
-           <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.3em]">Auditoria de Impacto Hospitalar Coletivo</p>
+        <div className="mt-4 pt-4 border-t border-slate-50 flex flex-wrap gap-4 justify-center">
+           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#10b981]"></div><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Sucesso</span></div>
+           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#f43f5e]"></div><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Atenção</span></div>
+           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#005a9c]"></div><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Realizado</span></div>
         </div>
       </div>
     </div>
