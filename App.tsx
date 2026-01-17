@@ -34,20 +34,46 @@ const AppContent: React.FC = () => {
     const lowerEmail = email.toLowerCase().trim();
     const hashedInput = await hashPassword(pass);
     
-    let existingUser = users.find(u => u.email.toLowerCase().trim() === lowerEmail && u.password === hashedInput);
+    // Busca o usuário na base carregada da planilha pelo e-mail
+    const dbUser = users.find(u => u.email.toLowerCase().trim() === lowerEmail);
     
-    // Fallback Admin Inicial
-    if (!existingUser && lowerEmail === 'pastorescopel@gmail.com' && pass === 'admin') {
-      existingUser = { id: 'admin-root', name: 'Administrador Geral', email: lowerEmail, role: UserRole.ADMIN, password: 'admin' };
-      const updatedUsers = [...users, existingUser];
-      await saveToCloud({ users: updatedUsers }, true);
+    if (!dbUser) {
+      // Fallback emergencial caso a planilha esteja vazia
+      if (lowerEmail === 'pastorescopel@gmail.com' && pass === 'admin') {
+        const rootAdmin: User = { id: 'admin-root', name: 'Administrador Geral', email: lowerEmail, role: UserRole.ADMIN, password: 'admin' };
+        setCurrentUser(rootAdmin);
+        setIsAuthenticated(true);
+        setActiveTab('dashboard');
+        // Apenas neste caso de criação do zero ele tenta salvar
+        await saveToCloud({ users: [rootAdmin] }, true);
+        return;
+      }
+      setLoginError('Usuário não localizado na base de dados!');
+      return;
     }
 
-    if (existingUser) {
-      setCurrentUser(existingUser);
+    // VALIDAÇÃO HÍBRIDA (PONTE): Texto Simples ou Hash
+    const isPlainTextMatch = dbUser.password === pass;
+    const isHashMatch = dbUser.password === hashedInput;
+
+    if (isPlainTextMatch || isHashMatch) {
+      // ACESSO INSTANTÂNEO: Não grava nada no Google agora para ser rápido
+      setCurrentUser(dbUser);
       setIsAuthenticated(true);
+      showToast(`Bem-vindo, ${dbUser.name}`, "success");
+
+      // LÓGICA DE REDIRECIONAMENTO:
+      // Se logou com senha antiga (texto simples), manda para o perfil para ele atualizar
+      if (isPlainTextMatch && pass.length < 50) {
+        setActiveTab('profile');
+        setTimeout(() => {
+          showToast("Acesso via modo de migração. Por favor, confirme seus dados e salve para atualizar sua segurança.", "warning");
+        }, 1000);
+      } else {
+        setActiveTab('dashboard');
+      }
     } else {
-      setLoginError('E-mail ou senha incorretos!');
+      setLoginError('Senha incorreta!');
     }
   };
 
