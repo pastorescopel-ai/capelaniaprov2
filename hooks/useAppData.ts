@@ -4,9 +4,9 @@ import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Conf
 import { syncService } from '../services/syncService';
 import { INITIAL_CONFIG, GOOGLE_SCRIPT_URL } from '../constants';
 
-// Função de Segurança: SHA-256 para senhas (substituindo Base64 simples)
+// Função de Segurança: SHA-256 para senhas
 const hashPassword = async (password: string) => {
-  if (!password || password === 'admin') return password; // Preserva admin root
+  if (!password || password === 'admin') return password; 
   const msgUint8 = new TextEncoder().encode("CP_SALT_" + password);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -63,11 +63,25 @@ export const useAppData = () => {
       const cloudData = await syncService.syncFromCloud();
       if (cloudData) {
         if (Array.isArray(cloudData.users)) {
-          setUsers(cloudData.users.map((u: User) => ({
+          const rawUsers = cloudData.users.map((u: User) => ({
             ...u,
             email: decodeData(u.email),
-            password: u.password // Senha já vem em hash do cloud
-          })));
+            password: u.password 
+          }));
+
+          // UNIFICAÇÃO LÓGICA REFORÇADA: Prioriza IDs reais da planilha sobre 'admin-root'
+          const userMap = new Map<string, User>();
+          rawUsers.forEach(u => {
+            const emailKey = u.email.toLowerCase().trim();
+            const existing = userMap.get(emailKey);
+            
+            // Lógica: Se não houver, adiciona. Se houver e o atual for o real (original) e o existente for temporário (root), substitui.
+            if (!existing || (existing.id === 'admin-root' && u.id !== 'admin-root')) {
+              userMap.set(emailKey, u);
+            }
+          });
+          
+          setUsers(Array.from(userMap.values()));
         }
         if (Array.isArray(cloudData.bibleStudies)) setBibleStudies(cloudData.bibleStudies);
         if (Array.isArray(cloudData.bibleClasses)) setBibleClasses(cloudData.bibleClasses);
@@ -102,7 +116,7 @@ export const useAppData = () => {
     const securedUsers = currentUsers.map((u: User) => ({
       ...u,
       email: encodeData(u.email),
-      password: u.password // Assume que já foi hasheada no componente que chamou o save
+      password: u.password 
     }));
 
     const payload = {
