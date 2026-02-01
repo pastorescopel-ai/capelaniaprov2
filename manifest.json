@@ -1,4 +1,3 @@
-
 {
   "name": "Capelania Hospitalar Pro",
   "short_name": "Capelania",
@@ -9,9 +8,9 @@
   "theme_color": "#005a9c",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3063/3063176.png",
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSIxMjAiIGZpbGw9IiMwMDVhOWMiLz48cGF0aCBkPSJNMjU2IDExMlY0MDBNMTEyIDI1Nkg0MDAiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iODAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]
