@@ -14,7 +14,6 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
 
 const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at'];
 
-// Cache persistente de IDs para garantir que UPSERTS em tabelas únicas nunca falhem
 const GLOBAL_ID_CACHE: Record<string, string> = {};
 
 const isValidUUID = (uuid: string) => {
@@ -49,7 +48,7 @@ const toCamel = (obj: any): any => {
   return newObj;
 };
 
-const cleanAndConvertToSnake = (obj: any, allowedFields: string[]): any => {
+const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: string): any => {
   if (!obj || typeof obj !== 'object') return obj;
   const newObj: any = {};
   for (const key in obj) {
@@ -65,10 +64,15 @@ const cleanAndConvertToSnake = (obj: any, allowedFields: string[]): any => {
         val = parseInt(val);
         if (isNaN(val)) continue;
       }
-      if ((snakeKey === 'user_id' || snakeKey === 'record_id' || snakeKey.includes('chaplain_id')) && val && !isValidUUID(val)) {
-        newObj[snakeKey] = null;
-        continue;
+      
+      // Validação Flexível para Bridge de Visit Requests
+      if (tableName !== 'visit_requests') {
+        if ((snakeKey === 'user_id' || snakeKey === 'record_id') && val && !isValidUUID(val)) {
+          newObj[snakeKey] = null;
+          continue;
+        }
       }
+      
       newObj[snakeKey] = val;
     }
   }
@@ -90,7 +94,6 @@ export const DataRepository = {
         supabase.from('master_lists').select('*').limit(1)
       ]);
 
-      // Alimenta o cache de IDs para garantir persistência ultra-veloz
       if (c.data?.[0]?.id) GLOBAL_ID_CACHE['app_config'] = c.data[0].id;
       if (ml.data?.[0]?.id) GLOBAL_ID_CACHE['master_lists'] = ml.data[0].id;
 
@@ -123,20 +126,18 @@ export const DataRepository = {
     const tableName = tableMap[collection];
     if (!tableName) return false;
 
-    const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName]));
+    const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName], tableName));
     
-    // Tratamento Robusto para Singletons (Config e Listas)
     if (tableName === 'app_config' || tableName === 'master_lists') {
       if (GLOBAL_ID_CACHE[tableName]) {
         payloads[0].id = GLOBAL_ID_CACHE[tableName];
       } else {
-        // Busca emergencial se o cache estiver vazio
         const { data } = await supabase.from(tableName).select('id').limit(1);
         if (data && data.length > 0) {
           payloads[0].id = data[0].id;
           GLOBAL_ID_CACHE[tableName] = data[0].id;
         } else {
-          delete payloads[0].id; // Deixa criar o primeiro registro
+          delete payloads[0].id;
         }
       }
     }
