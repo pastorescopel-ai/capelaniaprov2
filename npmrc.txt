@@ -1,0 +1,2 @@
+# Arquivo limpo para resolver conflitos de encoding no Vercel.
+# As configurações padrões do NPM serão utilizadas.
