@@ -1,2 +1,2 @@
-# Arquivo limpo para resolver conflitos de encoding no Vercel.
-# As configurações padrões do NPM serão utilizadas.
+# @generated clean-npm-config
+# Este arquivo garante que o npm não tente ler configurações fantasmas ou corrompidas.

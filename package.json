@@ -1,7 +1,13 @@
-
 {
   "name": "capelania-pro",
   "version": "3.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint:npm-config": "node scripts/audit-npmrc.js",
+    "prebuild": "npm run lint:npm-config"
+  },
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
