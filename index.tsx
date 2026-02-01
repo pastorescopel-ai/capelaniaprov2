@@ -1,13 +1,14 @@
-
 // ############################################################
-// # SYSTEM ENTRY POINT - RESTORE POINT V2.1.0-STABLE
-// # PONTO DE RECUPERAÇÃO GERAL DO SISTEMA - CÓDIGO ÍNTEGRO
-// # DATA: 20/05/2024 - VERSÃO PRO 2.1.0
+// # SYSTEM ENTRY POINT - REVOLUTION V2.0 (MODULAR)
+// # ARCHITECTURE: REPOSITORY + CONTEXT API + AUTH ISOLATION
 // ############################################################
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { AppProvider } from './contexts/AppContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -17,6 +18,12 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <AppProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ToastProvider>
+    </AppProvider>
   </React.StrictMode>
 );

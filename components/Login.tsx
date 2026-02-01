@@ -1,40 +1,70 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { APP_LOGO_BASE64 } from '../constants';
+import { Config } from '../types';
+import { useToast } from '../contexts/ToastContext';
 
 interface LoginProps {
-  onLogin: (email: string, pass: string) => void;
+  onLogin: (email: string, pass: string) => Promise<boolean>;
   isSyncing: boolean;
   errorMsg: string | null;
   isConnected: boolean;
+  config?: Config;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected, config }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { showToast } = useToast();
+  
+  // Referência para o input de e-mail para forçar o foco automático
+  const emailInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    // Foca o campo de e-mail assim que o componente é montado
+    if (emailInputRef.current) {
+      emailInputRef.current.focus();
+    }
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(email, password);
+    setIsLoading(true);
+    
+    try {
+      const success = await onLogin(email, password);
+      if (success) {
+        showToast("Login realizado com sucesso! Bem-vindo.", "success");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const logoSrc = config?.appLogoUrl || APP_LOGO_BASE64;
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      {/* Card com largura fixa para simular mobile em qualquer dispositivo */}
       <div className="bg-white w-full max-w-[420px] p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 space-y-8 animate-in zoom-in duration-300">
         <div className="text-center space-y-4">
           <div className="w-full flex items-center justify-center min-h-[120px]">
-            {APP_LOGO_BASE64 && APP_LOGO_BASE64.length > 200 ? (
+            {logoSrc ? (
               <img 
-                src={APP_LOGO_BASE64} 
+                src={logoSrc} 
                 className="max-w-full max-h-32 object-contain" 
                 alt="Logo do Sistema" 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                }}
               />
-            ) : (
-              <div className="w-24 h-24 bg-blue-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-200">
-                <i className="fas fa-hospital-symbol text-white text-4xl"></i>
-              </div>
-            )}
+            ) : null}
+            <div className={`w-24 h-24 bg-blue-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-200 ${logoSrc ? 'hidden' : ''}`}>
+              <i className="fas fa-hospital-symbol text-white text-4xl"></i>
+            </div>
           </div>
           
           <div className="space-y-2">
@@ -56,6 +86,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
           <div className="space-y-1">
             <label className="text-sm font-semibold text-slate-600 px-1 uppercase text-[10px] tracking-widest">E-mail</label>
             <input 
+              ref={emailInputRef}
               required
               type="email" 
               value={email} 
@@ -82,10 +113,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
           </div>
           <button 
             type="submit" 
-            disabled={isSyncing}
+            disabled={isSyncing || isLoading}
             className="w-full py-5 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 transition-all transform active:scale-[0.98] disabled:opacity-50 mt-4 uppercase text-xs tracking-widest"
           >
-            {isSyncing ? 'Sincronizando...' : 'Acessar Sistema'}
+            {isLoading ? 'Autenticando...' : (isSyncing ? 'Sincronizando...' : 'Acessar Sistema')}
           </button>
         </form>
 

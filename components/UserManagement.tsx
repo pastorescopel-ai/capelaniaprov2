@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
+import { useToast } from '../contexts/ToastContext';
+import { hashPassword } from '../utils/crypto';
 
 interface UserManagementProps {
   users: User[];
@@ -12,23 +14,32 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const { showToast } = useToast();
 
   const handleAddUser = async () => {
-    if (!newUser.name || !newUser.email || !newUser.password) return alert('Preencha os dados do usuário');
+    if (!newUser.name || !newUser.email || !newUser.password) {
+      showToast('Preencha os dados do usuário', 'warning');
+      return;
+    }
     
     setIsProcessing(true);
     try {
+      const securePassword = await hashPassword(newUser.password.trim());
+      
       const userToAdd: User = {
         id: crypto.randomUUID(),
         name: newUser.name,
         email: newUser.email.toLowerCase().trim(),
-        password: newUser.password,
+        password: securePassword,
         role: newUser.role,
         profilePic: ''
       };
 
       await onUpdateUsers([...users, userToAdd]);
       setNewUser({ name: '', email: '', password: '', role: UserRole.CHAPLAIN });
+      showToast('Usuário cadastrado com sucesso!', 'success');
+    } catch (e) {
+      showToast('Erro ao cadastrar.', 'warning');
     } finally {
       setIsProcessing(false);
     }
@@ -36,25 +47,31 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
 
   const handleSaveEdit = async () => {
     if (!editingUser) return;
-    if (!editingUser.name || !editingUser.email) return alert('Nome e e-mail são obrigatórios');
     
     setIsProcessing(true);
     try {
+      let finalPassword = editingUser.password;
+      
+      if (editingUser.password && editingUser.password.length !== 64) {
+        finalPassword = await hashPassword(editingUser.password.trim());
+      }
+
       const updatedUsers = users.map(u => {
         if (u.id === editingUser.id) {
-          const originalUser = users.find(usr => usr.id === editingUser.id);
           return {
             ...editingUser,
             email: editingUser.email.toLowerCase().trim(),
-            password: editingUser.password && editingUser.password.trim() !== '' 
-              ? editingUser.password 
-              : (originalUser?.password || '')
+            password: finalPassword
           };
         }
         return u;
       });
+
       await onUpdateUsers(updatedUsers);
       setEditingUser(null);
+      showToast('Dados atualizados!', 'success');
+    } catch (e) {
+      showToast('Erro ao atualizar.', 'warning');
     } finally {
       setIsProcessing(false);
     }
@@ -62,12 +79,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
 
   const confirmDelete = async () => {
     if (!userToDelete) return;
-    if (userToDelete.id === currentUser.id) return alert('Você não pode excluir sua própria conta enquanto estiver logado.');
-    
     setIsProcessing(true);
     try {
       await onUpdateUsers(users.filter(usr => usr.id !== userToDelete.id));
       setUserToDelete(null);
+      showToast('Usuário removido.', 'success');
+    } catch (e) {
+      showToast('Erro ao remover.', 'warning');
     } finally {
       setIsProcessing(false);
     }
@@ -76,145 +94,107 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
   return (
     <div className="space-y-12 max-w-5xl mx-auto pb-24 animate-in fade-in duration-500">
       <header>
-        <h1 className="text-4xl font-black text-slate-800">Gestão de Usuários</h1>
-        <p className="text-slate-500 font-medium">Controle de acessos e permissões da equipe</p>
+        <h1 className="text-4xl font-black text-slate-800 tracking-tighter uppercase">Gestão de Equipe</h1>
+        <p className="text-slate-500 font-medium italic">As senhas são protegidas automaticamente com SHA-256</p>
       </header>
 
+      {/* MODAL: PROCESSAMENTO - CENTRALIZADO NO VIEWPORT */}
       {isProcessing && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[700] flex items-center justify-center p-4">
-          <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full text-center">
-            <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Sincronizando Banco</h3>
-              <p className="text-slate-500 text-sm font-bold">Salvando alterações na nuvem...</p>
-            </div>
+        <div className="fixed inset-0 z-[6000] flex items-center justify-center">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" />
+          <div className="relative bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-4 animate-in zoom-in duration-300">
+            <div className="w-12 h-12 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
+            <p className="text-slate-800 font-black uppercase text-[10px] tracking-widest">Sincronizando Nuvem...</p>
           </div>
         </div>
       )}
 
+      {/* MODAL: EXCLUSÃO - CENTRALIZADO NO VIEWPORT */}
       {userToDelete && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
-          <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-md w-full animate-in zoom-in duration-200 text-center space-y-6">
-            <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-[2rem] flex items-center justify-center text-3xl mx-auto">
-              <i className="fas fa-user-times"></i>
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-2xl font-black text-slate-800">Remover Capelão?</h3>
-              <p className="text-slate-500 font-medium italic">"{userToDelete.name}" não terá mais acesso ao sistema.</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <button 
-                onClick={() => setUserToDelete(null)} 
-                className="py-4 rounded-2xl bg-slate-100 text-slate-500 font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition-all"
-              >
-                Manter
-              </button>
-              <button 
-                onClick={confirmDelete} 
-                className="py-4 rounded-2xl bg-rose-500 text-white font-black uppercase text-xs tracking-widest shadow-xl shadow-rose-100 hover:bg-rose-600 transition-all"
-              >
-                Confirmar
-              </button>
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setUserToDelete(null)} />
+          <div className="relative bg-white p-10 rounded-[3rem] shadow-2xl max-w-md w-full text-center space-y-6 animate-in zoom-in duration-300 border-4 border-slate-50">
+            <h3 className="text-2xl font-black text-slate-800 uppercase">Remover {userToDelete.name}?</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <button onClick={() => setUserToDelete(null)} className="py-4 rounded-2xl bg-slate-100 font-black uppercase text-xs hover:bg-slate-200 transition-colors">Cancelar</button>
+              <button onClick={confirmDelete} className="py-4 rounded-2xl bg-rose-500 text-white font-black uppercase text-xs hover:bg-rose-600 transition-colors">Remover</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* MODAL: EDIÇÃO - CENTRALIZADO NO VIEWPORT */}
       {editingUser && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
-          <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl max-w-lg w-full animate-in zoom-in duration-200 space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Editar Usuário</h3>
-              <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-rose-500 transition-colors">
-                <i className="fas fa-times text-xl"></i>
-              </button>
-            </div>
-            
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setEditingUser(null)} />
+          <div className="relative bg-white p-10 rounded-[3rem] shadow-2xl max-w-lg w-full space-y-6 max-h-[90vh] overflow-y-auto no-scrollbar animate-in zoom-in duration-300 border-4 border-slate-50">
+            <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Editar Usuário</h3>
             <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Usuário</label>
-                <input 
-                  value={editingUser.name} 
-                  onChange={e => setEditingUser({...editingUser, name: e.target.value})}
-                  className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-bold"
-                />
+                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome</label>
+                <input value={editingUser.name} onChange={e => setEditingUser({...editingUser, name: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" placeholder="Nome" />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">E-mail de Acesso</label>
-                <input 
-                  value={editingUser.email} 
-                  onChange={e => setEditingUser({...editingUser, email: e.target.value})}
-                  className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-bold"
-                />
+                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">E-mail</label>
+                <input value={editingUser.email} onChange={e => setEditingUser({...editingUser, email: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" placeholder="E-mail" />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nova Senha (opcional)</label>
+              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                <label className="text-[10px] font-black text-amber-600 uppercase mb-2 block">Nova Senha (opcional)</label>
                 <input 
-                  type="password"
-                  placeholder="Deixe em branco para manter"
-                  value={editingUser.password || ''} 
+                  type="text"
+                  placeholder="Digite para resetar a senha"
                   onChange={e => setEditingUser({...editingUser, password: e.target.value})}
-                  className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-bold"
+                  className="w-full p-3 rounded-xl bg-white border-none font-bold text-xs"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Cargo / Permissão</label>
-                <select 
-                  value={editingUser.role} 
-                  onChange={e => setEditingUser({...editingUser, role: e.target.value as UserRole})}
-                  className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-bold"
-                >
+                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Cargo / Role</label>
+                <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as UserRole})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold">
                   <option value={UserRole.CHAPLAIN}>Capelão</option>
                   <option value={UserRole.ADMIN}>Administrador</option>
                 </select>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4 pt-4">
-              <button onClick={() => setEditingUser(null)} className="py-4 rounded-2xl bg-slate-100 text-slate-500 font-black uppercase text-xs">Cancelar</button>
-              <button onClick={handleSaveEdit} className="py-4 rounded-2xl bg-blue-600 text-white font-black uppercase text-xs shadow-xl hover:bg-blue-700">Salvar Alterações</button>
+              <button onClick={() => setEditingUser(null)} className="py-4 rounded-2xl bg-slate-100 font-black uppercase text-xs hover:bg-slate-200 transition-colors">Cancelar</button>
+              <button onClick={handleSaveEdit} className="py-4 rounded-2xl bg-blue-600 text-white font-black uppercase text-xs hover:bg-blue-700 transition-colors">Salvar</button>
             </div>
           </div>
         </div>
       )}
 
       <section className="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
-        <h2 className="text-2xl font-bold text-emerald-600 flex items-center gap-3">
-          <i className="fas fa-user-plus"></i> Novo Cadastro
-        </h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 p-6 rounded-[2rem]">
-          <input placeholder="Nome" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="p-4 rounded-2xl border-none shadow-sm font-bold" />
-          <input placeholder="E-mail" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="p-4 rounded-2xl border-none shadow-sm font-bold" />
-          <input placeholder="Senha" type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="p-4 rounded-2xl border-none shadow-sm font-bold" />
-          <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})} className="p-4 rounded-2xl border-none shadow-sm font-bold">
+        <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Novo Cadastro</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <input value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs" placeholder="Nome" />
+          <input value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs" placeholder="E-mail" />
+          <input type="text" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs" placeholder="Senha Inicial" />
+          <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})} className="p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs">
             <option value={UserRole.CHAPLAIN}>Capelão</option>
             <option value={UserRole.ADMIN}>Administrador</option>
           </select>
-          <button onClick={handleAddUser} className="lg:col-span-4 py-5 bg-emerald-600 text-white font-black uppercase text-xs tracking-[0.2em] rounded-2xl shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-all">
-            Cadastrar e Sincronizar
-          </button>
+          <button onClick={handleAddUser} className="lg:col-span-4 py-5 bg-emerald-600 text-white font-black uppercase text-xs rounded-2xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all">Cadastrar Capelão</button>
         </div>
       </section>
 
       <section className="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 space-y-6">
-        <h2 className="text-2xl font-bold text-slate-800">Equipe Cadastrada</h2>
+        <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Equipe Ativa</h2>
         <div className="grid gap-4">
           {users.map(u => (
-            <div key={u.id} className="flex items-center justify-between p-6 bg-slate-50 rounded-[2.5rem] border border-slate-100 group transition-all hover:border-blue-300">
+            <div key={u.id} className="flex items-center justify-between p-6 bg-slate-50 rounded-[2.5rem] border border-slate-100 group hover:border-blue-200 transition-all">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-blue-600 font-black text-2xl shadow-sm border border-slate-100">
+                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-blue-600 font-black shadow-sm group-hover:scale-105 transition-transform">
                   {u.name[0]}
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-800 text-lg">{u.name}</h4>
-                  <p className="text-xs text-slate-500 font-medium">{u.email} • <span className="font-black text-blue-600 uppercase text-[9px] tracking-widest">{u.role}</span></p>
+                  <h4 className="font-black text-slate-800 uppercase text-sm leading-tight">{u.name}</h4>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{u.email} • {u.role}</p>
                 </div>
               </div>
-              <div className="flex gap-3">
-                <button onClick={() => setEditingUser(u)} title="Editar" className="w-12 h-12 bg-white text-blue-50 rounded-xl shadow-sm hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center border border-slate-100"><i className="fas fa-edit"></i></button>
-                {/* Oculta botão excluir se for o próprio usuário logado */}
+              <div className="flex gap-2">
+                <button onClick={() => setEditingUser(u)} className="w-10 h-10 bg-white text-blue-600 rounded-lg shadow-sm flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all"><i className="fas fa-edit text-xs"></i></button>
                 {u.id !== currentUser.id && (
-                  <button onClick={() => setUserToDelete(u)} title="Excluir" className="w-12 h-12 bg-white text-rose-500 rounded-xl shadow-sm hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center border border-slate-100"><i className="fas fa-trash-alt"></i></button>
+                  <button onClick={() => setUserToDelete(u)} className="w-10 h-10 bg-white text-rose-500 rounded-lg shadow-sm flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all"><i className="fas fa-trash text-xs"></i></button>
                 )}
               </div>
             </div>

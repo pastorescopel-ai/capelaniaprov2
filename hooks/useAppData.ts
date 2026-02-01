@@ -1,28 +1,9 @@
-
 import { useState, useEffect, useCallback } from 'react';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, Unit, UserRole } from '../types';
-import { syncService } from '../services/syncService';
-import { INITIAL_CONFIG, GOOGLE_SCRIPT_URL } from '../constants';
-
-// Função de Segurança: SHA-256 para senhas
-const hashPassword = async (password: string) => {
-  if (!password || password === 'admin') return password; 
-  const msgUint8 = new TextEncoder().encode("CP_SALT_" + password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-};
-
-const SEC_PREFIX = "CP_V2_";
-const encodeData = (str: string) => btoa(unescape(encodeURIComponent(SEC_PREFIX + str)));
-const decodeData = (str: string) => {
-  try {
-    const decoded = decodeURIComponent(escape(atob(str)));
-    return decoded.startsWith(SEC_PREFIX) ? decoded.replace(SEC_PREFIX, "") : decoded;
-  } catch (e) {
-    return str;
-  }
-};
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, UserRole, VisitRequest } from '../types';
+import { DataRepository } from '../services/dataRepository';
+import { SyncService } from '../services/syncService';
+import { INITIAL_CONFIG } from '../constants';
+import { hashPassword } from '../utils/crypto';
 
 export const useAppData = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -30,154 +11,178 @@ export const useAppData = () => {
   const [bibleClasses, setBibleClasses] = useState<BibleClass[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
   const [staffVisits, setStaffVisits] = useState<StaffVisit[]>([]);
+  const [visitRequests, setVisitRequests] = useState<VisitRequest[]>([]);
   const [masterLists, setMasterLists] = useState<MasterLists>({
     sectorsHAB: [], sectorsHABA: [], staffHAB: [], staffHABA: [], groupsHAB: [], groupsHABA: []
   });
   
-  const applySystemOverrides = (baseConfig: Config): Config => {
-    if (!baseConfig) return INITIAL_CONFIG;
-    return { ...baseConfig, googleSheetUrl: GOOGLE_SCRIPT_URL };
-  };
-
-  const [config, setConfig] = useState<Config>(applySystemOverrides(INITIAL_CONFIG));
+  const [config, setConfig] = useState<Config>(INITIAL_CONFIG);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isConnected, setIsConnected] = useState(window.navigator.onLine);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isLabMode, setIsLabMode] = useState(false);
 
-  useEffect(() => {
-    const handleOnline = () => setIsConnected(true);
-    const handleOffline = () => setIsConnected(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+  const applySystemOverrides = useCallback((baseConfig: Config) => {
+    if (baseConfig.primaryColor) {
+      document.documentElement.style.setProperty('--primary-color', baseConfig.primaryColor);
+    }
+    return baseConfig;
   }, []);
 
   const loadFromCloud = useCallback(async (showLoader = false) => {
-    if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('URL_EXEMPLO')) return;
     if (showLoader) setIsSyncing(true);
     try {
-      syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
-      const cloudData = await syncService.syncFromCloud();
-      if (cloudData) {
-        if (Array.isArray(cloudData.users)) {
-          const rawUsers = cloudData.users.map((u: User) => ({
-            ...u,
-            email: decodeData(u.email),
-            password: u.password 
-          }));
-
-          // UNIFICAÇÃO LÓGICA REFORÇADA: Prioriza IDs reais da planilha sobre 'admin-root'
-          const userMap = new Map<string, User>();
-          rawUsers.forEach(u => {
-            const emailKey = u.email.toLowerCase().trim();
-            const existing = userMap.get(emailKey);
-            
-            // Lógica: Se não houver, adiciona. Se houver e o atual for o real (original) e o existente for temporário (root), substitui.
-            if (!existing || (existing.id === 'admin-root' && u.id !== 'admin-root')) {
-              userMap.set(emailKey, u);
-            }
-          });
-          
-          setUsers(Array.from(userMap.values()));
+      const data = await DataRepository.syncAll();
+      if (data) {
+        setUsers(data.users || []);
+        setBibleStudies(data.bibleStudies || []);
+        setBibleClasses(data.bibleClasses || []);
+        setSmallGroups(data.smallGroups || []);
+        setStaffVisits(data.staffVisits || []);
+        setVisitRequests(data.visitRequests || []);
+        if (data.masterLists) setMasterLists(data.masterLists);
+        if (data.config) {
+          setConfig(data.config);
+          applySystemOverrides(data.config);
         }
-        if (Array.isArray(cloudData.bibleStudies)) setBibleStudies(cloudData.bibleStudies);
-        if (Array.isArray(cloudData.bibleClasses)) setBibleClasses(cloudData.bibleClasses);
-        if (Array.isArray(cloudData.smallGroups)) setSmallGroups(cloudData.smallGroups);
-        if (Array.isArray(cloudData.staffVisits)) setStaffVisits(cloudData.staffVisits);
-        if (cloudData.masterLists) setMasterLists(prev => ({ ...prev, ...cloudData.masterLists }));
-        if (cloudData.config) setConfig(applySystemOverrides(cloudData.config));
         setIsConnected(true);
+        setIsLabMode(false);
       }
     } catch (e) {
       setIsConnected(false);
     } finally {
-      setIsSyncing(false);
+      if (showLoader) setIsSyncing(false);
     }
-  }, []);
+  }, [applySystemOverrides]);
+
+  const saveRecord = async (collection: string, item: any) => {
+    const success = await DataRepository.upsertRecord(collection, item);
+    if (success) await loadFromCloud(false);
+    return success;
+  };
+
+  const deleteRecord = async (collection: string, id: string) => {
+    const success = await DataRepository.deleteRecord(collection, id);
+    if (success) await loadFromCloud(false);
+    return success;
+  };
 
   const saveToCloud = useCallback(async (overrides?: any, showLoader = false) => {
     if (showLoader) setIsSyncing(true);
-    syncService.setScriptUrl(GOOGLE_SCRIPT_URL);
-    
-    if (overrides) {
-      if (overrides.users) setUsers(overrides.users);
-      if (overrides.bibleStudies) setBibleStudies(overrides.bibleStudies);
-      if (overrides.bibleClasses) setBibleClasses(overrides.bibleClasses);
-      if (overrides.smallGroups) setSmallGroups(overrides.smallGroups);
-      if (overrides.staffVisits) setStaffVisits(overrides.staffVisits);
-      if (overrides.config) setConfig(applySystemOverrides(overrides.config));
-      if (overrides.masterLists) setMasterLists(overrides.masterLists);
-    }
-
-    const currentUsers = overrides?.users || users;
-    const securedUsers = currentUsers.map((u: User) => ({
-      ...u,
-      email: encodeData(u.email),
-      password: u.password 
-    }));
-
-    const payload = {
-      users: securedUsers,
-      bibleStudies: overrides?.bibleStudies ?? bibleStudies,
-      bibleClasses: overrides?.bibleClasses ?? bibleClasses,
-      smallGroups: overrides?.smallGroups ?? smallGroups,
-      staffVisits: overrides?.staffVisits ?? staffVisits,
-      masterLists: overrides?.masterLists ?? masterLists,
-      config: overrides?.config ?? config,
-    };
-
     try {
-      const success = await syncService.saveToCloud(payload);
-      setIsConnected(success);
-      return success;
-    } catch (err) {
-      setIsConnected(false);
-      return false;
+      if (overrides?.config) await DataRepository.upsertRecord('config', overrides.config);
+      if (overrides?.masterLists) await DataRepository.upsertRecord('masterLists', overrides.masterLists);
+      if (overrides?.users) await DataRepository.upsertRecord('users', overrides.users);
+      await loadFromCloud(false);
+      return true;
     } finally {
       if (showLoader) setIsSyncing(false);
     }
-  }, [config, users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists]);
-
-  useEffect(() => {
-    const init = async () => {
-      const localUsers = syncService.getLocal<User[]>('users');
-      if (localUsers) setUsers(localUsers);
-      const localStudies = syncService.getLocal<BibleStudy[]>('bibleStudies');
-      if (localStudies) setBibleStudies(localStudies);
-      const localClasses = syncService.getLocal<BibleClass[]>('bibleClasses');
-      if (localClasses) setBibleClasses(localClasses);
-      const localGroups = syncService.getLocal<SmallGroup[]>('smallGroups');
-      if (localGroups) setSmallGroups(localGroups);
-      const localVisits = syncService.getLocal<StaffVisit[]>('staffVisits');
-      if (localVisits) setStaffVisits(localVisits);
-      const localLists = syncService.getLocal<MasterLists>('masterLists');
-      if (localLists) setMasterLists(localLists);
-      const localConfig = syncService.getLocal<Config>('config');
-      if (localConfig) setConfig(applySystemOverrides(localConfig));
-      
-      await loadFromCloud(true);
-      setIsInitialized(true);
-    };
-    init();
   }, [loadFromCloud]);
 
+  const importFromDNA = async (dnaData: any): Promise<{ success: boolean; message: string }> => {
+    setIsSyncing(true);
+    try {
+      const db = dnaData.database || dnaData;
+      
+      // 1. Obter dados atuais do banco para resolver conflitos de e-mail
+      const currentData = await DataRepository.syncAll();
+      const existingUsers = currentData?.users || [];
+      const adminEmail = "pastorescopel@gmail.com";
+      
+      // Criar mapa de E-mail -> ID real do banco
+      const emailToIdMap: Record<string, string> = {};
+      existingUsers.forEach(u => {
+        emailToIdMap[u.email.toLowerCase()] = u.id;
+      });
+
+      // 2. Processar usuários do backup e mapear IDs
+      const backupUsers = Array.isArray(db.users) ? db.users : [];
+      const usersToUpsert: User[] = [];
+      const legacyIdToNewIdMap: Record<string, string> = {};
+
+      for (const bUser of backupUsers) {
+        const email = bUser.email?.toLowerCase().trim();
+        const oldId = bUser.id || bUser.ID;
+        
+        let targetId: string;
+
+        // Caso especial: Usuário admin ou e-mail mestre
+        if (oldId === 'admin' || email === adminEmail) {
+          targetId = emailToIdMap[adminEmail] || crypto.randomUUID();
+          legacyIdToNewIdMap['admin'] = targetId;
+          legacyIdToNewIdMap[oldId] = targetId;
+        } else if (emailToIdMap[email]) {
+          // E-mail já existe no banco, usa o ID que já está lá para evitar 409
+          targetId = emailToIdMap[email];
+          legacyIdToNewIdMap[oldId] = targetId;
+        } else {
+          // Novo usuário, gera UUID robusto
+          targetId = crypto.randomUUID();
+          legacyIdToNewIdMap[oldId] = targetId;
+        }
+
+        usersToUpsert.push({
+          ...bUser,
+          id: targetId,
+          email: email || `user_${crypto.randomUUID().slice(0,8)}@temp.com`,
+          role: (oldId === 'admin' || email === adminEmail) ? UserRole.ADMIN : (bUser.role || UserRole.CHAPLAIN)
+        });
+      }
+
+      // 3. Upsert de usuários (em massa)
+      if (usersToUpsert.length > 0) {
+        await DataRepository.upsertRecord('users', usersToUpsert);
+      }
+
+      // 4. Mapear e preparar atividades (em massa)
+      const processCollection = async (backupKey: string, repoKey: string) => {
+        const data = db[backupKey] || db[backupKey.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)];
+        if (!data || !Array.isArray(data)) return;
+
+        const mappedData = data.map(item => {
+          const oldUid = item.userId || item.user_id;
+          return {
+            ...item,
+            id: (item.id && item.id.length > 20) ? item.id : crypto.randomUUID(), // Garante UUID se o original for curto/legado
+            userId: legacyIdToNewIdMap[oldUid] || legacyIdToNewIdMap['admin'] || usersToUpsert[0]?.id
+          };
+        });
+
+        if (mappedData.length > 0) {
+          await DataRepository.upsertRecord(repoKey, mappedData);
+        }
+      };
+
+      await processCollection('bibleStudies', 'bibleStudies');
+      await processCollection('bibleClasses', 'bibleClasses');
+      await processCollection('smallGroups', 'smallGroups');
+      await processCollection('staffVisits', 'staffVisits');
+
+      // 5. Configurações e Listas
+      if (db.config || db.app_config) await DataRepository.upsertRecord('config', db.config || db.app_config);
+      if (db.masterLists || db.master_lists) await DataRepository.upsertRecord('masterLists', db.masterLists || db.master_lists);
+
+      await loadFromCloud(true);
+      return { success: true, message: "DNA Restaurado com sucesso e conflitos resolvidos!" };
+    } catch (error: any) {
+      console.error("Erro Crítico na Migração:", error);
+      return { success: false, message: error.message || "Erro desconhecido durante a migração." };
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   useEffect(() => {
-    if (!isInitialized) return;
-    syncService.setLocal('users', users);
-    syncService.setLocal('bibleStudies', bibleStudies);
-    syncService.setLocal('bibleClasses', bibleClasses);
-    syncService.setLocal('smallGroups', smallGroups);
-    syncService.setLocal('staffVisits', staffVisits);
-    syncService.setLocal('masterLists', masterLists);
-    syncService.setLocal('config', config);
-  }, [users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists, config, isInitialized]);
+    if (!isInitialized) {
+      loadFromCloud(true);
+      setIsInitialized(true);
+    }
+  }, [loadFromCloud, isInitialized]);
 
   return {
-    users, setUsers, bibleStudies, setBibleStudies, bibleClasses, setBibleClasses,
-    smallGroups, setSmallGroups, staffVisits, setStaffVisits, masterLists, setMasterLists,
-    config, setConfig, isSyncing, isConnected, isInitialized, loadFromCloud, saveToCloud, applySystemOverrides, hashPassword
+    users, bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests, masterLists,
+    config, isSyncing, isConnected, isLabMode, loadFromCloud, saveToCloud, saveRecord, deleteRecord,
+    hashPassword, applySystemOverrides, importFromDNA
   };
 };

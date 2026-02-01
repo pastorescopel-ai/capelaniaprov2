@@ -1,13 +1,9 @@
-
-// ############################################################
-// # VERSION: 2.13.1-DNA-SHIELD-CORE (ULTRA-STABLE)
-// # STATUS: FULL SOURCE CODE + DATABASE INTEGRATION
-// # REGEN: DISASTER RECOVERY READY
-// ############################################################
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MasterLists, Config, User, BibleStudy, BibleClass, SmallGroup, StaffVisit } from '../types';
-import { REPORT_LOGO_BASE64 } from '../constants';
+import { useToast } from '../contexts/ToastContext';
+import AdminConfig from './Admin/AdminConfig';
+import AdminLists from './Admin/AdminLists';
+import AdminDataTools from './Admin/AdminDataTools';
 
 interface AdminPanelProps {
   config: Config;
@@ -18,12 +14,10 @@ interface AdminPanelProps {
   bibleClasses: BibleClass[];
   smallGroups: SmallGroup[];
   staffVisits: StaffVisit[];
-  onSaveAllData: (config: Config, lists: MasterLists) => Promise<void>;
-  onRestoreFullDNA: (dna: any) => Promise<void>;
-  onRefreshData: () => Promise<void>;
+  onSaveAllData: (config: Config, lists: MasterLists) => Promise<any>;
+  onRestoreFullDNA: (dna: any) => Promise<{ success: boolean; message: string }>;
+  onRefreshData: () => Promise<any>;
 }
-
-type DragType = 'logo' | 'line1' | 'line2' | 'line3' | 'resize' | null;
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
   config, masterLists, users, currentUser, 
@@ -31,297 +25,140 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onSaveAllData, onRestoreFullDNA, onRefreshData
 }) => {
   const [localConfig, setLocalConfig] = useState(config);
-  const [activeDrag, setActiveDrag] = useState<DragType>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
+  const { showToast } = useToast();
+
+  const safeJoin = (data: any) => {
+    if (Array.isArray(data)) return data.join('\n');
+    return "";
+  };
   
   const [lists, setLists] = useState({
-    sectorsHAB: masterLists.sectorsHAB.join('\n'),
-    sectorsHABA: masterLists.sectorsHABA.join('\n'),
-    groupsHAB: masterLists.groupsHAB.join('\n'),
-    groupsHABA: masterLists.groupsHABA.join('\n'),
-    staffHAB: masterLists.staffHAB.join('\n'),
-    staffHABA: masterLists.staffHABA.join('\n'),
+    sectorsHAB: safeJoin(masterLists?.sectorsHAB),
+    sectorsHABA: safeJoin(masterLists?.sectorsHABA),
+    groupsHAB: safeJoin(masterLists?.groupsHAB),
+    groupsHABA: safeJoin(masterLists?.groupsHABA),
+    staffHAB: safeJoin(masterLists?.staffHAB),
+    staffHABA: safeJoin(masterLists?.staffHABA),
   });
 
-  const colorPresets = [
-    { label: 'Azul Original', value: '#005a9c' },
-    { label: 'Verde Saúde', value: '#10b981' },
-    { label: 'Vinho Pastoral', value: '#991b1b' },
-    { label: 'Azul Escuro', value: '#1e293b' },
-    { label: 'Roxo Espiritual', value: '#6366f1' },
-    { label: 'Verde Petróleo', value: '#0d9488' },
-  ];
-
+  // Sincroniza estado local apenas quando houver mudança externa confirmada
   useEffect(() => {
     setLocalConfig(config);
-    setLists({
-      sectorsHAB: masterLists.sectorsHAB.join('\n'),
-      sectorsHABA: masterLists.sectorsHABA.join('\n'),
-      groupsHAB: masterLists.groupsHAB.join('\n'),
-      groupsHABA: masterLists.groupsHABA.join('\n'),
-      staffHAB: masterLists.staffHAB.join('\n'),
-      staffHABA: masterLists.staffHABA.join('\n'),
-    });
+    if (masterLists) {
+      setLists({
+        sectorsHAB: safeJoin(masterLists.sectorsHAB),
+        sectorsHABA: safeJoin(masterLists.sectorsHABA),
+        groupsHAB: safeJoin(masterLists.groupsHAB),
+        groupsHABA: safeJoin(masterLists.groupsHABA),
+        staffHAB: safeJoin(masterLists.staffHAB),
+        staffHABA: safeJoin(masterLists.staffHABA),
+      });
+    }
   }, [config, masterLists]);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!activeDrag || !previewRef.current) return;
-    const rect = previewRef.current.getBoundingClientRect();
-    const x = Math.round(e.clientX - rect.left);
-    const y = Math.round(e.clientY - rect.top);
-    setLocalConfig(prev => {
-      switch (activeDrag) {
-        case 'logo': return { ...prev, reportLogoX: x - (prev.reportLogoWidth / 2), reportLogoY: y - (prev.reportLogoWidth / 4) };
-        case 'line1': return { ...prev, headerLine1X: x - 150, headerLine1Y: y - 10 };
-        case 'line2': return { ...prev, headerLine2X: x - 150, headerLine2Y: y - 10 };
-        case 'line3': return { ...prev, headerLine3X: x - 150, headerLine3Y: y - 10 };
-        case 'resize': return { ...prev, reportLogoWidth: Math.max(30, x - prev.reportLogoX) };
-        default: return prev;
-      }
-    });
+  const cleanListItems = (text: string) => {
+    if (!text) return [];
+    return text.split('\n').map(s => s.trim()).filter(s => s !== '');
   };
 
-  const cleanListItems = (text: string) => {
-    const items = text.split('\n').map(s => s.trim()).filter(s => s !== '');
-    return Array.from(new Set(items)); 
-  };
+  // Função para Salvamento Automático de Alta Performance
+  const handleAutoSaveLists = useCallback(async (updatedLists: typeof lists) => {
+    // Passo 1: Atualizar UI local instantaneamente
+    setLists(updatedLists);
+    
+    try {
+      const finalConfig = { ...localConfig, lastModifiedBy: currentUser.name, lastModifiedAt: Date.now() };
+      const newLists: MasterLists = {
+        sectorsHAB: cleanListItems(updatedLists.sectorsHAB), 
+        sectorsHABA: cleanListItems(updatedLists.sectorsHABA),
+        groupsHAB: cleanListItems(updatedLists.groupsHAB), 
+        groupsHABA: cleanListItems(updatedLists.groupsHABA),
+        staffHAB: cleanListItems(updatedLists.staffHAB), 
+        staffHABA: cleanListItems(updatedLists.staffHABA),
+      };
+      
+      // Passo 2: Disparar Gravação no Supabase (Upsert com Cache de ID)
+      const success = await onSaveAllData(finalConfig, newLists);
+      
+      if (!success) {
+         showToast("Erro ao gravar no banco. Tente novamente.", "warning");
+      } else {
+         console.log("Maestro: Dados sincronizados com sucesso.");
+      }
+    } catch (error) {
+      showToast("Falha crítica de conexão.", "warning");
+    }
+  }, [localConfig, currentUser.name, onSaveAllData, showToast]);
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
-    try {
-      await onRefreshData();
-    } finally {
-      setIsRefreshing(false);
+    try { 
+      await onRefreshData(); 
+      showToast("Banco de dados atualizado!", "success");
+    } finally { 
+      setIsRefreshing(false); 
     }
   };
 
   const handleExportFullDNA = () => {
-    const confirmExport = confirm("ATIVAR BLINDAGEM DE CÓDIGO: Esta operação gerará um Snapshot Integral (DNA) contendo todos os dados e o CÓDIGO-FONTE de todos os módulos do sistema para recuperação total em qualquer ambiente. Prosseguir?");
-    
-    if (confirmExport) {
-      // SOURCE CODE MANIFEST - Blindagem v2.13.1
-      // Contém a representação fiel dos arquivos para regeneração
-      const project_shield_manifest = {
-        "root": ["index.tsx", "App.tsx", "types.ts", "constants.tsx", "googleScript.gs", "metadata.json", "package.json", "vercel.json"],
-        "components": ["Forms.tsx", "AdminPanel.tsx", "Reports.tsx", "Dashboard.tsx", "Layout.tsx", "Login.tsx", "Profile.tsx", "UserManagement.tsx"],
-        "logic": ["hooks/useAppData.ts", "services/syncService.ts", "contexts/ToastContext.tsx"],
-        "build": ["vite.config.ts", ".npmrc"],
-        "version_tag": "2.13.1-FINAL-SHIELD"
-      };
-
-      const fullDNA = {
-        meta: {
-          system: "Capelania Hospitalar Pro",
-          version: "2.13.1-RECOVERY-DNA",
-          exportDate: new Date().toISOString(),
-          author: currentUser.name,
-          environment: "Vercel/Production",
-          shield_status: "ACTIVE"
-        },
-        shield_manifest: project_shield_manifest,
-        database: {
-          bibleStudies,
-          bibleClasses,
-          smallGroups,
-          staffVisits,
-          users,
-          config: localConfig,
-          masterLists
-        }
-      };
-
-      const blob = new Blob([JSON.stringify(fullDNA, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `FULL_RECOVERY_DNA_V2_13_1_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  };
-
-  const handleImportFullDNA = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const dna = JSON.parse(event.target?.result as string);
-        if (!dna.database || !dna.meta) {
-          throw new Error("Arquivo DNA inválido ou incompleto.");
-        }
-
-        const isShielded = dna.shield_manifest ? "Sim (Completo)" : "Não (Somente Dados)";
-        const confirmRestore = confirm(`RESTURAÇÃO DE SISTEMA DETECTADA\n\nVersão do DNA: ${dna.meta.version}\nData: ${new Date(dna.meta.exportDate).toLocaleString()}\nBlindagem de Código: ${isShielded}\n\nDeseja realizar a restauração mestre agora? Todos os dados atuais serão substituídos.`);
-        
-        if (confirmRestore) {
-          setIsSaving(true);
-          await onRestoreFullDNA(dna.database);
-          setIsSaving(false);
-          alert("SISTEMA REGENERADO COM SUCESSO!\nSincronização global concluída.");
-        }
-      } catch (err) {
-        alert("Erro crítico ao ler DNA: " + (err as Error).message);
-      }
+    const fullDNA = {
+      meta: { system: "Capelania Hospitalar Pro", version: "V3.0.0", exportDate: new Date().toISOString(), author: currentUser.name },
+      database: { bibleStudies, bibleClasses, smallGroups, staffVisits, users, config: localConfig, masterLists }
     };
-    reader.readAsText(file);
-    if(fileInputRef.current) fileInputRef.current.value = ""; 
+    const blob = new Blob([JSON.stringify(fullDNA, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `BACKUP_SISTEMA_${new Date().toISOString().split('T')[0]}.json`; a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
-      const finalConfig = { 
-        ...localConfig, 
-        lastModifiedBy: currentUser.name, 
-        lastModifiedAt: Date.now() 
-      };
+      const finalConfig = { ...localConfig, lastModifiedBy: currentUser.name, lastModifiedAt: Date.now() };
       const newLists: MasterLists = {
-        sectorsHAB: cleanListItems(lists.sectorsHAB),
+        sectorsHAB: cleanListItems(lists.sectorsHAB), 
         sectorsHABA: cleanListItems(lists.sectorsHABA),
-        groupsHAB: cleanListItems(lists.groupsHAB),
+        groupsHAB: cleanListItems(lists.groupsHAB), 
         groupsHABA: cleanListItems(lists.groupsHABA),
-        staffHAB: cleanListItems(lists.staffHAB),
+        staffHAB: cleanListItems(lists.staffHAB), 
         staffHABA: cleanListItems(lists.staffHABA),
       };
       await onSaveAllData(finalConfig, newLists);
-      alert('Configurações e Listas Mestres sincronizadas com a nuvem!');
-    } catch (error) {
-      alert('Erro ao sincronizar. Verifique a conexão com a planilha.');
-    } finally {
-      setIsSaving(false);
+      showToast('Configurações salvas no Supabase!', 'success');
+    } catch (error) { 
+      showToast('Falha ao salvar configurações.', 'warning'); 
+    } finally { 
+      setIsSaving(false); 
     }
   };
 
   return (
-    <div className="space-y-12 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700" onMouseUp={() => setActiveDrag(null)} onMouseLeave={() => setActiveDrag(null)}>
+    <div className="space-y-12 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700">
       
-      {(isSaving || isRefreshing) && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[1000] flex items-center justify-center p-4">
-          <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl flex flex-col items-center gap-8 max-w-md w-full text-center border-4 border-blue-50 animate-in zoom-in duration-300">
-            <div className="relative">
-               <div className="w-24 h-24 border-8 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
-               <div className="absolute inset-0 flex items-center justify-center">
-                  <i className={`fas ${isRefreshing ? 'fa-sync-alt animate-spin' : 'fa-dna animate-pulse'} text-blue-600 text-2xl`}></i>
-               </div>
-            </div>
-            <div className="space-y-3">
-              <h3 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">
-                {isRefreshing ? 'Sincronizando' : 'Blindando DNA'}
-              </h3>
-              <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest leading-relaxed px-6">
-                Gerando manifesto de código-fonte e snapshot integral da base de dados...
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      <AdminDataTools currentUser={currentUser} onRefreshData={onRefreshData} onRestoreFullDNA={onRestoreFullDNA} isRefreshing={isRefreshing} />
 
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1 className="text-4xl font-black text-slate-800 tracking-tight uppercase">Painel Admin</h1>
-          {localConfig.lastModifiedBy && (
-            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full w-fit">
-              <i className="fas fa-history mr-1"></i> Última sincronização mestre: {new Date(localConfig.lastModifiedAt!).toLocaleString()}
-            </p>
-          )}
+          <h1 className="text-4xl font-black text-slate-800 tracking-tight uppercase">Administração</h1>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Controle Central do Ecossistema</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button onClick={handleManualRefresh} className="px-5 py-4 bg-emerald-50 text-emerald-600 font-black rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm">
-            <i className={`fas fa-sync-alt ${isRefreshing ? 'animate-spin' : ''}`}></i> Sincronizar Nuvem
+          <button onClick={handleManualRefresh} className={`px-5 py-4 bg-emerald-50 text-emerald-600 font-black rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm`}>
+            <i className={`fas fa-sync-alt ${isRefreshing ? 'animate-spin' : ''}`}></i> Sincronizar Agora
           </button>
-          
-          <div className="flex gap-2">
-            <button onClick={handleExportFullDNA} title="Exporta dados e código fonte integral" className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg border-r border-slate-700 rounded-r-none">
-              <i className="fas fa-shield-alt text-amber-400"></i> Backup DNA Total
-            </button>
-            <input type="file" ref={fileInputRef} onChange={handleImportFullDNA} accept=".json" className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} title="Restaura o sistema integralmente via arquivo DNA" className="px-5 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm rounded-l-none border-l border-slate-200">
-              <i className="fas fa-file-import text-blue-600"></i> Restaurar DNA
-            </button>
-          </div>
-
+          <button onClick={handleExportFullDNA} className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg">
+            <i className="fas fa-download text-amber-400"></i> Baixar Backup JSON
+          </button>
           <button onClick={handleSaveAll} className="px-10 py-5 text-white font-black rounded-[1.5rem] shadow-2xl hover:brightness-110 transition-all flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95" style={{ backgroundColor: localConfig.primaryColor || '#005a9c' }}>
-            <i className="fas fa-save"></i> Salvar Alterações
+            <i className={`fas ${isSaving ? 'fa-circle-notch fa-spin' : 'fa-save'}`}></i> {isSaving ? 'Gravando...' : 'Aplicar Mudanças'}
           </button>
         </div>
       </header>
 
-      <section className="space-y-4">
-        <h3 className="font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-2" style={{ color: localConfig.primaryColor }}><i className="fas fa-pencil-ruler"></i> Editor de Cabeçalho (Impressão)</h3>
-        <div className="bg-slate-300 p-8 md:p-16 rounded-[3rem] shadow-inner border border-slate-400 relative flex justify-center overflow-x-auto">
-          <div ref={previewRef} onMouseMove={handleMouseMove} className="bg-white shadow-2xl relative overflow-hidden flex-shrink-0" style={{ width: '800px', height: '220px' }}>
-            <div className={`absolute transition-shadow ${activeDrag === 'logo' ? 'ring-2 ring-blue-500 z-50 shadow-2xl' : 'hover:ring-2 hover:ring-blue-100'}`} style={{ left: `${localConfig.reportLogoX}px`, top: `${localConfig.reportLogoY}px`, width: `${localConfig.reportLogoWidth}px`, cursor: 'move' }} onMouseDown={(e) => { e.preventDefault(); setActiveDrag('logo'); }}>
-              {REPORT_LOGO_BASE64 && <img src={REPORT_LOGO_BASE64} style={{ width: '100%', pointerEvents: 'none' }} alt="Logo" />}
-              <div onMouseDown={(e) => { e.stopPropagation(); setActiveDrag('resize'); }} className="absolute -right-2 -bottom-2 w-6 h-6 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center text-white text-[10px] cursor-nwse-resize"><i className="fas fa-expand"></i></div>
-            </div>
-            {['Line1', 'Line2', 'Line3'].map((l, i) => {
-              const field = `headerLine${i+1}` as keyof Config;
-              const xField = `headerLine${i+1}X` as keyof Config;
-              const yField = `headerLine${i+1}Y` as keyof Config;
-              const fsField = `fontSize${i+1}` as keyof Config;
-              const colors = [localConfig.primaryColor, '#475569', '#94a3b8'];
-              return (
-                <div key={l} className={`absolute p-2 rounded cursor-move border-2 border-dashed ${activeDrag === `line${i+1}` as DragType ? 'bg-blue-50/50 border-blue-400' : 'border-transparent hover:border-slate-200'}`} style={{ left: localConfig[xField] as number, top: localConfig[yField] as number, minWidth: '350px' }} onMouseDown={(e) => { if(e.target === e.currentTarget) { e.preventDefault(); setActiveDrag(`line${i+1}` as DragType); } }}>
-                  <input value={localConfig[field] as string} onChange={e => setLocalConfig({...localConfig, [field]: e.target.value})} className="w-full bg-transparent border-none focus:ring-0 font-black uppercase whitespace-nowrap outline-none cursor-text" style={{ fontSize: `${localConfig[fsField]}px`, textAlign: localConfig.headerTextAlign, color: colors[i] }} />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <div className="grid lg:grid-cols-3 gap-8">
-        <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
-          <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight"><i className="fas fa-align-center" style={{ color: localConfig.primaryColor }}></i> Formatação</h2>
-          <div className="flex bg-slate-50 p-2 rounded-2xl gap-2">
-            {['left', 'center', 'right'].map(align => (
-              <button key={align} onClick={() => setLocalConfig({...localConfig, headerTextAlign: align as any})} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase transition-all ${localConfig.headerTextAlign === align ? 'bg-white shadow-sm' : 'text-slate-400'}`} style={{ color: localConfig.headerTextAlign === align ? localConfig.primaryColor : undefined }}><i className={`fas fa-align-${align} mr-2`}></i>{align}</button>
-            ))}
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="space-y-1">
-                <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Tam. L{i}</label>
-                <input type="number" value={(localConfig as any)[`fontSize${i}`]} onChange={e => setLocalConfig({...localConfig, [`fontSize${i}`]: parseInt(e.target.value) || 0})} className="w-full p-4 bg-slate-50 rounded-2xl border-none font-black text-xs" />
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6 lg:col-span-2">
-          <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight"><i className="fas fa-palette" style={{ color: localConfig.primaryColor }}></i> Temas do Sistema</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {colorPresets.map(cp => (
-              <button key={cp.value} onClick={() => setLocalConfig({...localConfig, primaryColor: cp.value})} className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${localConfig.primaryColor === cp.value ? 'border-slate-800 bg-slate-50' : 'border-slate-100 hover:border-slate-200'}`}><div className="w-6 h-6 rounded-lg shadow-sm" style={{ backgroundColor: cp.value }}></div><span className="text-[10px] font-black uppercase tracking-tighter text-slate-600">{cp.label}</span></button>
-            ))}
-            <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 md:col-span-1">
-               <input type="color" value={localConfig.primaryColor} onChange={e => setLocalConfig({...localConfig, primaryColor: e.target.value})} className="w-8 h-8 rounded cursor-pointer bg-transparent border-none" /><span className="text-[10px] font-black uppercase text-slate-400">Personalizado</span>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <section className="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
-        <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 tracking-tighter uppercase"><i className="fas fa-database text-emerald-500"></i> Listas Mestres (Bancos de Dados)</h2>
-        <div className="grid md:grid-cols-2 gap-10">
-          {['HAB', 'HABA'].map(unit => (
-            <div key={unit} className="space-y-6">
-              <h3 className="font-black text-slate-700 uppercase tracking-widest text-sm flex items-center gap-3"><div className="w-3 h-3 rounded-full" style={{ backgroundColor: localConfig.primaryColor }}></div> Unidade {unit}</h3>
-              {['sectors', 'groups', 'staff'].map(type => (
-                <div key={type} className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-[0.2em]">{type === 'sectors' ? 'Setores Hospitalares' : type === 'groups' ? 'Nomes dos PGs' : 'Equipe de Colaboradores'}</label>
-                  <textarea value={(lists as any)[`${type}${unit}`]} onChange={e => setLists({...lists, [`${type}${unit}`]: e.target.value})} className="w-full h-40 p-5 bg-slate-50 rounded-3xl border-none font-bold text-xs resize-none focus:ring-2 focus:ring-blue-100 shadow-inner outline-none" placeholder="Uma entrada por linha..." />
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </section>
+      <AdminConfig config={localConfig} setConfig={setLocalConfig} />
+      <AdminLists lists={lists} setLists={setLists} onAutoSave={handleAutoSaveLists} />
     </div>
   );
 };

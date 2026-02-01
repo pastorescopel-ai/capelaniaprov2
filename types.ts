@@ -1,4 +1,3 @@
-
 export enum UserRole {
   ADMIN = 'ADMIN',
   CHAPLAIN = 'CHAPLAIN'
@@ -17,94 +16,22 @@ export enum RecordStatus {
 
 export enum VisitReason {
   AGENDAMENTO = 'Agendamento',
+  SOLICITACAO = 'Solicitação',
+  ROTINA = 'Rotina',
   ACOMPANHAMENTO = 'Acompanhamento',
-  NECESSIDADE_PESSOAL = 'Necessidade Pessoal/Espiritual',
-  A_PEDIDO = 'A pedido',
   OUTROS = 'Outros'
 }
 
 export enum ActivityFilter {
-  TODAS = 'Todas as Atividades',
+  TODAS = 'Todas',
   ESTUDOS = 'Estudos Bíblicos',
   CLASSES = 'Classes Bíblicas',
   PGS = 'Pequenos Grupos',
-  VISITAS = 'Visitas a Colaboradores'
-}
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  password?: string;
-  role: UserRole;
-  profilePic?: string;
-  updatedAt?: number;
-}
-
-export interface BibleStudy {
-  id: string;
-  userId: string;
-  date: string;
-  unit: Unit;
-  sector: string;
-  name: string;
-  whatsapp: string;
-  status: RecordStatus;
-  guide: string;
-  lesson: string;
-  observations?: string;
-  createdAt: number;
-  updatedAt?: number;
-}
-
-export interface BibleClass {
-  id: string;
-  userId: string;
-  date: string;
-  unit: Unit;
-  sector: string;
-  students: string[];
-  status: RecordStatus;
-  guide: string;
-  lesson: string;
-  observations?: string;
-  createdAt: number;
-  updatedAt?: number;
-}
-
-export interface SmallGroup {
-  id: string;
-  userId: string;
-  date: string;
-  unit: Unit;
-  sector: string;
-  groupName: string;
-  leader: string;
-  shift: string;
-  participantsCount: number;
-  observations?: string;
-  createdAt: number;
-  updatedAt?: number;
-}
-
-export interface StaffVisit {
-  id: string;
-  userId: string;
-  date: string;
-  unit: Unit;
-  sector: string;
-  reason: VisitReason;
-  staffName: string;
-  requiresReturn: boolean;
-  returnDate?: string;
-  returnCompleted: boolean;
-  observations?: string;
-  createdAt: number;
-  updatedAt?: number;
+  VISITAS = 'Visitas'
 }
 
 export interface Config {
-  googleSheetUrl: string;
+  id?: string;
   muralText: string;
   headerLine1: string;
   headerLine2: string;
@@ -123,18 +50,138 @@ export interface Config {
   headerLine3Y: number;
   headerPaddingTop: number;
   headerTextAlign: 'left' | 'center' | 'right';
-  primaryColor?: string;
+  primaryColor: string;
+  appLogoUrl?: string;
+  reportLogoUrl?: string;
   lastModifiedBy?: string;
   lastModifiedAt?: number;
-  updatedAt?: number;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  password?: string;
+  role: UserRole;
+  profilePic?: string;
 }
 
 export interface MasterLists {
+  id?: string;
   sectorsHAB: string[];
   sectorsHABA: string[];
-  staffHAB: string[];
-  staffHABA: string[];
   groupsHAB: string[];
   groupsHABA: string[];
+  staffHAB: string[];
+  staffHABA: string[];
   updatedAt?: number;
+}
+
+export interface BibleStudy {
+  id: string;
+  userId: string;
+  date: string;
+  unit: Unit;
+  sector: string;
+  name: string;
+  whatsapp: string;
+  status: RecordStatus;
+  guide: string;
+  lesson: string;
+  observations: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface BibleClass {
+  id: string;
+  userId: string;
+  date: string;
+  unit: Unit;
+  sector: string;
+  students: string[];
+  status: RecordStatus;
+  guide: string;
+  lesson: string;
+  observations: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface SmallGroup {
+  id: string;
+  userId: string;
+  date: string;
+  unit: Unit;
+  sector: string;
+  groupName: string;
+  leader: string;
+  shift: string;
+  participantsCount: number;
+  observations: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface StaffVisit {
+  id: string;
+  userId: string;
+  date: string;
+  unit: Unit;
+  sector: string;
+  reason: VisitReason;
+  staffName: string;
+  requiresReturn: boolean;
+  returnDate?: string;
+  returnCompleted: boolean;
+  observations: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface VisitRequest {
+  id: string;
+  pgName: string;
+  leaderName: string;
+  leaderPhone?: string;
+  unit: 'HAB' | 'HABA';
+  date: string;
+  status: 'pending' | 'confirmed' | 'declined' | 'assigned';
+  requestNotes?: string;
+  preferredChaplainId?: string;
+  assignedChaplainId?: string;
+  chaplainResponse?: string;
+  isRead: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Interfaces for MeetingScheduleModal
+export interface Leader {
+  full_name: string;
+  whatsapp?: string;
+  pg_name?: string;
+  sector_name?: string;
+  hospital?: string; // 'Belém' ou 'Ananindeua'
+}
+
+export interface Chaplain {
+  id: string;
+  name: string;
+  active: boolean;
+  hospital: string;
+}
+
+export interface MeetingSchedule {
+  full_date: string;
+  request_chaplain: boolean;
+  request_notes?: string;
+  preferred_chaplain_id?: string;
+  assigned_chaplain_id?: string;
+  chaplain_status: 'none' | 'pending' | 'confirmed' | 'declined';
+  leader_name: string;
+  leader_whatsapp?: string;
+  pg_name: string;
+  sector_name?: string;
+  hospital?: string;
 }
