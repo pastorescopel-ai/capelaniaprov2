@@ -1,7 +1,9 @@
+
 import React from 'react';
 import { NAV_ITEMS, APP_LOGO_BASE64 } from '../constants';
 import { UserRole, Config } from '../types';
 import NotificationCenter from './NotificationCenter';
+import InstallPrompt from './PWA/InstallPrompt';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -47,6 +49,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
         </div>
 
         <div className="flex items-center gap-4">
+          {/* BOTÃO DE INSTALAÇÃO PWA */}
+          <InstallPrompt />
+
           {isLabMode && (
             <div className="bg-amber-100 px-3 py-1 rounded-full border border-amber-200 animate-pulse hidden lg:flex">
               <span className="text-[9px] font-black text-amber-700 uppercase tracking-widest">Modo Lab</span>
