@@ -1,2 +1,2 @@
 # @generated clean-npm-config
-# Este arquivo garante que o npm não tente ler configurações fantasmas ou corrompidas.
+# This file ensures npm utilizes pure ASCII config.
