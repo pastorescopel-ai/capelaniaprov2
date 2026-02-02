@@ -1,0 +1,3 @@
+
+# Clean npm configuration
+registry=https://registry.npmjs.org/
