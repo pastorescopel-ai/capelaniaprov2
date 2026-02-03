@@ -31,3 +31,14 @@ export const getWeekRangeLabel = (dateStr: string) => {
   const fmt = (date: Date) => date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   return `Semana de ${fmt(monday)} a ${fmt(sunday)}`;
 };
+
+/**
+ * Normaliza uma string para comparação: remove acentos, coloca em minúsculo e limpa espaços.
+ */
+export const normalizeString = (str: string) => {
+  return String(str || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+};

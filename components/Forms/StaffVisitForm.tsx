@@ -2,11 +2,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Unit, StaffVisit, User, UserRole, MasterLists, VisitReason } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
-import Autocomplete from '../Shared/Autocomplete';
+import Autocomplete, { AutocompleteOption } from '../Shared/Autocomplete';
 import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import { isRecordLocked } from '../../utils/validators';
 import { useApp } from '../../contexts/AppContext';
+import { normalizeString } from '../../utils/formatters';
 
 interface FormProps {
   unit: Unit;
@@ -23,23 +24,46 @@ interface FormProps {
   onToggleReturn?: (id: string) => void;
 }
 
-const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, masterLists, history, editingItem, isLoading, onSubmit, onDelete, onEdit, onToggleReturn }) => {
+const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit, onToggleReturn }) => {
   const { proStaff, proSectors } = useApp();
-  const defaultState = { id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.AGENDAMENTO, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' };
+  const defaultState = { id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.ROTINA, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' };
   const [formData, setFormData] = useState(defaultState);
   const { showToast } = useToast();
 
   const sectorOptions = useMemo(() => {
-    return proSectors.filter(s => s.unit === unit).map(s => s.name).sort();
+    return proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name})).sort((a,b) => a.label.localeCompare(b.label));
   }, [proSectors, unit]);
 
   const staffOptions = useMemo(() => {
-    const names = new Set<string>();
-    proStaff.filter(s => s.unit === unit).forEach(s => {
-        names.add(`${s.name} (${s.id.split('-')[1] || s.id})`);
+    const options: AutocompleteOption[] = [];
+    
+    // Banco Oficial
+    proStaff.filter(s => s.unit === unit).forEach(staff => {
+      const sector = proSectors.find(sec => sec.id === staff.sectorId);
+      options.push({
+        value: staff.name,
+        label: `${staff.name} (${staff.id.split('-')[1] || staff.id})`,
+        subLabel: sector ? sector.name : 'Setor não informado',
+        category: 'RH'
+      });
     });
-    return Array.from(names).sort();
-  }, [proStaff, unit]);
+
+    // Histórico
+    const uniqueNames = new Set<string>();
+    history.forEach(v => {
+      if (v.staffName && !uniqueNames.has(normalizeString(v.staffName))) {
+        uniqueNames.add(normalizeString(v.staffName));
+        options.push({
+          value: v.staffName.trim(),
+          label: v.staffName.trim(),
+          subLabel: v.sector,
+          category: 'History'
+        });
+      }
+    });
+
+    return options;
+  }, [proStaff, proSectors, unit, history]);
 
   useEffect(() => {
     if (editingItem) {
@@ -59,9 +83,14 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, masterL
       if (match) {
           const rawId = match[1];
           const staff = proStaff.find(s => s.id === `${unit}-${rawId}` || s.id === rawId);
-          if (staff && staff.sectorId) {
-              const sector = proSectors.find(s => s.id === staff.sectorId);
-              setFormData(prev => ({ ...prev, staffName: staff.name, sector: sector ? sector.name : prev.sector }));
+          if (staff) {
+              const sector = proSectors.find(s => s.id === staff.sectorId || s.id === `${unit}-${staff.sectorId}`);
+              setFormData(prev => ({ 
+                ...prev, 
+                staffName: staff.name, 
+                sector: sector ? sector.name : prev.sector 
+              }));
+              showToast("Colaborador oficial selecionado. Setor preenchido.", "success");
               return;
           }
       }
@@ -82,33 +111,56 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, masterL
     <div className="space-y-10 pb-20">
       <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-slate-800">Visita a Colaborador ({unit})</h2>
-          <button type="button" onClick={() => setFormData(defaultState)} className="text-[10px] font-black text-rose-500 uppercase bg-rose-50 px-4 py-2 rounded-full border border-rose-100">Limpar</button>
+          <div className="space-y-1">
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Visita Pastoral</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Unidade {unit}</p>
+          </div>
+          <button type="button" onClick={() => setFormData(defaultState)} className="text-[9px] font-black text-rose-500 uppercase bg-rose-50 px-5 py-2.5 rounded-xl border border-rose-100">Limpar</button>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Colaborador *</label><Autocomplete options={staffOptions} value={formData.staffName} onChange={v => setFormData({...formData, staffName: v})} onSelectOption={handleSelectStaff} placeholder="Nome ou Matrícula..." /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Setor *</label><Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local da visita..." isStrict={true} /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Motivo *</label>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data da Visita *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+          
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Colaborador Atendido *</label>
+            <Autocomplete 
+                options={staffOptions} 
+                value={formData.staffName} 
+                onChange={v => setFormData({...formData, staffName: v})} 
+                onSelectOption={handleSelectStaff} 
+                placeholder="Busque por nome ou matrícula..." 
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Localização *</label>
+            <Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local da visita..." isStrict={true} />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Motivo da Visita *</label>
             <select value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value as VisitReason})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold">
               {Object.values(VisitReason).map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
+
           <div className="space-y-1 md:col-span-2">
-            <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border-2 border-transparent">
-              <input type="checkbox" id="requiresReturn" checked={formData.requiresReturn} onChange={e => setFormData({...formData, requiresReturn: e.target.checked})} className="w-6 h-6 rounded-lg text-rose-600 cursor-pointer" />
-              <label htmlFor="requiresReturn" className="font-black text-slate-700 text-xs uppercase tracking-widest cursor-pointer">Necessita Retorno?</label>
+            <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border-2 border-transparent hover:border-rose-100 transition-all cursor-pointer" onClick={() => setFormData({...formData, requiresReturn: !formData.requiresReturn})}>
+              <input type="checkbox" checked={formData.requiresReturn} readOnly className="w-6 h-6 rounded-lg text-rose-600 cursor-pointer" />
+              <div>
+                <label className="font-black text-slate-700 text-xs uppercase tracking-widest cursor-pointer block">Necessita Retorno?</label>
+                <p className="text-[9px] text-slate-400 font-bold uppercase">Marque se precisar voltar para acompanhamento</p>
+              </div>
             </div>
           </div>
           {formData.requiresReturn && (
             <div className="space-y-1 md:col-span-2 animate-in slide-in-from-left duration-300">
-              <label className="text-[10px] font-black text-rose-500 ml-2 uppercase">Agendar Retorno para *</label>
-              <input type="date" value={formData.returnDate} onChange={e => setFormData({...formData, returnDate: e.target.value})} className="w-full p-4 rounded-2xl border-2 border-rose-100 text-rose-700 font-bold" />
+              <label className="text-[10px] font-black text-rose-500 ml-2 uppercase tracking-widest">Agendar Retorno para *</label>
+              <input type="date" value={formData.returnDate} onChange={e => setFormData({...formData, returnDate: e.target.value})} className="w-full p-4 rounded-2xl border-2 border-rose-100 text-rose-700 font-black text-lg" />
             </div>
           )}
-          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Observações</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none" /></div>
+          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Observações da Visita</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium" /></div>
         </div>
-        <button type="submit" className="w-full py-5 bg-rose-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs">Salvar Visita</button>
+        <button type="submit" className="w-full py-6 bg-rose-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs hover:bg-rose-700 transition-all">Registrar Visita Pastoral</button>
       </form>
 
       <HistorySection<StaffVisit>
