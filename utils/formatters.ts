@@ -7,6 +7,12 @@ export const formatWhatsApp = (value: string) => {
   return `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7, 11)}`;
 };
 
+export const getFirstName = (fullName: string) => {
+  if (!fullName) return "";
+  const parts = fullName.split(' ');
+  return parts[0];
+};
+
 export const resolveDynamicName = (val: string, list: string[] = []) => {
   if (!val || !val.includes('_')) return val;
   const prefix = val.split('_')[0] + '_';

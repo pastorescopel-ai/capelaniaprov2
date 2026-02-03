@@ -1,3 +1,4 @@
+
 export enum UserRole {
   ADMIN = 'ADMIN',
   CHAPLAIN = 'CHAPLAIN'
@@ -14,11 +15,17 @@ export enum RecordStatus {
   TERMINO = 'Término'
 }
 
+export enum ParticipantType {
+  STAFF = 'Colaborador',
+  PATIENT = 'Paciente',
+  PROVIDER = 'Prestador'
+}
+
 export enum VisitReason {
   AGENDAMENTO = 'Agendamento',
   SOLICITACAO = 'Solicitação',
   ROTINA = 'Rotina',
-  ACOMPANHAMENTO = 'Acompanhamento',
+  ACOMPANHAMENTO = 'ACOMPANHAMENTO',
   OUTROS = 'Outros'
 }
 
@@ -28,6 +35,35 @@ export enum ActivityFilter {
   CLASSES = 'Classes Bíblicas',
   PGS = 'Pequenos Grupos',
   VISITAS = 'Visitas'
+}
+
+// --- TIPOS PRO ---
+export interface ProSector {
+  id: string;
+  name: string;
+  unit: Unit;
+  active?: boolean;
+  updatedAt?: number;
+}
+
+export interface ProStaff {
+  id: string;
+  name: string;
+  sectorId: string;
+  unit: Unit;
+  active?: boolean;
+  updatedAt?: number;
+}
+
+export interface ProGroup {
+  id: string;
+  name: string;
+  currentLeader?: string;
+  leader?: string;
+  sectorId?: string;
+  unit: Unit;
+  active?: boolean;
+  updatedAt?: number;
 }
 
 export interface Config {
@@ -86,6 +122,7 @@ export interface BibleStudy {
   name: string;
   whatsapp: string;
   status: RecordStatus;
+  participantType?: ParticipantType;
   guide: string;
   lesson: string;
   observations: string;
@@ -101,6 +138,7 @@ export interface BibleClass {
   sector: string;
   students: string[];
   status: RecordStatus;
+  participantType?: ParticipantType;
   guide: string;
   lesson: string;
   observations: string;
@@ -156,13 +194,12 @@ export interface VisitRequest {
   updatedAt?: string;
 }
 
-// Interfaces for MeetingScheduleModal
 export interface Leader {
   full_name: string;
   whatsapp?: string;
   pg_name?: string;
   sector_name?: string;
-  hospital?: string; // 'Belém' ou 'Ananindeua'
+  hospital?: string;
 }
 
 export interface Chaplain {

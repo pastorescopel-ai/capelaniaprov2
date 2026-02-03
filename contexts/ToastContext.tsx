@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
-type ToastType = 'success' | 'warning';
+type ToastType = 'success' | 'warning' | 'info';
 
 interface ToastContextType {
   showToast: (message: string, type?: ToastType) => void;
@@ -29,6 +29,8 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           <div className="bg-slate-900/90 backdrop-blur-md text-white px-8 py-4 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-3">
             {toast.type === 'success' ? (
               <i className="fas fa-check-circle text-emerald-400 text-lg"></i>
+            ) : toast.type === 'info' ? (
+              <i className="fas fa-info-circle text-blue-400 text-lg"></i>
             ) : (
               <i className="fas fa-exclamation-circle text-amber-400 text-lg"></i>
             )}

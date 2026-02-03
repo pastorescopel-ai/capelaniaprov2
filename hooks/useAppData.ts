@@ -1,9 +1,8 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, UserRole, VisitRequest } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, UserRole, VisitRequest, ProStaff, ProSector, ProGroup, Unit } from '../types';
 import { DataRepository } from '../services/dataRepository';
-import { SyncService } from '../services/syncService';
 import { INITIAL_CONFIG } from '../constants';
-import { hashPassword } from '../utils/crypto';
 import { supabase } from '../services/supabaseClient';
 
 export const useAppData = () => {
@@ -17,11 +16,14 @@ export const useAppData = () => {
     sectorsHAB: [], sectorsHABA: [], staffHAB: [], staffHABA: [], groupsHAB: [], groupsHABA: []
   });
   
+  const [proStaff, setProStaff] = useState<ProStaff[]>([]);
+  const [proSectors, setProSectors] = useState<ProSector[]>([]);
+  const [proGroups, setProGroups] = useState<ProGroup[]>([]);
+  
   const [config, setConfig] = useState<Config>(INITIAL_CONFIG);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [isLabMode, setIsLabMode] = useState(false);
 
   const applySystemOverrides = useCallback((baseConfig: Config) => {
     if (baseConfig.primaryColor) {
@@ -41,13 +43,15 @@ export const useAppData = () => {
         setSmallGroups(data.smallGroups || []);
         setStaffVisits(data.staffVisits || []);
         setVisitRequests(data.visitRequests || []);
+        setProStaff(data.proStaff || []);
+        setProSectors(data.proSectors || []);
+        setProGroups(data.proGroups || []);
         if (data.masterLists) setMasterLists(data.masterLists);
         if (data.config) {
           setConfig(data.config);
           applySystemOverrides(data.config);
         }
         setIsConnected(true);
-        setIsLabMode(false);
       }
     } catch (e) {
       setIsConnected(false);
@@ -56,33 +60,10 @@ export const useAppData = () => {
     }
   }, [applySystemOverrides]);
 
-  // --- LÓGICA DE REALTIME (MAESTRO BRIDGE) ---
   useEffect(() => {
     if (!supabase) return;
-
-    // Subscreve ao canal de mudanças na tabela de solicitações de visita
-    const channel = supabase
-      .channel('realtime-visit-requests')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Escuta INSERT, UPDATE e DELETE
-          schema: 'public',
-          table: 'visit_requests',
-        },
-        (payload) => {
-          console.log('Maestro Bridge: Mudança detectada no banco!', payload);
-          // Recarrega os dados silenciosamente para atualizar o sino e os widgets
-          loadFromCloud(false);
-        }
-      )
-      .subscribe((status) => {
-        console.log(`Maestro Bridge: Status da conexão Realtime: ${status}`);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    const channel = supabase.channel('realtime-db').on('postgres_changes', { event: '*', schema: 'public' }, () => loadFromCloud(false)).subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [loadFromCloud]);
 
   const saveRecord = async (collection: string, item: any) => {
@@ -100,110 +81,156 @@ export const useAppData = () => {
   const saveToCloud = useCallback(async (overrides?: any, showLoader = false) => {
     if (showLoader) setIsSyncing(true);
     try {
-      if (overrides?.config) await DataRepository.upsertRecord('config', overrides.config);
-      if (overrides?.masterLists) await DataRepository.upsertRecord('masterLists', overrides.masterLists);
-      if (overrides?.users) await DataRepository.upsertRecord('users', overrides.users);
-      await loadFromCloud(false);
+      if (overrides?.config) await saveRecord('config', overrides.config);
+      if (overrides?.masterLists) await saveRecord('masterLists', overrides.masterLists);
+      if (overrides?.users) await saveRecord('users', overrides.users);
+      if (overrides?.proSectors) await saveRecord('proSectors', overrides.proSectors);
+      if (overrides?.proStaff) await saveRecord('proStaff', overrides.proStaff);
+      if (overrides?.proGroups) await saveRecord('proGroups', overrides.proGroups);
       return true;
     } finally {
       if (showLoader) setIsSyncing(false);
     }
-  }, [loadFromCloud]);
+  }, [saveRecord]);
 
-  const importFromDNA = async (dnaData: any): Promise<{ success: boolean; message: string }> => {
+  const nuclearReset = async (): Promise<{ success: boolean; message: string }> => {
+    if (!supabase) return { success: false, message: "Supabase não conectado." };
     setIsSyncing(true);
     try {
-      const db = dnaData.database || dnaData;
+      // 1. Pegar dados da MasterList ANTES de apagar qualquer coisa
+      const { data: mlRecords } = await supabase.from('master_lists').select('*').limit(1);
+      const mlData = mlRecords && mlRecords.length > 0 ? mlRecords[0] : null;
       
-      const currentData = await DataRepository.syncAll();
-      const existingUsers = currentData?.users || [];
-      const adminEmail = "pastorescopel@gmail.com";
-      
-      const emailToIdMap: Record<string, string> = {};
-      existingUsers.forEach(u => {
-        emailToIdMap[u.email.toLowerCase()] = u.id;
-      });
-
-      const backupUsers = Array.isArray(db.users) ? db.users : [];
-      const usersToUpsert: User[] = [];
-      const legacyIdToNewIdMap: Record<string, string> = {};
-
-      for (const bUser of backupUsers) {
-        const email = bUser.email?.toLowerCase().trim();
-        const oldId = bUser.id || bUser.ID;
-        
-        let targetId: string;
-
-        if (oldId === 'admin' || email === adminEmail) {
-          targetId = emailToIdMap[adminEmail] || crypto.randomUUID();
-          legacyIdToNewIdMap['admin'] = targetId;
-          legacyIdToNewIdMap[oldId] = targetId;
-        } else if (emailToIdMap[email]) {
-          targetId = emailToIdMap[email];
-          legacyIdToNewIdMap[oldId] = targetId;
-        } else {
-          targetId = crypto.randomUUID();
-          legacyIdToNewIdMap[oldId] = targetId;
-        }
-
-        usersToUpsert.push({
-          ...bUser,
-          id: targetId,
-          email: email || `user_${crypto.randomUUID().slice(0,8)}@temp.com`,
-          role: (oldId === 'admin' || email === adminEmail) ? UserRole.ADMIN : (bUser.role || UserRole.CHAPLAIN)
-        });
+      if (!mlData) {
+          throw new Error("As Listas de Texto (Excel) estão vazias no servidor. Adicione os setores na aba Excel antes de executar o reset.");
       }
 
-      if (usersToUpsert.length > 0) {
-        await DataRepository.upsertRecord('users', usersToUpsert);
-      }
+      // 2. Limpeza das tabelas relacionais
+      console.log("Integridade verificada. Iniciando PURGE...");
+      await supabase.from('pro_staff').delete().neq('id', '_PURGE_');
+      await supabase.from('pro_groups').delete().neq('id', '_PURGE_');
+      await supabase.from('pro_sectors').delete().neq('id', '_PURGE_');
 
-      const processCollection = async (backupKey: string, repoKey: string) => {
-        const data = db[backupKey] || db[backupKey.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)];
-        if (!data || !Array.isArray(data)) return;
-
-        const mappedData = data.map(item => {
-          const oldUid = item.userId || item.user_id;
-          return {
-            ...item,
-            id: (item.id && item.id.length > 20) ? item.id : crypto.randomUUID(),
-            userId: legacyIdToNewIdMap[oldUid] || legacyIdToNewIdMap['admin'] || usersToUpsert[0]?.id
-          };
+      const newSectors: ProSector[] = [];
+      const processList = (list: string[], unit: Unit) => {
+        if (!Array.isArray(list)) return;
+        list.forEach(item => {
+          if (!item || !item.trim()) return;
+          const parts = item.split(/[_-]/);
+          const rawId = parts[0].trim().toUpperCase().replace('HAB', '').replace('HABA', '').replace('A', '');
+          const cleanId = rawId.replace(/\D/g, ''); 
+          const name = parts.slice(1).join(' ').trim();
+          
+          if (cleanId && name) {
+            newSectors.push({ id: cleanId, name, unit });
+          }
         });
-
-        if (mappedData.length > 0) {
-          await DataRepository.upsertRecord(repoKey, mappedData);
-        }
       };
 
-      await processCollection('bibleStudies', 'bibleStudies');
-      await processCollection('bibleClasses', 'bibleClasses');
-      await processCollection('smallGroups', 'smallGroups');
-      await processCollection('staffVisits', 'staffVisits');
+      processList(mlData.sectors_hab || [], Unit.HAB);
+      processList(mlData.sectors_haba || [], Unit.HABA);
 
-      if (db.config || db.app_config) await DataRepository.upsertRecord('config', db.config || db.app_config);
-      if (db.masterLists || db.master_lists) await DataRepository.upsertRecord('masterLists', db.masterLists || db.master_lists);
+      // 3. Inserir Setores Limpos
+      if (newSectors.length > 0) {
+        await DataRepository.upsertRecord('proSectors', newSectors);
+      }
 
       await loadFromCloud(true);
-      return { success: true, message: "DNA Restaurado com sucesso e conflitos resolvidos!" };
-    } catch (error: any) {
-      console.error("Erro Crítico na Migração:", error);
-      return { success: false, message: error.message || "Erro desconhecido durante a migração." };
+      return { success: true, message: `Reset concluído! ${newSectors.length} setores reconstruídos.` };
+    } catch (e: any) {
+      console.error("Erro no Reset Nuclear:", e);
+      return { success: false, message: e.message };
     } finally {
       setIsSyncing(false);
     }
   };
 
-  useEffect(() => {
-    if (!isInitialized) {
-      loadFromCloud(true);
-      setIsInitialized(true);
+  const unifyNumericIdsAndCleanPrefixes = async (): Promise<{ success: boolean; message: string }> => {
+     return await nuclearReset();
+  };
+
+  const migrateLegacyStructure = async (): Promise<{ success: boolean; message: string; details?: string }> => {
+    setIsSyncing(true);
+    try {
+      const current = await DataRepository.syncAll();
+      if (!current || !current.masterLists) throw new Error("Listas não encontradas.");
+
+      const { sectorsHAB, sectorsHABA } = current.masterLists;
+      const newSectorsMap = new Map<string, ProSector>();
+
+      const parseLegacy = (list: string[], unit: Unit) => {
+        list.forEach(item => {
+          if (!item || !item.trim()) return;
+          const clean = item.trim();
+          let rawId = '', name = '';
+          
+          if (clean.includes('_')) {
+            const p = clean.split('_');
+            rawId = p[0];
+            name = p.slice(1).filter(x => x !== 'HAB' && x !== 'HABA').join(' ');
+          } else if (clean.includes(' - ')) {
+            const p = clean.split(' - ');
+            rawId = p[0];
+            name = p.slice(1).join(' ');
+          } else if (/^\d+\s/.test(clean)) {
+            const idx = clean.indexOf(' ');
+            rawId = clean.substring(0, idx);
+            name = clean.substring(idx + 1);
+          }
+
+          if (rawId && name) {
+            const cleanId = rawId.trim().toUpperCase().replace('HAB', '').replace('HABA', '').replace('-', '');
+            newSectorsMap.set(cleanId, { id: cleanId, name: name.trim(), unit });
+          }
+        });
+      };
+
+      if (Array.isArray(sectorsHAB)) parseLegacy(sectorsHAB, Unit.HAB);
+      if (Array.isArray(sectorsHABA)) parseLegacy(sectorsHABA, Unit.HABA);
+
+      const sectorsToUpsert: ProSector[] = Array.from(newSectorsMap.values());
+      if (sectorsToUpsert.length === 0) return { success: false, message: "Nenhum setor novo para migrar." };
+
+      await DataRepository.upsertRecord('proSectors', sectorsToUpsert);
+      
+      await loadFromCloud(true);
+      return { 
+        success: true, 
+        message: "Migração concluída!", 
+        details: `${sectorsToUpsert.length} setores normalizados.` 
+      };
+    } catch (e: any) {
+      return { success: false, message: e.message };
+    } finally {
+      setIsSyncing(false);
     }
+  };
+
+  const importFromDNA = async (dnaData: any) => {
+      setIsSyncing(true);
+      try {
+          const db = dnaData.database || dnaData;
+          if(db.proSectors) await DataRepository.upsertRecord('proSectors', db.proSectors);
+          if(db.proStaff) await DataRepository.upsertRecord('proStaff', db.proStaff);
+          if(db.proGroups) await DataRepository.upsertRecord('proGroups', db.proGroups);
+          if(db.users) await DataRepository.upsertRecord('users', db.users);
+          await loadFromCloud(true);
+          return { success: true, message: "Restauração completa!" };
+      } catch(e:any) {
+          return { success: false, message: e.message };
+      } finally {
+          setIsSyncing(false);
+      }
+  };
+
+  useEffect(() => {
+    if (!isInitialized) { loadFromCloud(true); setIsInitialized(true); }
   }, [loadFromCloud, isInitialized]);
 
   return {
     users, bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests, masterLists,
-    config, isSyncing, isConnected, isLabMode, loadFromCloud, saveToCloud, saveRecord, deleteRecord,
-    hashPassword, applySystemOverrides, importFromDNA
+    proStaff, proSectors, proGroups, config, isSyncing, isConnected, 
+    loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, 
+    importFromDNA, migrateLegacyStructure, unifyNumericIdsAndCleanPrefixes, nuclearReset
   };
 };

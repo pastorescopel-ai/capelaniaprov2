@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { User } from '../../types';
+import { getFirstName } from '../../utils/formatters';
 
 interface HistoryCardProps {
   icon: string;
@@ -21,16 +22,19 @@ interface HistoryCardProps {
 const HistoryCard: React.FC<HistoryCardProps> = ({ icon, color, title, subtitle, chaplainName, isLocked, isAdmin, users, onEdit, onDelete, onTransfer, extra, middle }) => {
   const [showTransfer, setShowTransfer] = useState(false);
 
+  // Se o título parece ser um nome de pessoa (mais de um caractere e não é nome de classe genérico), encurtamos
+  const displayTitle = (title.includes('Classe') || title.includes('PG')) ? title : getFirstName(title);
+
   return (
     <div className="bg-white p-5 md:p-6 rounded-[2.5rem] border border-slate-100 flex flex-col md:flex-row md:items-center justify-between shadow-sm hover:border-blue-200 transition-all group gap-4">
       <div className="flex items-center gap-4 flex-1">
         <div className={`w-12 h-12 ${color} bg-opacity-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0`}>{icon}</div>
         <div className="min-w-0">
-          <h4 className="font-bold text-slate-800 leading-tight truncate">{title}</h4>
+          <h4 className="font-bold text-slate-800 leading-tight truncate">{displayTitle}</h4>
           <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none mt-1 truncate">{subtitle}</p>
           <div className="flex items-center gap-1 mt-1">
              <i className="fas fa-user-tie text-[8px] text-blue-400"></i>
-             <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tighter">Responsável: {chaplainName}</span>
+             <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tighter">Responsável: {getFirstName(chaplainName)}</span>
           </div>
         </div>
       </div>
