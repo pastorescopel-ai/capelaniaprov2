@@ -91,25 +91,58 @@ const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: st
   return newObj;
 };
 
+// HELPER: Busca Recursiva para contornar o limite de 1000 linhas do Supabase
+const fetchAllRecords = async (table: string) => {
+  if (!supabase) return { data: [], error: { message: "No client" } };
+  
+  let allData: any[] = [];
+  let from = 0;
+  const step = 1000;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .range(from, from + step - 1);
+
+    if (error) {
+      console.error(`Erro ao buscar lote em ${table}:`, error);
+      return { data: allData, error }; // Retorna o que conseguiu até agora
+    }
+
+    if (data && data.length > 0) {
+      allData = [...allData, ...data];
+      from += step;
+      // Se veio menos que o passo, é porque acabou
+      if (data.length < step) {
+        hasMore = false;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return { data: allData, error: null };
+};
+
 export const DataRepository = {
   async syncAll() {
     if (!supabase) return null;
     try {
-      // Define limite de segurança aumentado (10k registros) para evitar paginação complexa em bases médias
-      const MAX_ROWS = 9999;
-
+      // Usa fetchAllRecords para tabelas críticas que podem passar de 1000 registros
       const [u, bs, bc, sg, sv, vr, c, ml, ps, pst, pg] = await Promise.all([
-        supabase.from('users').select('*').range(0, MAX_ROWS),
-        supabase.from('bible_studies').select('*').range(0, MAX_ROWS),
-        supabase.from('bible_classes').select('*').range(0, MAX_ROWS),
-        supabase.from('small_groups').select('*').range(0, MAX_ROWS),
-        supabase.from('staff_visits').select('*').range(0, MAX_ROWS),
-        supabase.from('visit_requests').select('*').range(0, MAX_ROWS),
+        fetchAllRecords('users'),
+        fetchAllRecords('bible_studies'),
+        fetchAllRecords('bible_classes'),
+        fetchAllRecords('small_groups'),
+        fetchAllRecords('staff_visits'),
+        fetchAllRecords('visit_requests'),
         supabase.from('app_config').select('*').limit(1),
         supabase.from('master_lists').select('*').limit(1),
-        supabase.from('pro_sectors').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_staff').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_groups').select('*').range(0, MAX_ROWS)
+        fetchAllRecords('pro_sectors'),
+        fetchAllRecords('pro_staff'), // Crítico: 1934+ registros
+        fetchAllRecords('pro_groups')
       ]);
 
       if (c.data?.[0]?.id) GLOBAL_ID_CACHE['app_config'] = c.data[0].id;

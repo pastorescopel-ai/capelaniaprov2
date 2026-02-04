@@ -392,7 +392,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ lists, setLists, onAutoSave, pr
                     <tr className="text-[9px] font-black uppercase text-slate-400 border-b">
                         <th className="p-4">ID (Excel)</th>
                         <th className="p-4">Nome</th>
-                        {activeTab === 'staff' && <th className="p-4">Vínculo de Setor (Excel -> Banco)</th>}
+                        {activeTab === 'staff' && <th className="p-4">Vínculo de Setor (Excel &rarr; Banco)</th>}
                         {activeTab !== 'staff' && <th className="p-4">Unidade</th>}
                     </tr>
                 </thead>
