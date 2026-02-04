@@ -74,8 +74,10 @@ const ImportCenter: React.FC = () => {
         masterLists: updatedMasterLists
       }, true);
       toast.showToast("Base de dados atualizada!", "success");
+      return true;
     } catch (e) {
       toast.showToast("Erro ao sincronizar.", "warning");
+      return false;
     }
   };
 

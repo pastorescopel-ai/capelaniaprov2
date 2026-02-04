@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, UserRole, VisitRequest, ProStaff, ProSector, ProGroup, Unit } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, UserRole, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, Unit } from '../types';
 import { DataRepository } from '../services/dataRepository';
 import { INITIAL_CONFIG } from '../constants';
 import { supabase } from '../services/supabaseClient';
@@ -19,6 +19,7 @@ export const useAppData = () => {
   const [proStaff, setProStaff] = useState<ProStaff[]>([]);
   const [proSectors, setProSectors] = useState<ProSector[]>([]);
   const [proGroups, setProGroups] = useState<ProGroup[]>([]);
+  const [proGroupLocations, setProGroupLocations] = useState<ProGroupLocation[]>([]);
   
   const [config, setConfig] = useState<Config>(INITIAL_CONFIG);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -46,6 +47,7 @@ export const useAppData = () => {
         setProStaff(data.proStaff || []);
         setProSectors(data.proSectors || []);
         setProGroups(data.proGroups || []);
+        setProGroupLocations(data.proGroupLocations || []);
         if (data.masterLists) setMasterLists(data.masterLists);
         if (data.config) {
           setConfig(data.config);
@@ -87,6 +89,7 @@ export const useAppData = () => {
       if (overrides?.proSectors) await saveRecord('proSectors', overrides.proSectors);
       if (overrides?.proStaff) await saveRecord('proStaff', overrides.proStaff);
       if (overrides?.proGroups) await saveRecord('proGroups', overrides.proGroups);
+      if (overrides?.proGroupLocations) await saveRecord('proGroupLocations', overrides.proGroupLocations);
       return true;
     } finally {
       if (showLoader) setIsSyncing(false);
@@ -110,6 +113,7 @@ export const useAppData = () => {
       await supabase.from('pro_staff').delete().neq('id', '_PURGE_');
       await supabase.from('pro_groups').delete().neq('id', '_PURGE_');
       await supabase.from('pro_sectors').delete().neq('id', '_PURGE_');
+      await supabase.from('pro_group_locations').delete().neq('id', '_PURGE_');
 
       const newSectors: ProSector[] = [];
       const processList = (list: string[], unit: Unit) => {
@@ -256,6 +260,7 @@ export const useAppData = () => {
           if(db.proSectors) await DataRepository.upsertRecord('proSectors', db.proSectors);
           if(db.proStaff) await DataRepository.upsertRecord('proStaff', db.proStaff);
           if(db.proGroups) await DataRepository.upsertRecord('proGroups', db.proGroups);
+          if(db.proGroupLocations) await DataRepository.upsertRecord('proGroupLocations', db.proGroupLocations);
           if(db.users) await DataRepository.upsertRecord('users', db.users);
           await loadFromCloud(true);
           return { success: true, message: "Restauração completa!" };
@@ -272,7 +277,7 @@ export const useAppData = () => {
 
   return {
     users, bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests, masterLists,
-    proStaff, proSectors, proGroups, config, isSyncing, isConnected, 
+    proStaff, proSectors, proGroups, proGroupLocations, config, isSyncing, isConnected, 
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, 
     importFromDNA, migrateLegacyStructure, unifyNumericIdsAndCleanPrefixes, nuclearReset
   };

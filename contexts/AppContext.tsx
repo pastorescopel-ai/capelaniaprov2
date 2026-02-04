@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAppData } from '../hooks/useAppData';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, VisitRequest, ProStaff, ProSector, ProGroup } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation } from '../types';
 
 interface AppContextType {
   users: User[];
@@ -15,6 +15,7 @@ interface AppContextType {
   proStaff: ProStaff[];
   proSectors: ProSector[];
   proGroups: ProGroup[];
+  proGroupLocations: ProGroupLocation[];
   
   config: Config;
   isSyncing: boolean;

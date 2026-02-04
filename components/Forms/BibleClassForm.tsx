@@ -46,6 +46,12 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
   
   const [formData, setFormData] = useState(defaultState);
   const [newStudent, setNewStudent] = useState('');
+  
+  // Estados para o Modal de Vinculação Manual
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [studentToLinkIndex, setStudentToLinkIndex] = useState<number | null>(null);
+  const [studentToLinkName, setStudentToLinkName] = useState('');
+  
   const { showToast } = useToast();
 
   const studentSearchOptions = useMemo(() => {
@@ -53,9 +59,10 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     
     proStaff.filter(s => s.unit === unit).forEach(staff => {
       const sector = proSectors.find(sec => sec.id === staff.sectorId);
+      const staffIdStr = String(staff.id);
       options.push({
         value: staff.name,
-        label: `${staff.name} (${staff.id.split('-')[1] || staff.id})`,
+        label: `${staff.name} (${staffIdStr.split('-')[1] || staffIdStr})`,
         subLabel: sector ? sector.name : 'Setor não informado',
         category: 'RH'
       });
@@ -82,6 +89,11 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     return options;
   }, [proStaff, proSectors, unit, allHistory]);
 
+  // Opções apenas de RH para o Modal de Vinculação
+  const rhOnlyOptions = useMemo(() => {
+    return studentSearchOptions.filter(o => o.category === 'RH');
+  }, [studentSearchOptions]);
+
   useEffect(() => {
     if (editingItem) {
       setFormData({ 
@@ -99,8 +111,13 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
   const addStudent = (val?: string) => { 
     const inputVal = val || newStudent;
     const nameToAdd = inputVal.split(' (')[0].trim();
-    if (nameToAdd) { 
-      if (formData.students.includes(nameToAdd)) {
+    
+    // Se selecionou do autocomplete oficial, usa o label completo (com ID)
+    const fullLabel = studentSearchOptions.find(o => o.value === nameToAdd || o.label === inputVal)?.label;
+    const finalString = fullLabel || nameToAdd;
+
+    if (finalString) { 
+      if (formData.students.includes(finalString)) {
         showToast("Aluno já está na lista.");
         return;
       }
@@ -114,27 +131,37 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
               const nextLesson = !isNaN(Number(lastRecord.lesson)) ? (Number(lastRecord.lesson) + 1).toString() : lastRecord.lesson;
               setFormData(prev => ({
                   ...prev,
-                  students: [...prev.students, nameToAdd],
+                  students: [...prev.students, finalString],
                   guide: lastRecord.guide || prev.guide,
                   lesson: nextLesson
               }));
-              showToast(`Histórico de estudo de ${getFirstName(nameToAdd)} recuperado.`, "info");
+              showToast(`Histórico de estudo recuperado.`, "info");
               setNewStudent(''); 
               return;
           }
       }
 
-      setFormData({...formData, students: [...formData.students, nameToAdd]}); 
+      setFormData({...formData, students: [...formData.students, finalString]}); 
       setNewStudent(''); 
     } 
   };
 
-  const handleLinkToRH = (index: number, staff: any) => {
-    const officialName = `${staff.name} (${staff.id.split('-')[1] || staff.id})`;
+  const openLinkModal = (index: number, currentName: string) => {
+    setStudentToLinkIndex(index);
+    setStudentToLinkName(currentName.split(' (')[0]); // Tenta limpar ID antigo se houver
+    setLinkModalOpen(true);
+  };
+
+  const handleManualLinkSelection = (selectedLabel: string) => {
+    if (studentToLinkIndex === null) return;
+
     const updatedStudents = [...formData.students];
-    updatedStudents[index] = officialName;
+    updatedStudents[studentToLinkIndex] = selectedLabel; // Substitui pelo oficial
     setFormData({ ...formData, students: updatedStudents });
-    showToast(`${getFirstName(staff.name)} vinculado ao RH com sucesso.`, "success");
+    
+    setLinkModalOpen(false);
+    setStudentToLinkIndex(null);
+    showToast("Aluno vinculado ao cadastro oficial!", "success");
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -148,7 +175,45 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
   };
 
   return (
-    <div className="space-y-10 pb-20">
+    <div className="space-y-10 pb-20 relative">
+      
+      {/* MODAL DE VINCULAÇÃO MANUAL */}
+      {linkModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setLinkModalOpen(false)} />
+          <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-8 animate-in zoom-in duration-200 border-4 border-amber-100">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                  <i className="fas fa-link text-amber-500"></i> Vincular Aluno
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                  Quem é <strong className="text-slate-800">"{formData.students[studentToLinkIndex!]?.split(' (')[0]}"</strong> no banco oficial?
+                </p>
+              </div>
+              <button onClick={() => setLinkModalOpen(false)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 flex items-center justify-center">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest ml-2">Pesquisar Colaborador (RH)</label>
+              <Autocomplete 
+                options={rhOnlyOptions}
+                value={studentToLinkName}
+                onChange={setStudentToLinkName}
+                onSelectOption={handleManualLinkSelection}
+                placeholder="Digite o nome ou matrícula..."
+                className="w-full p-4 rounded-2xl bg-amber-50 border-2 border-amber-100 focus:border-amber-400 focus:bg-white transition-all font-bold text-slate-700"
+              />
+              <p className="text-[9px] text-slate-400 text-center italic mt-2">
+                Ao selecionar, o nome na lista será atualizado para o formato oficial.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
           <div className="space-y-1">
@@ -200,45 +265,41 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
               <button type="button" onClick={() => addStudent()} className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg hover:bg-indigo-700 transition-all"><i className="fas fa-plus"></i></button>
             </div>
             
-            {/* Lista de Alunos com Inteligência de Vínculos Melhorada */}
+            {/* Lista de Alunos com Funcionalidade de Vínculo Manual */}
             <div className="flex flex-wrap gap-2 mt-4">
               {formData.students.map((s, i) => {
-                // 1. Extrai o nome puro para comparação (remove matrículas manuais ou sufixos)
-                const pureName = s.split(' (')[0].split(' - ')[0].trim();
-                
-                // 2. Busca o colaborador oficial apenas na unidade atual
-                const officialStaff = proStaff.find(staff => 
-                  staff.unit === unit && 
-                  normalizeString(staff.name) === normalizeString(pureName)
-                );
-
-                // 3. Define o nome oficial esperado
-                const officialFullName = officialStaff 
-                  ? `${officialStaff.name} (${officialStaff.id.split('-')[1] || officialStaff.id})` 
-                  : null;
-
-                // 4. Se encontrou no RH e o nome atual da lista não é exatamente o oficial, oferece o vínculo
-                const needsLinking = officialStaff && s !== officialFullName;
-                const isLinked = officialStaff && s === officialFullName;
+                // Verifica se tem formato oficial: Nome (ID)
+                const isOfficialFormat = /\(.*\)$/.test(s);
 
                 return (
-                  <div key={i} className={`px-4 py-2 rounded-xl flex items-center gap-3 font-black text-[9px] uppercase border transition-all animate-in zoom-in duration-200 ${isLinked ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                  <div key={i} className={`pl-4 pr-2 py-2 rounded-xl flex items-center gap-3 font-black text-[9px] uppercase border transition-all animate-in zoom-in duration-200 group ${
+                    isOfficialFormat 
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-100' // OFICIAL (VERDE/AZUL)
+                      : 'bg-amber-50 text-amber-700 border-amber-100'    // MANUAL (LARANJA)
+                  }`}>
                     <span>{s}</span>
                     
-                    {needsLinking && (
+                    {/* Botão de Vínculo (Aparece apenas se NÃO for oficial) */}
+                    {!isOfficialFormat && (
                       <button 
                         type="button" 
-                        onClick={() => handleLinkToRH(i, officialStaff)}
-                        title={`Colaborador oficial encontrado no RH (${unit}). Clique para vincular.`}
-                        className="text-amber-500 hover:text-amber-600 transition-transform hover:scale-125 flex items-center gap-1"
+                        onClick={() => openLinkModal(i, s)}
+                        title="Vincular a um colaborador oficial do RH"
+                        className="w-6 h-6 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-600 flex items-center justify-center transition-transform hover:scale-110"
                       >
-                        <i className="fas fa-link"></i>
-                        <span className="text-[7px]">Vincular</span>
+                        <i className="fas fa-link text-[10px]"></i>
                       </button>
                     )}
 
-                    <button type="button" onClick={() => setFormData({...formData, students: formData.students.filter((_, idx) => idx !== i)})} className="hover:text-rose-500 text-xs transition-colors opacity-50 hover:opacity-100">
-                      <i className="fas fa-times-circle"></i>
+                    {/* Check de Confirmado (Aparece se FOR oficial) */}
+                    {isOfficialFormat && (
+                         <i className="fas fa-check-circle text-indigo-400 text-xs"></i>
+                    )}
+
+                    <div className="w-px h-4 bg-black/5 mx-1"></div>
+
+                    <button type="button" onClick={() => setFormData({...formData, students: formData.students.filter((_, idx) => idx !== i)})} className="w-6 h-6 hover:bg-rose-100 rounded-lg text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center">
+                      <i className="fas fa-times text-[10px]"></i>
                     </button>
                   </div>
                 );

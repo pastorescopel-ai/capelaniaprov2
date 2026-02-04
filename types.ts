@@ -66,6 +66,14 @@ export interface ProGroup {
   updatedAt?: number;
 }
 
+export interface ProGroupLocation {
+  id: string;
+  groupId: string;
+  sectorId: string;
+  unit: Unit;
+  createdAt?: number;
+}
+
 export interface Config {
   id?: string;
   muralText: string;

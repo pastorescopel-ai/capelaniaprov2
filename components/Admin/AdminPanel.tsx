@@ -118,8 +118,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       await handleAutoSaveLists(updatedMasterLists);
 
       showToast("Banco de Dados Profissional atualizado com sucesso!", "success");
+      return true;
     } catch (e) {
       showToast("Erro ao salvar dados PRO.", "warning");
+      return false;
     } finally {
       setIsSaving(false);
     }

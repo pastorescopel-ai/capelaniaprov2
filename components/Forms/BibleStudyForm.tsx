@@ -61,9 +61,11 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     
     proStaff.filter(s => s.unit === unit).forEach(staff => {
       const sector = proSectors.find(sec => sec.id === staff.sectorId);
+      // CORREÇÃO CRÍTICA: Converter ID para string antes do split
+      const staffIdStr = String(staff.id);
       options.push({
         value: staff.name,
-        label: `${staff.name} (${staff.id.split('-')[1] || staff.id})`,
+        label: `${staff.name} (${staffIdStr.split('-')[1] || staffIdStr})`,
         subLabel: sector ? sector.name : 'Setor não informado',
         category: 'RH'
       });

@@ -17,7 +17,7 @@ interface AdminListsProps {
   setLists: React.Dispatch<React.SetStateAction<any>>;
   onAutoSave?: (updatedLists: any) => Promise<void>;
   proData?: { staff: ProStaff[]; sectors: ProSector[]; groups: ProGroup[] };
-  onSavePro?: (staff: ProStaff[], sectors: ProSector[], groups: ProGroup[], legacyLists: any) => Promise<void>;
+  onSavePro?: (staff: ProStaff[], sectors: ProSector[], groups: ProGroup[], legacyLists: any) => Promise<boolean>;
 }
 
 interface PreviewItem {
@@ -148,7 +148,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ lists, setLists, onAutoSave, pr
             const item: PreviewItem = {
                 id: finalId,
                 name: name,
-                unit: activeUnit,
+                unit: activeUnit as Unit,
                 sectorStatus: 'ok'
             };
 
@@ -487,7 +487,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ lists, setLists, onAutoSave, pr
         )}
       </section>
       
-      <PGMaestro lists={lists} setLists={setLists} onAutoSave={onAutoSave} />
+      <PGMaestro lists={lists} setLists={setLists} onAutoSave={onAutoSave} proData={proData} />
     </div>
   );
 };

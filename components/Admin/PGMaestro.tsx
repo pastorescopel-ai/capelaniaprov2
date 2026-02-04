@@ -1,129 +1,117 @@
+
 import React, { useState, useMemo } from 'react';
 import { useToast } from '../../contexts/ToastContext';
 import Autocomplete from '../Shared/Autocomplete';
+import { ProStaff, ProSector, ProGroup, Unit, ProGroupLocation } from '../../types';
+import { useApp } from '../../contexts/AppContext';
 
 interface PGMaestroProps {
-  lists: {
-    sectorsHAB: string; sectorsHABA: string;
-    groupsHAB: string; groupsHABA: string;
-    staffHAB: string; staffHABA: string;
-  };
-  setLists: React.Dispatch<React.SetStateAction<any>>;
-  onAutoSave?: (updatedLists: any) => Promise<void>;
+  lists: any; // Mantido para compatibilidade, mas o Maestro agora usa o Contexto
+  setLists: any;
+  onAutoSave?: any;
+  proData?: any;
 }
 
-const PGMaestro: React.FC<PGMaestroProps> = ({ lists, setLists, onAutoSave }) => {
+const PGMaestro: React.FC<PGMaestroProps> = () => {
   const { showToast } = useToast();
-  const [activeUnit, setActiveUnit] = useState<'HAB' | 'HABA'>('HAB');
-  const [selectedSector, setSelectedSector] = useState('');
+  const { proSectors, proGroups, proGroupLocations, saveRecord, deleteRecord } = useApp();
+  
+  const [activeUnit, setActiveUnit] = useState<Unit>(Unit.HAB);
+  const [selectedSectorName, setSelectedSectorName] = useState('');
   const [pgSearch, setPgSearch] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // --- PARSE DE DADOS INTELIGENTE ---
+  // 1. Obter Objeto Setor Atual
+  const currentSector = useMemo(() => {
+    return proSectors.find(s => s.name === selectedSectorName && s.unit === activeUnit);
+  }, [proSectors, selectedSectorName, activeUnit]);
 
+  // 2. Opções de Setor (Dropdown)
   const sectorOptions = useMemo(() => {
-    const text = activeUnit === 'HAB' ? lists.sectorsHAB : lists.sectorsHABA;
-    return text.split('\n').map(s => s.trim()).filter(s => s !== '').sort();
-  }, [activeUnit, lists.sectorsHAB, lists.sectorsHABA]);
+    return proSectors
+      .filter(s => s.unit === activeUnit)
+      .map(s => ({ value: s.name, label: s.name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [proSectors, activeUnit]);
 
-  const allPGEntries = useMemo(() => {
-    const text = activeUnit === 'HAB' ? lists.groupsHAB : lists.groupsHABA;
-    return text.split('\n').map(l => l.trim()).filter(l => l !== '');
-  }, [activeUnit, lists.groupsHAB, lists.groupsHABA]);
-
-  // Lista de nomes base de todos os PGs cadastrados (independente de vínculo)
-  const allUniquePGNames = useMemo(() => {
-    const names = allPGEntries.map(entry => entry.split('|')[0].trim());
-    return Array.from(new Set(names)).sort();
-  }, [allPGEntries]);
-
-  // PGs que podem ser vinculados ao setor atual (aqueles que ainda não estão vinculados A ESTE SETOR)
+  // 3. PGs Disponíveis para Vincular (Que ainda não estão neste setor)
   const availablePGs = useMemo(() => {
-    if (!selectedSector) return allUniquePGNames;
+    if (!currentSector) return proGroups.filter(g => g.unit === activeUnit).map(g => ({ value: g.name, label: g.name }));
     
-    // Filtra nomes que já possuem a linha exata "Nome PG | Setor Atual"
-    return allUniquePGNames.filter(name => {
-      const match = `${name.toLowerCase()} | ${selectedSector.toLowerCase()}`;
-      return !allPGEntries.some(entry => entry.toLowerCase() === match);
-    });
-  }, [allUniquePGNames, allPGEntries, selectedSector]);
+    // Pega IDs dos PGs já vinculados a este setor
+    const linkedGroupIds = new Set(
+        proGroupLocations
+            .filter(loc => loc.sectorId === currentSector.id)
+            .map(loc => loc.groupId)
+    );
 
-  const currentSectorPGs = useMemo(() => {
-    if (!selectedSector) return [];
-    return allPGEntries
-      .filter(entry => entry.includes('|') && entry.split('|')[1].trim() === selectedSector)
-      .map(entry => entry.split('|')[0].trim())
-      .sort();
-  }, [allPGEntries, selectedSector]);
+    // Retorna apenas PGs que NÃO estão no set
+    return proGroups
+        .filter(g => g.unit === activeUnit && !linkedGroupIds.has(g.id))
+        .map(g => ({ value: g.name, label: g.name }));
+  }, [proGroups, proGroupLocations, currentSector, activeUnit]);
 
-  // --- AÇÕES COM MULTI-VÍNCULO ---
+  // 4. PGs Já Vinculados (Visualização)
+  const linkedPGs = useMemo(() => {
+    if (!currentSector) return [];
+    
+    // Filtra relacionamentos deste setor
+    const relationships = proGroupLocations.filter(loc => loc.sectorId === currentSector.id);
+    
+    // Mapeia para objetos completos de PG
+    return relationships.map(rel => {
+        const group = proGroups.find(g => g.id === rel.groupId);
+        return {
+            locationId: rel.id, // ID do relacionamento para deletar
+            groupName: group ? group.name : "PG Desconhecido",
+            groupId: rel.groupId
+        };
+    }).sort((a, b) => a.groupName.localeCompare(b.groupName));
+  }, [proGroupLocations, proGroups, currentSector]);
+
+  // --- AÇÕES ---
 
   const handleLinkPG = async (pgName: string) => {
-    if (!selectedSector || !pgName.trim()) {
-      showToast("Selecione um setor e um PG válido.", "warning");
+    if (!currentSector) {
+      showToast("Selecione um setor válido primeiro.", "warning");
       return;
     }
-
-    const groupKey = activeUnit === 'HAB' ? 'groupsHAB' : 'groupsHABA';
-    const cleanName = pgName.trim();
-    const newEntry = `${cleanName} | ${selectedSector}`;
-
-    // LÓGICA N-PARA-N: 
-    // Simplesmente adicionamos o novo vínculo sem remover os vínculos do PG com outros setores.
-    // Apenas verificamos se este vínculo exato já existe para evitar duplicata visual.
-    if (allPGEntries.some(e => e.toLowerCase() === newEntry.toLowerCase())) {
-        showToast("Este PG já está vinculado a este setor.", "warning");
+    
+    const group = proGroups.find(g => g.name === pgName && g.unit === activeUnit);
+    if (!group) {
+        showToast("PG não encontrado no banco de dados.", "warning");
         return;
     }
 
-    const updatedEntries = [...allPGEntries, newEntry].sort();
-
-    const updatedLists = { ...lists, [groupKey]: updatedEntries.join('\n') };
-    
-    setPgSearch('');
-    
-    if (onAutoSave) {
-      setIsSyncing(true);
-      try {
-        await onAutoSave(updatedLists);
-        showToast(`${cleanName} agora também pertence ao setor ${selectedSector}!`, "success");
-      } catch (e) {
-        showToast("Erro ao sincronizar.", "warning");
-      } finally {
+    setIsSyncing(true);
+    try {
+        const newLink: ProGroupLocation = {
+            id: crypto.randomUUID(),
+            groupId: group.id,
+            sectorId: currentSector.id,
+            unit: activeUnit,
+            createdAt: Date.now()
+        };
+        
+        await saveRecord('proGroupLocations', newLink);
+        setPgSearch('');
+        showToast("Vínculo criado com sucesso!", "success");
+    } catch (e) {
+        showToast("Erro ao criar vínculo.", "warning");
+    } finally {
         setIsSyncing(false);
-      }
-    } else {
-      setLists(updatedLists);
     }
   };
 
-  const handleUnlinkPG = async (pgName: string) => {
-    const groupKey = activeUnit === 'HAB' ? 'groupsHAB' : 'groupsHABA';
-    const entryToRemove = `${pgName} | ${selectedSector}`;
-
-    // Remove apenas o vínculo específico deste setor
-    const updatedEntries = allPGEntries.filter(line => line.trim() !== entryToRemove);
-    
-    // Se o PG ficou "órfão" (sem nenhum vínculo), ele deve voltar como um nome simples
-    const hasOtherLinks = updatedEntries.some(e => e.startsWith(`${pgName} |`));
-    if (!hasOtherLinks && !updatedEntries.includes(pgName)) {
-        updatedEntries.push(pgName);
-    }
-
-    const updatedLists = { ...lists, [groupKey]: updatedEntries.sort().join('\n') };
-    
-    if (onAutoSave) {
-      setIsSyncing(true);
-      try {
-        await onAutoSave(updatedLists);
-        showToast(`Vínculo do ${pgName} com ${selectedSector} removido.`, "success");
-      } catch (e) {
+  const handleUnlinkPG = async (locationId: string) => {
+    setIsSyncing(true);
+    try {
+        await deleteRecord('proGroupLocations', locationId);
+        showToast("Vínculo removido.", "success");
+    } catch (e) {
         showToast("Erro ao remover vínculo.", "warning");
-      } finally {
+    } finally {
         setIsSyncing(false);
-      }
-    } else {
-      setLists(updatedLists);
     }
   };
 
@@ -145,17 +133,16 @@ const PGMaestro: React.FC<PGMaestroProps> = ({ lists, setLists, onAutoSave }) =>
              <div>
                 <h2 className="text-3xl font-black text-white tracking-tighter uppercase">Maestro de PGs</h2>
                 <div className="flex items-center gap-2">
-                  <p className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em]">Vínculos Multi-Setoriais Ativos</p>
-                  {isSyncing && <span className="text-white text-[8px] font-black bg-blue-500 px-2 py-0.5 rounded-md animate-pulse">FIXANDO DADOS...</span>}
+                  <p className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em]">Vínculos Reais (Banco de Dados)</p>
                 </div>
              </div>
           </div>
         </div>
         <div className="flex bg-white/5 p-2 rounded-2xl border border-white/10 backdrop-blur-md">
-          {['HAB', 'HABA'].map(u => (
+          {[Unit.HAB, Unit.HABA].map(u => (
             <button 
               key={u} 
-              onClick={() => { setActiveUnit(u as any); setSelectedSector(''); setPgSearch(''); }}
+              onClick={() => { setActiveUnit(u); setSelectedSectorName(''); setPgSearch(''); }}
               className={`px-10 py-3 rounded-xl text-[10px] font-black uppercase transition-all duration-300 ${activeUnit === u ? 'bg-blue-600 text-white shadow-xl scale-105' : 'text-slate-500 hover:text-white'}`}
             >
               Unidade {u}
@@ -168,13 +155,13 @@ const PGMaestro: React.FC<PGMaestroProps> = ({ lists, setLists, onAutoSave }) =>
         <div className="grid md:grid-cols-2 gap-8 items-start">
           <div className="space-y-4">
              <div className="flex items-center justify-between px-4">
-                <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest">1. Localizar Setor</label>
-                {selectedSector && <button onClick={() => { setSelectedSector(''); setPgSearch(''); }} className="text-[8px] font-black text-rose-400 uppercase hover:text-rose-300">Trocar Setor</button>}
+                <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest">1. Selecionar Setor</label>
+                {selectedSectorName && <button onClick={() => { setSelectedSectorName(''); setPgSearch(''); }} className="text-[8px] font-black text-rose-400 uppercase hover:text-rose-300">Trocar Setor</button>}
              </div>
              <Autocomplete 
                 options={sectorOptions}
-                value={selectedSector}
-                onChange={setSelectedSector}
+                value={selectedSectorName}
+                onChange={setSelectedSectorName}
                 placeholder="Pesquise o setor (ex: Posto 1, UTI...)"
                 isStrict={true}
                 className="w-full p-6 bg-white/5 border-2 border-white/10 rounded-[2rem] text-white font-black text-lg focus:border-blue-500 focus:bg-white/10 outline-none transition-all placeholder:text-slate-600 shadow-inner"
@@ -182,8 +169,8 @@ const PGMaestro: React.FC<PGMaestroProps> = ({ lists, setLists, onAutoSave }) =>
              <p className="text-[9px] text-slate-500 font-bold uppercase ml-4 italic">O Maestro permite que um PG pertença a vários setores simultaneamente.</p>
           </div>
 
-          <div className={`space-y-4 transition-all duration-500 ${!selectedSector ? 'opacity-20 grayscale pointer-events-none' : 'opacity-100'}`}>
-             <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest px-4">2. Vincular ou Criar Multi-vínculo</label>
+          <div className={`space-y-4 transition-all duration-500 ${!selectedSectorName ? 'opacity-20 grayscale pointer-events-none' : 'opacity-100'}`}>
+             <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest px-4">2. Adicionar PG ao Setor</label>
              <div className="flex gap-3">
                 <div className="flex-1">
                   <Autocomplete 
@@ -196,7 +183,7 @@ const PGMaestro: React.FC<PGMaestroProps> = ({ lists, setLists, onAutoSave }) =>
                 </div>
                 <button 
                   onClick={() => handleLinkPG(pgSearch)}
-                  disabled={!selectedSector || !pgSearch || isSyncing}
+                  disabled={!currentSector || !pgSearch || isSyncing}
                   className="w-20 h-20 bg-blue-600 text-white rounded-[2rem] flex items-center justify-center text-3xl hover:bg-blue-700 transition-all shadow-2xl active:scale-95 disabled:opacity-20"
                 >
                   <i className={`fas ${isSyncing ? 'fa-circle-notch fa-spin' : 'fa-plus'}`}></i>
@@ -210,7 +197,7 @@ const PGMaestro: React.FC<PGMaestroProps> = ({ lists, setLists, onAutoSave }) =>
         </div>
 
         <div className="space-y-6 min-h-[300px]">
-          {!selectedSector ? (
+          {!selectedSectorName ? (
             <div className="h-[300px] flex flex-col items-center justify-center text-center space-y-6 bg-white/2 rounded-[3rem] border-2 border-dashed border-white/5">
                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center text-white/10 text-4xl">
                   <i className="fas fa-object-group"></i>
@@ -224,24 +211,24 @@ const PGMaestro: React.FC<PGMaestroProps> = ({ lists, setLists, onAutoSave }) =>
               <div className="flex items-center justify-between px-4">
                  <h3 className="text-white font-black text-xl uppercase tracking-tighter flex items-center gap-3">
                     <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
-                    PGs vinculados ao <span className="text-blue-400">{selectedSector}</span>
+                    PGs vinculados ao <span className="text-blue-400">{selectedSectorName}</span>
                  </h3>
-                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{currentSectorPGs.length} Ativos</span>
+                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{linkedPGs.length} Vinculados</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {currentSectorPGs.length > 0 ? (
-                  currentSectorPGs.map(pg => (
-                    <div key={pg} className="group p-6 bg-white/5 rounded-[2.5rem] border border-white/10 hover:border-blue-500/50 transition-all flex items-center justify-between shadow-xl">
+                {linkedPGs.length > 0 ? (
+                  linkedPGs.map(item => (
+                    <div key={item.locationId} className="group p-6 bg-white/5 rounded-[2.5rem] border border-white/10 hover:border-blue-500/50 transition-all flex items-center justify-between shadow-xl">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-blue-600/20 text-blue-400 rounded-2xl flex items-center justify-center font-black text-xl">
                           <i className="fas fa-link text-xs opacity-50 absolute -top-1 -right-1"></i>
-                          {pg[0]}
+                          {item.groupName[0]}
                         </div>
-                        <span className="text-white font-black text-sm tracking-tight">{pg}</span>
+                        <span className="text-white font-black text-sm tracking-tight">{item.groupName}</span>
                       </div>
                       <button 
-                        onClick={() => handleUnlinkPG(pg)}
+                        onClick={() => handleUnlinkPG(item.locationId)}
                         disabled={isSyncing}
                         className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-rose-500/20 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100 disabled:opacity-0"
                         title="Remover este vínculo"

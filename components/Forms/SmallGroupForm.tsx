@@ -24,8 +24,8 @@ interface FormProps {
   onSubmit: (data: any) => void;
 }
 
-const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
-  const { proSectors, proGroups, proStaff, saveRecord } = useApp();
+const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, masterLists, history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
+  const { proSectors, proGroups, proStaff, proGroupLocations, saveRecord } = useApp();
   
   const getToday = () => new Date().toLocaleDateString('en-CA');
 
@@ -33,22 +33,33 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
   const [formData, setFormData] = useState(defaultState);
   const { showToast } = useToast();
 
+  // Opções de Setor (Relacional + Legacy Fallback)
   const sectorOptions = useMemo(() => {
-    return proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name})).sort((a,b) => a.label.localeCompare(b.label));
-  }, [proSectors, unit]);
+    const fromPro = proSectors.filter(s => s.unit === unit).map(s => s.name);
+    const listText = unit === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA;
+    const fromLegacy = (listText || []).map(l => l.trim()).filter(l => l);
+    const unique = Array.from(new Set([...fromPro, ...fromLegacy])).sort();
+    return unique.map(s => ({ value: s, label: s }));
+  }, [proSectors, masterLists, unit]);
 
+  // Opções de PG (Relacional + Legacy Fallback)
   const pgOptions = useMemo(() => {
-    return proGroups.filter(g => g.unit === unit).map(g => ({value: g.name, label: g.name})).sort((a,b) => a.label.localeCompare(b.label));
-  }, [proGroups, unit]);
+    const fromPro = proGroups.filter(g => g.unit === unit).map(g => g.name);
+    const listText = unit === 'HAB' ? masterLists.groupsHAB : masterLists.groupsHABA;
+    const fromLegacy = (listText || []).map(l => l.split('|')[0].trim()).filter(l => l);
+    const unique = Array.from(new Set([...fromPro, ...fromLegacy])).sort();
+    return unique.map(g => ({ value: g, label: g }));
+  }, [proGroups, masterLists, unit]);
 
   const staffOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
     
     proStaff.filter(s => s.unit === unit).forEach(staff => {
       const sector = proSectors.find(sec => sec.id === staff.sectorId);
+      const staffIdStr = String(staff.id);
       options.push({
         value: staff.name,
-        label: `${staff.name} (${staff.id.split('-')[1] || staff.id})`,
+        label: `${staff.name} (${staffIdStr.split('-')[1] || staffIdStr})`,
         subLabel: sector ? sector.name : 'Setor não informado',
         category: 'RH'
       });
@@ -82,40 +93,73 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
     }
   }, [editingItem]);
 
+  // Função Auxiliar: Busca setor nas tabelas relacionais ou fallback no Maestro (Texto)
+  const findSectorForPG = (pgName: string): string | null => {
+      const pgMaster = proGroups.find(g => g.name === pgName && g.unit === unit);
+      
+      // 1. Tenta achar na tabela de relacionamentos N:N
+      if (pgMaster) {
+          const location = proGroupLocations.find(loc => loc.groupId === pgMaster.id);
+          if (location) {
+              const sec = proSectors.find(s => s.id === location.sectorId);
+              if (sec) return sec.name;
+          }
+          // 2. Tenta achar na tabela do PG (legado 1:1)
+          if (pgMaster.sectorId) {
+              const sec = proSectors.find(s => s.id === pgMaster.sectorId);
+              if (sec) return sec.name;
+          }
+      }
+
+      // 3. Fallback: Listas de Texto (Maestro Antigo)
+      const listText = unit === 'HAB' ? masterLists.groupsHAB : masterLists.groupsHABA;
+      const entry = (listText || []).find(line => 
+          line.toLowerCase().startsWith(`${pgName.toLowerCase()} |`)
+      );
+      if (entry) {
+          const parts = entry.split('|');
+          if (parts.length > 1) return parts[1].trim();
+      }
+      return null;
+  };
+
   const handleSelectPG = (pgName: string) => {
       const pgMaster = proGroups.find(g => g.name === pgName && g.unit === unit);
-      if (pgMaster) {
-          const sector = pgMaster.sectorId ? proSectors.find(s => s.id === pgMaster.sectorId) : null;
-          setFormData(prev => ({ 
-            ...prev, 
-            groupName: pgName, 
-            leader: pgMaster.currentLeader || prev.leader,
-            sector: sector ? sector.name : prev.sector
-          }));
-          if (pgMaster.currentLeader || sector) {
-              showToast(`PG identificado. Líder/Setor carregados.`, "success");
-          }
-      } else {
-          setFormData(prev => ({ ...prev, groupName: pgName }));
+      
+      // Busca setor (Relacional ou Texto)
+      const sectorName = findSectorForPG(pgName);
+
+      setFormData(prev => ({ 
+        ...prev, 
+        groupName: pgName, 
+        leader: pgMaster?.currentLeader || prev.leader,
+        sector: sectorName || prev.sector
+      }));
+
+      if (pgMaster?.currentLeader || sectorName) {
+          showToast(`PG identificado. Dados carregados.`, "success");
       }
   };
 
   const handleSelectLeader = (val: string) => {
-    const match = val.match(/\((.*?)\)$/);
-    if (match) {
-        const rawId = match[1];
-        const staff = proStaff.find(s => s.id === `${unit}-${rawId}` || s.id === rawId);
-        if (staff && staff.sectorId) {
-          const sector = proSectors.find(s => s.id === staff.sectorId);
-          if (sector) {
-             setFormData(prev => ({ ...prev, leader: staff.name, sector: sector.name }));
-             showToast(`Setor "${sector.name}" carregado via líder.`, "info");
-             return;
-          }
-        }
-    }
     const nameOnly = val.split(' (')[0].trim();
-    setFormData(prev => ({ ...prev, leader: nameOnly }));
+    
+    // Tenta encontrar um PG onde este líder é o atual (Banco Relacional)
+    const pgMaster = proGroups.find(g => g.currentLeader === nameOnly && g.unit === unit);
+    
+    if (pgMaster) {
+        const sectorName = findSectorForPG(pgMaster.name);
+
+        setFormData(prev => ({ 
+            ...prev, 
+            leader: nameOnly,
+            groupName: pgMaster.name,
+            sector: sectorName || prev.sector
+        }));
+        showToast("PG e Setor localizados pelo Líder.", "success");
+    } else {
+        setFormData(prev => ({ ...prev, leader: nameOnly }));
+    }
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -124,12 +168,15 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
       showToast("Preencha todos os campos obrigatórios.");
       return;
     }
+    
+    // Atualiza o Líder Atual do PG no banco se mudou
     const pgMaster = proGroups.find(g => g.name === formData.groupName && g.unit === unit);
     if (pgMaster && pgMaster.currentLeader !== formData.leader) {
         try {
             await saveRecord('proGroups', { ...pgMaster, currentLeader: formData.leader });
         } catch (err) {}
     }
+    
     onSubmit({...formData, unit});
     setFormData({ ...defaultState, date: getToday() });
   };

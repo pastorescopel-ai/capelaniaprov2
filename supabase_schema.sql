@@ -133,10 +133,22 @@ CREATE TABLE IF NOT EXISTS pro_groups (
     updated_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
 );
 
+-- 4. TABELA DE VÍNCULOS PG-SETOR (N:N)
+-- Permite que um PG atenda múltiplos setores e vice-versa
+CREATE TABLE IF NOT EXISTS pro_group_locations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id TEXT NOT NULL, 
+    sector_id TEXT NOT NULL,
+    unit TEXT NOT NULL,
+    created_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
+);
+
 -- Índices de Performance para Autocomplete
 CREATE INDEX IF NOT EXISTS idx_staff_name ON pro_staff(name);
 CREATE INDEX IF NOT EXISTS idx_sectors_name ON pro_sectors(name);
 CREATE INDEX IF NOT EXISTS idx_groups_leader ON pro_groups(current_leader);
+CREATE INDEX IF NOT EXISTS idx_loc_group ON pro_group_locations(group_id);
+CREATE INDEX IF NOT EXISTS idx_loc_sector ON pro_group_locations(sector_id);
 
 -- --- SEGURANÇA (Row Level Security) ---
 
@@ -145,6 +157,7 @@ ALTER TABLE bible_studies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pro_sectors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pro_staff ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pro_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pro_group_locations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE master_lists ENABLE ROW LEVEL SECURITY;
 
@@ -166,3 +179,7 @@ CREATE POLICY "Public Update Staff" ON pro_staff FOR UPDATE USING (true);
 CREATE POLICY "Public Read Groups" ON pro_groups FOR SELECT USING (true);
 CREATE POLICY "Public Write Groups" ON pro_groups FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public Update Groups" ON pro_groups FOR UPDATE USING (true);
+
+CREATE POLICY "Public Read Locations" ON pro_group_locations FOR SELECT USING (true);
+CREATE POLICY "Public Write Locations" ON pro_group_locations FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Delete Locations" ON pro_group_locations FOR DELETE USING (true);
