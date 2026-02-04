@@ -8,7 +8,7 @@
     "preview": "vite preview"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "20.x"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -26,6 +26,7 @@
     "vite-plugin-pwa": "^0.20.0"
   },
   "overrides": {
-    "source-map": "0.7.4"
+    "source-map": "0.7.4",
+    "glob": "^10.3.10"
   }
 }
