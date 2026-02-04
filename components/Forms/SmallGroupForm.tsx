@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Unit, SmallGroup, User, UserRole, MasterLists } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import Autocomplete, { AutocompleteOption } from '../Shared/Autocomplete';
@@ -26,7 +26,10 @@ interface FormProps {
 
 const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
   const { proSectors, proGroups, proStaff, saveRecord } = useApp();
-  const defaultState = { id: '', date: new Date().toISOString().split('T')[0], sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' };
+  
+  const getToday = () => new Date().toLocaleDateString('en-CA');
+
+  const defaultState = { id: '', date: getToday(), sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' };
   const [formData, setFormData] = useState(defaultState);
   const { showToast } = useToast();
 
@@ -41,7 +44,6 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
   const staffOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
     
-    // Banco Oficial
     proStaff.filter(s => s.unit === unit).forEach(staff => {
       const sector = proSectors.find(sec => sec.id === staff.sectorId);
       options.push({
@@ -52,7 +54,6 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
       });
     });
 
-    // Líderes históricos
     const uniqueHistoryNames = new Set<string>();
     history.forEach(g => {
       if (g.leader && !uniqueHistoryNames.has(normalizeString(g.leader))) {
@@ -73,11 +74,11 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
     if (editingItem) {
       setFormData({ 
         ...editingItem, 
-        date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0],
+        date: editingItem.date ? editingItem.date.split('T')[0] : getToday(),
         observations: editingItem.observations || ''
       });
     } else {
-      setFormData(defaultState);
+      setFormData({ ...defaultState, date: getToday() });
     }
   }, [editingItem]);
 
@@ -130,7 +131,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
         } catch (err) {}
     }
     onSubmit({...formData, unit});
-    setFormData(defaultState);
+    setFormData({ ...defaultState, date: getToday() });
   };
 
   return (
@@ -141,7 +142,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
             <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Pequeno Grupo</h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Unidade {unit}</p>
           </div>
-          <button type="button" onClick={() => setFormData(defaultState)} className="text-[9px] font-black text-rose-500 uppercase bg-rose-50 px-5 py-2.5 rounded-xl border border-rose-100">Limpar Campos</button>
+          <button type="button" onClick={() => setFormData({ ...defaultState, date: getToday() })} className="text-[9px] font-black text-rose-500 uppercase bg-rose-50 px-5 py-2.5 rounded-xl border border-rose-100">Limpar Campos</button>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data do Encontro *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>

@@ -16,6 +16,7 @@ interface AutocompleteProps {
   onSelectOption?: (v: string) => void;
   placeholder: string;
   isStrict?: boolean;
+  required?: boolean; // Nova prop para controle de validação
   className?: string;
 }
 
@@ -26,6 +27,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   onSelectOption, 
   placeholder, 
   isStrict, 
+  required = true, // Padrão continua sendo obrigatório
   className 
 }) => {
   const [open, setOpen] = useState(false);
@@ -51,7 +53,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   return (
     <div className="relative">
       <input 
-        required
+        required={required} // Usa a prop dinâmica aqui
         placeholder={placeholder}
         value={value}
         onChange={(e) => { onChange(e.target.value); setOpen(true); }}

@@ -84,20 +84,12 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshD
 
   const confirmUnification = async () => {
     if (!onUnifyIds) return;
-    setIsProcessing(true);
-    try {
-        const result = await onUnifyIds();
-        if (result.success) {
-            showToast(result.message, "success");
-            setShowResetConfirm(false);
-        } else {
-            showToast(result.message, "warning");
-        }
-    } catch (e: any) {
-        showToast("Falha: " + e.message, "warning");
-    } finally {
-        setIsProcessing(false);
-    }
+    
+    // Fecha o modal de confirmação imediatamente para dar lugar ao SyncModal (App Modal) do pai
+    setShowResetConfirm(false);
+    
+    // Apenas dispara a ação. O componente pai (ImportCenter) gerenciará o estado do SyncModal (Processing/Success/Error).
+    await onUnifyIds();
   };
 
   return (
@@ -171,15 +163,15 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshD
                <i className={`fas ${isProcessing ? 'fa-broom fa-spin' : 'fa-magic'}`}></i>
             </div>
             <div className="space-y-3">
-              <h3 className="text-2xl font-black text-rose-600 uppercase tracking-tighter">Faxina Total e Unificação</h3>
+              <h3 className="text-2xl font-black text-rose-600 uppercase tracking-tighter">Limpeza de Prefixos</h3>
               <p className="text-slate-500 font-bold text-[10px] leading-relaxed uppercase tracking-widest px-4">
-                ATENÇÃO: Colaboradores que nunca foram usados em nenhum registro serão REMOVIDOS. Os ativos serão vinculados a IDs puramente numéricos e os prefixos HAB/HABA serão apagados.
+                Esta ação varrerá o banco de colaboradores e removerá prefixos (HAB/HABA) dos IDs, mantendo apenas a numeração (Matrícula). Registros antigos serão substituídos.
               </p>
             </div>
             {!isProcessing && (
               <div className="grid grid-cols-2 gap-4">
                 <button onClick={() => setShowResetConfirm(false)} className="py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest">Cancelar</button>
-                <button onClick={confirmUnification} className="py-4 bg-rose-600 text-white font-black rounded-2xl uppercase text-[10px] shadow-xl">Iniciar Faxina</button>
+                <button onClick={confirmUnification} className="py-4 bg-rose-600 text-white font-black rounded-2xl uppercase text-[10px] shadow-xl">Iniciar Limpeza</button>
               </div>
             )}
           </div>
@@ -237,9 +229,9 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshD
             <i className="fas fa-broom"></i>
             </div>
             <div className="flex-1 space-y-2">
-            <h3 className="text-rose-900 font-black uppercase text-sm tracking-tight">Faxina Total</h3>
+            <h3 className="text-rose-900 font-black uppercase text-sm tracking-tight">Limpar Prefixos</h3>
             <p className="text-rose-700/70 font-medium text-[10px] leading-relaxed">
-                Apaga colaboradores não usados e unifica setores por número puro.
+                Remove "HAB-" e "HABA-" dos IDs dos colaboradores no banco.
             </p>
             </div>
             <button 
@@ -248,7 +240,7 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshD
                 className="w-full py-4 bg-white text-rose-600 font-black rounded-xl uppercase text-[9px] tracking-widest shadow-sm hover:bg-rose-100 transition-all active:scale-95 flex items-center justify-center gap-2 border border-rose-200"
             >
                 {isProcessing ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-magic"></i>}
-                Faxina e Limpeza
+                Limpar
             </button>
         </div>
       </div>

@@ -29,9 +29,12 @@ interface FormProps {
 
 const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, onTransfer }) => {
   const { proStaff, proSectors } = useApp();
+  
+  const getToday = () => new Date().toLocaleDateString('en-CA');
+
   const defaultState = { 
     id: '', 
-    date: new Date().toISOString().split('T')[0], 
+    date: getToday(), 
     sector: '', 
     students: [] as string[], 
     guide: '', 
@@ -84,12 +87,12 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
       setFormData({ 
         ...editingItem, 
         participantType: editingItem.participantType || ParticipantType.STAFF,
-        date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0],
+        date: editingItem.date ? editingItem.date.split('T')[0] : getToday(),
         observations: editingItem.observations || ''
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      setFormData(defaultState);
+      setFormData({ ...defaultState, date: getToday() });
     }
   }, [editingItem]);
 
@@ -102,8 +105,6 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
         return;
       }
 
-      // Lógica de Inteligência de Convergência para Classe
-      // Se for o primeiro aluno adicionado, tenta recuperar o guia/lição dele do histórico
       if (formData.students.length === 0) {
           const lastRecord = [...allHistory]
             .filter(h => h.userId === currentUser.id && h.students && h.students.some(s => normalizeString(s).includes(normalizeString(nameToAdd.split(' ')[0]))))
@@ -117,7 +118,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                   guide: lastRecord.guide || prev.guide,
                   lesson: nextLesson
               }));
-              showToast(`Histórico de estudo de ${getFirstName(nameToAdd)} recuperado. Guia e lição sugeridos.`, "info");
+              showToast(`Histórico de estudo de ${getFirstName(nameToAdd)} recuperado.`, "info");
               setNewStudent(''); 
               return;
           }
@@ -128,6 +129,14 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     } 
   };
 
+  const handleLinkToRH = (index: number, staff: any) => {
+    const officialName = `${staff.name} (${staff.id.split('-')[1] || staff.id})`;
+    const updatedStudents = [...formData.students];
+    updatedStudents[index] = officialName;
+    setFormData({ ...formData, students: updatedStudents });
+    showToast(`${getFirstName(staff.name)} vinculado ao RH com sucesso.`, "success");
+  };
+
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.date || !formData.sector || !formData.guide || !formData.lesson || formData.students.length === 0) {
@@ -135,7 +144,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
       return;
     }
     onSubmit({...formData, unit});
-    setFormData(defaultState);
+    setFormData({ ...defaultState, date: getToday() });
   };
 
   return (
@@ -184,17 +193,56 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                   value={newStudent} 
                   onChange={setNewStudent} 
                   onSelectOption={addStudent}
+                  required={false}
                   placeholder="Busque por nome ou matrícula..." 
                 />
               </div>
               <button type="button" onClick={() => addStudent()} className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg hover:bg-indigo-700 transition-all"><i className="fas fa-plus"></i></button>
             </div>
+            
+            {/* Lista de Alunos com Inteligência de Vínculos Melhorada */}
             <div className="flex flex-wrap gap-2 mt-4">
-              {formData.students.map((s, i) => (
-                <div key={i} className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl flex items-center gap-3 font-black text-[9px] uppercase border border-indigo-100 animate-in zoom-in duration-200">
-                  {s} <button type="button" onClick={() => setFormData({...formData, students: formData.students.filter((_, idx) => idx !== i)})} className="hover:text-rose-500 text-xs transition-colors"><i className="fas fa-times-circle"></i></button>
-                </div>
-              ))}
+              {formData.students.map((s, i) => {
+                // 1. Extrai o nome puro para comparação (remove matrículas manuais ou sufixos)
+                const pureName = s.split(' (')[0].split(' - ')[0].trim();
+                
+                // 2. Busca o colaborador oficial apenas na unidade atual
+                const officialStaff = proStaff.find(staff => 
+                  staff.unit === unit && 
+                  normalizeString(staff.name) === normalizeString(pureName)
+                );
+
+                // 3. Define o nome oficial esperado
+                const officialFullName = officialStaff 
+                  ? `${officialStaff.name} (${officialStaff.id.split('-')[1] || officialStaff.id})` 
+                  : null;
+
+                // 4. Se encontrou no RH e o nome atual da lista não é exatamente o oficial, oferece o vínculo
+                const needsLinking = officialStaff && s !== officialFullName;
+                const isLinked = officialStaff && s === officialFullName;
+
+                return (
+                  <div key={i} className={`px-4 py-2 rounded-xl flex items-center gap-3 font-black text-[9px] uppercase border transition-all animate-in zoom-in duration-200 ${isLinked ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                    <span>{s}</span>
+                    
+                    {needsLinking && (
+                      <button 
+                        type="button" 
+                        onClick={() => handleLinkToRH(i, officialStaff)}
+                        title={`Colaborador oficial encontrado no RH (${unit}). Clique para vincular.`}
+                        className="text-amber-500 hover:text-amber-600 transition-transform hover:scale-125 flex items-center gap-1"
+                      >
+                        <i className="fas fa-link"></i>
+                        <span className="text-[7px]">Vincular</span>
+                      </button>
+                    )}
+
+                    <button type="button" onClick={() => setFormData({...formData, students: formData.students.filter((_, idx) => idx !== i)})} className="hover:text-rose-500 text-xs transition-colors opacity-50 hover:opacity-100">
+                      <i className="fas fa-times-circle"></i>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome da Classe *</label><Autocomplete options={allHistory.map(h => ({value: h.guide, label: h.guide}))} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Ex: Classe de Sabado" /></div>

@@ -28,9 +28,12 @@ interface FormProps {
 
 const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, onTransfer }) => {
   const { proStaff, proSectors } = useApp();
+  
+  const getToday = () => new Date().toLocaleDateString('en-CA');
+
   const defaultState = { 
     id: '', 
-    date: new Date().toISOString().split('T')[0], 
+    date: getToday(), 
     sector: '', 
     name: '', 
     whatsapp: '', 
@@ -88,12 +91,12 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       setFormData({
         ...editingItem,
         participantType: editingItem.participantType || ParticipantType.STAFF,
-        date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0],
+        date: editingItem.date ? editingItem.date.split('T')[0] : getToday(),
         observations: editingItem.observations || ''
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      setFormData(defaultState);
+      setFormData({ ...defaultState, date: getToday() });
     }
   }, [editingItem]);
 
@@ -116,14 +119,12 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         }
     }
 
-    // 2. Lógica de Convergência Total: Busca no histórico pelo ÚLTIMO atendimento desse aluno (pelo nome)
-    // Procuramos em todo o histórico do capelão logado para esse nome (independente de ser oficial ou não antes)
+    // 2. Lógica de Convergência Total
     const lastRecord = [...allHistory]
       .filter(h => h.userId === currentUser.id && normalizeString(h.name).includes(normalizeString(targetName.split(' ')[0])))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
     if (lastRecord) {
-        // Se encontrou histórico, assume WhatsApp, Guia e incrementa a Lição
         const nextLesson = !isNaN(Number(lastRecord.lesson)) ? (Number(lastRecord.lesson) + 1).toString() : lastRecord.lesson;
         
         setFormData(prev => ({ 
@@ -137,12 +138,11 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         }));
         
         if (foundOfficial) {
-            showToast(`Vínculo oficial confirmado. Dados de WhatsApp e Estudo (${lastRecord.guide}) recuperados do seu histórico.`, "success");
+            showToast(`Vínculo oficial confirmado. Dados recuperados do seu histórico.`, "success");
         } else {
-            showToast(`Histórico de atendimento localizado. Dados preenchidos automaticamente.`, "info");
+            showToast(`Histórico localizado. Dados preenchidos automaticamente.`, "info");
         }
     } else {
-        // Se não houver histórico, apenas preenche o que o banco oficial fornecer
         setFormData(prev => ({ 
             ...prev, 
             name: targetName, 
@@ -159,17 +159,13 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       showToast("Preencha os campos obrigatórios.");
       return;
     }
-    if (formData.participantType === ParticipantType.STAFF && !formData.sector) {
-      showToast("Por favor, informe o setor do colaborador.");
-      return;
-    }
     const finalData = { 
         ...formData, 
         unit,
         sector: !formData.sector ? 'Atendimento Externo' : formData.sector 
     };
     onSubmit(finalData);
-    setFormData(defaultState);
+    setFormData({ ...defaultState, date: getToday() });
   };
 
   return (
@@ -210,7 +206,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
                 onSelectOption={handleSelectStudent} 
                 placeholder="Busque por nome ou matrícula..." 
             />
-            <p className="text-[8px] text-slate-400 font-bold ml-2 uppercase tracking-tighter italic">Selecione registros com <i className="fas fa-magic text-blue-500"></i> para preenchimento automático de Setor e histórico.</p>
+            <p className="text-[8px] text-slate-400 font-bold ml-2 uppercase tracking-tighter italic">Selecione registros com <i className="fas fa-magic text-blue-500"></i> para preenchimento automático.</p>
           </div>
 
           <div className="space-y-1">

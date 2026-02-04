@@ -146,7 +146,50 @@ export const useAppData = () => {
   };
 
   const unifyNumericIdsAndCleanPrefixes = async (): Promise<{ success: boolean; message: string }> => {
-     return await nuclearReset();
+    if (!supabase) return { success: false, message: "Offline mode." };
+    setIsSyncing(true);
+    try {
+      const { data: staff } = await supabase.from('pro_staff').select('*');
+      if (!staff) throw new Error("No staff data.");
+
+      const toInsert: any[] = [];
+      const toDelete: string[] = [];
+
+      // Regex para identificar prefixos indesejados
+      const prefixRegex = /^(HAB|HABA)[-\s]*/i;
+
+      for (const s of staff) {
+        const rawId = s.id.toUpperCase();
+        if (prefixRegex.test(rawId)) {
+           const cleanId = rawId.replace(prefixRegex, '').trim();
+           if (cleanId) {
+             toInsert.push({ ...s, id: cleanId }); // Copia dados para novo ID limpo
+             toDelete.push(s.id); // Marca ID sujo para deletar
+           }
+        }
+      }
+
+      if (toInsert.length > 0) {
+        // Upsert cleaned records
+        const { error: insErr } = await supabase.from('pro_staff').upsert(toInsert);
+        if (insErr) throw insErr;
+
+        // Delete dirty records
+        const { error: delErr } = await supabase.from('pro_staff').delete().in('id', toDelete);
+        if (delErr) throw delErr;
+      }
+
+      await loadFromCloud(true);
+      return { 
+        success: true, 
+        message: `Sanitização completa! ${toInsert.length} colaboradores corrigidos (prefixos removidos).` 
+      };
+
+    } catch (e: any) {
+      return { success: false, message: e.message };
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const migrateLegacyStructure = async (): Promise<{ success: boolean; message: string; details?: string }> => {

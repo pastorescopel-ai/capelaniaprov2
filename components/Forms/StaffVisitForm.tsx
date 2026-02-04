@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Unit, StaffVisit, User, UserRole, MasterLists, VisitReason } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import Autocomplete, { AutocompleteOption } from '../Shared/Autocomplete';
@@ -26,7 +26,10 @@ interface FormProps {
 
 const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit, onToggleReturn }) => {
   const { proStaff, proSectors } = useApp();
-  const defaultState = { id: '', date: new Date().toISOString().split('T')[0], sector: '', reason: VisitReason.ROTINA, staffName: '', requiresReturn: false, returnDate: new Date().toISOString().split('T')[0], returnCompleted: false, observations: '' };
+  
+  const getToday = () => new Date().toLocaleDateString('en-CA');
+
+  const defaultState = { id: '', date: getToday(), sector: '', reason: VisitReason.ROTINA, staffName: '', requiresReturn: false, returnDate: getToday(), returnCompleted: false, observations: '' };
   const [formData, setFormData] = useState(defaultState);
   const { showToast } = useToast();
 
@@ -37,7 +40,6 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   const staffOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
     
-    // Banco Oficial
     proStaff.filter(s => s.unit === unit).forEach(staff => {
       const sector = proSectors.find(sec => sec.id === staff.sectorId);
       options.push({
@@ -48,7 +50,6 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       });
     });
 
-    // Histórico
     const uniqueNames = new Set<string>();
     history.forEach(v => {
       if (v.staffName && !uniqueNames.has(normalizeString(v.staffName))) {
@@ -69,12 +70,12 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     if (editingItem) {
       setFormData({ 
         ...editingItem, 
-        date: editingItem.date ? editingItem.date.split('T')[0] : new Date().toISOString().split('T')[0], 
-        returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : new Date().toISOString().split('T')[0],
+        date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), 
+        returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : getToday(),
         observations: editingItem.observations || ''
       });
     } else {
-      setFormData(defaultState);
+      setFormData({ ...defaultState, date: getToday(), returnDate: getToday() });
     }
   }, [editingItem]);
 
@@ -104,7 +105,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       return;
     }
     onSubmit({...formData, unit});
-    setFormData(defaultState);
+    setFormData({ ...defaultState, date: getToday(), returnDate: getToday() });
   };
 
   return (
@@ -115,7 +116,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
             <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Visita Pastoral</h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Unidade {unit}</p>
           </div>
-          <button type="button" onClick={() => setFormData(defaultState)} className="text-[9px] font-black text-rose-500 uppercase bg-rose-50 px-5 py-2.5 rounded-xl border border-rose-100">Limpar</button>
+          <button type="button" onClick={() => setFormData({ ...defaultState, date: getToday() })} className="text-[9px] font-black text-rose-500 uppercase bg-rose-50 px-5 py-2.5 rounded-xl border border-rose-100">Limpar</button>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data da Visita *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>

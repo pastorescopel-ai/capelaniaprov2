@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../../contexts/AppContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -8,7 +9,7 @@ import ConfirmationModal from '../Shared/ConfirmationModal';
 
 const ImportCenter: React.FC = () => {
   const { 
-    masterLists, saveToCloud, migrateLegacyStructure, nuclearReset, 
+    masterLists, saveToCloud, migrateLegacyStructure, nuclearReset, unifyNumericIdsAndCleanPrefixes,
     importFromDNA, proStaff, proSectors, proGroups, users, 
     bibleStudies, bibleClasses, smallGroups, staffVisits, loadFromCloud 
   } = useApp();
@@ -98,6 +99,27 @@ const ImportCenter: React.FC = () => {
     }
   };
 
+  const handlePrefixCleaning = async () => {
+      setSyncState({ 
+          isOpen: true, 
+          status: 'processing', 
+          title: 'Sanitizando IDs', 
+          message: 'Removendo prefixos HAB/HABA e unificando registros de colaboradores...' 
+      });
+      try {
+          const res = await unifyNumericIdsAndCleanPrefixes();
+          if (res.success) {
+              setSyncState({ isOpen: true, status: 'success', title: 'Limpeza Concluída', message: res.message });
+          } else {
+              setSyncState({ isOpen: true, status: 'error', title: 'Erro na Limpeza', message: res.message });
+          }
+          return res;
+      } catch (e: any) {
+          setSyncState({ isOpen: true, status: 'error', title: 'Falha Crítica', message: e.message });
+          return { success: false, message: e.message };
+      }
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
       <SyncModal 
@@ -182,6 +204,7 @@ const ImportCenter: React.FC = () => {
               onRefreshData={loadFromCloud}
               onRestoreFullDNA={importFromDNA}
               onMigrateLegacy={migrateLegacyStructure}
+              onUnifyIds={handlePrefixCleaning}
               isRefreshing={false}
             />
         </div>

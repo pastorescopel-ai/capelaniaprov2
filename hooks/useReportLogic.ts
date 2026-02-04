@@ -1,6 +1,7 @@
 
 import { useMemo } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, Unit, RecordStatus, ActivityFilter, User } from '../types';
+import { normalizeString } from '../utils/formatters';
 
 interface ReportFilters {
   startDate: string;
@@ -64,8 +65,21 @@ export const useReportLogic = (
 
   const totalStats = useMemo(() => {
     const uniqueStudents = new Set<string>();
-    filteredData.studies.forEach(s => s.name && uniqueStudents.add(s.name.trim().toLowerCase()));
-    filteredData.classes.forEach(c => Array.isArray(c.students) && c.students.forEach(n => n && uniqueStudents.add(n.trim().toLowerCase())));
+    
+    // Normalização Universal: Remove acentos, (ID), espaços e ignora maiúsculas
+    const addUniqueName = (rawName: string) => {
+      if (!rawName) return;
+      const cleanName = rawName.split(' (')[0].trim(); // Remove matrícula se houver
+      uniqueStudents.add(normalizeString(cleanName));
+    };
+
+    filteredData.studies.forEach(s => s.name && addUniqueName(s.name));
+    
+    filteredData.classes.forEach(c => {
+      if (Array.isArray(c.students)) {
+        c.students.forEach(n => addUniqueName(n));
+      }
+    });
     
     return {
       studies: filteredData.studies.length,
