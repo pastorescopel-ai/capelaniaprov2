@@ -18,13 +18,12 @@ import { useAppFlow } from './hooks/useAppFlow';
 const Reports = lazy(() => import('./components/Reports'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
-const ImportCenter = lazy(() => import('./components/Admin/ImportCenter'));
+const PGManager = lazy(() => import('./components/PGManagement/PGManagerLayout'));
 
 const App: React.FC = () => {
   const {
     users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists,
-    proStaff, proSectors, proGroups,
-    config, isSyncing, isConnected, loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, importFromDNA
+    proSectors, config, isSyncing, isConnected, loadFromCloud, saveToCloud, saveRecord, deleteRecord
   } = useApp();
 
   const { isAuthenticated, currentUser, login, logout, updateCurrentUser, loginError } = useAuth();
@@ -45,9 +44,8 @@ const App: React.FC = () => {
           if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
         }, 100);
     }
-  }, [activeTab]);
+  }, [activeTab, setEditingItem]);
 
-  // Fontes de Dados Relacionais Filtradas
   const unitSectors = useMemo(() => 
     proSectors.filter(s => s.unit === currentUnit).map(s => s.name).sort(), 
   [proSectors, currentUnit]);
@@ -105,16 +103,13 @@ const App: React.FC = () => {
           
           {activeTab === 'reports' && <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} currentUser={currentUser} masterLists={masterLists} config={config} onRefresh={() => loadFromCloud(true)} />}
           
+          {activeTab === 'pgManagement' && <PGManager />}
+
           {activeTab === 'users' && <UserManagement users={users} currentUser={currentUser} onUpdateUsers={async u => { await saveToCloud({ users: u }, true); }} />}
           
           {activeTab === 'profile' && currentUser && <Profile user={currentUser} isSyncing={isSyncing} onUpdateUser={u => { updateCurrentUser(u); saveRecord('users', u); }} />}
           
-          {activeTab === 'admin' && (
-            <div className="space-y-12">
-                <ImportCenter />
-                <AdminPanel config={config} masterLists={masterLists} users={users} currentUser={currentUser} bibleStudies={bibleStudies} bibleClasses={bibleClasses} smallGroups={smallGroups} staffVisits={staffVisits} onSaveAllData={async (c, l) => { await saveToCloud({ config: applySystemOverrides(c), masterLists: l }, true); }} onRestoreFullDNA={async (db) => { return await importFromDNA(db); }} onRefreshData={() => loadFromCloud(true)} />
-            </div>
-          )}
+          {activeTab === 'admin' && <AdminPanel />}
         </Suspense>
       </div>
     </Layout>

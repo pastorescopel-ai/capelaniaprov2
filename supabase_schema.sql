@@ -54,6 +54,22 @@ CREATE TABLE IF NOT EXISTS bible_studies (
     updated_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
 );
 
+CREATE TABLE IF NOT EXISTS small_groups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    unit TEXT NOT NULL,
+    sector TEXT NOT NULL,
+    group_name TEXT NOT NULL,
+    leader TEXT NOT NULL,
+    leader_phone TEXT,
+    shift TEXT NOT NULL,
+    participants_count INTEGER NOT NULL,
+    observations TEXT,
+    created_at BIGINT DEFAULT (extract(epoch from now()) * 1000),
+    updated_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
+);
+
 -- Tabela de Configuração Global
 CREATE TABLE IF NOT EXISTS app_config (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -127,6 +143,7 @@ CREATE TABLE IF NOT EXISTS pro_groups (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL, -- Coluna "nome PG"
     current_leader TEXT, 
+    leader_phone TEXT,
     sector_id TEXT REFERENCES pro_sectors(id) ON UPDATE CASCADE, 
     unit TEXT NOT NULL,
     active BOOLEAN DEFAULT true,
@@ -143,27 +160,112 @@ CREATE TABLE IF NOT EXISTS pro_group_locations (
     created_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
 );
 
+-- 5. TABELA DE MEMBROS DO PG (Vínculo Pessoa <-> PG) [NOVO]
+CREATE TABLE IF NOT EXISTS pro_group_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id TEXT NOT NULL,
+    staff_id TEXT NOT NULL,
+    joined_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
+);
+
 -- Índices de Performance para Autocomplete
 CREATE INDEX IF NOT EXISTS idx_staff_name ON pro_staff(name);
 CREATE INDEX IF NOT EXISTS idx_sectors_name ON pro_sectors(name);
 CREATE INDEX IF NOT EXISTS idx_groups_leader ON pro_groups(current_leader);
 CREATE INDEX IF NOT EXISTS idx_loc_group ON pro_group_locations(group_id);
 CREATE INDEX IF NOT EXISTS idx_loc_sector ON pro_group_locations(sector_id);
+CREATE INDEX IF NOT EXISTS idx_pg_members_staff ON pro_group_members(staff_id);
+CREATE INDEX IF NOT EXISTS idx_pg_members_group ON pro_group_members(group_id);
+
+-- --- FUNÇÕES RPC (Server-Side Logic) ---
+
+CREATE OR REPLACE FUNCTION unify_ids_total()
+RETURNS text
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    r RECORD;
+    target_id text;
+    moved_count int := 0;
+BEGIN
+    -- 1. UNIFICAR PGs (pro_groups)
+    -- Remove prefixos HAB- ou HABA- dos IDs
+    FOR r IN SELECT * FROM pro_groups WHERE id ~* '^(HAB|HABA)[-\s]+[0-9]+' LOOP
+        target_id := regexp_replace(r.id, '^(HAB|HABA)[-\s]*', '', 'i');
+        
+        -- Pula se ID alvo for inválido
+        IF target_id = '' OR target_id IS NULL OR target_id = r.id THEN CONTINUE; END IF;
+
+        IF EXISTS (SELECT 1 FROM pro_groups WHERE id = target_id) THEN
+            -- Se o PG Numérico já existe:
+            -- 1. Evita duplicidade de vínculos nos setores
+            DELETE FROM pro_group_locations 
+            WHERE group_id = r.id 
+            AND sector_id IN (SELECT sector_id FROM pro_group_locations WHERE group_id = target_id);
+            
+            -- 2. Move os vínculos restantes para o novo ID
+            UPDATE pro_group_locations SET group_id = target_id WHERE group_id = r.id;
+            
+            -- 3. Remove o PG antigo
+            DELETE FROM pro_groups WHERE id = r.id;
+        ELSE
+            -- Se o PG Numérico não existe:
+            -- 1. Cria o novo PG copiando dados do antigo
+            INSERT INTO pro_groups (id, name, current_leader, sector_id, unit, active, updated_at)
+            VALUES (target_id, r.name, r.current_leader, r.sector_id, r.unit, r.active, r.updated_at);
+            
+            -- 2. Move todos os vínculos
+            UPDATE pro_group_locations SET group_id = target_id WHERE group_id = r.id;
+            
+            -- 3. Remove o PG antigo
+            DELETE FROM pro_groups WHERE id = r.id;
+        END IF;
+        
+        moved_count := moved_count + 1;
+    END LOOP;
+
+    -- 2. UNIFICAR COLABORADORES (pro_staff)
+    -- Remove prefixos HAB- ou HABA- das Matrículas
+    FOR r IN SELECT * FROM pro_staff WHERE id ~* '^(HAB|HABA)[-\s]+[0-9]+' LOOP
+        target_id := regexp_replace(r.id, '^(HAB|HABA)[-\s]*', '', 'i');
+        
+        IF target_id = '' OR target_id IS NULL OR target_id = r.id THEN CONTINUE; END IF;
+
+        IF EXISTS (SELECT 1 FROM pro_staff WHERE id = target_id) THEN
+            -- Se já existe matrícula limpa, deleta a antiga (assume que a oficial prevalece)
+            DELETE FROM pro_staff WHERE id = r.id;
+        ELSE
+            -- Cria novo registro limpo
+            INSERT INTO pro_staff (id, name, sector_id, unit, active, updated_at)
+            VALUES (target_id, r.name, r.sector_id, r.unit, r.active, r.updated_at);
+            
+            DELETE FROM pro_staff WHERE id = r.id;
+        END IF;
+        
+        moved_count := moved_count + 1;
+    END LOOP;
+    
+    RETURN 'Limpeza Server-Side Completa: ' || moved_count || ' registros migrados.';
+END;
+$$;
 
 -- --- SEGURANÇA (Row Level Security) ---
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bible_studies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE small_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pro_sectors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pro_staff ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pro_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pro_group_locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pro_group_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE master_lists ENABLE ROW LEVEL SECURITY;
 
 -- Políticas Públicas (Acesso Aberto para App Autenticado)
 CREATE POLICY "Public Access Users" ON users FOR ALL USING (true);
 CREATE POLICY "Public Access Studies" ON bible_studies FOR ALL USING (true);
+CREATE POLICY "Public Access SmallGroups" ON small_groups FOR ALL USING (true);
 CREATE POLICY "Public Access Config" ON app_config FOR ALL USING (true);
 CREATE POLICY "Public Access MasterLists" ON master_lists FOR ALL USING (true);
 
@@ -183,3 +285,7 @@ CREATE POLICY "Public Update Groups" ON pro_groups FOR UPDATE USING (true);
 CREATE POLICY "Public Read Locations" ON pro_group_locations FOR SELECT USING (true);
 CREATE POLICY "Public Write Locations" ON pro_group_locations FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public Delete Locations" ON pro_group_locations FOR DELETE USING (true);
+
+CREATE POLICY "Public Read Members" ON pro_group_members FOR SELECT USING (true);
+CREATE POLICY "Public Write Members" ON pro_group_members FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Delete Members" ON pro_group_members FOR DELETE USING (true);

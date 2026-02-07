@@ -1,9 +1,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, UserRole, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, Unit } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProPatient, ProProvider, ParticipantType, Unit } from '../types';
 import { DataRepository } from '../services/dataRepository';
 import { INITIAL_CONFIG } from '../constants';
 import { supabase } from '../services/supabaseClient';
+import { normalizeString } from '../utils/formatters';
 
 export const useAppData = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -17,9 +18,12 @@ export const useAppData = () => {
   });
   
   const [proStaff, setProStaff] = useState<ProStaff[]>([]);
+  const [proPatients, setProPatients] = useState<ProPatient[]>([]);
+  const [proProviders, setProProviders] = useState<ProProvider[]>([]);
   const [proSectors, setProSectors] = useState<ProSector[]>([]);
   const [proGroups, setProGroups] = useState<ProGroup[]>([]);
   const [proGroupLocations, setProGroupLocations] = useState<ProGroupLocation[]>([]);
+  const [proGroupMembers, setProGroupMembers] = useState<ProGroupMember[]>([]);
   
   const [config, setConfig] = useState<Config>(INITIAL_CONFIG);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -45,9 +49,12 @@ export const useAppData = () => {
         setStaffVisits(data.staffVisits || []);
         setVisitRequests(data.visitRequests || []);
         setProStaff(data.proStaff || []);
+        setProPatients(data.proPatients || []);
+        setProProviders(data.proProviders || []);
         setProSectors(data.proSectors || []);
         setProGroups(data.proGroups || []);
         setProGroupLocations(data.proGroupLocations || []);
+        setProGroupMembers(data.proGroupMembers || []);
         if (data.masterLists) setMasterLists(data.masterLists);
         if (data.config) {
           setConfig(data.config);
@@ -74,6 +81,43 @@ export const useAppData = () => {
     return success;
   };
 
+  /**
+   * ULTIMATE_ENTITY_SYNC_ENGINE (V4.0)
+   * Motor de persistência centralizada para contatos.
+   * Garante que o banco mestre RH reflita qualquer correção feita em formulários.
+   */
+  const syncMasterContact = async (name: string, phone: string, unit: Unit, type: ParticipantType, extra?: string) => {
+    const cleanPhone = String(phone || '').replace(/\D/g, '');
+    if (!name || !cleanPhone) return;
+
+    const normName = normalizeString(name);
+
+    if (type === ParticipantType.STAFF) {
+        // Localiza pelo nome normalizado e unidade
+        const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
+        if (staff && cleanPhone !== (staff.whatsapp || '')) {
+            // Atualização silenciosa do RH oficial
+            await saveRecord('proStaff', { ...staff, whatsapp: cleanPhone });
+        }
+    } else if (type === ParticipantType.PATIENT) {
+        const patient = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
+        if (!patient || cleanPhone !== (patient.whatsapp || '')) {
+            const payload: ProPatient = patient 
+                ? { ...patient, whatsapp: cleanPhone, updatedAt: Date.now() }
+                : { id: crypto.randomUUID(), name, unit, whatsapp: cleanPhone, updatedAt: Date.now() };
+            await saveRecord('proPatients', payload);
+        }
+    } else if (type === ParticipantType.PROVIDER) {
+        const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
+        if (!provider || cleanPhone !== (provider.whatsapp || '') || (extra && extra !== provider.sector)) {
+            const payload: ProProvider = provider
+                ? { ...provider, whatsapp: cleanPhone, sector: extra || provider.sector, updatedAt: Date.now() }
+                : { id: crypto.randomUUID(), name, unit, whatsapp: cleanPhone, sector: extra, updatedAt: Date.now() };
+            await saveRecord('proProviders', payload);
+        }
+    }
+  };
+
   const deleteRecord = async (collection: string, id: string) => {
     const success = await DataRepository.deleteRecord(collection, id);
     if (success) await loadFromCloud(false);
@@ -88,188 +132,16 @@ export const useAppData = () => {
       if (overrides?.users) await saveRecord('users', overrides.users);
       if (overrides?.proSectors) await saveRecord('proSectors', overrides.proSectors);
       if (overrides?.proStaff) await saveRecord('proStaff', overrides.proStaff);
+      if (overrides?.proPatients) await saveRecord('proPatients', overrides.proPatients);
+      if (overrides?.proProviders) await saveRecord('proProviders', overrides.proProviders);
       if (overrides?.proGroups) await saveRecord('proGroups', overrides.proGroups);
       if (overrides?.proGroupLocations) await saveRecord('proGroupLocations', overrides.proGroupLocations);
+      if (overrides?.proGroupMembers) await saveRecord('proGroupMembers', overrides.proGroupMembers);
       return true;
     } finally {
       if (showLoader) setIsSyncing(false);
     }
   }, [saveRecord]);
-
-  const nuclearReset = async (): Promise<{ success: boolean; message: string }> => {
-    if (!supabase) return { success: false, message: "Supabase não conectado." };
-    setIsSyncing(true);
-    try {
-      // 1. Pegar dados da MasterList ANTES de apagar qualquer coisa
-      const { data: mlRecords } = await supabase.from('master_lists').select('*').limit(1);
-      const mlData = mlRecords && mlRecords.length > 0 ? mlRecords[0] : null;
-      
-      if (!mlData) {
-          throw new Error("As Listas de Texto (Excel) estão vazias no servidor. Adicione os setores na aba Excel antes de executar o reset.");
-      }
-
-      // 2. Limpeza das tabelas relacionais
-      console.log("Integridade verificada. Iniciando PURGE...");
-      await supabase.from('pro_staff').delete().neq('id', '_PURGE_');
-      await supabase.from('pro_groups').delete().neq('id', '_PURGE_');
-      await supabase.from('pro_sectors').delete().neq('id', '_PURGE_');
-      await supabase.from('pro_group_locations').delete().neq('id', '_PURGE_');
-
-      const newSectors: ProSector[] = [];
-      const processList = (list: string[], unit: Unit) => {
-        if (!Array.isArray(list)) return;
-        list.forEach(item => {
-          if (!item || !item.trim()) return;
-          const parts = item.split(/[_-]/);
-          const rawId = parts[0].trim().toUpperCase().replace('HAB', '').replace('HABA', '').replace('A', '');
-          const cleanId = rawId.replace(/\D/g, ''); 
-          const name = parts.slice(1).join(' ').trim();
-          
-          if (cleanId && name) {
-            newSectors.push({ id: cleanId, name, unit });
-          }
-        });
-      };
-
-      processList(mlData.sectors_hab || [], Unit.HAB);
-      processList(mlData.sectors_haba || [], Unit.HABA);
-
-      // 3. Inserir Setores Limpos
-      if (newSectors.length > 0) {
-        await DataRepository.upsertRecord('proSectors', newSectors);
-      }
-
-      await loadFromCloud(true);
-      return { success: true, message: `Reset concluído! ${newSectors.length} setores reconstruídos.` };
-    } catch (e: any) {
-      console.error("Erro no Reset Nuclear:", e);
-      return { success: false, message: e.message };
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const unifyNumericIdsAndCleanPrefixes = async (): Promise<{ success: boolean; message: string }> => {
-    if (!supabase) return { success: false, message: "Offline mode." };
-    setIsSyncing(true);
-    try {
-      const { data: staff } = await supabase.from('pro_staff').select('*');
-      if (!staff) throw new Error("No staff data.");
-
-      const toInsert: any[] = [];
-      const toDelete: string[] = [];
-
-      // Regex para identificar prefixos indesejados
-      const prefixRegex = /^(HAB|HABA)[-\s]*/i;
-
-      for (const s of staff) {
-        const rawId = s.id.toUpperCase();
-        if (prefixRegex.test(rawId)) {
-           const cleanId = rawId.replace(prefixRegex, '').trim();
-           if (cleanId) {
-             toInsert.push({ ...s, id: cleanId }); // Copia dados para novo ID limpo
-             toDelete.push(s.id); // Marca ID sujo para deletar
-           }
-        }
-      }
-
-      if (toInsert.length > 0) {
-        // Upsert cleaned records
-        const { error: insErr } = await supabase.from('pro_staff').upsert(toInsert);
-        if (insErr) throw insErr;
-
-        // Delete dirty records
-        const { error: delErr } = await supabase.from('pro_staff').delete().in('id', toDelete);
-        if (delErr) throw delErr;
-      }
-
-      await loadFromCloud(true);
-      return { 
-        success: true, 
-        message: `Sanitização completa! ${toInsert.length} colaboradores corrigidos (prefixos removidos).` 
-      };
-
-    } catch (e: any) {
-      return { success: false, message: e.message };
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const migrateLegacyStructure = async (): Promise<{ success: boolean; message: string; details?: string }> => {
-    setIsSyncing(true);
-    try {
-      const current = await DataRepository.syncAll();
-      if (!current || !current.masterLists) throw new Error("Listas não encontradas.");
-
-      const { sectorsHAB, sectorsHABA } = current.masterLists;
-      const newSectorsMap = new Map<string, ProSector>();
-
-      const parseLegacy = (list: string[], unit: Unit) => {
-        list.forEach(item => {
-          if (!item || !item.trim()) return;
-          const clean = item.trim();
-          let rawId = '', name = '';
-          
-          if (clean.includes('_')) {
-            const p = clean.split('_');
-            rawId = p[0];
-            name = p.slice(1).filter(x => x !== 'HAB' && x !== 'HABA').join(' ');
-          } else if (clean.includes(' - ')) {
-            const p = clean.split(' - ');
-            rawId = p[0];
-            name = p.slice(1).join(' ');
-          } else if (/^\d+\s/.test(clean)) {
-            const idx = clean.indexOf(' ');
-            rawId = clean.substring(0, idx);
-            name = clean.substring(idx + 1);
-          }
-
-          if (rawId && name) {
-            const cleanId = rawId.trim().toUpperCase().replace('HAB', '').replace('HABA', '').replace('-', '');
-            newSectorsMap.set(cleanId, { id: cleanId, name: name.trim(), unit });
-          }
-        });
-      };
-
-      if (Array.isArray(sectorsHAB)) parseLegacy(sectorsHAB, Unit.HAB);
-      if (Array.isArray(sectorsHABA)) parseLegacy(sectorsHABA, Unit.HABA);
-
-      const sectorsToUpsert: ProSector[] = Array.from(newSectorsMap.values());
-      if (sectorsToUpsert.length === 0) return { success: false, message: "Nenhum setor novo para migrar." };
-
-      await DataRepository.upsertRecord('proSectors', sectorsToUpsert);
-      
-      await loadFromCloud(true);
-      return { 
-        success: true, 
-        message: "Migração concluída!", 
-        details: `${sectorsToUpsert.length} setores normalizados.` 
-      };
-    } catch (e: any) {
-      return { success: false, message: e.message };
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const importFromDNA = async (dnaData: any) => {
-      setIsSyncing(true);
-      try {
-          const db = dnaData.database || dnaData;
-          if(db.proSectors) await DataRepository.upsertRecord('proSectors', db.proSectors);
-          if(db.proStaff) await DataRepository.upsertRecord('proStaff', db.proStaff);
-          if(db.proGroups) await DataRepository.upsertRecord('proGroups', db.proGroups);
-          if(db.proGroupLocations) await DataRepository.upsertRecord('proGroupLocations', db.proGroupLocations);
-          if(db.users) await DataRepository.upsertRecord('users', db.users);
-          await loadFromCloud(true);
-          return { success: true, message: "Restauração completa!" };
-      } catch(e:any) {
-          return { success: false, message: e.message };
-      } finally {
-          setIsSyncing(false);
-      }
-  };
 
   useEffect(() => {
     if (!isInitialized) { loadFromCloud(true); setIsInitialized(true); }
@@ -277,8 +149,7 @@ export const useAppData = () => {
 
   return {
     users, bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests, masterLists,
-    proStaff, proSectors, proGroups, proGroupLocations, config, isSyncing, isConnected, 
-    loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, 
-    importFromDNA, migrateLegacyStructure, unifyNumericIdsAndCleanPrefixes, nuclearReset
+    proStaff, proPatients, proProviders, proSectors, proGroups, proGroupLocations, proGroupMembers, config, isSyncing, isConnected, 
+    loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, syncMasterContact
   };
 };

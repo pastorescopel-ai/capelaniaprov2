@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Unit, SmallGroup, User, UserRole, MasterLists } from '../../types';
+import { Unit, SmallGroup, User, UserRole, MasterLists, ProGroup, ProStaff, ParticipantType } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import Autocomplete, { AutocompleteOption } from '../Shared/Autocomplete';
 import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import { isRecordLocked } from '../../utils/validators';
 import { useApp } from '../../contexts/AppContext';
-import { normalizeString } from '../../utils/formatters';
+import { normalizeString, formatWhatsApp } from '../../utils/formatters';
 
 interface FormProps {
   unit: Unit;
@@ -25,159 +25,105 @@ interface FormProps {
 }
 
 const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, masterLists, history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
-  const { proSectors, proGroups, proStaff, proGroupLocations, saveRecord } = useApp();
+  // Corrigido: syncMasterContact agora é desestruturado do useApp, permitindo sincronização de contatos com o banco RH
+  const { proSectors, proGroups, proStaff, saveRecord, visitRequests, syncMasterContact } = useApp();
   
   const getToday = () => new Date().toLocaleDateString('en-CA');
 
-  const defaultState = { id: '', date: getToday(), sector: '', groupName: '', leader: '', shift: 'Manhã', participantsCount: 0, observations: '' };
+  const defaultState = { id: '', date: getToday(), sector: '', groupName: '', leader: '', leaderPhone: '', shift: 'Manhã', participantsCount: 0, observations: '' };
   const [formData, setFormData] = useState(defaultState);
   const { showToast } = useToast();
 
-  // Opções de Setor (Relacional + Legacy Fallback)
   const sectorOptions = useMemo(() => {
-    const fromPro = proSectors.filter(s => s.unit === unit).map(s => s.name);
-    const listText = unit === 'HAB' ? masterLists.sectorsHAB : masterLists.sectorsHABA;
-    const fromLegacy = (listText || []).map(l => l.trim()).filter(l => l);
-    const unique = Array.from(new Set([...fromPro, ...fromLegacy])).sort();
-    return unique.map(s => ({ value: s, label: s }));
-  }, [proSectors, masterLists, unit]);
+    return proSectors.filter(s => s.unit === unit).map(s => ({ value: s.name, label: s.name }));
+  }, [proSectors, unit]);
 
-  // Opções de PG (Relacional + Legacy Fallback)
   const pgOptions = useMemo(() => {
-    const fromPro = proGroups.filter(g => g.unit === unit).map(g => g.name);
-    const listText = unit === 'HAB' ? masterLists.groupsHAB : masterLists.groupsHABA;
-    const fromLegacy = (listText || []).map(l => l.split('|')[0].trim()).filter(l => l);
-    const unique = Array.from(new Set([...fromPro, ...fromLegacy])).sort();
-    return unique.map(g => ({ value: g, label: g }));
-  }, [proGroups, masterLists, unit]);
+    return proGroups.filter(g => g.unit === unit).map(g => ({ value: g.name, label: g.name }));
+  }, [proGroups, unit]);
 
   const staffOptions = useMemo(() => {
-    const options: AutocompleteOption[] = [];
-    
-    proStaff.filter(s => s.unit === unit).forEach(staff => {
-      const sector = proSectors.find(sec => sec.id === staff.sectorId);
+    return proStaff.filter(s => s.unit === unit).map(staff => {
       const staffIdStr = String(staff.id);
-      options.push({
+      return {
         value: staff.name,
         label: `${staff.name} (${staffIdStr.split('-')[1] || staffIdStr})`,
-        subLabel: sector ? sector.name : 'Setor não informado',
-        category: 'RH'
-      });
+        // Fix: Usando casting 'as const' para garantir que a string literal seja compatível com o tipo da união no AutocompleteOption
+        category: 'RH' as const
+      };
     });
-
-    const uniqueHistoryNames = new Set<string>();
-    history.forEach(g => {
-      if (g.leader && !uniqueHistoryNames.has(normalizeString(g.leader))) {
-        uniqueHistoryNames.add(normalizeString(g.leader));
-        options.push({
-          value: g.leader.trim(),
-          label: g.leader.trim(),
-          subLabel: g.sector,
-          category: 'History'
-        });
-      }
-    });
-
-    return options;
-  }, [proStaff, proSectors, unit, history]);
+  }, [proStaff, unit]);
 
   useEffect(() => {
     if (editingItem) {
       setFormData({ 
         ...editingItem, 
         date: editingItem.date ? editingItem.date.split('T')[0] : getToday(),
-        observations: editingItem.observations || ''
+        observations: editingItem.observations || '',
+        leaderPhone: editingItem.leaderPhone || ''
       });
     } else {
       setFormData({ ...defaultState, date: getToday() });
     }
   }, [editingItem]);
 
-  // Função Auxiliar: Busca setor nas tabelas relacionais ou fallback no Maestro (Texto)
-  const findSectorForPG = (pgName: string): string | null => {
-      const pgMaster = proGroups.find(g => g.name === pgName && g.unit === unit);
-      
-      // 1. Tenta achar na tabela de relacionamentos N:N
-      if (pgMaster) {
-          const location = proGroupLocations.find(loc => loc.groupId === pgMaster.id);
-          if (location) {
-              const sec = proSectors.find(s => s.id === location.sectorId);
-              if (sec) return sec.name;
-          }
-          // 2. Tenta achar na tabela do PG (legado 1:1)
-          if (pgMaster.sectorId) {
-              const sec = proSectors.find(s => s.id === pgMaster.sectorId);
-              if (sec) return sec.name;
-          }
-      }
-
-      // 3. Fallback: Listas de Texto (Maestro Antigo)
-      const listText = unit === 'HAB' ? masterLists.groupsHAB : masterLists.groupsHABA;
-      const entry = (listText || []).find(line => 
-          line.toLowerCase().startsWith(`${pgName.toLowerCase()} |`)
-      );
-      if (entry) {
-          const parts = entry.split('|');
-          if (parts.length > 1) return parts[1].trim();
-      }
-      return null;
-  };
-
   const handleSelectPG = (pgName: string) => {
       const pgMaster = proGroups.find(g => g.name === pgName && g.unit === unit);
+      const leaderName = pgMaster?.currentLeader || '';
       
-      // Busca setor (Relacional ou Texto)
-      const sectorName = findSectorForPG(pgName);
+      let leaderSector = '';
+      let leaderPhone = pgMaster?.leaderPhone ? formatWhatsApp(pgMaster.leaderPhone) : '';
+      
+      if (leaderName) {
+          const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(leaderName) && s.unit === unit);
+          if (staff) {
+              const sec = proSectors.find(s => s.id === staff.sectorId);
+              if (sec) leaderSector = sec.name;
+              // PRIORIDADE MESTRE: Se o staff tem whatsapp salvo no RH, puxa dele
+              if (staff.whatsapp) leaderPhone = formatWhatsApp(staff.whatsapp);
+          }
+      }
 
       setFormData(prev => ({ 
         ...prev, 
         groupName: pgName, 
-        leader: pgMaster?.currentLeader || prev.leader,
-        sector: sectorName || prev.sector
+        leader: leaderName || prev.leader,
+        leaderPhone: leaderPhone || prev.leaderPhone,
+        sector: leaderSector || prev.sector
       }));
-
-      if (pgMaster?.currentLeader || sectorName) {
-          showToast(`PG identificado. Dados carregados.`, "success");
-      }
-  };
-
-  const handleSelectLeader = (val: string) => {
-    const nameOnly = val.split(' (')[0].trim();
-    
-    // Tenta encontrar um PG onde este líder é o atual (Banco Relacional)
-    const pgMaster = proGroups.find(g => g.currentLeader === nameOnly && g.unit === unit);
-    
-    if (pgMaster) {
-        const sectorName = findSectorForPG(pgMaster.name);
-
-        setFormData(prev => ({ 
-            ...prev, 
-            leader: nameOnly,
-            groupName: pgMaster.name,
-            sector: sectorName || prev.sector
-        }));
-        showToast("PG e Setor localizados pelo Líder.", "success");
-    } else {
-        setFormData(prev => ({ ...prev, leader: nameOnly }));
-    }
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.date || !formData.sector || !formData.groupName || !formData.leader) {
+    if (!formData.groupName || !formData.leader || !formData.leaderPhone || !formData.sector) {
       showToast("Preencha todos os campos obrigatórios.");
       return;
     }
     
-    // Atualiza o Líder Atual do PG no banco se mudou
+    // MASTER ENTITY SYNC: Garante que o contato do líder esteja salvo no RH oficial
+    await syncMasterContact(formData.leader, formData.leaderPhone, unit, ParticipantType.STAFF);
+
+    // Sincroniza também no banco de PGs para compatibilidade de busca rápida
     const pgMaster = proGroups.find(g => g.name === formData.groupName && g.unit === unit);
-    if (pgMaster && pgMaster.currentLeader !== formData.leader) {
-        try {
-            await saveRecord('proGroups', { ...pgMaster, currentLeader: formData.leader });
-        } catch (err) {}
+    if (pgMaster) {
+        const cleanPhone = formData.leaderPhone.replace(/\D/g, '');
+        if (cleanPhone !== (pgMaster.leaderPhone || '')) {
+            await saveRecord('proGroups', { ...pgMaster, leaderPhone: cleanPhone });
+        }
     }
-    
-    onSubmit({...formData, unit});
+
+    // Baixa automática de agendamento
+    const pendingAgenda = visitRequests.find(req => 
+      (req.status === 'assigned' || req.status === 'pending') && 
+      (req.assignedChaplainId === currentUser.id) && 
+      normalizeString(req.pgName) === normalizeString(formData.groupName)
+    );
+
+    if (pendingAgenda) {
+      await saveRecord('visitRequests', { ...pendingAgenda, status: 'confirmed', isRead: true });
+    }
+
+    onSubmit({ ...formData, unit, leaderPhone: formData.leaderPhone.replace(/\D/g, '') });
     setFormData({ ...defaultState, date: getToday() });
   };
 
@@ -189,43 +135,15 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
             <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Pequeno Grupo</h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Unidade {unit}</p>
           </div>
-          <button type="button" onClick={() => setFormData({ ...defaultState, date: getToday() })} className="text-[9px] font-black text-rose-500 uppercase bg-rose-50 px-5 py-2.5 rounded-xl border border-rose-100">Limpar Campos</button>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data do Encontro *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
-          
-          <div className="space-y-1">
-            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do Grupo *</label>
-            <Autocomplete options={pgOptions} value={formData.groupName} onChange={v => setFormData({...formData, groupName: v})} onSelectOption={handleSelectPG} placeholder="Selecione o PG..." />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Líder Atual *</label>
-            <Autocomplete 
-                options={staffOptions} 
-                value={formData.leader} 
-                onChange={v => setFormData({...formData, leader: v})} 
-                onSelectOption={handleSelectLeader}
-                placeholder="Busque o líder no banco..." 
-            />
-          </div>
-
-          <div className="space-y-1">
-             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Localização *</label>
-             <Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Onde o PG se reúne?" isStrict={true} />
-          </div>
-
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do Grupo *</label><Autocomplete options={pgOptions} value={formData.groupName} onChange={v => setFormData({...formData, groupName: v})} onSelectOption={handleSelectPG} placeholder="Selecione o PG..." /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Líder Atual *</label><Autocomplete options={staffOptions} value={formData.leader} onChange={v => setFormData({...formData, leader: v})} placeholder="Busque o líder no banco..." /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">WhatsApp do Líder *</label><input placeholder="(00) 00000-0000" value={formData.leaderPhone} onChange={e => setFormData({...formData, leaderPhone: formatWhatsApp(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Localização *</label><Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Onde o PG se reúne?" isStrict={true} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nº de Participantes *</label><input type="number" value={formData.participantsCount || ''} onChange={e => setFormData({...formData, participantsCount: parseInt(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-black" placeholder="0" /></div>
-          
-          <div className="space-y-1">
-            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Turno</label>
-            <select value={formData.shift} onChange={e => setFormData({...formData, shift: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold">
-              <option>Manhã</option>
-              <option>Tarde</option>
-              <option>Noite</option>
-            </select>
-          </div>
-
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Turno *</label><select value={formData.shift} onChange={e => setFormData({...formData, shift: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold"><option>Manhã</option><option>Tarde</option><option>Noite</option></select></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Relato / Observações</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium" /></div>
         </div>
         <button type="submit" className="w-full py-6 bg-emerald-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs active:scale-95 transition-all hover:bg-emerald-700">Salvar Registro de PG</button>
@@ -238,17 +156,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
         isLoading={isLoading}
         searchFields={['groupName', 'leader']}
         renderItem={(item) => (
-          <HistoryCard 
-            key={item.id} 
-            icon="🏠" 
-            color="text-emerald-600" 
-            title={item.groupName} 
-            subtitle={`${item.sector} • ${item.participantsCount} participantes • Líder: ${item.leader}`} 
-            chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} 
-            isLocked={isRecordLocked(item.date, currentUser.role)}
-            onEdit={() => onEdit?.(item)} 
-            onDelete={() => onDelete(item.id)} 
-          />
+          <HistoryCard key={item.id} icon="🏠" color="text-emerald-600" title={item.groupName} subtitle={`${item.sector} • ${item.participantsCount} participantes • Líder: ${item.leader}`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} />
         )}
       />
     </div>

@@ -1,7 +1,8 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAppData } from '../hooks/useAppData';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation } from '../types';
+import { useDataMaintenance } from '../hooks/useDataMaintenance';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProPatient, ProProvider, ParticipantType, Unit } from '../types';
 
 interface AppContextType {
   users: User[];
@@ -11,37 +12,50 @@ interface AppContextType {
   staffVisits: StaffVisit[];
   visitRequests: VisitRequest[];
   masterLists: MasterLists;
-  // Novos dados PRO
+  
   proStaff: ProStaff[];
+  // Adicionado proPatients e proProviders para suportar o gerenciamento de pacientes e prestadores
+  proPatients: ProPatient[];
+  proProviders: ProProvider[];
   proSectors: ProSector[];
   proGroups: ProGroup[];
   proGroupLocations: ProGroupLocation[];
+  proGroupMembers: ProGroupMember[];
   
   config: Config;
   isSyncing: boolean;
   isConnected: boolean;
+  
   loadFromCloud: (showLoader?: boolean) => Promise<void>;
   saveToCloud: (overrides?: any, showLoader?: boolean) => Promise<boolean>;
   saveRecord: (collection: string, item: any) => Promise<boolean>;
   deleteRecord: (collection: string, id: string) => Promise<boolean>;
-  // O hashPassword foi removido do contexto pois é um utilitário puro importado de utils/crypto
   applySystemOverrides: (baseConfig: Config) => Config;
+  // Adicionado syncMasterContact para permitir que os formulários sincronizem contatos com o banco mestre de forma centralizada
+  syncMasterContact: (name: string, phone: string, unit: Unit, type: ParticipantType, extra?: string) => Promise<void>;
+  
+  // Maintenance Functions
   importFromDNA: (dnaData: any) => Promise<{ success: boolean; message: string }>;
   migrateLegacyStructure: () => Promise<{ success: boolean; message: string; details?: string }>;
   unifyNumericIdsAndCleanPrefixes: () => Promise<{ success: boolean; message: string }>;
-  // Adicionado nuclearReset que é retornado pelo hook useAppData
+  mergePGs: (sourceId: string, targetId: string) => Promise<{ success: boolean; message: string }>;
   nuclearReset: () => Promise<{ success: boolean; message: string }>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const data = useAppData();
+  const appData = useAppData();
   
-  // Mapeamos explicitamente o retorno do hook para o valor do contexto
+  // Initialize maintenance hook with the reloader from appData
+  const maintenance = useDataMaintenance(appData.loadFromCloud);
+  
   const value: AppContextType = {
-    ...data
-  } as AppContextType;
+    ...appData,
+    ...maintenance,
+    // Combine loading states for UI feedback
+    isSyncing: appData.isSyncing || maintenance.isMaintenanceRunning
+  };
 
   return (
     <AppContext.Provider value={value}>

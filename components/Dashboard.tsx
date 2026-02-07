@@ -25,35 +25,53 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
 
   if (!currentUser) return null;
 
+  // 1. Dados Históricos Completos (Necessários para Retornos Pendentes e Lógica Geral)
   const userStudies = (studies || []).filter(s => s && s.userId === currentUser?.id);
   const userClasses = (classes || []).filter(c => c && c.userId === currentUser?.id);
   const userGroups = (groups || []).filter(g => g && g.userId === currentUser?.id);
   const userVisits = (visits || []).filter(v => v && v.userId === currentUser?.id);
 
+  // 2. Lógica de Retornos (Baseada no Histórico Completo)
   const todayStr = new Date().toISOString().split('T')[0];
   const pendingReturns = userVisits.filter(v => v.requiresReturn && !v.returnCompleted);
   const todaysReturns = userVisits.filter(v => v.requiresReturn && !v.returnCompleted && v.returnDate === todayStr);
 
-  const uniqueStudents = new Set<string>();
-  userStudies.forEach(s => { if (s.name) uniqueStudents.add(s.name.trim().toLowerCase()); });
-  userClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(name => { if (name) uniqueStudents.add(name.trim().toLowerCase()); }); });
+  // 3. Filtro Mensal (Para Cards e Gráfico de Desempenho)
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  const monthName = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(now);
 
-  const totalActions = userStudies.length + userClasses.length + userGroups.length + userVisits.length;
+  const isCurrentMonth = (dateStr: string) => {
+    if (!dateStr) return false;
+    // Ajuste de fuso horário simples: trata a string YYYY-MM-DD como meio-dia local para evitar shifts
+    const d = new Date(dateStr + 'T12:00:00'); 
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  };
+
+  const monthlyStudies = userStudies.filter(s => isCurrentMonth(s.date));
+  const monthlyClasses = userClasses.filter(c => isCurrentMonth(c.date));
+  const monthlyGroups = userGroups.filter(g => isCurrentMonth(g.date));
+  const monthlyVisits = userVisits.filter(v => isCurrentMonth(v.date));
+
+  // 4. Cálculos Mensais
+  const uniqueStudentsMonth = new Set<string>();
+  monthlyStudies.forEach(s => { if (s.name) uniqueStudentsMonth.add(s.name.trim().toLowerCase()); });
+  monthlyClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(name => { if (name) uniqueStudentsMonth.add(name.trim().toLowerCase()); }); });
+
+  const totalActionsMonth = monthlyStudies.length + monthlyClasses.length + monthlyGroups.length + monthlyVisits.length;
 
   const getGlobalImpactData = () => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
     const prevMonthDate = new Date();
     prevMonthDate.setMonth(now.getMonth() - 1);
     const prevMonth = prevMonthDate.getMonth();
     const prevYear = prevMonthDate.getFullYear();
 
     const getMonthStats = (m: number, y: number) => {
-      const mStudies = (studies || []).filter(s => { const d = new Date(s.date); return d.getMonth() === m && d.getFullYear() === y; });
-      const mClasses = (classes || []).filter(c => { const d = new Date(c.date); return d.getMonth() === m && d.getFullYear() === y; });
-      const mGroups = (groups || []).filter(g => { const d = new Date(g.date); return d.getMonth() === m && d.getFullYear() === y; });
-      const mVisits = (visits || []).filter(v => { const d = new Date(v.date); return d.getMonth() === m && d.getFullYear() === y; });
+      const mStudies = (studies || []).filter(s => { const d = new Date(s.date + 'T12:00:00'); return d.getMonth() === m && d.getFullYear() === y; });
+      const mClasses = (classes || []).filter(c => { const d = new Date(c.date + 'T12:00:00'); return d.getMonth() === m && d.getFullYear() === y; });
+      const mGroups = (groups || []).filter(g => { const d = new Date(g.date + 'T12:00:00'); return d.getMonth() === m && d.getFullYear() === y; });
+      const mVisits = (visits || []).filter(v => { const d = new Date(v.date + 'T12:00:00'); return d.getMonth() === m && d.getFullYear() === y; });
       const uStudents = new Set<string>();
       mStudies.forEach(s => { if (s.name) uStudents.add(s.name.trim().toLowerCase()); });
       mClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uStudents.add(n.trim().toLowerCase())); });
@@ -77,10 +95,10 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
 
   const globalImpact = getGlobalImpactData();
   const stats = [
-    { label: 'Total de alunos (HAB/HABA)', value: uniqueStudents.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-50' },
-    { label: 'Meus PGs', value: userGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-50' },
-    { label: 'Minhas Ações', value: totalActions, icon: <i className="fas fa-bolt"></i>, color: 'bg-amber-50' },
-    { label: 'Minhas Visitas', value: userVisits.length, icon: <i className="fas fa-hands-helping"></i>, color: 'bg-rose-50' },
+    { label: `Alunos Ativos (${monthName})`, value: uniqueStudentsMonth.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-50' },
+    { label: `Meus PGs (${monthName})`, value: monthlyGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-50' },
+    { label: `Minhas Ações (${monthName})`, value: totalActionsMonth, icon: <i className="fas fa-bolt"></i>, color: 'bg-amber-50' },
+    { label: `Minhas Visitas (${monthName})`, value: monthlyVisits.length, icon: <i className="fas fa-hands-helping"></i>, color: 'bg-rose-50' },
   ];
 
   return (
@@ -132,10 +150,10 @@ const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits,
       <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
       <StatCards stats={stats} />
       <ImpactCharts individualData={[
-        { name: 'Estudos', val: userStudies.length },
-        { name: 'Classes', val: userClasses.length },
-        { name: 'PGs', val: userGroups.length },
-        { name: 'Visitas', val: userVisits.length },
+        { name: 'Estudos', val: monthlyStudies.length },
+        { name: 'Classes', val: monthlyClasses.length },
+        { name: 'PGs', val: monthlyGroups.length },
+        { name: 'Visitas', val: monthlyVisits.length },
       ]} globalData={globalImpact} />
     </div>
   );

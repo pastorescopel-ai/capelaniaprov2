@@ -1,23 +1,26 @@
 
 import { supabase } from './supabaseClient';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember } from '../types';
 
 const TABLE_SCHEMAS: Record<string, string[]> = {
   users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'updated_at'],
-  bible_studies: ['id', 'user_id', 'date', 'unit', 'sector', 'name', 'whatsapp', 'status', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
-  bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'students', 'status', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
-  small_groups: ['id', 'user_id', 'date', 'unit', 'sector', 'group_name', 'leader', 'shift', 'participants_count', 'observations', 'created_at', 'updated_at'],
+  bible_studies: ['id', 'user_id', 'date', 'unit', 'sector', 'name', 'whatsapp', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
+  bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'students', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
+  small_groups: ['id', 'user_id', 'date', 'unit', 'sector', 'group_name', 'leader', 'leader_phone', 'shift', 'participants_count', 'observations', 'created_at', 'updated_at'],
   staff_visits: ['id', 'user_id', 'date', 'unit', 'sector', 'reason', 'staff_name', 'requires_return', 'return_date', 'return_completed', 'observations', 'created_at', 'updated_at'],
   visit_requests: ['id', 'pg_name', 'leader_name', 'leader_phone', 'unit', 'date', 'status', 'request_notes', 'preferred_chaplain_id', 'assigned_chaplain_id', 'chaplain_response', 'is_read', 'created_at', 'updated_at'],
   app_config: ['id', 'mural_text', 'header_line1', 'header_line2', 'header_line3', 'font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'header_text_align', 'primary_color', 'app_logo_url', 'report_logo_url', 'last_modified_by', 'last_modified_at', 'updated_at'],
   master_lists: ['id', 'sectors_hab', 'sectors_haba', 'staff_hab', 'staff_haba', 'groups_hab', 'groups_haba', 'updated_at'],
   pro_sectors: ['id', 'name', 'unit'],
-  pro_staff: ['id', 'name', 'sector_id', 'unit'],
-  pro_groups: ['id', 'name', 'current_leader', 'sector_id', 'unit'],
-  pro_group_locations: ['id', 'group_id', 'sector_id', 'unit', 'created_at']
+  pro_staff: ['id', 'name', 'sector_id', 'unit', 'whatsapp'],
+  pro_patients: ['id', 'name', 'unit', 'whatsapp', 'last_lesson', 'updated_at'],
+  pro_providers: ['id', 'name', 'unit', 'whatsapp', 'sector', 'updated_at'],
+  pro_groups: ['id', 'name', 'current_leader', 'leader_phone', 'sector_id', 'unit'],
+  pro_group_locations: ['id', 'group_id', 'sector_id', 'unit', 'created_at'],
+  pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at']
 };
 
-const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at'];
+const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at', 'joined_at'];
 
 const GLOBAL_ID_CACHE: Record<string, string> = {};
 
@@ -72,8 +75,8 @@ const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: st
         if (isNaN(val)) continue;
       }
       
-      // TRATAMENTO DE CHAVES ESTRANGEIRAS (FK): Nunca enviar "" se for ID relacional
-      const isFK = snakeKey === 'user_id' || snakeKey === 'sector_id' || snakeKey === 'record_id' || snakeKey === 'group_id';
+      // TRATAMENTO DE CHAVES ESTRANGEIRAS (FK)
+      const isFK = snakeKey === 'user_id' || snakeKey === 'sector_id' || snakeKey === 'record_id' || snakeKey === 'group_id' || snakeKey === 'staff_id';
       if (isFK && val === "") {
         val = null;
       }
@@ -98,7 +101,7 @@ export const DataRepository = {
     try {
       const MAX_ROWS = 9999;
 
-      const [u, bs, bc, sg, sv, vr, c, ml, ps, pst, pg, pgl] = await Promise.all([
+      const [u, bs, bc, sg, sv, vr, c, ml, ps, pst, pp, pr, pg, pgl, pgm] = await Promise.all([
         supabase.from('users').select('*').range(0, MAX_ROWS),
         supabase.from('bible_studies').select('*').range(0, MAX_ROWS),
         supabase.from('bible_classes').select('*').range(0, MAX_ROWS),
@@ -109,8 +112,11 @@ export const DataRepository = {
         supabase.from('master_lists').select('*').limit(1),
         supabase.from('pro_sectors').select('*').range(0, MAX_ROWS),
         supabase.from('pro_staff').select('*').range(0, MAX_ROWS),
+        supabase.from('pro_patients').select('*').range(0, MAX_ROWS),
+        supabase.from('pro_providers').select('*').range(0, MAX_ROWS),
         supabase.from('pro_groups').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_group_locations').select('*').range(0, MAX_ROWS)
+        supabase.from('pro_group_locations').select('*').range(0, MAX_ROWS),
+        supabase.from('pro_group_members').select('*').range(0, MAX_ROWS)
       ]);
 
       if (c.data?.[0]?.id) GLOBAL_ID_CACHE['app_config'] = c.data[0].id;
@@ -127,8 +133,11 @@ export const DataRepository = {
         masterLists: ml.data && ml.data.length > 0 ? toCamel(ml.data[0]) : { sectorsHAB: [], sectorsHABA: [], staffHAB: [], staffHABA: [], groupsHAB: [], groupsHABA: [] },
         proSectors: toCamel(ps.data || []),
         proStaff: toCamel(pst.data || []),
+        proPatients: toCamel(pp.data || []),
+        proProviders: toCamel(pr.data || []),
         proGroups: toCamel(pg.data || []),
-        proGroupLocations: toCamel(pgl.data || [])
+        proGroupLocations: toCamel(pgl.data || []),
+        proGroupMembers: toCamel(pgm.data || [])
       };
     } catch (error) {
       console.error("Erro ao sincronizar com Supabase:", error);
@@ -146,17 +155,17 @@ export const DataRepository = {
       smallGroups: 'small_groups', staffVisits: 'staff_visits',
       users: 'users', config: 'app_config', masterLists: 'master_lists',
       visitRequests: 'visit_requests',
-      proSectors: 'pro_sectors', proStaff: 'pro_staff', proGroups: 'pro_groups',
-      proGroupLocations: 'pro_group_locations'
+      proSectors: 'pro_sectors', proStaff: 'pro_staff', 
+      proPatients: 'pro_patients', proProviders: 'pro_providers',
+      proGroups: 'pro_groups', proGroupLocations: 'pro_group_locations',
+      proGroupMembers: 'pro_group_members'
     };
     
     const tableName = tableMap[collection];
     if (!tableName) return false;
 
-    // Preparar payloads limpos
     const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName], tableName));
 
-    // Tratamento de Singleton (Config/Lists)
     if (tableName === 'app_config' || tableName === 'master_lists') {
       if (GLOBAL_ID_CACHE[tableName]) {
         payloads[0].id = GLOBAL_ID_CACHE[tableName];
@@ -171,27 +180,15 @@ export const DataRepository = {
       }
     }
 
-    // PROCESSAMENTO EM LOTES (CHUNKING) para evitar erros de Payload Size
     const CHUNK_SIZE = 100;
     for (let i = 0; i < payloads.length; i += CHUNK_SIZE) {
       const chunk = payloads.slice(i, i + CHUNK_SIZE);
-      
-      const { data, error } = await supabase.from(tableName).upsert(chunk).select();
-      
+      const { error } = await supabase.from(tableName).upsert(chunk).select();
       if (error) {
-        console.error(`[DataRepo] ERRO CRÍTICO no Supabase (${tableName}):`, {
-          code: error.code,
-          message: error.message,
-          hint: error.hint,
-          details: error.details
-        });
-        console.error(`[DataRepo] Lote que falhou:`, chunk);
+        console.error(`[DataRepo] ERRO CRÍTICO no Supabase (${tableName}):`, error);
         return false;
       }
-      
-      console.log(`[DataRepo] Lote salvo em ${tableName}. (${i + chunk.length}/${payloads.length})`);
     }
-
     return true;
   },
 
@@ -201,14 +198,14 @@ export const DataRepository = {
       bibleStudies: 'bible_studies', bibleClasses: 'bible_classes', smallGroups: 'small_groups', 
       staffVisits: 'staff_visits', users: 'users',
       visitRequests: 'visit_requests',
-      proSectors: 'pro_sectors', proStaff: 'pro_staff', proGroups: 'pro_groups',
-      proGroupLocations: 'pro_group_locations'
+      proSectors: 'pro_sectors', proStaff: 'pro_staff', 
+      proPatients: 'pro_patients', proProviders: 'pro_providers',
+      proGroups: 'pro_groups', proGroupLocations: 'pro_group_locations',
+      proGroupMembers: 'pro_group_members'
     };
     const tableName = tableMap[collection];
     if (!tableName) return false;
-
     if (!tableName.startsWith('pro_') && !tableName.startsWith('visit_requests') && !isValidUUID(id)) return false;
-
     const { error } = await supabase.from(tableName).delete().eq('id', id);
     return !error;
   }

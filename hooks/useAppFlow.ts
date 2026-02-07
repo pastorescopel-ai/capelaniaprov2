@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Unit, User, UserRole, RecordStatus } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { isRecordLocked } from '../utils/validators';
+import { toSafeDateISO } from '../utils/formatters';
 
 interface UseAppFlowProps {
   currentUser: User | null;
@@ -13,13 +14,11 @@ interface UseAppFlowProps {
 export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlowProps) => {
   const { showToast } = useToast();
 
-  // Estados de Interface
   const [activeTab, setActiveTab] = useState('dashboard');
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [itemToDelete, setItemToDelete] = useState<{type: string, id: string} | null>(null);
 
-  // CORREÇÃO: Reseta para o Dashboard sempre que o usuário deslogar.
   useEffect(() => {
     if (!currentUser) {
       setActiveTab('dashboard');
@@ -28,11 +27,9 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
     }
   }, [currentUser]);
 
-  // Lógica de Salvamento Centralizada
   const handleSaveItem = async (type: string, data: any) => {
     if (!currentUser) return;
 
-    // VALIDAÇÃO DE TRAVA MENSAL
     if (isRecordLocked(data.date, currentUser.role)) {
       showToast("Período de edição para este mês está encerrado!", "warning");
       return;
@@ -41,10 +38,13 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
     const targetId = data.id || editingItem?.id || crypto.randomUUID();
     const now = Date.now();
     
-    // Constrói o objeto completo do item
+    // NUCLEO_LOGICO: Normalização da data antes do envio ao banco
+    const safeDate = toSafeDateISO(data.date);
+
     const itemToSave = {
       ...data,
       id: targetId,
+      date: safeDate,
       userId: data.userId || currentUser.id,
       createdAt: data.createdAt || now,
       updatedAt: now
@@ -63,7 +63,6 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
     }
   };
 
-  // Lógica de Deleção Centralizada
   const confirmDeletion = async () => {
     if (!itemToDelete) return;
     
@@ -80,7 +79,6 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
     }
   };
 
-  // Lógica de Filtragem de Histórico (Regra de Negócio Visual)
   const getVisibleHistory = useCallback((list: any[]) => {
     if (!currentUser) return [];
     const matchUnit = (item: any) => (item.unit || Unit.HAB) === currentUnit;
@@ -91,16 +89,6 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
   }, [currentUser, currentUnit]);
 
   return {
-    activeTab,
-    setActiveTab,
-    currentUnit,
-    setCurrentUnit,
-    editingItem,
-    setEditingItem,
-    itemToDelete,
-    setItemToDelete,
-    handleSaveItem,
-    confirmDeletion,
-    getVisibleHistory
+    activeTab, setActiveTab, currentUnit, setCurrentUnit, editingItem, setEditingItem, itemToDelete, setItemToDelete, handleSaveItem, confirmDeletion, getVisibleHistory
   };
 };

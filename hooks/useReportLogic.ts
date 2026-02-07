@@ -1,7 +1,7 @@
 
 import { useMemo } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, Unit, RecordStatus, ActivityFilter, User } from '../types';
-import { normalizeString } from '../utils/formatters';
+import { normalizeString, cleanID } from '../utils/formatters';
 
 interface ReportFilters {
   startDate: string;
@@ -29,8 +29,10 @@ export const useReportLogic = (
       const itemUnit = item.unit || Unit.HAB;
       const unitMatch = filters.selectedUnit === 'all' || itemUnit === filters.selectedUnit;
       
+      // NUCLEO_LOGICO: Padronização de status para evitar falhas em relatórios
       const isStudyOrClass = item.status !== undefined;
-      const statusMatch = (filters.selectedStatus === 'all' || !isStudyOrClass) || item.status === filters.selectedStatus;
+      const statusMatch = (filters.selectedStatus === 'all' || !isStudyOrClass) || 
+                          normalizeString(item.status) === normalizeString(filters.selectedStatus);
       
       return dateMatch && chaplainMatch && unitMatch && statusMatch;
     };
@@ -46,18 +48,11 @@ export const useReportLogic = (
   const auditList = useMemo(() => {
     const list: any[] = [];
     filteredData.studies.forEach(s => {
-      list.push({
-        name: s.name, isClass: false, sector: s.sector, unit: s.unit, type: 'Estudo Bíblico', icon: '📖',
-        chaplain: users.find(u => u.id === s.userId)?.name || 'N/I', status: s.status, date: s.date, original: s
-      });
+      list.push({ name: s.name, isClass: false, sector: s.sector, unit: s.unit, type: 'Estudo Bíblico', icon: '📖', chaplain: users.find(u => u.id === s.userId)?.name || 'N/I', status: s.status, date: s.date, original: s });
     });
     filteredData.classes.forEach(c => {
       if (Array.isArray(c.students)) {
-        list.push({
-          name: c.students[0] || 'Sem nomes', studentsList: c.students, isClass: true, sector: c.sector, unit: c.unit,
-          type: 'Classe Bíblica', icon: '👥', chaplain: users.find(u => u.id === c.userId)?.name || 'N/I',
-          status: c.status, date: c.date, original: c
-        });
+        list.push({ name: c.students[0] || 'Sem nomes', studentsList: c.students, isClass: true, sector: c.sector, unit: c.unit, type: 'Classe Bíblica', icon: '👥', chaplain: users.find(u => u.id === c.userId)?.name || 'N/I', status: c.status, date: c.date, original: c });
       }
     });
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -65,22 +60,16 @@ export const useReportLogic = (
 
   const totalStats = useMemo(() => {
     const uniqueStudents = new Set<string>();
-    
-    // Normalização Universal: Remove acentos, (ID), espaços e ignora maiúsculas
     const addUniqueName = (rawName: string) => {
       if (!rawName) return;
-      const cleanName = rawName.split(' (')[0].trim(); // Remove matrícula se houver
-      uniqueStudents.add(normalizeString(cleanName));
+      // NUCLEO_LOGICO: Limpeza de matrícula antes de contar como aluno único
+      const nameOnly = rawName.split(' (')[0].trim();
+      uniqueStudents.add(normalizeString(nameOnly));
     };
-
     filteredData.studies.forEach(s => s.name && addUniqueName(s.name));
-    
     filteredData.classes.forEach(c => {
-      if (Array.isArray(c.students)) {
-        c.students.forEach(n => addUniqueName(n));
-      }
+      if (Array.isArray(c.students)) c.students.forEach(n => addUniqueName(n));
     });
-    
     return {
       studies: filteredData.studies.length,
       classes: filteredData.classes.length,

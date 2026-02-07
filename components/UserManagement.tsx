@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { User, UserRole } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { hashPassword } from '../utils/crypto';
+import { useApp } from '../contexts/AppContext';
+import Autocomplete, { AutocompleteOption } from './Shared/Autocomplete';
 
 interface UserManagementProps {
   users: User[];
@@ -10,11 +13,28 @@ interface UserManagementProps {
 }
 
 const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onUpdateUsers }) => {
+  const { deleteRecord, proStaff, proSectors } = useApp();
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: UserRole.CHAPLAIN });
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const { showToast } = useToast();
+
+  // Mapeia colaboradores do banco PRO para opções de Autocomplete
+  const staffOptions = useMemo(() => {
+    const options: AutocompleteOption[] = [];
+    proStaff.forEach(staff => {
+      const sector = proSectors.find(sec => sec.id === staff.sectorId);
+      const staffIdStr = String(staff.id);
+      options.push({
+        value: staff.name,
+        label: `${staff.name} (${staffIdStr.split('-')[1] || staffIdStr})`,
+        subLabel: sector ? sector.name : 'Setor não informado',
+        category: 'RH'
+      });
+    });
+    return options;
+  }, [proStaff, proSectors]);
 
   const handleAddUser = async () => {
     if (!newUser.name || !newUser.email || !newUser.password) {
@@ -43,6 +63,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleSelectStaff = (label: string) => {
+    // Extrai o nome antes do parêntese da matrícula
+    const nameOnly = label.split(' (')[0].trim();
+    setNewUser(prev => ({ ...prev, name: nameOnly }));
   };
 
   const handleSaveEdit = async () => {
@@ -79,13 +105,18 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
 
   const confirmDelete = async () => {
     if (!userToDelete) return;
+    
     setIsProcessing(true);
     try {
-      await onUpdateUsers(users.filter(usr => usr.id !== userToDelete.id));
+      const success = await deleteRecord('users', userToDelete.id);
+      if (success) {
+        showToast('Usuário removido com sucesso!', 'success');
+      } else {
+        showToast('Falha ao excluir registro no banco.', 'warning');
+      }
       setUserToDelete(null);
-      showToast('Usuário removido.', 'success');
     } catch (e) {
-      showToast('Erro ao remover.', 'warning');
+      showToast('Erro técnico ao processar remoção.', 'warning');
     } finally {
       setIsProcessing(false);
     }
@@ -95,10 +126,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
     <div className="space-y-12 max-w-5xl mx-auto pb-24 animate-in fade-in duration-500">
       <header>
         <h1 className="text-4xl font-black text-slate-800 tracking-tighter uppercase">Gestão de Equipe</h1>
-        <p className="text-slate-500 font-medium italic">As senhas são protegidas automaticamente com SHA-256</p>
+        <p className="text-slate-500 font-medium italic">Vincule usuários ao cadastro de colaboradores oficial</p>
       </header>
 
-      {/* MODAL: PROCESSAMENTO - CENTRALIZADO NO VIEWPORT */}
+      {/* MODAL: PROCESSAMENTO */}
       {isProcessing && (
         <div className="fixed inset-0 z-[6000] flex items-center justify-center">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" />
@@ -109,21 +140,22 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
         </div>
       )}
 
-      {/* MODAL: EXCLUSÃO - CENTRALIZADO NO VIEWPORT */}
+      {/* MODAL: EXCLUSÃO */}
       {userToDelete && (
         <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setUserToDelete(null)} />
           <div className="relative bg-white p-10 rounded-[3rem] shadow-2xl max-w-md w-full text-center space-y-6 animate-in zoom-in duration-300 border-4 border-slate-50">
             <h3 className="text-2xl font-black text-slate-800 uppercase">Remover {userToDelete.name}?</h3>
+            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest px-4">Esta ação é irreversível e apagará o cadastro permanentemente do servidor.</p>
             <div className="grid grid-cols-2 gap-4">
               <button onClick={() => setUserToDelete(null)} className="py-4 rounded-2xl bg-slate-100 font-black uppercase text-xs hover:bg-slate-200 transition-colors">Cancelar</button>
-              <button onClick={confirmDelete} className="py-4 rounded-2xl bg-rose-500 text-white font-black uppercase text-xs hover:bg-rose-600 transition-colors">Remover</button>
+              <button onClick={confirmDelete} className="py-4 rounded-2xl bg-rose-500 text-white font-black uppercase text-xs hover:bg-rose-600 transition-colors shadow-lg shadow-rose-200">Sim, Remover</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: EDIÇÃO - CENTRALIZADO NO VIEWPORT */}
+      {/* MODAL: EDIÇÃO */}
       {editingUser && (
         <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setEditingUser(null)} />
@@ -165,15 +197,34 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
 
       <section className="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
         <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Novo Cadastro</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <input value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs" placeholder="Nome" />
-          <input value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs" placeholder="E-mail" />
-          <input type="text" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs" placeholder="Senha Inicial" />
-          <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})} className="p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs">
-            <option value={UserRole.CHAPLAIN}>Capelão</option>
-            <option value={UserRole.ADMIN}>Administrador</option>
-          </select>
-          <button onClick={handleAddUser} className="lg:col-span-4 py-5 bg-emerald-600 text-white font-black uppercase text-xs rounded-2xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all">Cadastrar Capelão</button>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nome do Colaborador</label>
+            <Autocomplete 
+              options={staffOptions}
+              value={newUser.name}
+              onChange={v => setNewUser({...newUser, name: v})}
+              onSelectOption={handleSelectStaff}
+              placeholder="Buscar no cadastro..."
+              className="p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs w-full"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">E-mail de Acesso</label>
+            <input value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs" placeholder="E-mail" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Senha Inicial</label>
+            <input type="text" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs" placeholder="Senha Inicial" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nível de Acesso</label>
+            <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs">
+              <option value={UserRole.CHAPLAIN}>Capelão</option>
+              <option value={UserRole.ADMIN}>Administrador</option>
+            </select>
+          </div>
+          <button onClick={handleAddUser} className="lg:col-span-4 py-5 bg-emerald-600 text-white font-black uppercase text-xs rounded-2xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all">Cadastrar Membro da Equipe</button>
         </div>
       </section>
 

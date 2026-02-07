@@ -51,7 +51,26 @@ export interface ProStaff {
   name: string;
   sectorId: string;
   unit: Unit;
+  whatsapp?: string;
   active?: boolean;
+  updatedAt?: number;
+}
+
+export interface ProPatient {
+  id: string;
+  name: string;
+  unit: Unit;
+  whatsapp?: string;
+  lastLesson?: string;
+  updatedAt?: number;
+}
+
+export interface ProProvider {
+  id: string;
+  name: string;
+  unit: Unit;
+  whatsapp?: string;
+  sector?: string;
   updatedAt?: number;
 }
 
@@ -60,6 +79,7 @@ export interface ProGroup {
   name: string;
   currentLeader?: string;
   leader?: string;
+  leaderPhone?: string;
   sectorId?: string;
   unit: Unit;
   active?: boolean;
@@ -72,6 +92,13 @@ export interface ProGroupLocation {
   sectorId: string;
   unit: Unit;
   createdAt?: number;
+}
+
+export interface ProGroupMember {
+  id: string;
+  groupId: string;
+  staffId: string;
+  joinedAt?: number;
 }
 
 export interface Config {
@@ -162,6 +189,7 @@ export interface SmallGroup {
   sector: string;
   groupName: string;
   leader: string;
+  leaderPhone?: string;
   shift: string;
   participantsCount: number;
   observations: string;
