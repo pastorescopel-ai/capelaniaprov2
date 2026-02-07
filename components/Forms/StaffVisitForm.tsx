@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Unit, StaffVisit, User, UserRole, MasterLists, VisitReason, ProStaff, ParticipantType } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
@@ -35,7 +34,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     sector: '', 
     reason: VisitReason.ROTINA, 
     staffName: '', 
-    whatsapp: '', // Novo campo para #ESTRUTURA_PRO
+    whatsapp: '', 
     requiresReturn: false, 
     returnDate: getToday(), 
     returnCompleted: false, 
@@ -120,7 +119,6 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     if (!formData.reason) { showToast("O campo 'Motivo da Visita' é obrigatório."); return; }
     if (formData.requiresReturn && !formData.returnDate) { showToast("O campo 'Agendar Retorno para' é obrigatório quando a opção de retorno está marcada."); return; }
     
-    // #ESTRUTURA_PRO: Sincronização automática do contato com o RH
     if (formData.whatsapp) {
         await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.STAFF);
     }

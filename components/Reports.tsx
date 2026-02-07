@@ -1,11 +1,8 @@
-
 import React, { useState, useMemo } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, MasterLists, ActivityFilter } from '../types';
 import { useReportLogic } from '../hooks/useReportLogic';
 import { resolveDynamicName, normalizeString } from '../utils/formatters';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 import { useToast } from '../contexts/ToastContext';
 import { generateExecutiveHTML } from '../utils/pdfTemplates';
 
@@ -82,6 +79,10 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   };
 
   const generatePDFBinary = async (htmlContent: string) => {
+    // Lazy load jspdf e html2canvas
+    const { jsPDF } = await import('jspdf');
+    const html2canvas = (await import('html2canvas')).default;
+
     const tempDiv = document.createElement('div');
     tempDiv.style.position = 'absolute';
     tempDiv.style.left = '-10000px';
