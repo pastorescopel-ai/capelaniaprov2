@@ -1,6 +1,7 @@
 {
   "name": "capelania-pro",
   "version": "4.0.0",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "node scripts/audit-npmrc.js && vite build",
@@ -29,6 +30,7 @@
   },
   "overrides": {
     "source-map": "0.7.4",
-    "glob": "^10.3.10"
+    "glob": "^11.0.0",
+    "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@^1.4.15"
   }
 }

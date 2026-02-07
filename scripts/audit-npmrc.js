@@ -1,6 +1,6 @@
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 const npmrcPath = path.resolve(process.cwd(), '.npmrc');
 const cleanContent = "# @generated clean-npm-config\n# This file ensures npm utilizes pure ASCII config.";

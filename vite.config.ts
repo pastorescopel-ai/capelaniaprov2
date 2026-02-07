@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      includeAssets: [], // Removido referências a arquivos físicos para evitar 404/warnings
       workbox: {
         // Removidos padrões que geram avisos se não existirem no dist
         globPatterns: ['**/*.{js,css,html,png,svg}'],
