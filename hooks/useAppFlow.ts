@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useTransition } from 'react';
 import { Unit, User, UserRole, RecordStatus } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { isRecordLocked } from '../utils/validators';
@@ -14,14 +14,22 @@ interface UseAppFlowProps {
 export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlowProps) => {
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTabState] = useState('dashboard');
+  const [isPending, startTransition] = useTransition();
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [itemToDelete, setItemToDelete] = useState<{type: string, id: string} | null>(null);
 
+  // Navegação Inteligente: Prioriza a fluidez da UI
+  const setActiveTab = useCallback((tab: string) => {
+    startTransition(() => {
+      setActiveTabState(tab);
+    });
+  }, []);
+
   useEffect(() => {
     if (!currentUser) {
-      setActiveTab('dashboard');
+      setActiveTabState('dashboard');
       setEditingItem(null);
       setItemToDelete(null);
     }
@@ -89,6 +97,17 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
   }, [currentUser, currentUnit]);
 
   return {
-    activeTab, setActiveTab, currentUnit, setCurrentUnit, editingItem, setEditingItem, itemToDelete, setItemToDelete, handleSaveItem, confirmDeletion, getVisibleHistory
+    activeTab, 
+    isPending,
+    setActiveTab, 
+    currentUnit, 
+    setCurrentUnit, 
+    editingItem, 
+    setEditingItem, 
+    itemToDelete, 
+    setItemToDelete, 
+    handleSaveItem, 
+    confirmDeletion, 
+    getVisibleHistory
   };
 };
