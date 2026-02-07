@@ -14,7 +14,6 @@ function repair() {
         console.log("✅ REPAIRED: .npmrc has been reset to clean ASCII.");
     } catch (writeErr) {
         console.error("❌ FAILED TO REPAIR: " + writeErr.message);
-        // Only fail if we absolutely cannot write to the file system
         process.exit(1);
     }
 }
@@ -49,7 +48,6 @@ try {
         console.log("✅ SUCCESS: .npmrc is clean and ASCII/UTF-8 compatible.");
     }
   } else {
-    // If missing, create it to prevent future issues/warnings
     console.log("ℹ️ .npmrc missing. Creating clean file...");
     repair();
   }
@@ -58,5 +56,5 @@ try {
   repair();
 }
 
-// Always exit with success to allow the build to proceed after repair
+// Exit success
 process.exit(0);

@@ -7,9 +7,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: [], // Removido referências a arquivos físicos para evitar 404/warnings
+      includeAssets: [], // Removido para evitar 404 em arquivos que são Data URI no HTML
       workbox: {
-        // Removidos padrões que geram avisos se não existirem no dist
         globPatterns: ['**/*.{js,css,html,png,svg}'],
         runtimeCaching: [
           {
