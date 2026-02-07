@@ -32,6 +32,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanEmail = email.toLowerCase().trim();
     const cleanPass = pass.trim();
     
+    // Busca o usuário exclusivamente pelo e-mail (Âncora de Identidade)
+    // Isso garante que funcione independente do ID ser antigo ou novo
     const dbUser = users.find(u => u.email && u.email.toLowerCase().trim() === cleanEmail);
     
     if (!dbUser) {
@@ -45,16 +47,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Comparação padrão por Hash (Segurança Máxima)
     const isHashMatch = (inputHash !== "" && inputHash === storedPass);
     
-    // Regra de Ouro/Recuperação para o administrador
+    // Regra de Ouro/Recuperação para o administrador (Não depende do UUID)
     const isMasterBypass = (cleanEmail === "pastorescopel@gmail.com" && cleanPass === "CaE27785055");
 
     if (isHashMatch || isMasterBypass) {
-      // Se entrou pelo bypass (o hash no banco estava desatualizado ou em texto puro), corrige agora.
-      if (!isHashMatch) {
+      // Sincronização de Senha: Se entrou pelo bypass mas o hash não batia, atualiza o hash no banco para o novo padrão
+      if (isMasterBypass && !isHashMatch) {
         try {
           await saveRecord('users', { ...dbUser, password: inputHash });
         } catch (e) {
-          // Falha silenciosa de sincronização
+          console.warn("Falha ao sincronizar hash de recuperação.");
         }
       }
 

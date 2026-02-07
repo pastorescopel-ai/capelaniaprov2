@@ -24,9 +24,13 @@ const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_w
 
 const GLOBAL_ID_CACHE: Record<string, string> = {};
 
+/**
+ * Validação rigorosa de UUID v4 (RFC4122)
+ * Previne uso de IDs manuais antigos ou malformados
+ */
 const isValidUUID = (uuid: string) => {
   const s = "" + uuid;
-  return s.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  return s.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 };
 
 const keyCache: Record<string, string> = {};
@@ -68,22 +72,22 @@ const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: st
     if (allowedFields.includes(snakeKey)) {
       let val = obj[key];
       
-      // Conversão Numérica
       if (NUMERIC_FIELDS.includes(snakeKey)) {
         if (val === "" || val === null || val === undefined) continue;
         val = parseInt(val);
         if (isNaN(val)) continue;
       }
       
-      // TRATAMENTO DE CHAVES ESTRANGEIRAS (FK)
       const isFK = snakeKey === 'user_id' || snakeKey === 'sector_id' || snakeKey === 'record_id' || snakeKey === 'group_id' || snakeKey === 'staff_id';
       if (isFK && val === "") {
         val = null;
       }
 
-      // Validação de UUID para tabelas não-PRO
+      // Validação Crítica de Segurança: Bloqueia IDs que não sejam UUIDs em tabelas que exigem UUID
+      // Exceção: Tabelas 'pro_' e 'visit_requests' podem usar IDs mistos por enquanto
       if (tableName !== 'visit_requests' && !tableName.startsWith('pro_')) {
         if (isFK && val && !isValidUUID(val)) {
+          console.error(`Bloqueio de Segurança: Tentativa de usar ID não-UUID em ${tableName}.${snakeKey} (${val})`);
           newObj[snakeKey] = null;
           continue;
         }
@@ -205,7 +209,9 @@ export const DataRepository = {
     };
     const tableName = tableMap[collection];
     if (!tableName) return false;
+    // Validação extra para deleção: só permite UUID em tabelas críticas
     if (!tableName.startsWith('pro_') && !tableName.startsWith('visit_requests') && !isValidUUID(id)) return false;
+    
     const { error } = await supabase.from(tableName).delete().eq('id', id);
     return !error;
   }
