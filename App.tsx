@@ -14,11 +14,12 @@ import { useApp } from './contexts/AppContext';
 import { useAuth } from './contexts/AuthContext';
 import { useAppFlow } from './hooks/useAppFlow';
 
-// Lazy Loading para abas administrativas
+// Lazy Loading para abas administrativas e externas
 const Reports = lazy(() => import('./components/Reports'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const PGManager = lazy(() => import('./components/PGManagement/PGManagerLayout'));
+const PrayView = lazy(() => import('./components/PrayView'));
 
 const App: React.FC = () => {
   const {
@@ -146,6 +147,15 @@ const App: React.FC = () => {
           {visitedTabs.has('staffVisit') && (
             <div className={getTabClass('staffVisit')}>
               <StaffVisitForm currentUser={currentUser} users={users} onToggleReturn={id => { const item = staffVisits.find(v=>v.id===id); if(item) saveRecord('staffVisits', {...item, returnCompleted: !item.returnCompleted}); }} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(staffVisits)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />
+            </div>
+          )}
+
+          {/* Portal PRAY */}
+          {visitedTabs.has('pray') && (
+            <div className={getTabClass('pray')}>
+              <Suspense fallback={<TabLoading />}>
+                <PrayView />
+              </Suspense>
             </div>
           )}
 

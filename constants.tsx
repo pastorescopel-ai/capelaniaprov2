@@ -21,6 +21,7 @@ export const NAV_ITEMS = [
   { id: 'bibleClass', label: 'Classe Bíblica', icon: '👥', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
   { id: 'smallGroup', label: 'Pequenos Grupos', icon: '🏠', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
   { id: 'staffVisit', label: 'Visitas', icon: '🤝', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
+  { id: 'pray', label: 'Portal Pray', icon: '🙏', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
   { id: 'pgManagement', label: 'Gestão de PGs', icon: '🧩', roles: [UserRole.ADMIN] },
   { id: 'reports', label: 'Relatórios', icon: '📈', roles: [UserRole.ADMIN] },
   { id: 'users', label: 'Equipe', icon: '👥', roles: [UserRole.ADMIN] },
