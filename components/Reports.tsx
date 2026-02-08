@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, MasterLists, ActivityFilter } from '../types';
+import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, ActivityFilter } from '../types';
 import { useReportLogic } from '../hooks/useReportLogic';
 import { resolveDynamicName, normalizeString } from '../utils/formatters';
 import * as XLSX from 'xlsx';
@@ -18,7 +19,6 @@ interface ReportsProps {
   visits: StaffVisit[];
   users: User[];
   currentUser: User;
-  masterLists: MasterLists; 
   config: Config;
   onRefresh?: () => Promise<any>;
 }

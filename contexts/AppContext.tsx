@@ -2,7 +2,7 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { useDataMaintenance } from '../hooks/useDataMaintenance';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProPatient, ProProvider, ParticipantType, Unit } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProPatient, ProProvider, ParticipantType, Unit } from '../types';
 
 interface AppContextType {
   users: User[];
@@ -11,10 +11,8 @@ interface AppContextType {
   smallGroups: SmallGroup[];
   staffVisits: StaffVisit[];
   visitRequests: VisitRequest[];
-  masterLists: MasterLists;
   
   proStaff: ProStaff[];
-  // Adicionado proPatients e proProviders para suportar o gerenciamento de pacientes e prestadores
   proPatients: ProPatient[];
   proProviders: ProProvider[];
   proSectors: ProSector[];
@@ -31,7 +29,6 @@ interface AppContextType {
   saveRecord: (collection: string, item: any) => Promise<boolean>;
   deleteRecord: (collection: string, id: string) => Promise<boolean>;
   applySystemOverrides: (baseConfig: Config) => Config;
-  // Adicionado syncMasterContact para permitir que os formulários sincronizem contatos com o banco mestre de forma centralizada
   syncMasterContact: (name: string, phone: string, unit: Unit, type: ParticipantType, extra?: string) => Promise<void>;
   
   // Maintenance Functions
@@ -39,7 +36,8 @@ interface AppContextType {
   migrateLegacyStructure: () => Promise<{ success: boolean; message: string; details?: string }>;
   unifyNumericIdsAndCleanPrefixes: () => Promise<{ success: boolean; message: string }>;
   mergePGs: (sourceId: string, targetId: string) => Promise<{ success: boolean; message: string }>;
-  nuclearReset: () => Promise<{ success: boolean; message: string }>;
+  executeSectorMigration: (oldName: string, newName: string) => Promise<string>;
+  executePGMigration: (oldName: string, newName: string) => Promise<string>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);

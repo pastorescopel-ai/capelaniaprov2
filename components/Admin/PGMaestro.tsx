@@ -7,9 +7,6 @@ import { ProStaff, ProSector, ProGroup, Unit, ProGroupLocation } from '../../typ
 import { useApp } from '../../contexts/AppContext';
 
 interface PGMaestroProps {
-  lists: any; 
-  setLists: any;
-  onAutoSave?: any;
   proData?: any;
 }
 

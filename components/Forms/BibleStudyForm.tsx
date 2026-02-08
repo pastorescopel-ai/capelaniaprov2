@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Unit, RecordStatus, BibleStudy, User, UserRole, MasterLists, ParticipantType } from '../../types';
+import { Unit, RecordStatus, BibleStudy, User, UserRole, ParticipantType } from '../../types';
 import { STATUS_OPTIONS } from '../../constants';
 import { useToast } from '../../contexts/ToastContext';
 import Autocomplete, { AutocompleteOption } from '../Shared/Autocomplete';
@@ -14,7 +14,6 @@ interface FormProps {
   unit: Unit;
   users: User[];
   currentUser: User;
-  masterLists: MasterLists;
   history: BibleStudy[];
   allHistory?: BibleStudy[];
   editingItem?: BibleStudy;
@@ -35,6 +34,14 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   
   const [formData, setFormData] = useState(defaultState);
 
+  // --- RESET INTELIGENTE AO ENTRAR NA ABA ---
+  useEffect(() => {
+    if (!editingItem) {
+      // Mantém a data atual do estado (caso o usuário tenha mudado) mas reseta o resto
+      setFormData(prev => ({ ...defaultState, date: prev.date || getToday() }));
+    }
+  }, []); // Executa apenas na montagem (entrada na aba)
+
   // --- SUGESTÕES DE GUIAS (Restaurado) ---
   const guideOptions = useMemo(() => {
     const uniqueGuides = new Set<string>();
@@ -43,13 +50,19 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   }, [allHistory]);
 
   const sectorOptions = useMemo(() => {
-    if (formData.participantType === ParticipantType.PATIENT) {
-        return [{value: 'Internado', label: 'Internado'}, {value: 'Acompanhante', label: 'Acompanhante'}, {value: 'Emergência', label: 'Emergência'}, {value: 'Outros', label: 'Outros'}];
+    // Para Pacientes e Colaboradores, usamos a lista oficial do banco (Restrito)
+    if (formData.participantType === ParticipantType.PATIENT || formData.participantType === ParticipantType.STAFF) {
+        return proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name}));
     }
-    if (formData.participantType === ParticipantType.PROVIDER) {
-        return [{value: 'Profissional da Saúde', label: 'Profissional da Saúde'}, {value: 'Apoio/Serviços', label: 'Apoio/Serviços'}, {value: 'Administrativo', label: 'Administrativo'}, {value: 'Outros', label: 'Outros'}];
-    }
-    return proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name}));
+    // Para Prestadores, permitimos locais genéricos, mas sugerimos os do banco
+    const officialSectors = proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name}));
+    const genericLocations = [
+        {value: 'Profissional da Saúde', label: 'Profissional da Saúde'}, 
+        {value: 'Apoio/Serviços', label: 'Apoio/Serviços'}, 
+        {value: 'Administrativo', label: 'Administrativo'}, 
+        {value: 'Outros', label: 'Outros'}
+    ];
+    return [...officialSectors, ...genericLocations];
   }, [formData.participantType, proSectors, unit]);
 
   const studentOptions = useMemo(() => {
@@ -83,9 +96,8 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   useEffect(() => {
     if (editingItem) {
       setFormData({ ...editingItem, participantType: editingItem.participantType || ParticipantType.STAFF, date: editingItem.date ? editingItem.date.split('T')[0] : getToday() });
-    } else {
-      setFormData({ ...defaultState, date: getToday() });
     }
+    // Removido o 'else' daqui para evitar conflito com o useEffect de reset inicial
   }, [editingItem]);
 
   // --- MOTOR DE CONTINUIDADE (Lógica Samara) ---
@@ -130,12 +142,41 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     setFormData(prev => ({ ...prev, name: targetName, sector: targetSector, whatsapp: targetWhatsApp, guide: targetGuide, lesson: targetLesson }));
   };
 
+  const handleClear = () => {
+    setFormData({ ...defaultState, date: formData.date });
+    showToast("Campos limpos!", "info");
+  };
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.sector || !formData.whatsapp || !formData.guide || !formData.lesson) {
         showToast("Preencha todos os campos obrigatórios.");
         return;
     }
+
+    // --- VALIDAÇÃO RESTRITA (STRICT MODE) ---
+    // Colaborador: Nome deve estar no proStaff, Setor deve estar no proSectors
+    if (formData.participantType === ParticipantType.STAFF) {
+        const staffExists = proStaff.some(s => normalizeString(s.name) === normalizeString(formData.name) && s.unit === unit);
+        if (!staffExists) {
+            showToast("O colaborador informado não consta no Banco de RH.", "warning");
+            return;
+        }
+        const sectorExists = proSectors.some(s => s.name === formData.sector && s.unit === unit);
+        if (!sectorExists) {
+            showToast("O setor informado não consta na lista oficial.", "warning");
+            return;
+        }
+    }
+    // Paciente: Setor deve estar no proSectors
+    if (formData.participantType === ParticipantType.PATIENT) {
+        const sectorExists = proSectors.some(s => s.name === formData.sector && s.unit === unit);
+        if (!sectorExists) {
+            showToast("Para pacientes, selecione um setor/leito oficial.", "warning");
+            return;
+        }
+    }
+
     // Sincroniza o contato no banco mestre
     await syncMasterContact(formData.name, formData.whatsapp, unit, formData.participantType!, formData.sector);
     
@@ -149,16 +190,21 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
           <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Estudo Bíblico</h2>
-          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start">
-             {[ParticipantType.STAFF, ParticipantType.PATIENT, ParticipantType.PROVIDER].map(type => (
-               <button key={type} type="button" onClick={() => setFormData({...formData, participantType: type, name: '', whatsapp: '', sector: '', guide: '', lesson: ''})} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === type ? 'bg-white shadow-lg text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>{type}</button>
-             ))}
+          <div className="flex items-center gap-2">
+            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start">
+                {[ParticipantType.STAFF, ParticipantType.PATIENT, ParticipantType.PROVIDER].map(type => (
+                <button key={type} type="button" onClick={() => setFormData({...formData, participantType: type, name: '', whatsapp: '', sector: '', guide: '', lesson: ''})} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === type ? 'bg-white shadow-lg text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>{type}</button>
+                ))}
+            </div>
+            <button type="button" onClick={handleClear} className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 hover:text-pink-700 transition-all flex items-center justify-center text-lg shadow-sm" title="Limpar Campos">
+                <i className="fas fa-eraser"></i>
+            </button>
           </div>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do {formData.participantType}</label><Autocomplete options={studentOptions} value={formData.name} onChange={v => setFormData({...formData, name: v})} onSelectOption={handleSelectStudent} placeholder="Buscar..." /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Local</label><Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local..." /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do {formData.participantType}</label><Autocomplete options={studentOptions} value={formData.name} onChange={v => setFormData({...formData, name: v})} onSelectOption={handleSelectStudent} placeholder="Buscar..." isStrict={formData.participantType === ParticipantType.STAFF} /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Local</label><Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local..." isStrict={formData.participantType !== ParticipantType.PROVIDER} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">WhatsApp</label><input placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Guia de Estudo</label><Autocomplete options={guideOptions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Ex: O Grande Conflito" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Lição nº</label><input type="number" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-black" /></div>

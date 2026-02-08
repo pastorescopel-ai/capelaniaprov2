@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Unit, SmallGroup, User, UserRole, MasterLists, ProGroup, ProStaff, ParticipantType } from '../../types';
+import { Unit, SmallGroup, User, UserRole, ProGroup, ProStaff, ParticipantType } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import Autocomplete, { AutocompleteOption } from '../Shared/Autocomplete';
 import HistoryCard from '../Shared/HistoryCard';
@@ -14,7 +14,6 @@ interface FormProps {
   groupsList?: string[];
   users: User[];
   currentUser: User;
-  masterLists: MasterLists;
   history: SmallGroup[];
   editingItem?: SmallGroup;
   isLoading?: boolean;
@@ -24,15 +23,23 @@ interface FormProps {
   onSubmit: (data: any) => void;
 }
 
-const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, masterLists, history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
-  // Corrigido: syncMasterContact agora é desestruturado do useApp, permitindo sincronização de contatos com o banco RH
-  const { proSectors, proGroups, proStaff, saveRecord, visitRequests, syncMasterContact } = useApp();
+const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
+  const { proSectors, proGroups, proStaff, saveRecord, visitRequests, syncMasterContact, proGroupLocations } = useApp();
   
   const getToday = () => new Date().toLocaleDateString('en-CA');
 
   const defaultState = { id: '', date: getToday(), sector: '', groupName: '', leader: '', leaderPhone: '', shift: 'Manhã', participantsCount: 0, observations: '' };
   const [formData, setFormData] = useState(defaultState);
+  const [isSectorLocked, setIsSectorLocked] = useState(false);
   const { showToast } = useToast();
+
+  // --- RESET INTELIGENTE AO ENTRAR NA ABA ---
+  useEffect(() => {
+    if (!editingItem) {
+      setFormData(prev => ({ ...defaultState, date: prev.date || getToday() }));
+      setIsSectorLocked(false);
+    }
+  }, []); // Executa apenas na montagem (entrada na aba)
 
   const sectorOptions = useMemo(() => {
     return proSectors.filter(s => s.unit === unit).map(s => ({ value: s.name, label: s.name }));
@@ -48,7 +55,6 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
       return {
         value: staff.name,
         label: `${staff.name} (${staffIdStr.split('-')[1] || staffIdStr})`,
-        // Fix: Usando casting 'as const' para garantir que a string literal seja compatível com o tipo da união no AutocompleteOption
         category: 'RH' as const
       };
     });
@@ -62,8 +68,12 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
         observations: editingItem.observations || '',
         leaderPhone: editingItem.leaderPhone || ''
       });
-    } else {
-      setFormData({ ...defaultState, date: getToday() });
+      // Verifica se o setor deve ser travado no modo edição
+      const pg = proGroups.find(g => g.name === editingItem.groupName && g.unit === unit);
+      if (pg) {
+          const loc = proGroupLocations.find(l => l.groupId === pg.id);
+          setIsSectorLocked(!!loc);
+      }
     }
   }, [editingItem]);
 
@@ -73,17 +83,32 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
       
       let leaderSector = '';
       let leaderPhone = pgMaster?.leaderPhone ? formatWhatsApp(pgMaster.leaderPhone) : '';
+      let locked = false;
       
-      if (leaderName) {
-          const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(leaderName) && s.unit === unit);
-          if (staff) {
-              const sec = proSectors.find(s => s.id === staff.sectorId);
-              if (sec) leaderSector = sec.name;
-              // PRIORIDADE MESTRE: Se o staff tem whatsapp salvo no RH, puxa dele
-              if (staff.whatsapp) leaderPhone = formatWhatsApp(staff.whatsapp);
+      if (pgMaster) {
+          // Lógica Mestre de Localização do PG
+          const location = proGroupLocations.find(l => l.groupId === pgMaster.id);
+          if (location) {
+              const sec = proSectors.find(s => s.id === location.sectorId);
+              if (sec) {
+                  leaderSector = sec.name;
+                  locked = true;
+                  showToast(`Local oficial do PG: ${sec.name}`, "info");
+              }
+          }
+
+          if (!locked && leaderName) {
+              const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(leaderName) && s.unit === unit);
+              if (staff) {
+                  const sec = proSectors.find(s => s.id === staff.sectorId);
+                  // Se não tem local fixo do PG, sugere o do líder, mas não trava
+                  if (sec && !leaderSector) leaderSector = sec.name;
+                  if (staff.whatsapp) leaderPhone = formatWhatsApp(staff.whatsapp);
+              }
           }
       }
 
+      setIsSectorLocked(locked);
       setFormData(prev => ({ 
         ...prev, 
         groupName: pgName, 
@@ -93,11 +118,31 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
       }));
   };
 
+  const handleClear = () => {
+    setFormData({ ...defaultState, date: formData.date });
+    setIsSectorLocked(false);
+    showToast("Campos limpos!", "info");
+  };
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.groupName || !formData.leader || !formData.leaderPhone || !formData.sector) {
       showToast("Preencha todos os campos obrigatórios.");
       return;
+    }
+
+    // --- VALIDAÇÃO RESTRITA (STRICT MODE) ---
+    // PG deve existir na lista
+    const pgExists = proGroups.some(g => g.name === formData.groupName && g.unit === unit);
+    if (!pgExists) {
+        showToast("Selecione um Pequeno Grupo válido da lista.", "warning");
+        return;
+    }
+    // Setor deve existir na lista
+    const sectorExists = proSectors.some(s => s.name === formData.sector && s.unit === unit);
+    if (!sectorExists) {
+        showToast("Selecione um setor oficial válido.", "warning");
+        return;
     }
     
     // MASTER ENTITY SYNC: Garante que o contato do líder esteja salvo no RH oficial
@@ -125,6 +170,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
 
     onSubmit({ ...formData, unit, leaderPhone: formData.leaderPhone.replace(/\D/g, '') });
     setFormData({ ...defaultState, date: getToday() });
+    setIsSectorLocked(false);
   };
 
   return (
@@ -135,13 +181,26 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
             <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Pequeno Grupo</h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Unidade {unit}</p>
           </div>
+          <button type="button" onClick={handleClear} className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 hover:text-pink-700 transition-all flex items-center justify-center text-lg shadow-sm" title="Limpar Campos">
+            <i className="fas fa-eraser"></i>
+          </button>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data do Encontro *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do Grupo *</label><Autocomplete options={pgOptions} value={formData.groupName} onChange={v => setFormData({...formData, groupName: v})} onSelectOption={handleSelectPG} placeholder="Selecione o PG..." /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do Grupo *</label><Autocomplete options={pgOptions} value={formData.groupName} onChange={v => setFormData({...formData, groupName: v})} onSelectOption={handleSelectPG} placeholder="Selecione o PG..." isStrict={true} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Líder Atual *</label><Autocomplete options={staffOptions} value={formData.leader} onChange={v => setFormData({...formData, leader: v})} placeholder="Busque o líder no banco..." /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">WhatsApp do Líder *</label><input placeholder="(00) 00000-0000" value={formData.leaderPhone} onChange={e => setFormData({...formData, leaderPhone: formatWhatsApp(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Localização *</label><Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Onde o PG se reúne?" isStrict={true} /></div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Localização *</label>
+            {isSectorLocked ? (
+                <div className="w-full p-4 rounded-2xl bg-slate-100 border border-slate-200 font-bold text-slate-500 cursor-not-allowed flex justify-between items-center">
+                    <span>{formData.sector}</span>
+                    <i className="fas fa-lock text-slate-400"></i>
+                </div>
+            ) : (
+                <Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Onde o PG se reúne?" isStrict={true} />
+            )}
+          </div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nº de Participantes *</label><input type="number" value={formData.participantsCount || ''} onChange={e => setFormData({...formData, participantsCount: parseInt(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-black" placeholder="0" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Turno *</label><select value={formData.shift} onChange={e => setFormData({...formData, shift: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold"><option>Manhã</option><option>Tarde</option><option>Noite</option></select></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Relato / Observações</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium" /></div>

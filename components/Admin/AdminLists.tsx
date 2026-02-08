@@ -9,15 +9,8 @@ import Autocomplete from '../Shared/Autocomplete';
 import { normalizeString } from '../../utils/formatters';
 
 interface AdminListsProps {
-  lists: {
-    sectorsHAB: string; sectorsHABA: string;
-    groupsHAB: string; groupsHABA: string;
-    staffHAB: string; staffHABA: string;
-  };
-  setLists: React.Dispatch<React.SetStateAction<any>>;
-  onAutoSave?: (updatedLists: any) => Promise<void>;
   proData?: { staff: ProStaff[]; sectors: ProSector[]; groups: ProGroup[] };
-  onSavePro?: (staff: ProStaff[], sectors: ProSector[], groups: ProGroup[], legacyLists: any) => Promise<boolean>;
+  onSavePro?: (staff: ProStaff[], sectors: ProSector[], groups: ProGroup[]) => Promise<boolean>;
 }
 
 interface PreviewItem {
@@ -30,7 +23,7 @@ interface PreviewItem {
   sectorStatus?: 'ok' | 'error' | 'new'; 
 }
 
-const AdminLists: React.FC<AdminListsProps> = ({ lists, setLists, onAutoSave, proData, onSavePro }) => {
+const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'staff' | 'sectors' | 'pgs'>('staff');
   const [activeUnit, setActiveUnit] = useState<'HAB' | 'HABA'>('HAB');
@@ -232,7 +225,6 @@ const AdminLists: React.FC<AdminListsProps> = ({ lists, setLists, onAutoSave, pr
                 }))
             ];
         } else if (activeTab === 'pgs') {
-            // REGRA: IDs de PGs agora são numéricos puros (limpos via getRawId no processFile)
             updatedGroups = [
                 ...updatedGroups.filter(g => !(newIds.has(g.id) && g.unit === activeUnit)),
                 ...previewData.map(p => ({
@@ -243,17 +235,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ lists, setLists, onAutoSave, pr
             ];
         }
 
-        const legacyUpdate = {
-            ...lists,
-            staffHAB: updatedStaff.filter(s => s.unit === 'HAB').map(s => `${s.id} | ${s.name}`).join('\n'),
-            staffHABA: updatedStaff.filter(s => s.unit === 'HABA').map(s => `${s.id} | ${s.name}`).join('\n'),
-            sectorsHAB: updatedSectors.filter(s => s.unit === 'HAB').map(s => `${s.id} - ${s.name}`).join('\n'),
-            sectorsHABA: updatedSectors.filter(s => s.unit === 'HABA').map(s => `${s.id} - ${s.name}`).join('\n'),
-            groupsHAB: updatedGroups.filter(s => s.unit === 'HAB').map(g => `${g.name}`).join('\n'),
-            groupsHABA: updatedGroups.filter(s => s.unit === 'HABA').map(g => `${g.name}`).join('\n')
-        };
-
-        await onSavePro(updatedStaff, updatedSectors, updatedGroups, legacyUpdate);
+        await onSavePro(updatedStaff, updatedSectors, updatedGroups);
         setSyncState({ isOpen: true, status: 'success', title: 'Finalizado', message: "Banco de dados atualizado com sucesso!" });
         setPreviewData([]); 
     } catch (e: any) {
@@ -356,7 +338,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ lists, setLists, onAutoSave, pr
             </div>
         )}
       </section>
-      <PGMaestro lists={lists} setLists={setLists} onAutoSave={onAutoSave} proData={proData} />
+      <PGMaestro proData={proData} />
     </div>
   );
 };

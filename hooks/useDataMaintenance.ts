@@ -9,54 +9,6 @@ export const useDataMaintenance = (
 ) => {
   const [isMaintenanceRunning, setIsMaintenanceRunning] = useState(false);
 
-  const nuclearReset = async (): Promise<{ success: boolean; message: string }> => {
-    if (!supabase) return { success: false, message: "Supabase não conectado." };
-    setIsMaintenanceRunning(true);
-    try {
-      const { data: mlRecords } = await supabase.from('master_lists').select('*').limit(1);
-      const mlData = mlRecords && mlRecords.length > 0 ? mlRecords[0] : null;
-      
-      if (!mlData) {
-          throw new Error("As Listas de Texto (Excel) estão vazias no servidor.");
-      }
-
-      await supabase.from('pro_staff').delete().neq('id', '_PURGE_');
-      await supabase.from('pro_groups').delete().neq('id', '_PURGE_');
-      await supabase.from('pro_sectors').delete().neq('id', '_PURGE_');
-      await supabase.from('pro_group_locations').delete().neq('id', '_PURGE_');
-
-      const newSectors: ProSector[] = [];
-      const processList = (list: string[], unit: Unit) => {
-        if (!Array.isArray(list)) return;
-        list.forEach(item => {
-          if (!item || !item.trim()) return;
-          const parts = item.split(/[_-]/);
-          const rawId = parts[0].trim().toUpperCase().replace('HAB', '').replace('HABA', '').replace('A', '');
-          const cleanId = rawId.replace(/\D/g, ''); 
-          const name = parts.slice(1).join(' ').trim();
-          
-          if (cleanId && name) {
-            newSectors.push({ id: cleanId, name, unit });
-          }
-        });
-      };
-
-      processList(mlData.sectors_hab || [], Unit.HAB);
-      processList(mlData.sectors_haba || [], Unit.HABA);
-
-      if (newSectors.length > 0) {
-        await DataRepository.upsertRecord('proSectors', newSectors);
-      }
-
-      await reloadCallback(true);
-      return { success: true, message: `Reset concluído! ${newSectors.length} setores reconstruídos.` };
-    } catch (e: any) {
-      return { success: false, message: e.message };
-    } finally {
-      setIsMaintenanceRunning(false);
-    }
-  };
-
   const unifyNumericIdsAndCleanPrefixes = async (): Promise<{ success: boolean; message: string }> => {
     if (!supabase) return { success: false, message: "Offline mode." };
     setIsMaintenanceRunning(true);
@@ -98,39 +50,10 @@ export const useDataMaintenance = (
   const migrateLegacyStructure = async (): Promise<{ success: boolean; message: string; details?: string }> => {
     setIsMaintenanceRunning(true);
     try {
-      const current = await DataRepository.syncAll();
-      if (!current || !current.masterLists) throw new Error("Listas não encontradas.");
-      const { sectorsHAB, sectorsHABA } = current.masterLists;
-      const newSectorsMap = new Map<string, ProSector>();
-      
-      const parseLegacy = (list: string[], unit: Unit) => {
-        list.forEach(item => {
-          if (!item || !item.trim()) return;
-          const clean = item.trim();
-          let rawId = '', name = '';
-          if (clean.includes('_')) {
-            const p = clean.split('_'); rawId = p[0]; name = p.slice(1).filter(x => x !== 'HAB' && x !== 'HABA').join(' ');
-          } else if (clean.includes(' - ')) {
-            const p = clean.split(' - '); rawId = p[0]; name = p.slice(1).join(' ');
-          } else if (/^\d+\s/.test(clean)) {
-            const idx = clean.indexOf(' '); rawId = clean.substring(0, idx); name = clean.substring(idx + 1);
-          }
-          if (rawId && name) {
-            const cleanId = rawId.trim().toUpperCase().replace('HAB', '').replace('HABA', '').replace('-', '');
-            newSectorsMap.set(cleanId, { id: cleanId, name: name.trim(), unit });
-          }
-        });
-      };
-      
-      if (Array.isArray(sectorsHAB)) parseLegacy(sectorsHAB, Unit.HAB);
-      if (Array.isArray(sectorsHABA)) parseLegacy(sectorsHABA, Unit.HABA);
-      
-      const sectorsToUpsert: ProSector[] = Array.from(newSectorsMap.values());
-      if (sectorsToUpsert.length === 0) return { success: false, message: "Nenhum setor novo para migrar." };
-      
-      await DataRepository.upsertRecord('proSectors', sectorsToUpsert);
-      await reloadCallback(true);
-      return { success: true, message: "Migração concluída!", details: `${sectorsToUpsert.length} setores normalizados.` };
+      // Nota: Esta função de migração dependia da masterLists antiga. 
+      // Com o desacoplamento, ela perde utilidade ou precisaria ser reescrita para ler do Excel diretamente no AdminLists.
+      // Mantendo vazia ou com mensagem informativa para evitar erro de chamada.
+      return { success: true, message: "Função de migração legada desativada." };
     } catch (e: any) {
       return { success: false, message: e.message };
     } finally {
@@ -156,12 +79,37 @@ export const useDataMaintenance = (
       }
   };
 
+  // --- NOVAS FUNÇÕES DE MIGRAÇÃO (PONTE) ---
+
+  const executeSectorMigration = async (oldName: string, newName: string): Promise<string> => {
+    if (!supabase) return "Erro Conexão";
+    const { data, error } = await supabase.rpc('migrate_legacy_sector', { 
+        old_name: oldName, 
+        new_name: newName 
+    });
+    if (error) throw new Error(error.message);
+    await reloadCallback(false);
+    return data;
+  };
+
+  const executePGMigration = async (oldName: string, newName: string): Promise<string> => {
+    if (!supabase) return "Erro Conexão";
+    const { data, error } = await supabase.rpc('migrate_legacy_pg', { 
+        old_name: oldName, 
+        new_name: newName 
+    });
+    if (error) throw new Error(error.message);
+    await reloadCallback(false);
+    return data;
+  };
+
   return {
-    nuclearReset,
     unifyNumericIdsAndCleanPrefixes,
     mergePGs,
     migrateLegacyStructure,
     importFromDNA,
+    executeSectorMigration,
+    executePGMigration,
     isMaintenanceRunning
   };
 };

@@ -12,9 +12,7 @@ interface PGStructureProps {
 }
 
 const PGStructure: React.FC<PGStructureProps> = () => {
-  const { masterLists } = useApp();
-  // PGMaestro espera props de lista e setList por compatibilidade legado,
-  // mas funciona principalmente com o banco relacional. Passamos dummies.
+  // PGMaestro agora acessa o context diretamente
   return (
     <div className="space-y-4">
         <div className="bg-amber-50 border border-amber-100 p-6 rounded-[2rem] flex gap-4 items-center mb-4">
@@ -26,7 +24,7 @@ const PGStructure: React.FC<PGStructureProps> = () => {
                 <p className="text-xs text-amber-700/70">Use esta ferramenta para criar novos PGs, fundir duplicatas e definir quais setores cada PG atende.</p>
             </div>
         </div>
-        <PGMaestro lists={masterLists} setLists={() => {}} />
+        <PGMaestro />
     </div>
   );
 };

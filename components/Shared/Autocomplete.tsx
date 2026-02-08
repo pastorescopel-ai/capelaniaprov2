@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { normalizeString } from '../../utils/formatters';
+import { useToast } from '../../contexts/ToastContext';
 
 export interface AutocompleteOption {
   value: string;      // O valor real que será salvo (ex: nome limpo ou formatado)
@@ -31,6 +32,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   className 
 }) => {
   const [open, setOpen] = useState(false);
+  const { showToast } = useToast();
 
   const filtered = useMemo(() => {
     const search = normalizeString(value);
@@ -50,6 +52,21 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
     });
   }, [options, value, open]);
 
+  const validateInput = (currentValue: string) => {
+    // Apenas valida se estiver no modo estrito e houver algum valor digitado
+    if (isStrict && currentValue.trim()) {
+        const normVal = normalizeString(currentValue);
+        // Verifica se o valor digitado corresponde a alguma das opções disponíveis (pelo value ou label)
+        // Isso permite que o usuário digite apenas o nome (value) ou veja o nome com matrícula (label)
+        const match = options.some(o => normalizeString(o.value) === normVal || normalizeString(o.label) === normVal);
+        
+        if (!match) {
+            showToast("Valor não encontrado no banco de dados.", "warning");
+            onChange(''); // Limpa o campo para forçar seleção correta
+        }
+    }
+  };
+
   return (
     <div className="relative">
       <input 
@@ -58,12 +75,21 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
         value={value}
         onChange={(e) => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
+        onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+                // Ao dar Enter, valida imediatamente o texto
+                validateInput(value);
+                setOpen(false);
+            }
+        }}
         onBlur={() => {
+           // Delay para permitir que o clique na opção ocorra antes do blur fechar/validar
            setTimeout(() => {
              setOpen(false);
+             validateInput(value);
            }, 250);
         }}
-        className={className || "w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-800 transition-all"}
+        className={className || "w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-800 transition-all placeholder:text-slate-400"}
       />
       
       {open && filtered.length > 0 && (

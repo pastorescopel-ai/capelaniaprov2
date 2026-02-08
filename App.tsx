@@ -22,7 +22,7 @@ const PGManager = lazy(() => import('./components/PGManagement/PGManagerLayout')
 
 const App: React.FC = () => {
   const {
-    users, bibleStudies, bibleClasses, smallGroups, staffVisits, masterLists,
+    users, bibleStudies, bibleClasses, smallGroups, staffVisits,
     proSectors, config, isSyncing, isConnected, loadFromCloud, saveToCloud, saveRecord, deleteRecord
   } = useApp();
 
@@ -127,25 +127,25 @@ const App: React.FC = () => {
           {/* Formulários Principais - Montados sob demanda e mantidos na memória */}
           {visitedTabs.has('bibleStudy') && (
             <div className={getTabClass('bibleStudy')}>
-              <BibleStudyForm currentUser={currentUser} users={users} masterLists={masterLists} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} history={getVisibleHistory(bibleStudies)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} />
+              <BibleStudyForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} history={getVisibleHistory(bibleStudies)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} />
             </div>
           )}
 
           {visitedTabs.has('bibleClass') && (
             <div className={getTabClass('bibleClass')}>
-              <BibleClassForm currentUser={currentUser} users={users} masterLists={masterLists} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={unitSectors} history={getVisibleHistory(bibleClasses)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} />
+              <BibleClassForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={unitSectors} history={getVisibleHistory(bibleClasses)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} />
             </div>
           )}
 
           {visitedTabs.has('smallGroup') && (
             <div className={getTabClass('smallGroup')}>
-              <SmallGroupForm currentUser={currentUser} users={users} masterLists={masterLists} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(smallGroups)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />
+              <SmallGroupForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(smallGroups)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />
             </div>
           )}
 
           {visitedTabs.has('staffVisit') && (
             <div className={getTabClass('staffVisit')}>
-              <StaffVisitForm currentUser={currentUser} users={users} masterLists={masterLists} onToggleReturn={id => { const item = staffVisits.find(v=>v.id===id); if(item) saveRecord('staffVisits', {...item, returnCompleted: !item.returnCompleted}); }} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(staffVisits)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />
+              <StaffVisitForm currentUser={currentUser} users={users} onToggleReturn={id => { const item = staffVisits.find(v=>v.id===id); if(item) saveRecord('staffVisits', {...item, returnCompleted: !item.returnCompleted}); }} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(staffVisits)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />
             </div>
           )}
 
@@ -153,7 +153,7 @@ const App: React.FC = () => {
           {visitedTabs.has('reports') && (
             <div className={getTabClass('reports')}>
               <Suspense fallback={<TabLoading />}>
-                <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} currentUser={currentUser} masterLists={masterLists} config={config} onRefresh={() => loadFromCloud(true)} />
+                <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} currentUser={currentUser} config={config} onRefresh={() => loadFromCloud(true)} />
               </Suspense>
             </div>
           )}

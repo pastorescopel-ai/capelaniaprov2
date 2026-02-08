@@ -1,121 +1,46 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { MasterLists, Config, User, BibleStudy, BibleClass, SmallGroup, StaffVisit, ProStaff, ProSector, ProGroup } from '../types';
-import { useToast } from '../contexts/ToastContext';
+import { Config } from '../../types';
+import { useToast } from '../../contexts/ToastContext';
 import AdminConfig from './Admin/AdminConfig';
 import AdminLists from './Admin/AdminLists';
 import AdminDataTools from './Admin/AdminDataTools';
-import { useApp } from '../contexts/AppContext';
+import { useApp } from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
 
-interface AdminPanelProps {
-  config: Config;
-  masterLists: MasterLists;
-  users: User[];
-  currentUser: User;
-  bibleStudies: BibleStudy[];
-  bibleClasses: BibleClass[];
-  smallGroups: SmallGroup[];
-  staffVisits: StaffVisit[];
-  // Props de Salvamento
-  onSaveAllData: (config: Config, lists: MasterLists) => Promise<any>;
-  onRestoreFullDNA: (dna: any) => Promise<{ success: boolean; message: string }>;
-  onRefreshData: () => Promise<any>;
-}
-
-const AdminPanel: React.FC<AdminPanelProps> = ({ 
-  config, masterLists, users, currentUser, 
-  bibleStudies, bibleClasses, smallGroups, staffVisits,
-  onSaveAllData, onRestoreFullDNA, onRefreshData
-}) => {
-  const { proStaff, proSectors, proGroups, saveToCloud, migrateLegacyStructure } = useApp();
+const AdminPanel: React.FC = () => {
+  const { 
+    config, 
+    bibleStudies, bibleClasses, smallGroups, staffVisits, users,
+    proStaff, proSectors, proGroups, 
+    saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, migrateLegacyStructure 
+  } = useApp();
+  
+  const { currentUser } = useAuth();
   
   const [localConfig, setLocalConfig] = useState(config);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { showToast } = useToast();
 
-  const safeJoin = (data: any) => {
-    if (Array.isArray(data)) return data.join('\n');
-    return "";
-  };
-  
-  const [lists, setLists] = useState({
-    sectorsHAB: safeJoin(masterLists?.sectorsHAB),
-    sectorsHABA: safeJoin(masterLists?.sectorsHABA),
-    groupsHAB: safeJoin(masterLists?.groupsHAB),
-    groupsHABA: safeJoin(masterLists?.groupsHABA),
-    staffHAB: safeJoin(masterLists?.staffHAB),
-    staffHABA: safeJoin(masterLists?.staffHABA),
-  });
-
-  // Sincroniza estado local apenas quando houver mudança externa confirmada
   useEffect(() => {
     setLocalConfig(config);
-    if (masterLists) {
-      setLists({
-        sectorsHAB: safeJoin(masterLists.sectorsHAB),
-        sectorsHABA: safeJoin(masterLists.sectorsHABA),
-        groupsHAB: safeJoin(masterLists.groupsHAB),
-        groupsHABA: safeJoin(masterLists.groupsHABA),
-        staffHAB: safeJoin(masterLists.staffHAB),
-        staffHABA: safeJoin(masterLists.staffHABA),
-      });
-    }
-  }, [config, masterLists]);
+  }, [config]);
 
-  const cleanListItems = (text: string) => {
-    if (!text) return [];
-    return text.split('\n').map(s => s.trim()).filter(s => s !== '');
-  };
-
-  // Função para Salvamento Automático de Alta Performance (Legado)
-  const handleAutoSaveLists = useCallback(async (updatedLists: typeof lists) => {
-    // Passo 1: Atualizar UI local instantaneamente
-    setLists(updatedLists);
-    
-    try {
-      const finalConfig = { ...localConfig, lastModifiedBy: currentUser.name, lastModifiedAt: Date.now() };
-      const newLists: MasterLists = {
-        sectorsHAB: cleanListItems(updatedLists.sectorsHAB), 
-        sectorsHABA: cleanListItems(updatedLists.sectorsHABA),
-        groupsHAB: cleanListItems(updatedLists.groupsHAB), 
-        groupsHABA: cleanListItems(updatedLists.groupsHABA),
-        staffHAB: cleanListItems(updatedLists.staffHAB), 
-        staffHABA: cleanListItems(updatedLists.staffHABA),
-      };
-      
-      // Passo 2: Disparar Gravação no Supabase (Upsert com Cache de ID)
-      const success = await onSaveAllData(finalConfig, newLists);
-      
-      if (!success) {
-         showToast("Erro ao gravar no banco. Tente novamente.", "warning");
-      } else {
-         console.log("Maestro: Dados sincronizados com sucesso.");
-      }
-    } catch (error) {
-      showToast("Falha crítica de conexão.", "warning");
-    }
-  }, [localConfig, currentUser.name, onSaveAllData, showToast]);
-
-  // Função para salvar dados PRO (Híbrido)
+  // Função para salvar dados PRO (Moderno)
   const handleSaveProData = async (
-    newProStaff: ProStaff[], 
-    newProSectors: ProSector[], 
-    newProGroups: ProGroup[],
-    updatedMasterLists: any // String formatada
+    newProStaff: any[], 
+    newProSectors: any[], 
+    newProGroups: any[]
   ) => {
     setIsSaving(true);
     try {
-      // 1. Salvar no Supabase (Tabelas Relacionais)
+      // Salvar apenas no Supabase (Tabelas Relacionais)
       await saveToCloud({
         proStaff: newProStaff,
         proSectors: newProSectors,
         proGroups: newProGroups
       });
-
-      // 2. Atualizar MasterLists (Legado/Compatibilidade)
-      // O 'updatedMasterLists' já vem no formato { sectorsHAB: "...", ... } do componente filho
-      await handleAutoSaveLists(updatedMasterLists);
 
       showToast("Banco de Dados Profissional atualizado com sucesso!", "success");
       return true;
@@ -130,7 +55,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
     try { 
-      await onRefreshData(); 
+      await loadFromCloud(true); 
       showToast("Banco de dados atualizado!", "success");
     } finally { 
       setIsRefreshing(false); 
@@ -139,9 +64,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleExportFullDNA = () => {
     const fullDNA = {
-      meta: { system: "Capelania Hospitalar Pro", version: "V3.2.0 (Hybrid)", exportDate: new Date().toISOString(), author: currentUser.name },
+      meta: { system: "Capelania Hospitalar Pro", version: "V4.0 (Pure DB)", exportDate: new Date().toISOString(), author: currentUser?.name },
       database: { 
-        bibleStudies, bibleClasses, smallGroups, staffVisits, users, config: localConfig, masterLists,
+        bibleStudies, bibleClasses, smallGroups, staffVisits, users, config: localConfig,
         proStaff, proSectors, proGroups 
       }
     };
@@ -154,16 +79,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
-      const finalConfig = { ...localConfig, lastModifiedBy: currentUser.name, lastModifiedAt: Date.now() };
-      const newLists: MasterLists = {
-        sectorsHAB: cleanListItems(lists.sectorsHAB), 
-        sectorsHABA: cleanListItems(lists.sectorsHABA),
-        groupsHAB: cleanListItems(lists.groupsHAB), 
-        groupsHABA: cleanListItems(lists.groupsHABA),
-        staffHAB: cleanListItems(lists.staffHAB), 
-        staffHABA: cleanListItems(lists.staffHABA),
-      };
-      await onSaveAllData(finalConfig, newLists);
+      const finalConfig = { ...localConfig, lastModifiedBy: currentUser?.name || 'Admin', lastModifiedAt: Date.now() };
+      await saveToCloud({ config: applySystemOverrides(finalConfig) }, true);
       showToast('Configurações salvas no Supabase!', 'success');
     } catch (error) { 
       showToast('Falha ao salvar configurações.', 'warning'); 
@@ -172,13 +89,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  if (!currentUser) return null;
+
   return (
     <div className="space-y-12 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700">
       
       <AdminDataTools 
         currentUser={currentUser} 
-        onRefreshData={onRefreshData} 
-        onRestoreFullDNA={onRestoreFullDNA} 
+        onRefreshData={() => loadFromCloud(true)} 
+        onRestoreFullDNA={importFromDNA} 
         onMigrateLegacy={migrateLegacyStructure}
         isRefreshing={isRefreshing} 
       />
@@ -203,11 +122,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       <AdminConfig config={localConfig} setConfig={setLocalConfig} />
       
-      {/* AdminLists agora recebe dados PRO para gestão híbrida */}
       <AdminLists 
-        lists={lists} 
-        setLists={setLists} 
-        onAutoSave={handleAutoSaveLists}
         proData={{ staff: proStaff, sectors: proSectors, groups: proGroups }}
         onSavePro={handleSaveProData}
       />

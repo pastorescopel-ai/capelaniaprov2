@@ -10,7 +10,6 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
   staff_visits: ['id', 'user_id', 'date', 'unit', 'sector', 'reason', 'staff_name', 'requires_return', 'return_date', 'return_completed', 'observations', 'created_at', 'updated_at'],
   visit_requests: ['id', 'pg_name', 'leader_name', 'leader_phone', 'unit', 'date', 'status', 'request_notes', 'preferred_chaplain_id', 'assigned_chaplain_id', 'chaplain_response', 'is_read', 'created_at', 'updated_at'],
   app_config: ['id', 'mural_text', 'header_line1', 'header_line2', 'header_line3', 'font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'header_text_align', 'primary_color', 'app_logo_url', 'report_logo_url', 'last_modified_by', 'last_modified_at', 'updated_at'],
-  master_lists: ['id', 'sectors_hab', 'sectors_haba', 'staff_hab', 'staff_haba', 'groups_hab', 'groups_haba', 'updated_at'],
   pro_sectors: ['id', 'name', 'unit'],
   pro_staff: ['id', 'name', 'sector_id', 'unit', 'whatsapp'],
   pro_patients: ['id', 'name', 'unit', 'whatsapp', 'last_lesson', 'updated_at'],
@@ -52,7 +51,7 @@ const toCamel = (obj: any): any => {
       keyCache[key] = camelKey;
     }
     let val = obj[key];
-    if (['sectors_hab', 'sectors_haba', 'staff_hab', 'staff_haba', 'groups_hab', 'groups_haba', 'students'].includes(key)) {
+    if (['students'].includes(key)) {
       if (!Array.isArray(val)) val = [];
     }
     newObj[keyCache[key]] = toCamel(val);
@@ -105,7 +104,7 @@ export const DataRepository = {
     try {
       const MAX_ROWS = 9999;
 
-      const [u, bs, bc, sg, sv, vr, c, ml, ps, pst, pp, pr, pg, pgl, pgm] = await Promise.all([
+      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm] = await Promise.all([
         supabase.from('users').select('*').range(0, MAX_ROWS),
         supabase.from('bible_studies').select('*').range(0, MAX_ROWS),
         supabase.from('bible_classes').select('*').range(0, MAX_ROWS),
@@ -113,7 +112,6 @@ export const DataRepository = {
         supabase.from('staff_visits').select('*').range(0, MAX_ROWS),
         supabase.from('visit_requests').select('*').range(0, MAX_ROWS),
         supabase.from('app_config').select('*').limit(1),
-        supabase.from('master_lists').select('*').limit(1),
         supabase.from('pro_sectors').select('*').range(0, MAX_ROWS),
         supabase.from('pro_staff').select('*').range(0, MAX_ROWS),
         supabase.from('pro_patients').select('*').range(0, MAX_ROWS),
@@ -124,7 +122,6 @@ export const DataRepository = {
       ]);
 
       if (c.data?.[0]?.id) GLOBAL_ID_CACHE['app_config'] = c.data[0].id;
-      if (ml.data?.[0]?.id) GLOBAL_ID_CACHE['master_lists'] = ml.data[0].id;
 
       return {
         users: toCamel(u.data || []),
@@ -134,7 +131,6 @@ export const DataRepository = {
         staffVisits: toCamel(sv.data || []),
         visitRequests: toCamel(vr.data || []),
         config: c.data && c.data.length > 0 ? toCamel(c.data[0]) : null,
-        masterLists: ml.data && ml.data.length > 0 ? toCamel(ml.data[0]) : { sectorsHAB: [], sectorsHABA: [], staffHAB: [], staffHABA: [], groupsHAB: [], groupsHABA: [] },
         proSectors: toCamel(ps.data || []),
         proStaff: toCamel(pst.data || []),
         proPatients: toCamel(pp.data || []),
@@ -157,7 +153,7 @@ export const DataRepository = {
     const tableMap: Record<string, string> = {
       bibleStudies: 'bible_studies', bibleClasses: 'bible_classes',
       smallGroups: 'small_groups', staffVisits: 'staff_visits',
-      users: 'users', config: 'app_config', masterLists: 'master_lists',
+      users: 'users', config: 'app_config',
       visitRequests: 'visit_requests',
       proSectors: 'pro_sectors', proStaff: 'pro_staff', 
       proPatients: 'pro_patients', proProviders: 'pro_providers',
@@ -170,7 +166,7 @@ export const DataRepository = {
 
     const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName], tableName));
 
-    if (tableName === 'app_config' || tableName === 'master_lists') {
+    if (tableName === 'app_config') {
       if (GLOBAL_ID_CACHE[tableName]) {
         payloads[0].id = GLOBAL_ID_CACHE[tableName];
       } else {

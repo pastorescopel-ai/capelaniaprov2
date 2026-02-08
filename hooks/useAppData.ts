@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProPatient, ProProvider, ParticipantType, Unit } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProPatient, ProProvider, ParticipantType, Unit } from '../types';
 import { DataRepository } from '../services/dataRepository';
 import { INITIAL_CONFIG } from '../constants';
 import { supabase } from '../services/supabaseClient';
@@ -13,9 +13,6 @@ export const useAppData = () => {
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
   const [staffVisits, setStaffVisits] = useState<StaffVisit[]>([]);
   const [visitRequests, setVisitRequests] = useState<VisitRequest[]>([]);
-  const [masterLists, setMasterLists] = useState<MasterLists>({
-    sectorsHAB: [], sectorsHABA: [], staffHAB: [], staffHABA: [], groupsHAB: [], groupsHABA: []
-  });
   
   const [proStaff, setProStaff] = useState<ProStaff[]>([]);
   const [proPatients, setProPatients] = useState<ProPatient[]>([]);
@@ -55,7 +52,6 @@ export const useAppData = () => {
         setProGroups(data.proGroups || []);
         setProGroupLocations(data.proGroupLocations || []);
         setProGroupMembers(data.proGroupMembers || []);
-        if (data.masterLists) setMasterLists(data.masterLists);
         if (data.config) {
           setConfig(data.config);
           applySystemOverrides(data.config);
@@ -82,36 +78,59 @@ export const useAppData = () => {
   };
 
   /**
-   * ULTIMATE_ENTITY_SYNC_ENGINE (V4.0)
-   * Motor de persistência centralizada para contatos.
-   * Garante que o banco mestre RH reflita qualquer correção feita em formulários.
+   * ULTIMATE_ENTITY_SYNC_ENGINE (V4.1 - Enhanced Sector Healing)
+   * Motor de persistência centralizada para contatos e vínculos.
+   * Garante que o banco mestre RH reflita correções de telefone E SETOR feitas em formulários.
    */
   const syncMasterContact = async (name: string, phone: string, unit: Unit, type: ParticipantType, extra?: string) => {
     const cleanPhone = String(phone || '').replace(/\D/g, '');
-    if (!name || !cleanPhone) return;
+    if (!name) return; // Nome é obrigatório para localizar
 
     const normName = normalizeString(name);
 
     if (type === ParticipantType.STAFF) {
         // Localiza pelo nome normalizado e unidade
         const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
-        if (staff && cleanPhone !== (staff.whatsapp || '')) {
-            // Atualização silenciosa do RH oficial
-            await saveRecord('proStaff', { ...staff, whatsapp: cleanPhone });
+        if (staff) {
+            let updates: any = {};
+            let hasUpdates = false;
+
+            // 1. Cura do Telefone
+            if (cleanPhone && cleanPhone.length >= 8 && cleanPhone !== (staff.whatsapp || '')) {
+                updates.whatsapp = cleanPhone;
+                hasUpdates = true;
+            }
+
+            // 2. Cura do Vínculo de Setor (O "Imã")
+            // Se um setor foi informado (extra) e é diferente do atual, move o colaborador.
+            if (extra) {
+                const targetSector = proSectors.find(s => s.name === extra && s.unit === unit);
+                if (targetSector && staff.sectorId !== targetSector.id) {
+                    updates.sectorId = targetSector.id;
+                    updates.updatedAt = Date.now();
+                    hasUpdates = true;
+                    console.log(`[DataHealing] Movendo ${staff.name} para o setor ${extra}`);
+                }
+            }
+
+            if (hasUpdates) {
+                // Atualização silenciosa do RH oficial
+                await saveRecord('proStaff', { ...staff, ...updates });
+            }
         }
     } else if (type === ParticipantType.PATIENT) {
         const patient = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
-        if (!patient || cleanPhone !== (patient.whatsapp || '')) {
+        if (!patient || (cleanPhone && cleanPhone !== (patient.whatsapp || ''))) {
             const payload: ProPatient = patient 
-                ? { ...patient, whatsapp: cleanPhone, updatedAt: Date.now() }
+                ? { ...patient, whatsapp: cleanPhone || patient.whatsapp, updatedAt: Date.now() }
                 : { id: crypto.randomUUID(), name, unit, whatsapp: cleanPhone, updatedAt: Date.now() };
             await saveRecord('proPatients', payload);
         }
     } else if (type === ParticipantType.PROVIDER) {
         const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
-        if (!provider || cleanPhone !== (provider.whatsapp || '') || (extra && extra !== provider.sector)) {
+        if (!provider || (cleanPhone && cleanPhone !== (provider.whatsapp || '')) || (extra && extra !== provider.sector)) {
             const payload: ProProvider = provider
-                ? { ...provider, whatsapp: cleanPhone, sector: extra || provider.sector, updatedAt: Date.now() }
+                ? { ...provider, whatsapp: cleanPhone || provider.whatsapp, sector: extra || provider.sector, updatedAt: Date.now() }
                 : { id: crypto.randomUUID(), name, unit, whatsapp: cleanPhone, sector: extra, updatedAt: Date.now() };
             await saveRecord('proProviders', payload);
         }
@@ -128,7 +147,6 @@ export const useAppData = () => {
     if (showLoader) setIsSyncing(true);
     try {
       if (overrides?.config) await saveRecord('config', overrides.config);
-      if (overrides?.masterLists) await saveRecord('masterLists', overrides.masterLists);
       if (overrides?.users) await saveRecord('users', overrides.users);
       if (overrides?.proSectors) await saveRecord('proSectors', overrides.proSectors);
       if (overrides?.proStaff) await saveRecord('proStaff', overrides.proStaff);
@@ -148,7 +166,7 @@ export const useAppData = () => {
   }, [loadFromCloud, isInitialized]);
 
   return {
-    users, bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests, masterLists,
+    users, bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests,
     proStaff, proPatients, proProviders, proSectors, proGroups, proGroupLocations, proGroupMembers, config, isSyncing, isConnected, 
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, syncMasterContact
   };
