@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NAV_ITEMS } from '../constants';
 import { DEFAULT_APP_LOGO } from '../assets';
 import { UserRole, Config } from '../types';
@@ -21,6 +21,14 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, userRole, isSyncing, isConnected, isLabMode, config, onLogout }) => {
   // Normalização da role para garantir match com NAV_ITEMS
   const normalizedRole = String(userRole || '').toUpperCase().trim();
+  
+  // Gatilho para resetar scroll ao mudar de aba
+  useEffect(() => {
+    const scrollContainer = document.getElementById('main-scroll-container');
+    if (scrollContainer) {
+      scrollContainer.scrollTop = 0;
+    }
+  }, [activeTab]);
   
   const visibleNavItems = NAV_ITEMS.filter(item => {
     // Se não houver roles definidas no item, mostra para todos
