@@ -1,3 +1,4 @@
+
 // ############################################################
 // # SYSTEM ENTRY POINT - REVOLUTION V2.0 (MODULAR)
 // # ARCHITECTURE: REPOSITORY + CONTEXT API + AUTH ISOLATION
@@ -5,6 +6,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './index.css';
 import App from './App';
 import { AppProvider } from './contexts/AppContext';
 import { AuthProvider } from './contexts/AuthContext';
