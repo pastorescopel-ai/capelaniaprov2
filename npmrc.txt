@@ -1,2 +1,0 @@
-# @generated clean-npm-config
-# This file ensures npm utilizes pure ASCII config.

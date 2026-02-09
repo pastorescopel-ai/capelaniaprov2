@@ -64,13 +64,17 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
         }));
   }, [proData, activeUnit]);
 
-  // --- BLINDAGENS DE IMPORTAÇÃO (REFINADO) ---
+  // --- BLINDAGENS DE IMPORTAÇÃO (REFINADO V3) ---
 
   const validateSheetType = (headers: string[], tab: string): boolean => {
-      // Definições de Assinatura de Colunas
+      // Assinaturas de Staff (Colaboradores)
       const hasStaffCols = headers.some(h => h.includes('MATRICULA') || h.includes('CRACHA') || h.includes('FUNCIONARIO') || h.includes('COLABORADOR'));
+      // Assinaturas de Setores
       const hasSectorCols = headers.some(h => h.includes('DEPARTAMENTO') || (h.includes('SETOR') && !h.includes('ID')) || h.includes('CENTRO DE CUSTO'));
-      const hasPGCols = headers.some(h => h.includes('LIDER') || h.includes('PEQUENO GRUPO') || h.includes('ANFITRIAO'));
+      
+      // Assinaturas Básicas (ID e Nome/PG)
+      const hasID = headers.some(h => h.includes('ID') || h.includes('COD'));
+      const hasPGIdentifier = headers.some(h => h.includes('PG') || h.includes('GRUPO') || h.includes('NOME') || h.includes('LIDER'));
 
       if (tab === 'staff') {
           // Aba Colaboradores: Exige colunas de pessoa.
@@ -78,7 +82,6 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
               showToast("Arquivo inválido para Colaboradores. Necessário coluna 'Matrícula', 'Crachá' ou 'Funcionário'.", "warning");
               return false;
           }
-          // Nota: Pode ter colunas de setor, sem problemas.
       }
 
       if (tab === 'sectors') {
@@ -87,17 +90,28 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
               showToast("Arquivo inválido para Setores. Necessário coluna 'Nome Setor' ou 'Departamento'.", "warning");
               return false;
           }
-          // Trava de Segurança: Se tiver colunas de funcionário, provavelmente é a lista errada.
+          // Trava de Segurança:
           if (hasStaffCols) {
-              showToast("Segurança: Esta planilha contém dados de Colaboradores (Matrícula/Crachá). Não importe na aba de Setores.", "warning");
+              showToast("Segurança: Planilha de Colaboradores detectada. Não importe na aba de Setores.", "warning");
               return false;
           }
       }
 
       if (tab === 'pgs') {
-          // Aba PGs: Exige colunas de PG.
-          if (!hasPGCols) {
-              showToast("Arquivo inválido para PGs. Necessário coluna 'Líder', 'PG' ou 'Anfitrião'.", "warning");
+          // Aba PGs: Validação Flexível (ID + Nome/PG)
+          if (!hasID || !hasPGIdentifier) {
+              showToast("Arquivo inválido para PGs. Necessário colunas 'ID' e 'PG' (ou Nome/Grupo).", "warning");
+              return false;
+          }
+          
+          // Travas de Segurança Rígidas (Conforme solicitado)
+          // Bloqueia se parecer uma lista de RH (Matrícula) ou Setores (Departamento)
+          if (hasStaffCols) {
+              showToast("Segurança: Planilha contém dados de Colaboradores (Matrícula). Proibido importar em PGs.", "warning");
+              return false;
+          }
+          if (hasSectorCols) {
+              showToast("Segurança: Planilha contém dados de Setores. Proibido importar em PGs.", "warning");
               return false;
           }
       }
@@ -141,7 +155,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
 
         for(let i = 0; i < Math.min(allRows.length, 50); i++){
             const row = allRows[i].map(c => normalizeHeader(String(c)));
-            // Palavras-chave genéricas para achar o header
+            // Palavras-chave genéricas
             const hasKeywords = row.some(cell => 
                 cell.includes('SETOR') || cell.includes('MATRICULA') || 
                 cell.includes('CRACHA') || cell.includes('PG') || 
@@ -173,12 +187,12 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
         const idxSecName = findColumnIndex(headers, ['NOME SETOR', 'SETOR', 'DEPARTAMENTO']);
 
         if (idxId === -1 || idxName === -1) {
-            showToast("Colunas obrigatórias (ID/Matrícula e Nome) não encontradas.", "warning");
+            showToast("Colunas obrigatórias (ID e Nome/PG) não encontradas.", "warning");
             setIsProcessingFile(false);
             return;
         }
 
-        // 3. Validação de Unidade nos Dados (Cross-Check HAB/HABA)
+        // 3. Validação de Unidade nos Dados
         if (!validateUnitConsistency(dataRows, idxId, activeUnit)) {
             setIsProcessingFile(false);
             return;
@@ -188,11 +202,11 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
         const res: PreviewItem[] = [];
 
         dataRows.forEach(row => {
-            // Limpeza agressiva do ID para comparação correta
+            // Limpeza agressiva do ID
             const rawId = cleanID(row[idxId]); 
             const name = String(row[idxName]||'').trim();
             
-            // Para PGs, às vezes não tem ID numérico, usa o nome como ID se necessário, mas ideal é ID
+            // Para PGs, às vezes não tem ID numérico, usa o nome como ID se necessário
             const finalId = rawId || (activeTab === 'pgs' ? cleanID(name) : ''); 
 
             if(!finalId) return;
@@ -200,13 +214,13 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
             seenIds.add(finalId);
 
             const item: PreviewItem = {
-                id: finalId, // ID limpo (apenas números ou string normalizada)
+                id: finalId, // ID limpo
                 name: name,
                 unit: activeUnit,
                 sectorStatus: 'ok'
             };
 
-            // Lógica de Vínculo de Setor (Exclusivo para Aba Staff)
+            // Lógica de Vínculo de Setor (Apenas Staff)
             if (activeTab === 'staff') {
                 const sIdRaw = row[idxSecId] ? cleanID(row[idxSecId]) : '';
                 const sNameRaw = row[idxSecName] ? String(row[idxSecName]).trim() : '';
@@ -215,12 +229,9 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
                 item.sectorNameRaw = sNameRaw;
                 
                 let match = null;
-                
-                // Tenta casar pelo ID do setor primeiro (mais seguro)
                 if (sIdRaw && proData) {
                     match = proData.sectors.find(s => s.unit === activeUnit && cleanID(s.id) === sIdRaw);
                 }
-                // Fallback: Tenta pelo nome se não achou ID
                 if (!match && sNameRaw && proData) {
                     const norm = normalizeString(sNameRaw);
                     match = proData.sectors.find(s => s.unit === activeUnit && normalizeString(s.name) === norm);
@@ -233,8 +244,11 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
                 } else {
                     item.sectorIdLinked = null;
                     item.linkedSectorName = undefined;
-                    item.sectorStatus = 'error'; // Vai pintar de laranja/vermelho
+                    item.sectorStatus = 'error'; 
                 }
+            } else if (activeTab === 'pgs') {
+                // Para PGs, garantimos que não pega setor do Excel, pois o vínculo é via PGMaestro
+                item.sectorStatus = 'ok'; 
             }
             res.push(item);
         });
@@ -264,44 +278,35 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
         
         let stats = { updated: 0, deactivated: 0, new: 0 };
         
-        // Função Genérica de Merge usando MAP para evitar duplicidade de chaves
         const mergeData = (currentDB: any[], incomingList: PreviewItem[], type: 'staff'|'sector'|'pg') => {
             const map = new Map<string, any>();
 
             // 1. Carrega TUDO que já existe no banco para o mapa
             currentDB.forEach(item => {
-                // Chave composta se necessário, mas aqui usaremos o ID limpo como chave canônica
                 const key = cleanID(item.id); 
                 map.set(key, item);
             });
 
-            // 2. Processa a lista da Planilha (Incoming)
-            // Se o ID já existe, atualiza. Se não, cria.
+            // 2. Processa a lista da Planilha
             incomingList.forEach(incoming => {
-                const key = incoming.id; // Já está limpo pelo processFile
+                const key = incoming.id; 
                 const existing = map.get(key);
 
                 if (existing) {
-                    // Se existe, mas é de outra unidade (colisão de ID entre unidades?), IGNORA se for proteger.
                     if (existing.unit === activeUnit) {
-                        // Atualiza registro existente da MESMA unidade
                         const updated = {
                             ...existing,
                             name: incoming.name,
-                            active: true, // Reativa se estava inativo
+                            active: true, // Reativa
                             updatedAt: Date.now()
                         };
-                        
-                        // Atualiza campos específicos
                         if (type === 'staff') {
                             updated.sectorId = incoming.sectorIdLinked || existing.sectorId || "";
                         }
-                        
                         map.set(key, updated);
                         stats.updated++;
                     } 
                 } else {
-                    // Novo Registro
                     const newItem: any = {
                         id: key,
                         name: incoming.name,
@@ -310,24 +315,20 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
                         updatedAt: Date.now()
                     };
                     if (type === 'staff') newItem.sectorId = incoming.sectorIdLinked || "";
-                    
                     map.set(key, newItem);
                     stats.new++;
                 }
             });
 
-            // 3. Passada de Desativação (Sync)
-            // Itens que estão no banco, são desta unidade, mas NÃO vieram na planilha
+            // 3. Passada de Desativação (Limpeza)
             const incomingKeys = new Set(incomingList.map(i => i.id));
             
             const resultList: any[] = [];
             
             map.forEach((value, key) => {
-                // Se é da unidade ativa
                 if (value.unit === activeUnit) {
-                    // E não está na lista de entrada
                     if (!incomingKeys.has(key)) {
-                        // Desativa (Soft Delete)
+                        // Desativa (Soft Delete) para limpar visualmente
                         if (value.active !== false) {
                             value.active = false;
                             value.updatedAt = Date.now();
@@ -356,7 +357,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
             isOpen: true, 
             status: 'success', 
             title: 'Sincronização Blindada', 
-            message: `Sucesso!\n\nNovos/Atualizados: ${stats.updated + stats.new}\nDesativados (Saíram da folha): ${stats.deactivated}` 
+            message: `Sucesso!\n\nNovos/Atualizados: ${stats.updated + stats.new}\nRemovidos da lista (Inativos): ${stats.deactivated}` 
         });
         setPreviewData([]); 
 
@@ -370,8 +371,6 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
       const realIndex = (currentPage - 1) * ITEMS_PER_PAGE + index;
       const newData = [...previewData];
       const item = newData[realIndex];
-      
-      // Tenta achar pelo nome ou label
       const labelParts = val.split(' - ');
       const searchName = labelParts.length > 1 ? labelParts[1] : val;
       const searchId = labelParts.length > 1 ? labelParts[0] : '';
@@ -411,11 +410,36 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
   const totalPages = Math.ceil(displayData.length / ITEMS_PER_PAGE);
   const currentItems = displayData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  // Helper para mostrar nome do setor na tabela principal (modo somente leitura do banco)
   const getSectorNameFromDB = (sectorId: string) => {
       const s = proData?.sectors.find(sec => sec.id === sectorId);
       return s ? s.name : sectorId;
   };
+
+  // --- INSTRUÇÕES DINÂMICAS ---
+  const instructions = {
+      staff: {
+          icon: 'fa-user-md',
+          title: 'Importação de Colaboradores',
+          fields: "Obrigatório: 'Matrícula' (ou ID/Crachá) e 'Nome'.",
+          optional: "Opcional: 'Setor', 'Departamento'.",
+          warn: "A planilha NÃO deve conter colunas de PGs."
+      },
+      sectors: {
+          icon: 'fa-map-marker-alt',
+          title: 'Importação de Setores',
+          fields: "Obrigatório: 'ID' e 'Nome Setor' (ou Departamento).",
+          optional: "",
+          warn: "Proibido: Colunas de Funcionários (Matrícula) ou PGs."
+      },
+      pgs: {
+          icon: 'fa-users',
+          title: 'Importação de Pequenos Grupos',
+          fields: "Obrigatório: Apenas ID e Nome do PG (ou Grupo).",
+          optional: "Líder é opcional.",
+          warn: "Proibido: Colunas de Funcionários ou Setores."
+      }
+  };
+  const currentInst = instructions[activeTab];
 
   return (
     <div className="space-y-12">
@@ -432,6 +456,17 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
                 <button key={tab.id} onClick={() => { setActiveTab(tab.id as any); setPreviewData([]); setCurrentPage(1); }} className={`pb-4 px-4 text-xs font-black uppercase flex items-center gap-2 border-b-4 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-300'}`}><i className={`fas ${tab.i}`}></i> {tab.l}</button>
             ))}
         </div>
+
+        {/* PAINEL DE INSTRUÇÕES */}
+        <div className={`p-6 rounded-2xl border-l-4 flex gap-4 items-start ${activeTab === 'pgs' ? 'bg-amber-50 border-amber-400 text-amber-900' : 'bg-blue-50 border-blue-400 text-blue-900'}`}>
+            <div className="mt-1"><i className={`fas ${currentInst.icon} text-xl`}></i></div>
+            <div className="space-y-1">
+                <h4 className="font-black uppercase text-xs tracking-widest">{currentInst.title}</h4>
+                <p className="text-[10px] font-bold">{currentInst.fields} {currentInst.optional}</p>
+                <p className="text-[10px] font-black uppercase opacity-70"><i className="fas fa-exclamation-triangle mr-1"></i> {currentInst.warn}</p>
+            </div>
+        </div>
+
         <div className="bg-slate-50 p-6 rounded-[2rem] flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-4 w-full md:w-auto">
                 <input type="file" ref={fileInputRef} accept=".xlsx,.csv" className="hidden" onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0])} />
