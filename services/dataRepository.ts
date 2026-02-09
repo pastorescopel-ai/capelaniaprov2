@@ -10,11 +10,11 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
   staff_visits: ['id', 'user_id', 'date', 'unit', 'sector', 'reason', 'staff_name', 'requires_return', 'return_date', 'return_completed', 'observations', 'created_at', 'updated_at'],
   visit_requests: ['id', 'pg_name', 'leader_name', 'leader_phone', 'unit', 'date', 'status', 'request_notes', 'preferred_chaplain_id', 'assigned_chaplain_id', 'chaplain_response', 'is_read', 'created_at', 'updated_at'],
   app_config: ['id', 'mural_text', 'header_line1', 'header_line2', 'header_line3', 'font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'header_text_align', 'primary_color', 'app_logo_url', 'report_logo_url', 'last_modified_by', 'last_modified_at', 'updated_at'],
-  pro_sectors: ['id', 'name', 'unit'],
-  pro_staff: ['id', 'name', 'sector_id', 'unit', 'whatsapp'],
+  pro_sectors: ['id', 'name', 'unit', 'active'],
+  pro_staff: ['id', 'name', 'sector_id', 'unit', 'whatsapp', 'active'],
   pro_patients: ['id', 'name', 'unit', 'whatsapp', 'last_lesson', 'updated_at'],
   pro_providers: ['id', 'name', 'unit', 'whatsapp', 'sector', 'updated_at'],
-  pro_groups: ['id', 'name', 'current_leader', 'leader_phone', 'sector_id', 'unit'],
+  pro_groups: ['id', 'name', 'current_leader', 'leader_phone', 'sector_id', 'unit', 'active'],
   pro_group_locations: ['id', 'group_id', 'sector_id', 'unit', 'created_at'],
   pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at']
 };
@@ -165,6 +165,18 @@ export const DataRepository = {
     if (!tableName) return false;
 
     const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName], tableName));
+
+    // LOG DE DIAGNÓSTICO (Importação)
+    if (tableName === 'pro_staff' || tableName === 'pro_sectors') {
+        const activeCount = payloads.filter(p => p.active === true).length;
+        const inactiveCount = payloads.filter(p => p.active === false).length;
+        console.log(`[DataRepo] Salvando em ${tableName}: ${payloads.length} registros. (Ativos: ${activeCount}, Inativos: ${inactiveCount})`);
+        
+        // Log de amostra para ver se o campo 'active' está passando
+        if (payloads.length > 0) {
+            console.log(`[DataRepo] Amostra do payload (${tableName}):`, payloads[0]);
+        }
+    }
 
     if (tableName === 'app_config') {
       if (GLOBAL_ID_CACHE[tableName]) {
