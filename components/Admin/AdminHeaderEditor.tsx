@@ -1,6 +1,7 @@
+
 import React, { useState, useRef } from 'react';
 import { Config } from '../../types';
-import { REPORT_LOGO_BASE64 } from '../../constants';
+import { DEFAULT_APP_LOGO } from '../../assets';
 
 interface AdminHeaderEditorProps {
   config: Config;
@@ -46,7 +47,7 @@ const AdminHeaderEditor: React.FC<AdminHeaderEditorProps> = ({ config, setConfig
             onMouseDown={(e) => { e.preventDefault(); setActiveDrag('logo'); }}
           >
             {/* Usa URL da config ou fallback */}
-            <img src={config.reportLogoUrl || REPORT_LOGO_BASE64} style={{ width: '100%', pointerEvents: 'none' }} alt="Logo" />
+            <img src={config.reportLogoUrl || DEFAULT_APP_LOGO} style={{ width: '100%', pointerEvents: 'none' }} alt="Logo" />
             <div 
               onMouseDown={(e) => { e.stopPropagation(); setActiveDrag('resize'); }} 
               className="absolute -right-2 -bottom-2 w-6 h-6 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center text-white text-[10px] cursor-nwse-resize"

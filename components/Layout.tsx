@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { NAV_ITEMS, APP_LOGO_BASE64 } from '../constants';
+import { NAV_ITEMS } from '../constants';
+import { DEFAULT_APP_LOGO } from '../assets';
 import { UserRole, Config } from '../types';
 import NotificationCenter from './NotificationCenter';
 import InstallPrompt from './PWA/InstallPrompt';
@@ -28,7 +29,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
     return item.roles.some(r => r.toUpperCase() === normalizedRole);
   });
 
-  const logoSrc = config?.appLogoUrl || APP_LOGO_BASE64;
+  const logoSrc = config?.appLogoUrl || DEFAULT_APP_LOGO;
 
   return (
     <div className="flex flex-col h-screen bg-slate-100 overflow-hidden relative">

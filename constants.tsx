@@ -1,17 +1,13 @@
 
 import { UserRole, Config, Unit, RecordStatus } from './types';
-import { DEFAULT_APP_LOGO } from './assets';
 
 export const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || "https://qksbywkshuznbuyzwljx.supabase.co";
 export const SUPABASE_KEY = (import.meta as any).env?.VITE_SUPABASE_KEY || "sb_publishable_44GfukXRPHT92-DXRpEmSg_0CTgXA09";
 
 /**
- * LOGO_FIXO_IMEDIATO:
- * Importado de assets.ts para manter este arquivo limpo e leve.
+ * DEFAULT_APP_LOGO movido para importação direta de assets.ts
+ * REPORT_LOGO_BASE64 movido para importação direta de assets.ts
  */
-export const APP_LOGO_BASE64 = DEFAULT_APP_LOGO;
-
-export const REPORT_LOGO_BASE64 = APP_LOGO_BASE64;
 
 export const STATUS_OPTIONS = [RecordStatus.INICIO, RecordStatus.CONTINUACAO, RecordStatus.TERMINO];
 
@@ -21,7 +17,6 @@ export const NAV_ITEMS = [
   { id: 'bibleClass', label: 'Classe Bíblica', icon: '👥', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
   { id: 'smallGroup', label: 'Pequenos Grupos', icon: '🏠', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
   { id: 'staffVisit', label: 'Visitas', icon: '🤝', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
-  { id: 'pray', label: 'Portal Pray', icon: '🙏', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
   { id: 'pgManagement', label: 'Gestão de PGs', icon: '🧩', roles: [UserRole.ADMIN] },
   { id: 'reports', label: 'Relatórios', icon: '📈', roles: [UserRole.ADMIN] },
   { id: 'users', label: 'Equipe', icon: '👥', roles: [UserRole.ADMIN] },

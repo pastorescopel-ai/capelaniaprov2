@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, X, User, AlertTriangle, Check } from 'lucide-react';
-import { MeetingSchedule, Chaplain, Leader } from '../types';
-import { sendChaplainInvite } from '../services/chaplaincyService';
+import { MeetingSchedule, Chaplain, Leader, VisitRequest } from '../types';
+import { useApp } from '../contexts/AppContext';
 
 interface MeetingScheduleModalProps {
   user: Leader;
@@ -16,6 +16,7 @@ interface MeetingScheduleModalProps {
 const MeetingScheduleModal: React.FC<MeetingScheduleModalProps> = ({ 
   user, currentSchedule, chaplains, allSchedules = [], onClose, onSave 
 }) => {
+  const { saveRecord } = useApp();
   const [date, setDate] = useState(currentSchedule?.full_date || '');
   const [requestChaplain, setRequestChaplain] = useState(currentSchedule?.request_chaplain || false);
   const [preferredId, setPreferredId] = useState(currentSchedule?.preferred_chaplain_id || '');
@@ -60,29 +61,32 @@ const MeetingScheduleModal: React.FC<MeetingScheduleModalProps> = ({
     if (!date) return;
     setIsSaving(true);
     
-    // --- LÓGICA DE INTEGRAÇÃO ---
+    // --- LÓGICA DE INTEGRAÇÃO (UNIFIED DB) ---
     if (isBelem && requestChaplain) {
-        // Mapeia os dados do App PG para o formato esperado pelo Supabase da Capelania
-        const invitePayload = {
-            pg_name: user.pg_name || `PG ${user.sector_name || 'Sem Setor'}`,
-            leader_name: user.full_name,
-            leader_phone: user.whatsapp || '',
-            unit: 'HAB' as const, // Força o tipo para 'HAB' pois isBelem é true
+        // Cria a solicitação diretamente na tabela 'visitRequests' usando o AppContext
+        const newRequest: VisitRequest = {
+            id: crypto.randomUUID(),
+            pgName: user.pg_name || `PG ${user.sector_name || 'Sem Setor'}`,
+            leaderName: user.full_name,
+            leaderPhone: user.whatsapp || '',
+            unit: 'HAB',
             date: new Date(date).toISOString(),
-            request_notes: requestNotes,
-            preferred_chaplain_id: preferredId || undefined
+            requestNotes: requestNotes,
+            preferredChaplainId: preferredId || undefined,
+            status: 'pending',
+            isRead: false
         };
 
-        // Envia para a nuvem sem travar a UI (Fire & Forget com catch)
-        sendChaplainInvite(invitePayload)
+        // Envia para o banco unificado sem travar a UI
+        saveRecord('visitRequests', newRequest)
           .then(success => {
              if(success) console.log("Convite enviado com sucesso!");
-             else console.warn("Erro ao enviar convite, mas salvando localmente.");
+             else console.warn("Erro ao enviar convite.");
           });
     }
     // ----------------------------
 
-    // Salva localmente no App de PGs
+    // Salva localmente no estado do componente pai
     onSave({ 
       full_date: date, 
       request_chaplain: isBelem ? requestChaplain : false,
@@ -103,13 +107,10 @@ const MeetingScheduleModal: React.FC<MeetingScheduleModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[210]">
-      {/* Backdrop */}
       <div className="fixed inset-0 bg-blue-950/80 backdrop-blur-md" onClick={onClose} />
       
-      {/* Modal Box - Real Center */}
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white w-full max-w-lg max-h-[90vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
         
-        {/* Header */}
         <div className="p-8 pb-4 flex justify-between items-start border-b border-slate-50">
           <div>
             <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3">
@@ -123,7 +124,6 @@ const MeetingScheduleModal: React.FC<MeetingScheduleModalProps> = ({
         <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
           <form onSubmit={handleSubmit} className="space-y-8">
             
-            {/* Input de Data */}
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Data e Hora do Encontro</label>
               <div className="relative">
@@ -143,12 +143,10 @@ const MeetingScheduleModal: React.FC<MeetingScheduleModalProps> = ({
               </div>
             </div>
 
-            {/* Seção de Capelania (Apenas Belém/HAB) */}
             {isBelem && (
               <div className="pt-6 border-t border-slate-100 space-y-4">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Escala Pastoral</h4>
                 
-                {/* Checkbox de Ativação */}
                 <label className={`flex items-start gap-4 p-5 rounded-2xl border-2 transition-all cursor-pointer ${
                   requestChaplain ? 'border-blue-600 bg-blue-50/50' : 'border-slate-100 bg-white hover:border-slate-200'
                 }`}>
@@ -159,7 +157,6 @@ const MeetingScheduleModal: React.FC<MeetingScheduleModalProps> = ({
                    </div>
                 </label>
 
-                {/* Opções Extras se Ativado */}
                 {requestChaplain && (
                   <div className="space-y-6 animate-in slide-in-from-top-2 duration-300">
                     <div className="space-y-2">
@@ -203,7 +200,6 @@ const MeetingScheduleModal: React.FC<MeetingScheduleModalProps> = ({
               </div>
             )}
 
-            {/* Botão Salvar */}
             <button type="submit" disabled={isSaving || !date} className="w-full py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50">
               {isSaving ? (
                   <>

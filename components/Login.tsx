@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { APP_LOGO_BASE64 } from '../constants';
+import { DEFAULT_APP_LOGO } from '../assets';
 import { Config } from '../types';
 import { useToast } from '../contexts/ToastContext';
 
@@ -44,7 +44,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
     }
   };
 
-  const logoSrc = config?.appLogoUrl || APP_LOGO_BASE64;
+  const logoSrc = config?.appLogoUrl || DEFAULT_APP_LOGO;
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">

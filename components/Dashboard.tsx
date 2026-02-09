@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole, Config } from '../types';
-import { useApp } from '../contexts/AppContext'; 
+import { useApp } from '../contexts/AppContext';
+import { useDashboardStats } from '../hooks/useDashboardStats';
 import Mural from './Dashboard/Mural';
 import StatCards from './Dashboard/StatCards';
 import ImpactCharts from './Dashboard/ImpactCharts';
@@ -20,80 +21,26 @@ interface DashboardProps {
   onUpdateUser: (updatedUser: User) => any;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ studies, classes, groups, visits, currentUser, config, onGoToTab, onUpdateConfig, onUpdateUser }) => {
+const Dashboard: React.FC<DashboardProps> = ({ 
+  studies, classes, groups, visits, currentUser, config, onGoToTab, onUpdateConfig 
+}) => {
   const { visitRequests, users } = useApp(); 
+  
+  const {
+    pendingReturns,
+    todaysReturns,
+    monthlyStudies,
+    monthlyClasses,
+    monthlyGroups,
+    monthlyVisits,
+    uniqueStudentsMonth,
+    totalActionsMonth,
+    globalImpact,
+    monthName
+  } = useDashboardStats(studies, classes, groups, visits, currentUser);
 
   if (!currentUser) return null;
 
-  // 1. Dados Históricos Completos (Necessários para Retornos Pendentes e Lógica Geral)
-  const userStudies = (studies || []).filter(s => s && s.userId === currentUser?.id);
-  const userClasses = (classes || []).filter(c => c && c.userId === currentUser?.id);
-  const userGroups = (groups || []).filter(g => g && g.userId === currentUser?.id);
-  const userVisits = (visits || []).filter(v => v && v.userId === currentUser?.id);
-
-  // 2. Lógica de Retornos (Baseada no Histórico Completo)
-  const todayStr = new Date().toISOString().split('T')[0];
-  const pendingReturns = userVisits.filter(v => v.requiresReturn && !v.returnCompleted);
-  const todaysReturns = userVisits.filter(v => v.requiresReturn && !v.returnCompleted && v.returnDate === todayStr);
-
-  // 3. Filtro Mensal (Para Cards e Gráfico de Desempenho)
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  const monthName = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(now);
-
-  const isCurrentMonth = (dateStr: string) => {
-    if (!dateStr) return false;
-    // Ajuste de fuso horário simples: trata a string YYYY-MM-DD como meio-dia local para evitar shifts
-    const d = new Date(dateStr + 'T12:00:00'); 
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  };
-
-  const monthlyStudies = userStudies.filter(s => isCurrentMonth(s.date));
-  const monthlyClasses = userClasses.filter(c => isCurrentMonth(c.date));
-  const monthlyGroups = userGroups.filter(g => isCurrentMonth(g.date));
-  const monthlyVisits = userVisits.filter(v => isCurrentMonth(v.date));
-
-  // 4. Cálculos Mensais
-  const uniqueStudentsMonth = new Set<string>();
-  monthlyStudies.forEach(s => { if (s.name) uniqueStudentsMonth.add(s.name.trim().toLowerCase()); });
-  monthlyClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(name => { if (name) uniqueStudentsMonth.add(name.trim().toLowerCase()); }); });
-
-  const totalActionsMonth = monthlyStudies.length + monthlyClasses.length + monthlyGroups.length + monthlyVisits.length;
-
-  const getGlobalImpactData = () => {
-    const prevMonthDate = new Date();
-    prevMonthDate.setMonth(now.getMonth() - 1);
-    const prevMonth = prevMonthDate.getMonth();
-    const prevYear = prevMonthDate.getFullYear();
-
-    const getMonthStats = (m: number, y: number) => {
-      const mStudies = (studies || []).filter(s => { const d = new Date(s.date + 'T12:00:00'); return d.getMonth() === m && d.getFullYear() === y; });
-      const mClasses = (classes || []).filter(c => { const d = new Date(c.date + 'T12:00:00'); return d.getMonth() === m && d.getFullYear() === y; });
-      const mGroups = (groups || []).filter(g => { const d = new Date(g.date + 'T12:00:00'); return d.getMonth() === m && d.getFullYear() === y; });
-      const mVisits = (visits || []).filter(v => { const d = new Date(v.date + 'T12:00:00'); return d.getMonth() === m && d.getFullYear() === y; });
-      const uStudents = new Set<string>();
-      mStudies.forEach(s => { if (s.name) uStudents.add(s.name.trim().toLowerCase()); });
-      mClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uStudents.add(n.trim().toLowerCase())); });
-      return { students: uStudents.size, studies: mStudies.length, classes: mClasses.length, groups: mGroups.length, visits: mVisits.length, total: mStudies.length + mClasses.length + mGroups.length + mVisits.length };
-    };
-
-    const curr = getMonthStats(currentMonth, currentYear);
-    const prev = getMonthStats(prevMonth, prevYear);
-    const diff = curr.total - prev.total;
-    const pct = prev.total > 0 ? Math.round((diff / prev.total) * 100) : (curr.total > 0 ? 100 : 0);
-    
-    const chartData = [
-      { name: 'Alunos', anterior: prev.students, atual: curr.students },
-      { name: 'Estudos', anterior: prev.studies, atual: curr.studies },
-      { name: 'Classes', anterior: prev.classes, atual: curr.classes },
-      { name: 'PGs', anterior: prev.groups, atual: curr.groups },
-      { name: 'Visitas', anterior: prev.visits, atual: curr.visits },
-    ];
-    return { chartData, pct, isUp: diff >= 0 };
-  };
-
-  const globalImpact = getGlobalImpactData();
   const stats = [
     { label: `Alunos Ativos (${monthName})`, value: uniqueStudentsMonth.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-50' },
     { label: `Meus PGs (${monthName})`, value: monthlyGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-50' },

@@ -1,25 +1,13 @@
 
-import React, { useState, lazy, Suspense, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
-import BibleStudyForm from './components/Forms/BibleStudyForm';
-import BibleClassForm from './components/Forms/BibleClassForm';
-import SmallGroupForm from './components/Forms/SmallGroupForm';
-import StaffVisitForm from './components/Forms/StaffVisitForm';
 import Login from './components/Login';
-import Profile from './components/Profile';
 import ConfirmationModal from './components/Shared/ConfirmationModal';
+import MainContent from './components/MainContent';
 import { Unit } from './types';
 import { useApp } from './contexts/AppContext';
 import { useAuth } from './contexts/AuthContext';
 import { useAppFlow } from './hooks/useAppFlow';
-
-// Lazy Loading para abas administrativas e externas
-const Reports = lazy(() => import('./components/Reports'));
-const UserManagement = lazy(() => import('./components/UserManagement'));
-const AdminPanel = lazy(() => import('./components/AdminPanel'));
-const PGManager = lazy(() => import('./components/PGManagement/PGManagerLayout'));
-const PrayView = lazy(() => import('./components/PrayView'));
 
 const App: React.FC = () => {
   const {
@@ -37,7 +25,7 @@ const App: React.FC = () => {
     handleSaveItem, confirmDeletion, getVisibleHistory
   } = useAppFlow({ currentUser, saveRecord, deleteRecord });
 
-  // Controle de abas já visitadas (para não carregar tudo de uma vez)
+  // Controle de abas visitadas para renderização sob demanda (Performance)
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['dashboard']));
 
   useEffect(() => {
@@ -49,7 +37,6 @@ const App: React.FC = () => {
   useEffect(() => {
     if (['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab)) {
         setEditingItem(null);
-        // O scroll é mantido por aba agora, mas resetamos apenas ao trocar explicitamente
     }
   }, [activeTab, setEditingItem]);
 
@@ -61,23 +48,11 @@ const App: React.FC = () => {
     return <Login onLogin={login} isSyncing={isSyncing} errorMsg={loginError} isConnected={isConnected} config={config} />;
   }
 
-  // Fallback local para não apagar a tela global
-  const TabLoading = () => (
-    <div className="flex flex-col items-center justify-center h-[60vh] space-y-6">
-      <div className="w-16 h-16 border-4 border-slate-100 border-t-blue-500 rounded-full animate-spin"></div>
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Preparando tela...</p>
-    </div>
-  );
-
-  const getTabClass = (id: string) => {
-    return `transition-opacity duration-300 ${activeTab === id ? 'block opacity-100' : 'hidden opacity-0'}`;
-  };
-
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab} userRole={currentUser.role} isSyncing={isSyncing} isConnected={isConnected} config={config} onLogout={logout}>
       <div className="max-w-7xl mx-auto px-2 md:px-0 relative">
         
-        {/* Overlay de carregamento suave durante a transição useTransition */}
+        {/* Loader de Transição Suave */}
         {isPending && (
           <div className="fixed top-0 right-0 p-8 z-[200] animate-pulse">
             <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
@@ -92,6 +67,7 @@ const App: React.FC = () => {
           onCancel={() => setItemToDelete(null)}
         />
 
+        {/* Seletor de Unidade (Fixo no Topo para Formulários) */}
         {['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab) && (
           <div className="mb-8 flex bg-white p-1.5 rounded-full shadow-sm border border-slate-100 max-w-fit mx-auto md:mx-0 animate-in slide-in-from-left duration-300">
             {[Unit.HAB, Unit.HABA].map(u => (
@@ -107,100 +83,33 @@ const App: React.FC = () => {
           </div>
         )}
         
-        {/* MECANISMO DE PERSISTÊNCIA (KEEP-ALIVE) */}
-        <div id="main-content-wrapper" className="relative min-h-[70vh]">
-          
-          {/* Dashboard - Sempre montado para velocidade máxima */}
-          <div className={getTabClass('dashboard')}>
-            <Dashboard 
-              studies={bibleStudies} 
-              classes={bibleClasses} 
-              groups={smallGroups} 
-              visits={staffVisits} 
-              currentUser={currentUser} 
-              config={config} 
-              onGoToTab={setActiveTab} 
-              onUpdateConfig={c => saveToCloud({config: c}, false)} 
-              onUpdateUser={u => saveRecord('users', u)} 
-            />
-          </div>
+        {/* Conteúdo Principal Modularizado */}
+        <MainContent 
+          activeTab={activeTab}
+          visitedTabs={visitedTabs}
+          currentUser={currentUser}
+          users={users}
+          bibleStudies={bibleStudies}
+          bibleClasses={bibleClasses}
+          smallGroups={smallGroups}
+          staffVisits={staffVisits}
+          config={config}
+          currentUnit={currentUnit}
+          unitSectors={unitSectors}
+          editingItem={editingItem}
+          isLoading={isSyncing}
+          setActiveTab={setActiveTab}
+          setCurrentUnit={setCurrentUnit}
+          setEditingItem={setEditingItem}
+          setItemToDelete={setItemToDelete}
+          saveToCloud={saveToCloud}
+          saveRecord={saveRecord}
+          updateCurrentUser={updateCurrentUser}
+          handleSaveItem={handleSaveItem}
+          getVisibleHistory={getVisibleHistory}
+          loadFromCloud={loadFromCloud}
+        />
 
-          {/* Formulários Principais - Montados sob demanda e mantidos na memória */}
-          {visitedTabs.has('bibleStudy') && (
-            <div className={getTabClass('bibleStudy')}>
-              <BibleStudyForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} history={getVisibleHistory(bibleStudies)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} />
-            </div>
-          )}
-
-          {visitedTabs.has('bibleClass') && (
-            <div className={getTabClass('bibleClass')}>
-              <BibleClassForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={unitSectors} history={getVisibleHistory(bibleClasses)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} />
-            </div>
-          )}
-
-          {visitedTabs.has('smallGroup') && (
-            <div className={getTabClass('smallGroup')}>
-              <SmallGroupForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(smallGroups)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />
-            </div>
-          )}
-
-          {visitedTabs.has('staffVisit') && (
-            <div className={getTabClass('staffVisit')}>
-              <StaffVisitForm currentUser={currentUser} users={users} onToggleReturn={id => { const item = staffVisits.find(v=>v.id===id); if(item) saveRecord('staffVisits', {...item, returnCompleted: !item.returnCompleted}); }} editingItem={editingItem} isLoading={isSyncing} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(staffVisits)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />
-            </div>
-          )}
-
-          {/* Portal PRAY */}
-          {visitedTabs.has('pray') && (
-            <div className={getTabClass('pray')}>
-              <Suspense fallback={<TabLoading />}>
-                <PrayView />
-              </Suspense>
-            </div>
-          )}
-
-          {/* Abas Administrativas (Lazy) - Cada uma com seu Suspense individual para não travar a UI */}
-          {visitedTabs.has('reports') && (
-            <div className={getTabClass('reports')}>
-              <Suspense fallback={<TabLoading />}>
-                <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} currentUser={currentUser} config={config} onRefresh={() => loadFromCloud(true)} />
-              </Suspense>
-            </div>
-          )}
-
-          {visitedTabs.has('pgManagement') && (
-            <div className={getTabClass('pgManagement')}>
-              <Suspense fallback={<TabLoading />}>
-                <PGManager />
-              </Suspense>
-            </div>
-          )}
-
-          {visitedTabs.has('users') && (
-            <div className={getTabClass('users')}>
-              <Suspense fallback={<TabLoading />}>
-                <UserManagement users={users} currentUser={currentUser} onUpdateUsers={async u => { await saveToCloud({ users: u }, true); }} />
-              </Suspense>
-            </div>
-          )}
-
-          {visitedTabs.has('profile') && (
-            <div className={getTabClass('profile')}>
-              <Suspense fallback={<TabLoading />}>
-                {currentUser && <Profile user={currentUser} isSyncing={isSyncing} onUpdateUser={u => { updateCurrentUser(u); saveRecord('users', u); }} />}
-              </Suspense>
-            </div>
-          )}
-
-          {visitedTabs.has('admin') && (
-            <div className={getTabClass('admin')}>
-              <Suspense fallback={<TabLoading />}>
-                <AdminPanel />
-              </Suspense>
-            </div>
-          )}
-
-        </div>
       </div>
     </Layout>
   );

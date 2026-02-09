@@ -2,12 +2,9 @@
 import React, { useMemo, useState } from 'react';
 import { Unit } from '../../types';
 import { useApp } from '../../contexts/AppContext';
-import { REPORT_LOGO_BASE64 } from '../../constants';
+import { DEFAULT_APP_LOGO } from '../../assets';
 import { normalizeString } from '../../utils/formatters';
-import JSZip from 'jszip';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
-import { useToast } from '../../contexts/ToastContext';
+import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
 
 interface PGReportsProps {
   unit: Unit;
@@ -15,9 +12,7 @@ interface PGReportsProps {
 
 const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
   const { config, proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups } = useApp();
-  const { showToast } = useToast();
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationProgress, setGenerationProgress] = useState<string | null>(null);
+  const { generatePdf, generateZipOfPdfs, isGenerating, progress } = useDocumentGenerator();
   
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
@@ -79,9 +74,9 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
 
   const generateSectorHtml = (data: any) => {
     return `
-      <div id="report-page-${data.sector.id}" style="width: 210mm; min-height: 297mm; padding: 20mm 15mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; position: relative;">
+      <div id="report-page-${data.sector.id}" class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 20mm 15mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; position: relative;">
           <div style="border-bottom: 4px solid ${config.primaryColor}; padding-bottom: 20px; margin-bottom: 30px; position: relative; height: 120px; display: flex; align-items: center;">
-              <img src="${config.reportLogoUrl || REPORT_LOGO_BASE64}" style="width: ${config.reportLogoWidth}px; position: absolute; left: ${config.reportLogoX}px; top: ${config.reportLogoY}px;" />
+              <img src="${config.reportLogoUrl || DEFAULT_APP_LOGO}" style="width: ${config.reportLogoWidth}px; position: absolute; left: ${config.reportLogoX}px; top: ${config.reportLogoY}px;" />
               <div style="flex: 1; text-align: ${config.headerTextAlign}; padding-top: ${config.headerPaddingTop}px; margin-left: ${config.reportLogoWidth + 20}px;">
                   <h1 style="font-size: ${config.fontSize1}px; color: ${config.primaryColor}; margin: 0; text-transform: uppercase; font-weight: 900;">${config.headerLine1}</h1>
                   <h2 style="font-size: ${config.fontSize2}px; color: #475569; margin: 0; text-transform: uppercase; font-weight: 700;">${config.headerLine2}</h2>
@@ -134,93 +129,20 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
   };
 
   const handlePrintAction = async () => {
-    setIsGenerating(true);
-    const totalSectors = reportData.length;
-
-    try {
-      const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.left = '-10000px';
-      tempContainer.style.top = '0';
-      document.body.appendChild(tempContainer);
-
-      if (!searchTerm) {
-        // MODO BACKUP ZIP: Gera múltiplos PDFs binários reais dentro de um ZIP
-        const zip = new JSZip();
-        
-        for (let i = 0; i < totalSectors; i++) {
-          setGenerationProgress(`Gerando ${i + 1}/${totalSectors}...`);
-          const data = reportData[i];
-          
-          tempContainer.innerHTML = generateSectorHtml(data);
-          const element = tempContainer.firstElementChild as HTMLElement;
-
-          const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff'
-          });
-
-          const imgData = canvas.toDataURL('image/jpeg', 0.95);
-          const singlePdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-          singlePdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-          
-          // Adiciona o binário PDF ao ZIP
-          const safeName = data.sector.name.replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '_');
-          zip.file(`Relatorio_${safeName}.pdf`, singlePdf.output('blob'));
-        }
-
-        const content = await zip.generateAsync({ type: 'blob' });
-        const url = URL.createObjectURL(content);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Backup_Relatorios_PDF_${unit}_${startDate}.zip`;
-        a.click();
-        showToast("Backup ZIP gerado com PDFs binários!", "success");
-        
-      } else {
-        // MODO IMPRESSÃO ÚNICA: Gera um único PDF com várias páginas
-        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-
-        for (let i = 0; i < totalSectors; i++) {
-          setGenerationProgress(`Processando ${i + 1}/${totalSectors}...`);
-          const data = reportData[i];
-          
-          tempContainer.innerHTML = generateSectorHtml(data);
-          const element = tempContainer.firstElementChild as HTMLElement;
-
-          const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff'
-          });
-
-          const imgData = canvas.toDataURL('image/jpeg', 0.95);
-          if (i > 0) pdf.addPage();
-          pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-        }
-
-        const blob = pdf.output('blob');
-        const blobUrl = URL.createObjectURL(blob);
-        const newWindow = window.open(blobUrl, '_blank');
-        if (!newWindow) {
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = `Relatorio_${unit}.pdf`;
-          link.click();
-        }
-      }
-
-      document.body.removeChild(tempContainer);
-      setIsGenerating(false);
-      setGenerationProgress(null);
-    } catch (error) {
-      console.error("Erro na geração de documentos:", error);
-      setIsGenerating(false);
-      setGenerationProgress(null);
-      showToast("Falha ao gerar os documentos binários.", "warning");
+    if (!searchTerm) {
+      // MODO BACKUP ZIP: Múltiplos PDFs
+      const pages = reportData.map(data => ({
+        html: generateSectorHtml(data),
+        name: `Relatorio_${data.sector.name}`
+      }));
+      await generateZipOfPdfs(pages, `Backup_Relatorios_PDF_${unit}_${startDate}`);
+    } else {
+      // MODO IMPRESSÃO ÚNICA: Um PDF
+      let combinedHtml = '';
+      reportData.forEach(data => {
+        combinedHtml += generateSectorHtml(data);
+      });
+      await generatePdf(combinedHtml, `Relatorio_${unit}.pdf`);
     }
   };
 
@@ -235,7 +157,7 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
             </div>
             <button 
               onClick={handlePrintAction} 
-              disabled={isGenerating}
+              disabled={!!isGenerating}
               className={`px-8 py-4 ${!searchTerm ? 'bg-amber-600' : 'bg-[#005a9c]'} text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:brightness-110 transition-all flex items-center gap-3 disabled:opacity-50 min-w-[220px]`}
             >
                 {isGenerating ? (
@@ -243,7 +165,7 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
                 ) : (
                   <i className={`fas ${!searchTerm ? 'fa-file-archive' : 'fa-file-pdf'}`}></i> 
                 )}
-                {isGenerating ? (generationProgress || 'Processando...') : (!searchTerm ? 'Gerar Backup (ZIP)' : 'Imprimir PDF')}
+                {isGenerating ? (progress || 'Processando...') : (!searchTerm ? 'Gerar Backup (ZIP)' : 'Imprimir PDF')}
             </button>
         </div>
 

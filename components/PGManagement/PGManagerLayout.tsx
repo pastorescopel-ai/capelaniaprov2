@@ -4,14 +4,13 @@ import { Unit } from '../../types';
 import PGDashboard from './PGDashboard';
 import PGMembership from './PGMembership';
 import PGReports from './PGReports';
-import PGStructure from './PGStructure';
+import PGMaestro from '../Admin/PGMaestro';
 import PGOps from './PGOps';
 
 const PGManagerLayout: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'structure' | 'ops' | 'reports'>('dashboard');
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
 
-  // Efeito de Reset de Scroll para troca de abas/unidade
   useEffect(() => {
     const container = document.getElementById('main-scroll-container');
     if (container) {
@@ -30,15 +29,9 @@ const PGManagerLayout: React.FC = () => {
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20 relative">
       
-      {/* 
-          CONTAINER STICKY MAESTRO 
-          Este bloco agrupa o título, seletor de unidade e abas de navegação.
-          Ele "trava" no topo da área de rolagem para navegação rápida.
-      */}
       <div className="sticky top-[-1rem] md:top-[-2rem] z-[100] -mx-4 md:-mx-8 px-4 md:px-8 py-4 bg-[#f1f5f9]/90 backdrop-blur-xl border-b border-slate-200/50 shadow-sm transition-all">
         <div className="max-w-7xl mx-auto space-y-6">
           
-          {/* Header e Seleção de Unidade */}
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 md:p-6 rounded-[2rem] md:rounded-[3rem] shadow-sm border border-slate-100">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 md:w-12 md:h-12 bg-[#005a9c] rounded-xl md:rounded-2xl flex items-center justify-center text-white text-lg md:text-xl shadow-lg shadow-blue-900/20">
@@ -71,7 +64,6 @@ const PGManagerLayout: React.FC = () => {
             </div>
           </header>
 
-          {/* Navegação Interna (Tabs) */}
           <nav className="flex overflow-x-auto no-scrollbar gap-2">
             {tabs.map(tab => (
               <button
@@ -91,12 +83,24 @@ const PGManagerLayout: React.FC = () => {
         </div>
       </div>
 
-      {/* Conteúdo Dinâmico das Abas */}
       <div className="max-w-7xl mx-auto min-h-[500px]">
         <main className="animate-in fade-in slide-in-from-top-2 duration-500">
           {activeSubTab === 'dashboard' && <PGDashboard unit={currentUnit} />}
           {activeSubTab === 'membership' && <PGMembership unit={currentUnit} />}
-          {activeSubTab === 'structure' && <PGStructure unit={currentUnit} />}
+          {activeSubTab === 'structure' && (
+             <div className="space-y-4">
+               <div className="bg-amber-50 border border-amber-100 p-6 rounded-[2rem] flex gap-4 items-center mb-4">
+                   <div className="w-12 h-12 bg-amber-200 text-amber-700 rounded-xl flex items-center justify-center text-xl">
+                       <i className="fas fa-info-circle"></i>
+                   </div>
+                   <div>
+                       <h4 className="font-black text-amber-800 text-sm uppercase">Gerenciamento Estrutural</h4>
+                       <p className="text-xs text-amber-700/70">Use esta ferramenta para criar novos PGs, fundir duplicatas e definir quais setores cada PG atende.</p>
+                   </div>
+               </div>
+               <PGMaestro />
+             </div>
+          )}
           {activeSubTab === 'ops' && <PGOps unit={currentUnit} />}
           {activeSubTab === 'reports' && <PGReports unit={currentUnit} />}
         </main>
