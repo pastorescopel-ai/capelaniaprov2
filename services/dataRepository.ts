@@ -5,7 +5,8 @@ import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Conf
 const TABLE_SCHEMAS: Record<string, string[]> = {
   users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'updated_at'],
   bible_studies: ['id', 'user_id', 'date', 'unit', 'sector', 'name', 'whatsapp', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
-  bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'students', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
+  bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'], // students removido (migrado para tabela filha)
+  bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'created_at'],
   small_groups: ['id', 'user_id', 'date', 'unit', 'sector', 'group_name', 'leader', 'leader_phone', 'shift', 'participants_count', 'observations', 'created_at', 'updated_at'],
   staff_visits: ['id', 'user_id', 'date', 'unit', 'sector', 'reason', 'staff_name', 'requires_return', 'return_date', 'return_completed', 'observations', 'created_at', 'updated_at'],
   visit_requests: ['id', 'pg_name', 'leader_name', 'leader_phone', 'unit', 'date', 'status', 'request_notes', 'preferred_chaplain_id', 'assigned_chaplain_id', 'chaplain_response', 'is_read', 'created_at', 'updated_at'],
@@ -19,7 +20,7 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
   pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at']
 };
 
-const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at', 'joined_at'];
+const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at', 'joined_at', 'staff_id'];
 
 const GLOBAL_ID_CACHE: Record<string, string> = {};
 
@@ -51,9 +52,7 @@ const toCamel = (obj: any): any => {
       keyCache[key] = camelKey;
     }
     let val = obj[key];
-    if (['students'].includes(key)) {
-      if (!Array.isArray(val)) val = [];
-    }
+    // Removido tratamento especial de students pois agora vem de tabela externa
     newObj[keyCache[key]] = toCamel(val);
   }
   return newObj;
@@ -84,8 +83,9 @@ const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: st
 
       // Validação Crítica de Segurança: Bloqueia IDs que não sejam UUIDs em tabelas que exigem UUID
       // Exceção: Tabelas 'pro_' e 'visit_requests' podem usar IDs mistos por enquanto
-      if (tableName !== 'visit_requests' && !tableName.startsWith('pro_')) {
-        if (isFK && val && !isValidUUID(val)) {
+      // bible_class_attendees.staff_id é BIGINT, então não deve ser validado como UUID
+      if (tableName !== 'visit_requests' && !tableName.startsWith('pro_') && snakeKey !== 'staff_id') {
+        if (isFK && val && !isValidUUID(val) && tableName !== 'bible_class_attendees') {
           console.error(`Bloqueio de Segurança: Tentativa de usar ID não-UUID em ${tableName}.${snakeKey} (${val})`);
           newObj[snakeKey] = null;
           continue;
@@ -104,7 +104,7 @@ export const DataRepository = {
     try {
       const MAX_ROWS = 9999;
 
-      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm] = await Promise.all([
+      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, bca] = await Promise.all([
         supabase.from('users').select('*').range(0, MAX_ROWS),
         supabase.from('bible_studies').select('*').range(0, MAX_ROWS),
         supabase.from('bible_classes').select('*').range(0, MAX_ROWS),
@@ -118,15 +118,26 @@ export const DataRepository = {
         supabase.from('pro_providers').select('*').range(0, MAX_ROWS),
         supabase.from('pro_groups').select('*').range(0, MAX_ROWS),
         supabase.from('pro_group_locations').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_group_members').select('*').range(0, MAX_ROWS)
+        supabase.from('pro_group_members').select('*').range(0, MAX_ROWS),
+        supabase.from('bible_class_attendees').select('*').range(0, MAX_ROWS) // Nova tabela
       ]);
 
       if (c.data?.[0]?.id) GLOBAL_ID_CACHE['app_config'] = c.data[0].id;
 
+      // Hibridização: Monta o array 'students' nas classes usando a tabela relacional
+      const classes = toCamel(bc.data || []);
+      const attendees = toCamel(bca.data || []);
+      
+      classes.forEach((cls: any) => {
+          cls.students = attendees
+            .filter((a: any) => a.classId === cls.id)
+            .map((a: any) => a.studentName);
+      });
+
       return {
         users: toCamel(u.data || []),
         bibleStudies: toCamel(bs.data || []),
-        bibleClasses: toCamel(bc.data || []),
+        bibleClasses: classes, // Retorna classes já populadas com alunos
         smallGroups: toCamel(sg.data || []),
         staffVisits: toCamel(sv.data || []),
         visitRequests: toCamel(vr.data || []),
@@ -164,19 +175,8 @@ export const DataRepository = {
     const tableName = tableMap[collection];
     if (!tableName) return false;
 
+    // Converte e filtra campos (Note: para bible_classes, 'students' será ignorado aqui pois foi removido do schema)
     const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName], tableName));
-
-    // LOG DE DIAGNÓSTICO (Importação)
-    if (tableName === 'pro_staff' || tableName === 'pro_sectors') {
-        const activeCount = payloads.filter(p => p.active === true).length;
-        const inactiveCount = payloads.filter(p => p.active === false).length;
-        console.log(`[DataRepo] Salvando em ${tableName}: ${payloads.length} registros. (Ativos: ${activeCount}, Inativos: ${inactiveCount})`);
-        
-        // Log de amostra para ver se o campo 'active' está passando
-        if (payloads.length > 0) {
-            console.log(`[DataRepo] Amostra do payload (${tableName}):`, payloads[0]);
-        }
-    }
 
     if (tableName === 'app_config') {
       if (GLOBAL_ID_CACHE[tableName]) {
@@ -192,6 +192,7 @@ export const DataRepository = {
       }
     }
 
+    // 1. Salva o registro pai (ou registros normais)
     const CHUNK_SIZE = 100;
     for (let i = 0; i < payloads.length; i += CHUNK_SIZE) {
       const chunk = payloads.slice(i, i + CHUNK_SIZE);
@@ -201,6 +202,34 @@ export const DataRepository = {
         return false;
       }
     }
+
+    // 2. Lógica Relacional Especial para Classes Bíblicas
+    if (collection === 'bibleClasses') {
+        for (const cls of items) {
+            if (cls.id && cls.students && Array.isArray(cls.students)) {
+                // Limpa registros antigos deste ID para evitar duplicatas (estratégia full-sync para o registro)
+                const { error: delError } = await supabase.from('bible_class_attendees').delete().eq('class_id', cls.id);
+                if (delError) console.error("Erro ao limpar participantes antigos:", delError);
+
+                // Prepara novos registros
+                const attendeesPayload = cls.students.map((name: string) => {
+                    // Tenta extrair ID numérico do padrão "Nome (123)"
+                    const match = name.match(/\((\d+)\)$/);
+                    return {
+                        class_id: cls.id,
+                        student_name: name,
+                        staff_id: match ? parseInt(match[1]) : null
+                    };
+                });
+
+                if (attendeesPayload.length > 0) {
+                    const { error: insError } = await supabase.from('bible_class_attendees').insert(attendeesPayload);
+                    if (insError) console.error("Erro ao inserir novos participantes:", insError);
+                }
+            }
+        }
+    }
+
     return true;
   },
 
@@ -217,9 +246,9 @@ export const DataRepository = {
     };
     const tableName = tableMap[collection];
     if (!tableName) return false;
-    // Validação extra para deleção: só permite UUID em tabelas críticas
     if (!tableName.startsWith('pro_') && !tableName.startsWith('visit_requests') && !isValidUUID(id)) return false;
     
+    // O delete cascata (configurado no banco) cuidará dos bible_class_attendees
     const { error } = await supabase.from(tableName).delete().eq('id', id);
     return !error;
   }
