@@ -26,10 +26,10 @@ const ReportStats: React.FC<StatsProps> = ({ totalStats }) => {
         color: 'bg-blue-600 shadow-blue-100',
         sub: 'Neste Filtro'
     },
-    { label: 'Estudos', value: totalStats.studies, color: 'bg-blue-500' },
-    { label: 'Classes', value: totalStats.classes, color: 'bg-indigo-500' },
+    { label: 'Estudos Bíblicos Individuais', value: totalStats.studies, color: 'bg-blue-500' },
+    { label: 'Classes Bíblicas', value: totalStats.classes, color: 'bg-indigo-500' },
     { label: 'PGs', value: totalStats.groups, color: 'bg-emerald-500' },
-    { label: 'Visitas', value: totalStats.visits, color: 'bg-rose-500 shadow-rose-100' },
+    { label: 'Total de visitas ao colaborador', value: totalStats.visits, color: 'bg-rose-500 shadow-rose-100' },
   ];
 
   return (
