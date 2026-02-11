@@ -107,6 +107,8 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     let targetWhatsApp = formData.whatsapp;
     let targetGuide = formData.guide;
     let targetLesson = formData.lesson;
+    let targetStatus = RecordStatus.INICIO; // Padrão para novo aluno/série
+    
     const normName = normalizeString(targetName);
 
     // 1. Puxar Dados do Cadastro (RH/Paciente/Prestador)
@@ -136,10 +138,22 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         // Incrementa lição se for número
         const lastNum = parseInt(lastRecord.lesson);
         targetLesson = isNaN(lastNum) ? lastRecord.lesson : (lastNum + 1).toString();
+        
+        // Lógica de Status Automático: Se já tem histórico, muda para Continuação
+        targetStatus = RecordStatus.CONTINUACAO;
+        
         showToast(`Continuidade: ${targetGuide}, Lição ${targetLesson}`, "info");
     }
 
-    setFormData(prev => ({ ...prev, name: targetName, sector: targetSector, whatsapp: targetWhatsApp, guide: targetGuide, lesson: targetLesson }));
+    setFormData(prev => ({ 
+        ...prev, 
+        name: targetName, 
+        sector: targetSector, 
+        whatsapp: targetWhatsApp, 
+        guide: targetGuide, 
+        lesson: targetLesson,
+        status: targetStatus 
+    }));
   };
 
   const handleClear = () => {

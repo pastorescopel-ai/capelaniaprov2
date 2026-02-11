@@ -21,7 +21,7 @@ const AdminPanel: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // States for DNA Restore (Migrated from AdminDataTools)
+  // --- RESTORE STATES (Integrated) ---
   const [showDNAConfirm, setShowDNAConfirm] = useState(false);
   const [pendingDNA, setPendingDNA] = useState<any>(null);
   const [isRestoring, setIsRestoring] = useState(false);
@@ -95,7 +95,7 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  // --- RESTORE LOGIC (Migrated) ---
+  // --- RESTORE LOGIC (Integrated) ---
   const handleTriggerFileSelect = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -143,7 +143,7 @@ const AdminPanel: React.FC = () => {
   return (
     <div className="space-y-12 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700">
       
-      {/* MODAL RESTAURAR DNA (Overlay) */}
+      {/* MODAL RESTAURAR DNA (Confirmation Overlay) */}
       {showDNAConfirm && (
         <div className="fixed inset-0 z-[7000]">
           <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => !isRestoring && setShowDNAConfirm(false)} />
@@ -173,9 +173,10 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Hidden Input for File Select */}
+      {/* Hidden File Input */}
       <input ref={fileInputRef} type="file" onChange={handleFileSelected} accept=".json" className="hidden" />
 
+      {/* HEADER WITH INTEGRATED BUTTONS */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-4xl font-black text-slate-800 tracking-tight uppercase">Administração</h1>

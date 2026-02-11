@@ -94,11 +94,15 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                 
                 let nextLesson = '';
                 let nextGuide = '';
+                let nextStatus = RecordStatus.INICIO; // Padrão
                 
                 if (lastClass) {
                     nextGuide = lastClass.guide;
                     const lastNum = parseInt(lastClass.lesson);
                     nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
+                    
+                    // Lógica de Status Automático: Se já tem histórico no setor, muda para Continuação
+                    nextStatus = RecordStatus.CONTINUACAO;
                 }
 
                 if (formData.students.length === 0) {
@@ -106,7 +110,8 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                         ...prev,
                         students: autoStudents,
                         guide: nextGuide || prev.guide,
-                        lesson: nextLesson || prev.lesson
+                        lesson: nextLesson || prev.lesson,
+                        status: nextStatus
                     }));
                     showToast(`${autoStudents.length} alunos carregados do setor.`, "info");
                 }

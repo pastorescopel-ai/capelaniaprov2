@@ -7,6 +7,7 @@ import BibleClassForm from './Forms/BibleClassForm';
 import SmallGroupForm from './Forms/SmallGroupForm';
 import StaffVisitForm from './Forms/StaffVisitForm';
 import Profile from './Profile';
+import { useToast } from '../contexts/ToastContext';
 
 // Lazy Imports
 const Reports = lazy(() => import('./Reports'));
@@ -48,6 +49,7 @@ const MainContent: React.FC<MainContentProps> = ({
   setActiveTab, setCurrentUnit, setEditingItem, setItemToDelete, saveToCloud, saveRecord,
   updateCurrentUser, handleSaveItem, getVisibleHistory, loadFromCloud
 }) => {
+  const { showToast } = useToast();
 
   const TabLoading = () => (
     <div className="flex flex-col items-center justify-center h-[60vh] space-y-6">
@@ -56,13 +58,40 @@ const MainContent: React.FC<MainContentProps> = ({
     </div>
   );
 
+  const handleTransfer = async (type: string, id: string, newUserId: string) => {
+    let collectionName = '';
+    let itemToUpdate: any = null;
+
+    if (type === 'study') {
+      collectionName = 'bibleStudies';
+      itemToUpdate = bibleStudies.find(i => i.id === id);
+    } else if (type === 'class') {
+      collectionName = 'bibleClasses';
+      itemToUpdate = bibleClasses.find(i => i.id === id);
+    }
+
+    if (collectionName && itemToUpdate) {
+      const updatedItem = { ...itemToUpdate, userId: newUserId, updatedAt: Date.now() };
+      const success = await saveRecord(collectionName, updatedItem);
+      
+      const targetUser = users.find(u => u.id === newUserId)?.name || "Outro Capelão";
+      
+      if (success) {
+        showToast(`Registro transferido para ${targetUser}`, "success");
+      } else {
+        showToast("Erro ao transferir registro.", "warning");
+      }
+    }
+  };
+
+  // Mantém cache visual apenas para Dashboard e telas pesadas
   const getTabClass = (id: string) => 
     `transition-opacity duration-300 ${activeTab === id ? 'block opacity-100' : 'hidden opacity-0'}`;
 
   return (
     <div id="main-content-wrapper" className="relative min-h-[70vh]">
       
-      {/* Dashboard */}
+      {/* Dashboard (Mantém Cache para Performance) */}
       <div className={getTabClass('dashboard')}>
         <Dashboard 
           studies={bibleStudies} 
@@ -77,32 +106,32 @@ const MainContent: React.FC<MainContentProps> = ({
         />
       </div>
 
-      {/* Forms */}
-      {visitedTabs.has('bibleStudy') && (
-        <div className={getTabClass('bibleStudy')}>
-          <BibleStudyForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} history={getVisibleHistory(bibleStudies)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} />
+      {/* Formulários: RESETAM AO SAIR (Unmount) */}
+      {activeTab === 'bibleStudy' && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <BibleStudyForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} history={getVisibleHistory(bibleStudies)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} onTransfer={handleTransfer} />
         </div>
       )}
 
-      {visitedTabs.has('bibleClass') && (
-        <div className={getTabClass('bibleClass')}>
-          <BibleClassForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={unitSectors} history={getVisibleHistory(bibleClasses)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} />
+      {activeTab === 'bibleClass' && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <BibleClassForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={unitSectors} history={getVisibleHistory(bibleClasses)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} onTransfer={handleTransfer} />
         </div>
       )}
 
-      {visitedTabs.has('smallGroup') && (
-        <div className={getTabClass('smallGroup')}>
+      {activeTab === 'smallGroup' && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
           <SmallGroupForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(smallGroups)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />
         </div>
       )}
 
-      {visitedTabs.has('staffVisit') && (
-        <div className={getTabClass('staffVisit')}>
+      {activeTab === 'staffVisit' && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
           <StaffVisitForm currentUser={currentUser} users={users} onToggleReturn={id => { const item = staffVisits.find(v=>v.id===id); if(item) saveRecord('staffVisits', {...item, returnCompleted: !item.returnCompleted}); }} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(staffVisits)} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />
         </div>
       )}
 
-      {/* Lazy Routes */}
+      {/* Lazy Routes (Mantém Cache se visitado, mas oculta) */}
       {visitedTabs.has('reports') && (
         <div className={getTabClass('reports')}>
           <Suspense fallback={<TabLoading />}>
