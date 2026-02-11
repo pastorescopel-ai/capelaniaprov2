@@ -20,6 +20,7 @@ export const useReportLogic = (
   users: User[],
   filters: ReportFilters
 ) => {
+  // 1. DADOS FILTRADOS (Respeita as datas selecionadas na UI)
   const filteredData = useMemo(() => {
     const filterFn = (item: any) => {
       if (!item || !item.date) return false;
@@ -29,7 +30,6 @@ export const useReportLogic = (
       const itemUnit = item.unit || Unit.HAB;
       const unitMatch = filters.selectedUnit === 'all' || itemUnit === filters.selectedUnit;
       
-      // NUCLEO_LOGICO: Padronização de status para evitar falhas em relatórios
       const isStudyOrClass = item.status !== undefined;
       const statusMatch = (filters.selectedStatus === 'all' || !isStudyOrClass) || 
                           normalizeString(item.status) === normalizeString(filters.selectedStatus);
@@ -45,6 +45,55 @@ export const useReportLogic = (
     };
   }, [studies, classes, groups, visits, filters]);
 
+  // 2. DADOS ACUMULADOS DO ANO (Ignora data de início do filtro, usa 01/01 do ano corrente)
+  // Isso resolve o problema dos números "sumindo" quando muda o mês.
+  const accumulatedStats = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const startOfYear = `${currentYear}-01-01`;
+    // Usa a data fim do filtro para não pegar futuro, mas começa em Jan 01
+    const endOfFilter = filters.endDate; 
+
+    const uniqueStudentsYTD = new Set<string>();
+
+    const isYTD = (dateStr: string) => {
+        const d = dateStr.split('T')[0];
+        return d >= startOfYear && d <= endOfFilter;
+    };
+
+    const addUniqueName = (rawName: string) => {
+      if (!rawName) return;
+      const nameOnly = rawName.split(' (')[0].trim();
+      uniqueStudentsYTD.add(normalizeString(nameOnly));
+    };
+
+    // Varre Estudos do Ano
+    studies.forEach(s => {
+        if (s.date && isYTD(s.date)) {
+             // Aplica filtros de unidade/capelão se selecionados, mas ignora data inicial
+             const unitMatch = filters.selectedUnit === 'all' || s.unit === filters.selectedUnit;
+             const chaplainMatch = filters.selectedChaplain === 'all' || s.userId === filters.selectedChaplain;
+             if (unitMatch && chaplainMatch) {
+                 if (s.name) addUniqueName(s.name);
+             }
+        }
+    });
+
+    // Varre Classes do Ano
+    classes.forEach(c => {
+        if (c.date && isYTD(c.date)) {
+             const unitMatch = filters.selectedUnit === 'all' || c.unit === filters.selectedUnit;
+             const chaplainMatch = filters.selectedChaplain === 'all' || c.userId === filters.selectedChaplain;
+             if (unitMatch && chaplainMatch) {
+                 if (Array.isArray(c.students)) c.students.forEach(n => addUniqueName(n));
+             }
+        }
+    });
+
+    return {
+        uniqueStudentsYTD: uniqueStudentsYTD.size
+    };
+  }, [studies, classes, filters.selectedUnit, filters.selectedChaplain, filters.endDate]);
+
   const auditList = useMemo(() => {
     const list: any[] = [];
     filteredData.studies.forEach(s => {
@@ -59,25 +108,27 @@ export const useReportLogic = (
   }, [filteredData, users]);
 
   const totalStats = useMemo(() => {
-    const uniqueStudents = new Set<string>();
+    // Contagem de alunos do PERÍODO SELECIONADO (para comparação)
+    const uniqueStudentsPeriod = new Set<string>();
     const addUniqueName = (rawName: string) => {
       if (!rawName) return;
-      // NUCLEO_LOGICO: Limpeza de matrícula antes de contar como aluno único
       const nameOnly = rawName.split(' (')[0].trim();
-      uniqueStudents.add(normalizeString(nameOnly));
+      uniqueStudentsPeriod.add(normalizeString(nameOnly));
     };
     filteredData.studies.forEach(s => s.name && addUniqueName(s.name));
     filteredData.classes.forEach(c => {
       if (Array.isArray(c.students)) c.students.forEach(n => addUniqueName(n));
     });
+
     return {
       studies: filteredData.studies.length,
       classes: filteredData.classes.length,
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,
-      totalStudents: uniqueStudents.size
+      totalStudentsPeriod: uniqueStudentsPeriod.size,
+      totalStudentsYTD: accumulatedStats.uniqueStudentsYTD // Total acumulado do ano
     };
-  }, [filteredData]);
+  }, [filteredData, accumulatedStats]);
 
   return { filteredData, auditList, totalStats };
 };
