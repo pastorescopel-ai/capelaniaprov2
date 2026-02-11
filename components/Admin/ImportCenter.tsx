@@ -1,9 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../../contexts/AppContext';
 import { useToast } from '../../contexts/ToastContext';
 import AdminLists from './AdminLists';
-import AdminDataTools from './AdminDataTools';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 
 const ImportCenter: React.FC = () => {
@@ -12,14 +11,19 @@ const ImportCenter: React.FC = () => {
   } = useApp();
   
   const toast = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [activeTool, setActiveTool] = useState<'excel' | 'tools'>('excel');
   const [syncState, setSyncState] = useState<{isOpen: boolean; status: SyncStatus; title: string; message: string; error?: string;}>({ 
     isOpen: false, 
     status: 'idle', 
     title: '', 
     message: '' 
   });
+
+  // Restore States
+  const [showDNAConfirm, setShowDNAConfirm] = useState(false);
+  const [pendingDNA, setPendingDNA] = useState<any>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   const handleExportFullDNA = () => {
     const fullDNA = {
@@ -62,8 +66,84 @@ const ImportCenter: React.FC = () => {
     }
   };
 
+  // --- RESTORE LOGIC ---
+  const handleTriggerFileSelect = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const dna = JSON.parse(event.target?.result as string);
+        setPendingDNA(dna.database || dna);
+        setShowDNAConfirm(true);
+      } catch (err) {
+        toast.showToast("Erro ao ler JSON: " + (err as Error).message, "warning");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ""; 
+  };
+
+  const confirmDNARestore = async () => {
+    if (!pendingDNA) return;
+    setIsRestoring(true);
+    try {
+      const result = await importFromDNA(pendingDNA);
+      if (result.success) {
+        toast.showToast(`SUCESSO: ${result.message}`, "success");
+        setShowDNAConfirm(false);
+        setPendingDNA(null);
+      } else {
+        toast.showToast(`FALHA: ${result.message}`, "warning");
+      }
+    } catch (err) {
+      toast.showToast("Falha crítica: " + (err as Error).message, "warning");
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
+      
+      {/* RESTORE CONFIRM MODAL */}
+      {showDNAConfirm && (
+        <div className="fixed inset-0 z-[7000]">
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => !isRestoring && setShowDNAConfirm(false)} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-10 text-center space-y-8 animate-in zoom-in duration-300 border-4 border-slate-100">
+            <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-[2rem] flex items-center justify-center text-3xl mx-auto shadow-inner">
+               <i className={`fas ${isRestoring ? 'fa-sync fa-spin' : 'fa-database'}`}></i>
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">
+                {isRestoring ? 'Restaurando...' : 'Confirmar Restauração?'}
+              </h3>
+              <p className="text-slate-500 font-bold text-xs leading-relaxed uppercase tracking-wider px-4">
+                {isRestoring 
+                  ? 'Processando arquivo de backup. Aguarde...' 
+                  : 'Isso irá substituir os dados atuais pelos do backup. Essa ação é irreversível.'}
+              </p>
+            </div>
+            {!isRestoring && (
+              <div className="grid grid-cols-2 gap-4">
+                <button onClick={() => { setShowDNAConfirm(false); setPendingDNA(null); }} className="py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-colors">Cancelar</button>
+                <button onClick={confirmDNARestore} className="py-4 bg-amber-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest shadow-xl hover:bg-amber-600 transition-all">
+                  <i className="fas fa-check-circle mr-2"></i> Confirmar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <input ref={fileInputRef} type="file" onChange={handleFileSelected} accept=".json" className="hidden" />
+
       <SyncModal 
         isOpen={syncState.isOpen} 
         status={syncState.status} 
@@ -80,41 +160,38 @@ const ImportCenter: React.FC = () => {
             <p className="text-blue-400 text-xs font-black uppercase tracking-widest">Sincronização e Manutenção Preventiva</p>
           </div>
           
-          <button 
-            onClick={handleExportFullDNA}
-            className="px-10 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] flex items-center gap-4 transition-all shadow-xl shadow-blue-900/50 group active:scale-95"
-          >
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform">
-                <i className="fas fa-shield-alt text-xl"></i>
-            </div>
-            <div className="text-left">
-                <span className="block text-[10px] font-black uppercase tracking-widest opacity-70 leading-none">Cofre de Dados</span>
-                <span className="text-sm font-black uppercase">Exportar Backup Completo</span>
-            </div>
-          </button>
-        </div>
+          <div className="flex gap-3">
+            <button 
+                onClick={handleTriggerFileSelect}
+                className="px-8 py-5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-[1.5rem] flex items-center gap-3 transition-all shadow-xl active:scale-95 border border-slate-700"
+            >
+                <i className="fas fa-upload text-xl"></i>
+                <div className="text-left hidden sm:block">
+                    <span className="block text-[8px] font-black uppercase tracking-widest opacity-70 leading-none">Restauração</span>
+                    <span className="text-xs font-black uppercase">Importar Backup</span>
+                </div>
+            </button>
 
-        <div className="flex bg-white/5 p-2 rounded-2xl border border-white/10 backdrop-blur-md max-w-fit">
-          <button onClick={() => setActiveTool('excel')} className={`px-10 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${activeTool === 'excel' ? 'bg-white text-slate-900 shadow-lg' : 'text-slate-400 hover:text-white'}`}>Editor Excel</button>
-          <button onClick={() => setActiveTool('tools')} className={`px-10 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${activeTool === 'tools' ? 'bg-white text-slate-900 shadow-lg' : 'text-slate-400 hover:text-white'}`}>Ferramentas Reset</button>
+            <button 
+                onClick={handleExportFullDNA}
+                className="px-10 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] flex items-center gap-4 transition-all shadow-xl shadow-blue-900/50 group active:scale-95"
+            >
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                    <i className="fas fa-shield-alt text-xl"></i>
+                </div>
+                <div className="text-left">
+                    <span className="block text-[10px] font-black uppercase tracking-widest opacity-70 leading-none">Cofre de Dados</span>
+                    <span className="text-sm font-black uppercase">Exportar Backup</span>
+                </div>
+            </button>
+          </div>
         </div>
       </header>
 
-      {activeTool === 'excel' ? (
-        <AdminLists 
-           proData={{ staff: proStaff, sectors: proSectors, groups: proGroups }}
-           onSavePro={handleSaveProData}
-        />
-      ) : (
-        <div className="space-y-10">
-            <AdminDataTools 
-              currentUser={users[0]} 
-              onRefreshData={loadFromCloud}
-              onRestoreFullDNA={importFromDNA}
-              isRefreshing={false}
-            />
-        </div>
-      )}
+      <AdminLists 
+         proData={{ staff: proStaff, sectors: proSectors, groups: proGroups }}
+         onSavePro={handleSaveProData}
+      />
     </div>
   );
 };

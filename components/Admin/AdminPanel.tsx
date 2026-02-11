@@ -1,10 +1,9 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Config } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import AdminConfig from './Admin/AdminConfig';
 import AdminLists from './Admin/AdminLists';
-import AdminDataTools from './Admin/AdminDataTools';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -13,7 +12,7 @@ const AdminPanel: React.FC = () => {
     config, 
     bibleStudies, bibleClasses, smallGroups, staffVisits, users,
     proStaff, proSectors, proGroups, 
-    saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, migrateLegacyStructure 
+    saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA
   } = useApp();
   
   const { currentUser } = useAuth();
@@ -21,6 +20,13 @@ const AdminPanel: React.FC = () => {
   const [localConfig, setLocalConfig] = useState(config);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // States for DNA Restore (Migrated from AdminDataTools)
+  const [showDNAConfirm, setShowDNAConfirm] = useState(false);
+  const [pendingDNA, setPendingDNA] = useState<any>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -89,18 +95,86 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  // --- RESTORE LOGIC (Migrated) ---
+  const handleTriggerFileSelect = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const dna = JSON.parse(event.target?.result as string);
+        setPendingDNA(dna.database || dna);
+        setShowDNAConfirm(true);
+      } catch (err) {
+        showToast("Erro ao ler JSON: " + (err as Error).message, "warning");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ""; 
+  };
+
+  const confirmDNARestore = async () => {
+    if (!pendingDNA) return;
+    setIsRestoring(true);
+    try {
+      const result = await importFromDNA(pendingDNA);
+      if (result.success) {
+        showToast(`SUCESSO: ${result.message}`, "success");
+        setShowDNAConfirm(false);
+        setPendingDNA(null);
+      } else {
+        showToast(`FALHA: ${result.message}`, "warning");
+      }
+    } catch (err) {
+      showToast("Falha crítica: " + (err as Error).message, "warning");
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   if (!currentUser) return null;
 
   return (
     <div className="space-y-12 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700">
       
-      <AdminDataTools 
-        currentUser={currentUser} 
-        onRefreshData={() => loadFromCloud(true)} 
-        onRestoreFullDNA={importFromDNA} 
-        onMigrateLegacy={migrateLegacyStructure}
-        isRefreshing={isRefreshing} 
-      />
+      {/* MODAL RESTAURAR DNA (Overlay) */}
+      {showDNAConfirm && (
+        <div className="fixed inset-0 z-[7000]">
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => !isRestoring && setShowDNAConfirm(false)} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-10 text-center space-y-8 animate-in zoom-in duration-300 border-4 border-slate-100">
+            <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-[2rem] flex items-center justify-center text-3xl mx-auto shadow-inner">
+               <i className={`fas ${isRestoring ? 'fa-sync fa-spin' : 'fa-database'}`}></i>
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">
+                {isRestoring ? 'Restaurando...' : 'Confirmar Restauração?'}
+              </h3>
+              <p className="text-slate-500 font-bold text-xs leading-relaxed uppercase tracking-wider px-4">
+                {isRestoring 
+                  ? 'Processando arquivo de backup. Aguarde...' 
+                  : 'Isso irá substituir os dados atuais pelos do backup. Essa ação é irreversível.'}
+              </p>
+            </div>
+            {!isRestoring && (
+              <div className="grid grid-cols-2 gap-4">
+                <button onClick={() => { setShowDNAConfirm(false); setPendingDNA(null); }} className="py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-colors">Cancelar</button>
+                <button onClick={confirmDNARestore} className="py-4 bg-amber-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest shadow-xl hover:bg-amber-600 transition-all">
+                  <i className="fas fa-check-circle mr-2"></i> Confirmar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Hidden Input for File Select */}
+      <input ref={fileInputRef} type="file" onChange={handleFileSelected} accept=".json" className="hidden" />
 
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
@@ -111,9 +185,15 @@ const AdminPanel: React.FC = () => {
           <button onClick={handleManualRefresh} className={`px-5 py-4 bg-emerald-50 text-emerald-600 font-black rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm`}>
             <i className={`fas fa-sync-alt ${isRefreshing ? 'animate-spin' : ''}`}></i> Sincronizar Agora
           </button>
+          
+          <button onClick={handleTriggerFileSelect} className="px-5 py-4 bg-amber-50 text-amber-700 font-black rounded-2xl hover:bg-amber-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm border border-amber-100">
+            <i className="fas fa-file-import"></i> Restaurar Backup
+          </button>
+
           <button onClick={handleExportFullDNA} className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg">
             <i className="fas fa-download text-amber-400"></i> Baixar Backup JSON
           </button>
+          
           <button onClick={handleSaveAll} className="px-10 py-5 text-white font-black rounded-[1.5rem] shadow-2xl hover:brightness-110 transition-all flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95" style={{ backgroundColor: localConfig.primaryColor || '#005a9c' }}>
             <i className={`fas ${isSaving ? 'fa-circle-notch fa-spin' : 'fa-save'}`}></i> {isSaving ? 'Gravando...' : 'Aplicar Mudanças'}
           </button>
