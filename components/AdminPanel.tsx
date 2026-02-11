@@ -8,13 +8,12 @@ import AdminDataTools from './Admin/AdminDataTools';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 
-// No props required anymore, data is pulled from Context
 const AdminPanel: React.FC = () => {
   const { 
     config, 
     bibleStudies, bibleClasses, smallGroups, staffVisits, users,
     proStaff, proSectors, proGroups, 
-    saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, migrateLegacyStructure 
+    saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA
   } = useApp();
   
   const { currentUser } = useAuth();
@@ -28,6 +27,7 @@ const AdminPanel: React.FC = () => {
     setLocalConfig(config);
   }, [config]);
 
+  // Função para salvar dados PRO (Moderno)
   const handleSaveProData = async (
     newProStaff: any[], 
     newProSectors: any[], 
@@ -35,6 +35,7 @@ const AdminPanel: React.FC = () => {
   ) => {
     setIsSaving(true);
     try {
+      // Salvar apenas no Supabase (Tabelas Relacionais)
       await saveToCloud({
         proStaff: newProStaff,
         proSectors: newProSectors,
@@ -63,7 +64,7 @@ const AdminPanel: React.FC = () => {
 
   const handleExportFullDNA = () => {
     const fullDNA = {
-      meta: { system: "Capelania Hospitalar Pro", version: "V3.2.0 (Hybrid)", exportDate: new Date().toISOString(), author: currentUser?.name },
+      meta: { system: "Capelania Hospitalar Pro", version: "V4.0 (Pure DB)", exportDate: new Date().toISOString(), author: currentUser?.name },
       database: { 
         bibleStudies, bibleClasses, smallGroups, staffVisits, users, config: localConfig,
         proStaff, proSectors, proGroups 
@@ -97,7 +98,6 @@ const AdminPanel: React.FC = () => {
         currentUser={currentUser} 
         onRefreshData={() => loadFromCloud(true)} 
         onRestoreFullDNA={importFromDNA} 
-        onMigrateLegacy={migrateLegacyStructure}
         isRefreshing={isRefreshing} 
       />
 

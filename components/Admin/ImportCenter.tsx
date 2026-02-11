@@ -8,8 +8,7 @@ import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 
 const ImportCenter: React.FC = () => {
   const { 
-    saveToCloud, migrateLegacyStructure, unifyNumericIdsAndCleanPrefixes,
-    importFromDNA, proStaff, proSectors, proGroups, users, loadFromCloud 
+    saveToCloud, importFromDNA, proStaff, proSectors, proGroups, users, loadFromCloud 
   } = useApp();
   
   const toast = useToast();
@@ -63,27 +62,6 @@ const ImportCenter: React.FC = () => {
     }
   };
 
-  const handlePrefixCleaning = async () => {
-      setSyncState({ 
-          isOpen: true, 
-          status: 'processing', 
-          title: 'Sanitizando IDs', 
-          message: 'Removendo prefixos HAB/HABA e unificando registros de colaboradores...' 
-      });
-      try {
-          const res = await unifyNumericIdsAndCleanPrefixes();
-          if (res.success) {
-              setSyncState({ isOpen: true, status: 'success', title: 'Limpeza Concluída', message: res.message });
-          } else {
-              setSyncState({ isOpen: true, status: 'error', title: 'Erro na Limpeza', message: res.message });
-          }
-          return res;
-      } catch (e: any) {
-          setSyncState({ isOpen: true, status: 'error', title: 'Falha Crítica', message: e.message });
-          return { success: false, message: e.message };
-      }
-  };
-
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
       <SyncModal 
@@ -133,8 +111,6 @@ const ImportCenter: React.FC = () => {
               currentUser={users[0]} 
               onRefreshData={loadFromCloud}
               onRestoreFullDNA={importFromDNA}
-              onMigrateLegacy={migrateLegacyStructure}
-              onUnifyIds={handlePrefixCleaning}
               isRefreshing={false}
             />
         </div>
