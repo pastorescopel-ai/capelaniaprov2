@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { User } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
+import { supabase } from '../../services/supabaseClient';
 
 interface AdminDataToolsProps {
   currentUser: User;
@@ -14,6 +15,7 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshD
   const { showToast } = useToast();
   const [showDNAConfirm, setShowDNAConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSnapshotting, setIsSnapshotting] = useState(false);
   const [pendingDNA, setPendingDNA] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -56,6 +58,24 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshD
       showToast("Falha crítica: " + (err as Error).message, "warning");
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleGenerateSnapshot = async () => {
+    if (!supabase) {
+        showToast("Erro de conexão com o banco.", "warning");
+        return;
+    }
+    setIsSnapshotting(true);
+    try {
+        const { data, error } = await supabase.rpc('capture_daily_snapshot');
+        if (error) throw error;
+        showToast(data || "Snapshot de BI gerado com sucesso!", "success");
+    } catch (e: any) {
+        console.error(e);
+        showToast("Erro ao gerar snapshot: " + e.message, "warning");
+    } finally {
+        setIsSnapshotting(false);
     }
   };
 
@@ -114,6 +134,21 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshD
             <input ref={fileInputRef} type="file" onChange={handleFileSelected} accept=".json" className="hidden" />
             </div>
         </div>
+      </div>
+
+      {/* FERRAMENTAS DE DADOS - BARRA SUPERIOR */}
+      <div className="flex flex-wrap gap-3 justify-center md:justify-end mb-8">
+          <button 
+            onClick={handleGenerateSnapshot} 
+            disabled={isSnapshotting}
+            className="px-5 py-4 bg-indigo-50 text-indigo-600 font-black rounded-2xl hover:bg-indigo-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm border border-indigo-100"
+          >
+            <i className={`fas ${isSnapshotting ? 'fa-circle-notch fa-spin' : 'fa-camera'}`}></i> Snapshot BI
+          </button>
+
+          <button onClick={onRefreshData} className={`px-5 py-4 bg-emerald-50 text-emerald-600 font-black rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm border border-emerald-100`}>
+            <i className={`fas fa-sync-alt ${isRefreshing ? 'animate-spin' : ''}`}></i> Sincronizar Agora
+          </button>
       </div>
     </>
   );
