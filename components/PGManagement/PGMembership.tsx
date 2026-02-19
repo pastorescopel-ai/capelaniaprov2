@@ -47,8 +47,9 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
       const total = sectorStaff.length;
       if (total === 0) return null;
 
+      // Filtro de Soft Delete: Considera apenas membros sem leftAt (Ativos)
       const enrolled = sectorStaff.filter(st => 
-        proGroupMembers.some(m => cleanId(m.staffId) === cleanId(st.id))
+        proGroupMembers.some(m => cleanId(m.staffId) === cleanId(st.id) && !m.leftAt)
       ).length;
 
       const percentage = (enrolled / total) * 100;
@@ -67,11 +68,11 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     }).filter(item => item !== null).sort((a, b) => a!.percentage - b!.percentage);
   }, [proSectors, proStaff, proGroupMembers, unit]);
 
-  // Radar de Lacunas: PGs "Fantasmas" (Cadastrados no banco mas sem membros)
+  // Radar de Lacunas: PGs "Fantasmas" (Cadastrados no banco mas sem membros ATIVOS)
   const emptyPGs = useMemo(() => {
     return proGroups
       .filter(g => g.unit === unit)
-      .filter(g => !proGroupMembers.some(m => m.groupId === g.id))
+      .filter(g => !proGroupMembers.some(m => m.groupId === g.id && !m.leftAt))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [proGroups, proGroupMembers, unit]);
 
@@ -80,14 +81,21 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     return proStaff
       .filter(s => s.sectorId === currentSector.id)
       .map(staff => {
-        const membership = proGroupMembers.find(m => cleanId(m.staffId) === cleanId(staff.id));
+        // Filtro Soft Delete: Procura apenas matrícula ativa
+        const membership = proGroupMembers.find(m => cleanId(m.staffId) === cleanId(staff.id) && !m.leftAt);
         const groupName = membership ? proGroups.find(g => g.id === membership.groupId)?.name : null;
-        return { ...staff, membership, groupName };
+        
+        // Data formatada para exibição (Se matriculado)
+        const dateStr = membership?.joinedAt 
+            ? new Date(membership.joinedAt).toLocaleDateString('pt-BR') 
+            : null;
+
+        return { ...staff, membership, groupName, joinedDate: dateStr };
       })
       .filter(staff => {
         if (currentPG) {
             const isAlreadyInThisGroup = proGroupMembers.some(m => 
-                m.groupId === currentPG.id && cleanId(m.staffId) === cleanId(staff.id)
+                m.groupId === currentPG.id && cleanId(m.staffId) === cleanId(staff.id) && !m.leftAt
             );
             if (isAlreadyInThisGroup) return false;
         }
@@ -104,13 +112,14 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
   const pgMembers = useMemo(() => {
     if (!currentPG) return [];
     const realMembers = proGroupMembers
-      .filter(m => m.groupId === currentPG.id && !pendingRemovals.has(m.id))
+      .filter(m => m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id)) // Filtro Soft Delete
       .map(m => {
         let staff = proStaff.find(s => cleanId(s.id) === cleanId(m.staffId));
         return { 
             id: m.id,
             staffName: staff?.name || `Desconhecido (ID: ${m.staffId})`, 
             staffId: m.staffId,
+            joinedDate: m.joinedAt ? new Date(m.joinedAt).toLocaleDateString('pt-BR') : '',
             isOptimistic: false,
             isLeader: currentPG.currentLeader === staff?.name
         };
@@ -122,6 +131,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
             id: `temp-${staffId}`, 
             staffName: staff?.name || "Processando...",
             staffId: staffId,
+            joinedDate: "Hoje",
             isOptimistic: true,
             isLeader: false
         };
@@ -145,11 +155,16 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     setPendingTransfers(prev => new Set(prev).add(staffId));
     setIsProcessing(true);
     try {
-      const existing = proGroupMembers.find(m => cleanId(m.staffId) === cleanId(staffId));
-      if (existing) {
-        if (existing.groupId === currentPG.id) return;
-        await deleteRecord('proGroupMembers', existing.id);
+      // Soft Delete: Verifica se existe uma matrícula ATIVA em outro grupo
+      const existingActive = proGroupMembers.find(m => cleanId(m.staffId) === cleanId(staffId) && !m.leftAt);
+      
+      if (existingActive) {
+        if (existingActive.groupId === currentPG.id) return; // Já está neste grupo
+        // "Fecha" a matrícula anterior (Soft Delete)
+        await saveRecord('proGroupMembers', { ...existingActive, leftAt: Date.now() });
       }
+
+      // Cria nova matrícula
       const newMember: ProGroupMember = {
         id: crypto.randomUUID(),
         groupId: currentPG.id,
@@ -167,11 +182,18 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
   const confirmRemoval = async () => {
     if (!memberToRemove) return;
     setPendingRemovals(prev => new Set(prev).add(memberToRemove.id));
+    
+    // Soft Delete: Encontra o membro e atualiza leftAt em vez de deletar
+    const memberToUpdate = proGroupMembers.find(m => m.id === memberToRemove.id);
+    
     setMemberToRemove(null);
     setIsProcessing(true);
+    
     try {
-      await deleteRecord('proGroupMembers', memberToRemove.id);
-      showToast("Removido com sucesso.", "success");
+      if (memberToUpdate) {
+          await saveRecord('proGroupMembers', { ...memberToUpdate, leftAt: Date.now() });
+          showToast("Removido com sucesso.", "success");
+      }
     } catch (e) {
       setPendingRemovals(prev => { const newSet = new Set(prev); newSet.delete(memberToRemove.id); return newSet; });
       showToast("Erro ao remover.", "warning");
@@ -249,7 +271,14 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
               <div key={staff.id} className="p-4 rounded-2xl flex items-center justify-between border bg-white border-blue-100 shadow-sm hover:border-blue-300 transition-all animate-in slide-in-from-left duration-300">
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-slate-700 text-xs uppercase truncate">{staff.name}</p>
-                  <p className="text-[9px] font-bold uppercase text-slate-400 truncate">{staff.membership ? `Mover de: ${staff.groupName}` : 'Não Matriculado'}</p>
+                  <p className="text-[9px] font-bold uppercase text-slate-400 truncate flex items-center gap-2">
+                      {staff.membership ? (
+                          <>
+                            <span>Mover de: {staff.groupName}</span>
+                            {staff.joinedDate && <span className="text-[8px] bg-slate-100 px-1.5 rounded text-slate-500">Desde: {staff.joinedDate}</span>}
+                          </>
+                      ) : 'Não Matriculado'}
+                  </p>
                 </div>
                 <button onClick={() => handleEnroll(staff.id)} disabled={!currentPG || isProcessing} className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${staff.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}><i className={`fas ${staff.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i></button>
               </div>
@@ -270,7 +299,10 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                     {member.isOptimistic && <i className="fas fa-circle-notch fa-spin text-[10px] text-emerald-600"></i>}
                     {member.isLeader && <i className="fas fa-crown text-amber-500 text-xs animate-bounce"></i>}
-                    <p className={`text-xs uppercase truncate ${member.isLeader ? 'font-black text-amber-800' : 'font-bold text-emerald-900'}`}>{member.staffName}</p>
+                    <div className="min-w-0">
+                        <p className={`text-xs uppercase truncate ${member.isLeader ? 'font-black text-amber-800' : 'font-bold text-emerald-900'}`}>{member.staffName}</p>
+                        {member.joinedDate && <p className="text-[8px] font-bold text-emerald-600/60 uppercase">Desde: {member.joinedDate}</p>}
+                    </div>
                 </div>
                 {!member.isOptimistic && (
                     <div className="flex gap-1 flex-shrink-0 ml-2">

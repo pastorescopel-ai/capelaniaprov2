@@ -17,10 +17,11 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
   pro_providers: ['id', 'name', 'unit', 'whatsapp', 'sector', 'updated_at'],
   pro_groups: ['id', 'name', 'current_leader', 'leader_phone', 'sector_id', 'unit', 'active'],
   pro_group_locations: ['id', 'group_id', 'sector_id', 'unit', 'created_at'],
-  pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at']
+  pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at', 'left_at']
 };
 
-const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at', 'joined_at', 'staff_id'];
+// Campos que devem ser tratados como números puros
+const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at', 'joined_at', 'left_at', 'staff_id', 'sector_id', 'group_id'];
 
 const GLOBAL_ID_CACHE: Record<string, string> = {};
 
@@ -45,14 +46,24 @@ const toCamel = (obj: any): any => {
       newObj['password'] = obj[key];
       continue;
     }
+    
+    // Converte chaves snake_case para camelCase
     if (!keyCache[key]) {
       let camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
       if (camelKey.endsWith('Haba')) camelKey = camelKey.replace('Haba', 'HABA');
       else if (camelKey.endsWith('Hab')) camelKey = camelKey.replace('Hab', 'HAB');
       keyCache[key] = camelKey;
     }
+    
     let val = obj[key];
-    // Removido tratamento especial de students pois agora vem de tabela externa
+    
+    // BLINDAGEM DE INTEGRIDADE FRONT-END (V4.3):
+    // Conversão Bidirecional Inteligente:
+    // Se receber um ID numérico do banco (BIGINT), converte para string para o React.
+    if ((key === 'id' || key.endsWith('_id')) && typeof val === 'number') {
+        val = String(val);
+    }
+
     newObj[keyCache[key]] = toCamel(val);
   }
   return newObj;
@@ -70,10 +81,29 @@ const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: st
     if (allowedFields.includes(snakeKey)) {
       let val = obj[key];
       
+      // BLINDAGEM DE ESCRITA (V4.3):
+      // Tratamento especial para IDs das tabelas PRO (Agora são BIGINT no banco)
+      // Se vier uma string como "HAB-1020", limpa para "1020" antes de enviar
+      const isProTable = tableName.startsWith('pro_') && tableName !== 'pro_patients' && tableName !== 'pro_providers';
+      const isProIdField = (snakeKey === 'id' || snakeKey === 'sector_id' || snakeKey === 'group_id' || snakeKey === 'staff_id');
+      
+      if (isProTable && isProIdField) {
+          if (val !== null && val !== undefined && val !== '') {
+             // Remove caracteres não numéricos para salvar como BIGINT limpo
+             const numericVal = String(val).replace(/\D/g, '');
+             // Se resultou em vazio (ex: ID era "novo"), mantém null ou original para o banco rejeitar/gerar
+             if (numericVal) val = numericVal; 
+          }
+      }
+
       if (NUMERIC_FIELDS.includes(snakeKey)) {
         if (val === "" || val === null || val === undefined) continue;
-        val = parseInt(val);
-        if (isNaN(val)) continue;
+        // Não forçamos parseInt em IDs para não perder precisão se forem muito grandes,
+        // o Postgres lida com string numérica para bigint.
+        if (!snakeKey.endsWith('_id') && snakeKey !== 'id') {
+            val = parseInt(val);
+            if (isNaN(val)) continue;
+        }
       }
       
       const isFK = snakeKey === 'user_id' || snakeKey === 'sector_id' || snakeKey === 'record_id' || snakeKey === 'group_id' || snakeKey === 'staff_id';
@@ -81,12 +111,11 @@ const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: st
         val = null;
       }
 
-      // Validação Crítica de Segurança: Bloqueia IDs que não sejam UUIDs em tabelas que exigem UUID
-      // Exceção: Tabelas 'pro_' e 'visit_requests' podem usar IDs mistos por enquanto
-      // bible_class_attendees.staff_id é BIGINT, então não deve ser validado como UUID
+      // Validação Crítica de Segurança: UUIDs
+      // Tabelas 'pro_' agora usam BIGINT, então pulamos validação de UUID para elas.
       if (tableName !== 'visit_requests' && !tableName.startsWith('pro_') && snakeKey !== 'staff_id') {
         if (isFK && val && !isValidUUID(val) && tableName !== 'bible_class_attendees') {
-          console.error(`Bloqueio de Segurança: Tentativa de usar ID não-UUID em ${tableName}.${snakeKey} (${val})`);
+          // console.error(`Bloqueio de Segurança: Tentativa de usar ID não-UUID em ${tableName}.${snakeKey} (${val})`);
           newObj[snakeKey] = null;
           continue;
         }
@@ -119,12 +148,11 @@ export const DataRepository = {
         supabase.from('pro_groups').select('*').range(0, MAX_ROWS),
         supabase.from('pro_group_locations').select('*').range(0, MAX_ROWS),
         supabase.from('pro_group_members').select('*').range(0, MAX_ROWS),
-        supabase.from('bible_class_attendees').select('*').range(0, MAX_ROWS) // Nova tabela
+        supabase.from('bible_class_attendees').select('*').range(0, MAX_ROWS)
       ]);
 
       if (c.data?.[0]?.id) GLOBAL_ID_CACHE['app_config'] = c.data[0].id;
 
-      // Hibridização: Monta o array 'students' nas classes usando a tabela relacional
       const classes = toCamel(bc.data || []);
       const attendees = toCamel(bca.data || []);
       
@@ -137,7 +165,7 @@ export const DataRepository = {
       return {
         users: toCamel(u.data || []),
         bibleStudies: toCamel(bs.data || []),
-        bibleClasses: classes, // Retorna classes já populadas com alunos
+        bibleClasses: classes, 
         smallGroups: toCamel(sg.data || []),
         staffVisits: toCamel(sv.data || []),
         visitRequests: toCamel(vr.data || []),
@@ -175,7 +203,6 @@ export const DataRepository = {
     const tableName = tableMap[collection];
     if (!tableName) return false;
 
-    // Converte e filtra campos (Note: para bible_classes, 'students' será ignorado aqui pois foi removido do schema)
     const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName], tableName));
 
     if (tableName === 'app_config') {
@@ -192,7 +219,6 @@ export const DataRepository = {
       }
     }
 
-    // 1. Salva o registro pai (ou registros normais)
     const CHUNK_SIZE = 100;
     for (let i = 0; i < payloads.length; i += CHUNK_SIZE) {
       const chunk = payloads.slice(i, i + CHUNK_SIZE);
@@ -203,27 +229,27 @@ export const DataRepository = {
       }
     }
 
-    // 2. Lógica Relacional Especial para Classes Bíblicas
     if (collection === 'bibleClasses') {
         for (const cls of items) {
             if (cls.id && cls.students && Array.isArray(cls.students)) {
-                // Limpa registros antigos deste ID para evitar duplicatas (estratégia full-sync para o registro)
                 const { error: delError } = await supabase.from('bible_class_attendees').delete().eq('class_id', cls.id);
                 if (delError) console.error("Erro ao limpar participantes antigos:", delError);
 
-                // Prepara novos registros
                 const attendeesPayload = cls.students.map((name: string) => {
-                    // Tenta extrair ID numérico do padrão "Nome (123)"
+                    // Extrai ID numérico do padrão "Nome (123)"
                     const match = name.match(/\((\d+)\)$/);
+                    let staffId = match ? match[1] : null;
                     return {
                         class_id: cls.id,
                         student_name: name,
-                        staff_id: match ? parseInt(match[1]) : null
+                        staff_id: staffId // Envia como string numérica ou null, cleanAndConvertToSnake tratará
                     };
                 });
 
                 if (attendeesPayload.length > 0) {
-                    const { error: insError } = await supabase.from('bible_class_attendees').insert(attendeesPayload);
+                    // Processa payload para garantir que staff_id seja limpo/numérico
+                    const cleanPayload = attendeesPayload.map(p => cleanAndConvertToSnake(p, TABLE_SCHEMAS['bible_class_attendees'], 'bible_class_attendees'));
+                    const { error: insError } = await supabase.from('bible_class_attendees').insert(cleanPayload);
                     if (insError) console.error("Erro ao inserir novos participantes:", insError);
                 }
             }
@@ -246,9 +272,10 @@ export const DataRepository = {
     };
     const tableName = tableMap[collection];
     if (!tableName) return false;
+    
+    // IDs numéricos (nas tabelas PRO) podem ser passados como string, o Postgres faz o cast na query
     if (!tableName.startsWith('pro_') && !tableName.startsWith('visit_requests') && !isValidUUID(id)) return false;
     
-    // O delete cascata (configurado no banco) cuidará dos bible_class_attendees
     const { error } = await supabase.from(tableName).delete().eq('id', id);
     return !error;
   }

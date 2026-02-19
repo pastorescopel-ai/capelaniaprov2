@@ -63,6 +63,7 @@ export interface ProGroupMember {
   groupId: string;
   staffId: string;
   joinedAt?: number;
+  leftAt?: number; // Data de saída para histórico (Soft Delete)
 }
 
 export interface Config {
