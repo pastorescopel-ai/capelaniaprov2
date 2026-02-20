@@ -10,13 +10,14 @@ type HealerTab = 'people' | 'sectors';
 type PersonType = 'Colaborador' | 'Ex-Colaborador' | 'Paciente' | 'Prestador';
 
 const DataHealer: React.FC = () => {
-  const { bibleClasses, bibleStudies, smallGroups, staffVisits, proStaff, proSectors, unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, saveRecord, bulkHealAttendees } = useApp();
+  const { bibleClasses, bibleStudies, smallGroups, staffVisits, proStaff, proSectors, unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, saveRecord } = useApp();
   const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState<HealerTab>('people');
   const [targetMap, setTargetMap] = useState<Record<string, string>>({});
   const [sectorMap, setSectorMap] = useState<Record<string, string>>({}); // Para selecionar setor do Ex-Colaborador
   const [searchQuery, setSearchQuery] = useState(''); // NOVO: Estado para busca forçada
+  const [filterClassOnly, setFilterClassOnly] = useState(false); // NOVO: Filtro para alunos de classe
   
   // Estado local para armazenar o tipo selecionado para cada registro
   const [personTypeMap, setPersonTypeMap] = useState<Record<string, PersonType>>({});
@@ -29,12 +30,12 @@ const DataHealer: React.FC = () => {
 
   // --- LÓGICA DE DIAGNÓSTICO: PESSOAS ÓRFÃS ---
   const peopleOrphans = useMemo(() => {
-    const orphanMap = new Map<string, Set<string>>();
+    const orphanMap = new Map<string, { sectors: Set<string>, sources: { class: number, study: number, visit: number } }>();
     const officialNamesNormalized = new Set(proStaff.map(s => normalizeString(s.name)));
     const normSearch = normalizeString(searchQuery); // Normaliza a busca
     
     // Função auxiliar para verificar e adicionar à lista
-    const checkAndAdd = (rawName: string, sourceSector?: string, type?: string) => {
+    const checkAndAdd = (rawName: string, sourceSector: string | undefined, type: 'class' | 'study' | 'visit', participantType?: string) => {
         if (!rawName) return;
         
         const cleanName = rawName.split(' (')[0].trim();
@@ -56,37 +57,40 @@ const DataHealer: React.FC = () => {
 
         if (shouldShow && !rawName.match(/\(\d+\)$/)) {
             // Se for paciente/prestador, só mostra se o usuário pedir 'showAllHistory', estiver buscando, ou se tiver erro
-            if (type && type !== 'Colaborador' && !showAllHistory && !isMatchSearch) return;
+            if (participantType && participantType !== 'Colaborador' && !showAllHistory && !isMatchSearch) return;
 
-            if (!orphanMap.has(cleanName)) orphanMap.set(cleanName, new Set());
-            if (sourceSector && sourceSector.trim()) orphanMap.get(cleanName)!.add(sourceSector.trim());
+            if (!orphanMap.has(cleanName)) {
+                orphanMap.set(cleanName, { sectors: new Set(), sources: { class: 0, study: 0, visit: 0 } });
+            }
+            
+            const entry = orphanMap.get(cleanName)!;
+            if (sourceSector && sourceSector.trim()) entry.sectors.add(sourceSector.trim());
+            entry.sources[type] = (entry.sources[type] || 0) + 1;
         }
     };
 
-    // Varre ALUNOS
+    // Varre ALUNOS (Origem: bibleClasses)
     bibleClasses.forEach(cls => {
         // Alunos de classe não tem 'participantType' explícito na tabela antiga, assume-se Colaborador ou Paciente
-        cls.students?.forEach(s => checkAndAdd(s, cls.sector, 'Colaborador'));
+        cls.students?.forEach(s => checkAndAdd(s, cls.sector, 'class', 'Colaborador'));
     });
 
-    // Varre ESTUDOS (Verifica staff_id nulo implicitamente pela lógica do componente pai ou filtro aqui)
+    // Varre ESTUDOS (Origem: bibleStudies)
     bibleStudies.forEach(s => { 
-        // Filtra: Só mostra se staff_id for nulo (pendente) OU se for um tipo 'Colaborador' sem match
-        // Para simplificar: mostramos nomes que não batem com RH.
         if (s.participantType === ParticipantType.STAFF || !s.participantType || showAllHistory || normSearch) {
-             checkAndAdd(s.name, s.sector, s.participantType); 
+             checkAndAdd(s.name, s.sector, 'study', s.participantType); 
         }
     });
 
-    // Varre VISITAS
+    // Varre VISITAS (Origem: staffVisits)
     staffVisits.forEach(v => { 
         if (v.participantType === ParticipantType.STAFF || !v.participantType || showAllHistory || normSearch) {
-            checkAndAdd(v.staffName, v.sector, v.participantType);
+            checkAndAdd(v.staffName, v.sector, 'visit', v.participantType);
         }
     });
     
     return Array.from(orphanMap.entries())
-        .map(([name, sectorSet]) => ({ name, sectors: Array.from(sectorSet).sort() }))
+        .map(([name, data]) => ({ name, sectors: Array.from(data.sectors).sort(), sources: data.sources }))
         .sort((a, b) => a.name.localeCompare(b.name));
   }, [bibleClasses, bibleStudies, staffVisits, proStaff, showAllHistory, resolvedItems, searchQuery]);
 
@@ -141,6 +145,11 @@ const DataHealer: React.FC = () => {
           category: 'RH' as const
       }));
   }, [proSectors]);
+
+  // --- FILTRAGEM FINAL ---
+  const filteredPeopleList = useMemo(() => {
+      return peopleOrphans.filter(p => !filterClassOnly || p.sources.class > 0);
+  }, [peopleOrphans, filterClassOnly]);
 
   // --- AÇÕES ---
   const handleProcessPerson = async (orphanName: string) => {
@@ -237,22 +246,6 @@ const DataHealer: React.FC = () => {
       finally { setIsProcessing(false); }
   };
 
-  const handleBulkHeal = async () => {
-      if(!confirm("Esta ação irá varrer todo o histórico de presenças e tentar vincular automaticamente alunos aos colaboradores pelo nome (ignorando acentos e espaços). Deseja continuar?")) return;
-      
-      setIsProcessing(true);
-      try {
-          const result = await bulkHealAttendees();
-          showToast(result, "success");
-          // Reseta a lista para forçar recarga visual
-          setResolvedItems(new Set());
-      } catch (e: any) {
-          showToast("Erro no processamento em massa: " + e.message, "warning");
-      } finally {
-          setIsProcessing(false);
-      }
-  };
-
   // Helper para verificar se o nome está saudável (está na lista oficial)
   const isHealthy = (name: string) => {
       return proStaff.some(s => normalizeString(s.name) === normalizeString(name));
@@ -279,19 +272,10 @@ const DataHealer: React.FC = () => {
         <div className="flex flex-col items-center gap-2">
             <div className={`text-center bg-white/50 p-4 rounded-2xl border border-${currentTheme}-200 w-full`}>
                 <span className={`block text-4xl font-black text-${currentTheme}-600`}>
-                    {activeTab === 'people' ? peopleOrphans.length : sectorOrphans.length}
+                    {activeTab === 'people' ? filteredPeopleList.length : sectorOrphans.length}
                 </span>
                 <span className={`text-[10px] font-black text-${currentTheme}-400 uppercase tracking-widest`}>Pendentes</span>
             </div>
-            {activeTab === 'people' && (
-                <button 
-                    onClick={handleBulkHeal} 
-                    disabled={isProcessing}
-                    className="px-4 py-3 bg-emerald-500 text-white rounded-xl font-black text-[9px] uppercase shadow-md hover:bg-emerald-600 transition-all flex items-center gap-2 disabled:opacity-50 active:scale-95"
-                >
-                    <i className={`fas ${isProcessing ? 'fa-circle-notch fa-spin' : 'fa-magic'}`}></i> Auto-Vincular (Bulk)
-                </button>
-            )}
         </div>
       </div>
 
@@ -334,7 +318,11 @@ const DataHealer: React.FC = () => {
               </div>
 
               {/* Filtro Checkbox */}
-              <div className="flex justify-center">
+              <div className="flex justify-center gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 hover:bg-slate-50 transition-colors select-none">
+                      <input type="checkbox" checked={filterClassOnly} onChange={e => setFilterClassOnly(e.target.checked)} className="rounded text-rose-500 focus:ring-rose-500" />
+                      <span className="text-[9px] font-black uppercase text-slate-500 flex items-center gap-2"><i className="fas fa-chalkboard-teacher"></i> Apenas Alunos de Classe</span>
+                  </label>
                   <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 hover:bg-slate-50 transition-colors select-none">
                       <input type="checkbox" checked={showAllHistory} onChange={e => setShowAllHistory(e.target.checked)} className="rounded text-rose-500 focus:ring-rose-500" />
                       <span className="text-[9px] font-black uppercase text-slate-500">Exibir todos (Mesmo os corretos)</span>
@@ -351,7 +339,7 @@ const DataHealer: React.FC = () => {
         </div>
         
         <div className="divide-y divide-slate-100 max-h-[65vh] overflow-y-auto custom-scrollbar pb-72">
-          {(activeTab === 'people' ? peopleOrphans : sectorOrphans).length === 0 ? (
+          {(activeTab === 'people' ? filteredPeopleList : sectorOrphans).length === 0 ? (
               <div className="p-20 text-center flex flex-col items-center gap-4">
                   <div className="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-4xl animate-bounce">
                       <i className="fas fa-check-double"></i>
@@ -361,9 +349,10 @@ const DataHealer: React.FC = () => {
                   </p>
               </div>
           ) : (
-              (activeTab === 'people' ? peopleOrphans : sectorOrphans).map((item, index) => {
+              (activeTab === 'people' ? filteredPeopleList : sectorOrphans).map((item, index) => {
                   const name = activeTab === 'people' ? (item as any).name : (item as string);
                   const sectors = activeTab === 'people' ? (item as any).sectors : [];
+                  const sources = activeTab === 'people' ? (item as any).sources : { class: 0, study: 0, visit: 0 };
                   const currentType = personTypeMap[name] || 'Colaborador';
                   
                   // Verifica se é "saudável" (já existe no RH)
@@ -397,11 +386,29 @@ const DataHealer: React.FC = () => {
                             <div className="font-black text-slate-800 uppercase text-lg leading-tight">{name}</div>
                             
                             {activeTab === 'people' && (
-                                <div className="text-[10px] text-slate-500 font-bold mt-2 flex items-start gap-2 bg-white/50 p-2 rounded-lg border border-slate-100">
-                                    <i className="fas fa-map-marker-alt text-rose-400 mt-0.5"></i>
-                                    <span>
-                                        {sectors.length > 0 ? `Visto em: ${sectors.join(', ')}` : <span className="italic text-slate-400">Local não registrado</span>}
-                                    </span>
+                                <div className="space-y-1 mt-2">
+                                    {sources.class > 0 && (
+                                        <div className="text-[10px] font-bold text-indigo-600 bg-indigo-50 p-1.5 rounded flex items-center gap-2 w-fit">
+                                            <i className="fas fa-chalkboard-teacher"></i> Encontrado em: {sources.class} Aulas
+                                        </div>
+                                    )}
+                                    {sources.study > 0 && (
+                                        <div className="text-[10px] font-bold text-blue-600 bg-blue-50 p-1.5 rounded flex items-center gap-2 w-fit">
+                                            <i className="fas fa-book-open"></i> Encontrado em: {sources.study} Estudos
+                                        </div>
+                                    )}
+                                    {sources.visit > 0 && (
+                                        <div className="text-[10px] font-bold text-rose-600 bg-rose-50 p-1.5 rounded flex items-center gap-2 w-fit">
+                                            <i className="fas fa-hand-holding-heart"></i> Encontrado em: {sources.visit} Visitas
+                                        </div>
+                                    )}
+                                    
+                                    <div className="text-[10px] text-slate-500 font-bold flex items-start gap-2 bg-white/50 p-2 rounded-lg border border-slate-100">
+                                        <i className="fas fa-map-marker-alt text-slate-400 mt-0.5"></i>
+                                        <span>
+                                            {sectors.length > 0 ? `Visto em: ${sectors.join(', ')}` : <span className="italic text-slate-400">Local não registrado</span>}
+                                        </span>
+                                    </div>
                                 </div>
                             )}
                         </div>
