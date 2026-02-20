@@ -20,6 +20,7 @@ export const NAV_ITEMS = [
   { id: 'pgManagement', label: 'Gestão de PGs', icon: '🧩', roles: [UserRole.ADMIN] },
   { id: 'reports', label: 'Relatórios', icon: '📈', roles: [UserRole.ADMIN] },
   { id: 'users', label: 'Equipe', icon: '👥', roles: [UserRole.ADMIN] },
+  { id: 'dataHealing', label: 'Cura de Dados', icon: '🚑', roles: [UserRole.ADMIN] }, // NOVO ITEM
   { id: 'profile', label: 'Perfil', icon: '👤', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
   { id: 'admin', label: 'Painel Admin', icon: '⚙️', roles: [UserRole.ADMIN] },
 ];

@@ -68,12 +68,16 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshD
     }
     setIsSnapshotting(true);
     try {
-        const { data, error } = await supabase.rpc('capture_daily_snapshot');
-        if (error) throw error;
-        showToast(data || "Snapshot de BI gerado com sucesso!", "success");
+        const { error } = await supabase.rpc('capture_daily_snapshot');
+        if (error) {
+            console.error("Erro RPC:", error);
+            showToast("Erro ao processar snapshot.", "warning");
+        } else {
+            showToast("Snapshot BI processado com sucesso!", "success");
+            await onRefreshData(); 
+        }
     } catch (e: any) {
-        console.error(e);
-        showToast("Erro ao gerar snapshot: " + e.message, "warning");
+        showToast("Exceção: " + e.message, "warning");
     } finally {
         setIsSnapshotting(false);
     }
@@ -112,7 +116,6 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshD
       )}
 
       <div className="flex justify-center mb-8">
-        {/* IMPORTAR JSON */}
         <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col items-center text-center gap-6 shadow-sm hover:border-blue-300 transition-all group w-full max-w-md">
             <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center text-white text-2xl shadow-xl group-hover:scale-110 transition-transform">
             <i className="fas fa-file-import text-blue-400"></i>
@@ -141,12 +144,13 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshD
           <button 
             onClick={handleGenerateSnapshot} 
             disabled={isSnapshotting}
-            className="px-5 py-4 bg-indigo-50 text-indigo-600 font-black rounded-2xl hover:bg-indigo-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm border border-indigo-100"
+            className="px-6 py-4 bg-indigo-50 text-indigo-600 font-black rounded-2xl hover:bg-indigo-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm border border-indigo-100"
           >
-            <i className={`fas ${isSnapshotting ? 'fa-circle-notch fa-spin' : 'fa-camera'}`}></i> Snapshot BI
+            <i className={`fas ${isSnapshotting ? 'fa-circle-notch fa-spin' : 'fa-camera'}`}></i>
+            <span>{isSnapshotting ? 'Processando...' : 'Atualizar Dados BI'}</span>
           </button>
 
-          <button onClick={onRefreshData} className={`px-5 py-4 bg-emerald-50 text-emerald-600 font-black rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm border border-emerald-100`}>
+          <button onClick={onRefreshData} className={`px-6 py-4 bg-emerald-50 text-emerald-600 font-black rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm border border-emerald-100`}>
             <i className={`fas fa-sync-alt ${isRefreshing ? 'animate-spin' : ''}`}></i> Sincronizar Agora
           </button>
       </div>

@@ -50,9 +50,6 @@ export const useDataMaintenance = (
   const migrateLegacyStructure = async (): Promise<{ success: boolean; message: string; details?: string }> => {
     setIsMaintenanceRunning(true);
     try {
-      // Nota: Esta função de migração dependia da masterLists antiga. 
-      // Com o desacoplamento, ela perde utilidade ou precisaria ser reescrita para ler do Excel diretamente no AdminLists.
-      // Mantendo vazia ou com mensagem informativa para evitar erro de chamada.
       return { success: true, message: "Função de migração legada desativada." };
     } catch (e: any) {
       return { success: false, message: e.message };
@@ -79,7 +76,7 @@ export const useDataMaintenance = (
       }
   };
 
-  // --- NOVAS FUNÇÕES DE MIGRAÇÃO (PONTE) ---
+  // --- FUNÇÕES DE MIGRAÇÃO (PONTE) ---
 
   const executeSectorMigration = async (oldName: string, newName: string): Promise<string> => {
     if (!supabase) return "Erro Conexão";
@@ -103,6 +100,20 @@ export const useDataMaintenance = (
     return data;
   };
 
+  const unifyStudentIdentity = async (orphanName: string, targetStaffId: string): Promise<string> => {
+    if (!supabase) return "Erro Conexão";
+    // Garante que o ID seja numérico para o BIGINT do SQL
+    const numericId = targetStaffId.replace(/\D/g, ''); 
+    // AGORA CHAMA A NOVA RPC GLOBAL
+    const { data, error } = await supabase.rpc('unify_identity_global', { 
+        orphan_name: orphanName, 
+        target_staff_id: numericId 
+    });
+    if (error) throw new Error(error.message);
+    await reloadCallback(false);
+    return data;
+  };
+
   return {
     unifyNumericIdsAndCleanPrefixes,
     mergePGs,
@@ -110,6 +121,7 @@ export const useDataMaintenance = (
     importFromDNA,
     executeSectorMigration,
     executePGMigration,
+    unifyStudentIdentity,
     isMaintenanceRunning
   };
 };

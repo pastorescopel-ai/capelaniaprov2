@@ -1,110 +1,116 @@
 
 -- #################################################################
--- # SCHEMA V4.3 - ESTRUTURA OFICIAL (BIGINT + RELATIONAL)
+-- # SCHEMA V6.0 - BI SNAPSHOT NUMÉRICO PURO (HIGH PERFORMANCE)
+-- # Objetivo: Contagem exata baseada em BIGINT (Sem Regex)
 -- #################################################################
 
--- 1. TABELAS MESTRAS (Tipos Numéricos para IDs Oficiais)
+-- 1. VIEWS E RELATÓRIOS EM TEMPO REAL
+-- View atualizada para usar JOIN numérico direto, muito mais rápido e preciso.
 
-CREATE TABLE IF NOT EXISTS pro_sectors (
-    id BIGINT PRIMARY KEY, -- ID Numérico (ex: 10, 20)
-    name TEXT NOT NULL, 
-    unit TEXT NOT NULL CHECK (unit IN ('HAB', 'HABA')), 
-    active BOOLEAN DEFAULT true,
-    updated_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
-);
+CREATE OR REPLACE VIEW bi_active_memberships AS
+SELECT 
+    m.id as matricula_id,
+    p.name as colaborador,
+    COALESCE(s.name, 'Setor Não Identificado') as setor,
+    COALESCE(s.unit, 'N/A') as unidade,
+    COALESCE(g.name, 'PG Desconhecido') as nome_pg,
+    to_timestamp(m.joined_at / 1000)::date as data_entrada,
+    CASE 
+        WHEN m.left_at IS NOT NULL THEN to_timestamp(m.left_at / 1000)::date 
+        ELSE NULL 
+    END as data_saida,
+    CASE 
+        WHEN m.left_at IS NULL THEN 'ATIVO' 
+        ELSE 'INATIVO' 
+    END as status_atual
+FROM pro_group_members m
+-- JOINs numéricos diretos (assumindo que a migração para BIGINT foi feita)
+JOIN pro_staff p ON m.staff_id = p.id
+LEFT JOIN pro_sectors s ON p.sector_id = s.id
+LEFT JOIN pro_groups g ON m.group_id = g.id;
 
-CREATE TABLE IF NOT EXISTS pro_staff (
-    id BIGINT PRIMARY KEY, -- Matrícula Numérica (ex: 102030)
-    name TEXT NOT NULL, 
-    sector_id BIGINT REFERENCES pro_sectors(id) ON UPDATE CASCADE, 
-    unit TEXT NOT NULL,
-    whatsapp TEXT,
-    active BOOLEAN DEFAULT true,
-    updated_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
-);
+-- 2. FUNÇÃO DE SNAPSHOT (A CÂMERA DO BI)
+-- Versão V6.0: Removeu regex. Usa comparação direta de IDs numéricos.
 
-CREATE TABLE IF NOT EXISTS pro_groups (
-    id BIGINT PRIMARY KEY, -- ID Numérico do PG
-    name TEXT NOT NULL, 
-    current_leader TEXT, 
-    leader_phone TEXT,
-    sector_id BIGINT REFERENCES pro_sectors(id) ON UPDATE CASCADE, 
-    unit TEXT NOT NULL,
-    active BOOLEAN DEFAULT true,
-    updated_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
-);
+CREATE OR REPLACE FUNCTION capture_daily_snapshot()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    curr_time BIGINT;
+BEGIN
+    curr_time := (extract(epoch from now()) * 1000)::bigint;
 
--- 2. TABELAS DE VÍNCULO E OPERAÇÃO
+    -- Remove snapshot de hoje para recalcular (permite rodar várias vezes no dia)
+    DELETE FROM bi_daily_sector_counts WHERE snapshot_date = CURRENT_DATE;
 
-CREATE TABLE IF NOT EXISTS pro_group_locations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    group_id BIGINT REFERENCES pro_groups(id) ON DELETE CASCADE,
-    sector_id BIGINT REFERENCES pro_sectors(id) ON DELETE CASCADE,
-    unit TEXT NOT NULL,
-    created_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
-);
+    INSERT INTO bi_daily_sector_counts (
+        snapshot_date, unit, sector_name, sector_id, 
+        total_staff_count, enrolled_staff_count, created_at
+    )
+    SELECT 
+        CURRENT_DATE,
+        s.unit,
+        s.name,
+        s.id::text, 
+        
+        -- A: Total de Funcionários no Setor
+        (
+            SELECT count(*) 
+            FROM pro_staff st 
+            WHERE st.sector_id = s.id 
+            AND (st.active IS TRUE OR st.active IS NULL)
+        ),
 
-CREATE TABLE IF NOT EXISTS pro_group_members (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    group_id BIGINT REFERENCES pro_groups(id) ON DELETE CASCADE,
-    staff_id BIGINT REFERENCES pro_staff(id) ON DELETE CASCADE,
-    joined_at BIGINT DEFAULT (extract(epoch from now()) * 1000),
-    left_at BIGINT -- Data de saída (Soft Delete de membresia)
-);
+        -- B: Total de Matriculados (O número crítico)
+        (
+            SELECT count(DISTINCT m.staff_id)
+            FROM pro_group_members m
+            JOIN pro_staff st ON m.staff_id = st.id
+            WHERE st.sector_id = s.id 
+            AND (st.active IS TRUE OR st.active IS NULL)
+            AND (m.left_at IS NULL OR m.left_at > curr_time) 
+        ),
+        now()
+    FROM pro_sectors s
+    WHERE s.active IS NOT FALSE;
+END;
+$$;
 
--- Tabelas de Entidades Externas (Mantêm UUID/Text pois são gerados pelo App)
-CREATE TABLE IF NOT EXISTS pro_patients (
-    id TEXT PRIMARY KEY, 
-    name TEXT NOT NULL,
-    unit TEXT NOT NULL,
-    whatsapp TEXT,
-    last_lesson TEXT,
-    updated_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
-);
+-- 3. FUNÇÃO DE UNIFICAÇÃO DE IDENTIDADE (DATA HEALING - ALUNOS)
+-- Vincula registros de aula órfãos (sem ID) a um colaborador oficial (com ID)
+-- Atualiza tanto o staff_id quanto o nome para o padrão oficial
+CREATE OR REPLACE FUNCTION unify_student_identity(orphan_name text, target_staff_id bigint)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    official_name text;
+    affected_rows int;
+BEGIN
+    -- Busca o nome oficial do colaborador
+    SELECT name INTO official_name FROM pro_staff WHERE id = target_staff_id;
+    
+    IF official_name IS NULL THEN
+        RETURN 'Erro: Colaborador alvo não encontrado.';
+    END IF;
 
-CREATE TABLE IF NOT EXISTS pro_providers (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    unit TEXT NOT NULL,
-    whatsapp TEXT,
-    sector TEXT,
-    updated_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
-);
+    -- Atualiza os registros órfãos
+    UPDATE bible_class_attendees
+    SET staff_id = target_staff_id,
+        student_name = official_name -- Padroniza o nome no histórico
+    WHERE lower(trim(student_name)) = lower(trim(orphan_name)) 
+    AND staff_id IS NULL;
 
-CREATE TABLE IF NOT EXISTS visit_requests (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    pg_name TEXT NOT NULL,
-    leader_name TEXT NOT NULL,
-    leader_phone TEXT,
-    unit TEXT NOT NULL,
-    date TIMESTAMP WITH TIME ZONE NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    request_notes TEXT,
-    preferred_chaplain_id TEXT,
-    assigned_chaplain_id TEXT,
-    chaplain_response TEXT,
-    is_read BOOLEAN DEFAULT false,
-    created_at BIGINT DEFAULT (extract(epoch from now()) * 1000),
-    updated_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
-);
+    GET DIAGNOSTICS affected_rows = ROW_COUNT;
 
--- 3. POLÍTICAS RLS (Segurança)
+    RETURN 'Sucesso: ' || affected_rows || ' registros de histórico unificados para ' || official_name;
+END;
+$$;
 
-ALTER TABLE pro_sectors ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pro_staff ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pro_groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pro_group_locations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pro_group_members ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pro_patients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pro_providers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE visit_requests ENABLE ROW LEVEL SECURITY;
-
--- Políticas Públicas (Ajuste conforme necessidade de auth)
-CREATE POLICY "Public Access Sectors" ON pro_sectors FOR ALL USING (true);
-CREATE POLICY "Public Access Staff" ON pro_staff FOR ALL USING (true);
-CREATE POLICY "Public Access Groups" ON pro_groups FOR ALL USING (true);
-CREATE POLICY "Public Access Group Locations" ON pro_group_locations FOR ALL USING (true);
-CREATE POLICY "Public Access Group Members" ON pro_group_members FOR ALL USING (true);
-CREATE POLICY "Public Access Patients" ON pro_patients FOR ALL USING (true);
-CREATE POLICY "Public Access Providers" ON pro_providers FOR ALL USING (true);
-CREATE POLICY "Public Access Visits" ON visit_requests FOR ALL USING (true);
+-- Permissões
+GRANT SELECT ON bi_active_memberships TO authenticated, service_role, anon;
+GRANT EXECUTE ON FUNCTION capture_daily_snapshot() TO authenticated, service_role, anon;
+GRANT EXECUTE ON FUNCTION unify_student_identity(text, bigint) TO authenticated, service_role, anon;

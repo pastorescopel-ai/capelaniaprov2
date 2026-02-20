@@ -1,4 +1,3 @@
-
 import { Unit, RecordStatus, ParticipantType, VisitReason, UserRole } from './enums';
 
 // --- TIPOS PRO ---
@@ -170,6 +169,8 @@ export interface StaffVisit {
   sector: string;
   reason: VisitReason;
   staffName: string;
+  participantType?: ParticipantType;
+  providerRole?: string;
   requiresReturn: boolean;
   returnDate?: string;
   returnCompleted: boolean;

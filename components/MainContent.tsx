@@ -14,6 +14,7 @@ const Reports = lazy(() => import('./Reports'));
 const UserManagement = lazy(() => import('./UserManagement'));
 const AdminPanel = lazy(() => import('./AdminPanel'));
 const PGManager = lazy(() => import('./PGManagement/PGManagerLayout'));
+const DataHealer = lazy(() => import('./DataHealer')); // Importação Lazy
 
 interface MainContentProps {
   activeTab: string;
@@ -168,6 +169,15 @@ const MainContent: React.FC<MainContentProps> = ({
         <div className={getTabClass('admin')}>
           <Suspense fallback={<TabLoading />}>
             <AdminPanel />
+          </Suspense>
+        </div>
+      )}
+
+      {/* Rota para Cura de Dados (NOVO) */}
+      {visitedTabs.has('dataHealing') && (
+        <div className={getTabClass('dataHealing')}>
+          <Suspense fallback={<TabLoading />}>
+            <DataHealer />
           </Suspense>
         </div>
       )}

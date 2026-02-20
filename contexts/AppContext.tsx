@@ -38,6 +38,7 @@ interface AppContextType {
   mergePGs: (sourceId: string, targetId: string) => Promise<{ success: boolean; message: string }>;
   executeSectorMigration: (oldName: string, newName: string) => Promise<string>;
   executePGMigration: (oldName: string, newName: string) => Promise<string>;
+  unifyStudentIdentity: (orphanName: string, targetStaffId: string) => Promise<string>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
