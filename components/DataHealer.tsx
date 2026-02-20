@@ -16,6 +16,7 @@ const DataHealer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<HealerTab>('people');
   const [targetMap, setTargetMap] = useState<Record<string, string>>({});
   const [sectorMap, setSectorMap] = useState<Record<string, string>>({}); // Para selecionar setor do Ex-Colaborador
+  const [searchQuery, setSearchQuery] = useState(''); // NOVO: Estado para busca forçada
   
   // Estado local para armazenar o tipo selecionado para cada registro
   const [personTypeMap, setPersonTypeMap] = useState<Record<string, PersonType>>({});
@@ -30,6 +31,7 @@ const DataHealer: React.FC = () => {
   const peopleOrphans = useMemo(() => {
     const orphanMap = new Map<string, Set<string>>();
     const officialNamesNormalized = new Set(proStaff.map(s => normalizeString(s.name)));
+    const normSearch = normalizeString(searchQuery); // Normaliza a busca
     
     // Função auxiliar para verificar e adicionar à lista
     const checkAndAdd = (rawName: string, sourceSector?: string, type?: string) => {
@@ -41,12 +43,19 @@ const DataHealer: React.FC = () => {
         if (resolvedItems.has(cleanName)) return;
 
         const norm = normalizeString(cleanName);
+        const isMatchSearch = normSearch && norm.includes(normSearch); // Verifica se bate com a busca
         
-        // Se NÃO estiver na lista oficial OU se o usuário quiser ver todos
-        // E se não for explicitamente Paciente/Prestador já resolvido
-        if ((!officialNamesNormalized.has(norm) || showAllHistory) && !rawName.match(/\(\d+\)$/)) {
-            // Se for paciente/prestador, só mostra se o usuário pedir 'showAllHistory' ou se tiver algum erro
-            if (type && type !== 'Colaborador' && !showAllHistory) return;
+        // LÓGICA DE EXIBIÇÃO:
+        // 1. Se o usuário está buscando (isMatchSearch), mostra SEMPRE (para corrigir IDs nulos em nomes corretos).
+        // 2. Se não está buscando, mostra apenas se NÃO for oficial (orphan).
+        // 3. Se 'showAllHistory' estiver ativo, mostra tudo.
+        // 4. Ignora se o nome já tiver matrícula explícita no texto (ex: "Nome (123)"), pois já está vinculado visualmente.
+        
+        const shouldShow = isMatchSearch || (!officialNamesNormalized.has(norm) || showAllHistory);
+
+        if (shouldShow && !rawName.match(/\(\d+\)$/)) {
+            // Se for paciente/prestador, só mostra se o usuário pedir 'showAllHistory', estiver buscando, ou se tiver erro
+            if (type && type !== 'Colaborador' && !showAllHistory && !isMatchSearch) return;
 
             if (!orphanMap.has(cleanName)) orphanMap.set(cleanName, new Set());
             if (sourceSector && sourceSector.trim()) orphanMap.get(cleanName)!.add(sourceSector.trim());
@@ -63,14 +72,14 @@ const DataHealer: React.FC = () => {
     bibleStudies.forEach(s => { 
         // Filtra: Só mostra se staff_id for nulo (pendente) OU se for um tipo 'Colaborador' sem match
         // Para simplificar: mostramos nomes que não batem com RH.
-        if (s.participantType === ParticipantType.STAFF || !s.participantType || showAllHistory) {
+        if (s.participantType === ParticipantType.STAFF || !s.participantType || showAllHistory || normSearch) {
              checkAndAdd(s.name, s.sector, s.participantType); 
         }
     });
 
     // Varre VISITAS
     staffVisits.forEach(v => { 
-        if (v.participantType === ParticipantType.STAFF || !v.participantType || showAllHistory) {
+        if (v.participantType === ParticipantType.STAFF || !v.participantType || showAllHistory || normSearch) {
             checkAndAdd(v.staffName, v.sector, v.participantType);
         }
     });
@@ -78,7 +87,7 @@ const DataHealer: React.FC = () => {
     return Array.from(orphanMap.entries())
         .map(([name, sectorSet]) => ({ name, sectors: Array.from(sectorSet).sort() }))
         .sort((a, b) => a.name.localeCompare(b.name));
-  }, [bibleClasses, bibleStudies, staffVisits, proStaff, showAllHistory, resolvedItems]);
+  }, [bibleClasses, bibleStudies, staffVisits, proStaff, showAllHistory, resolvedItems, searchQuery]);
 
   // --- LÓGICA DE DIAGNÓSTICO: SETORES ÓRFÃOS ---
   const sectorOrphans = useMemo(() => {
@@ -256,26 +265,48 @@ const DataHealer: React.FC = () => {
       {/* ABAS DE NAVEGAÇÃO */}
       <div className="flex bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 max-w-md mx-auto">
           <button 
-            onClick={() => { setActiveTab('people'); setTargetMap({}); setPersonTypeMap({}); }}
+            onClick={() => { setActiveTab('people'); setTargetMap({}); setPersonTypeMap({}); setSearchQuery(''); }}
             className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'people' ? 'bg-rose-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
           >
               <i className="fas fa-users"></i> Pessoas
           </button>
           <button 
-            onClick={() => { setActiveTab('sectors'); setTargetMap({}); }}
+            onClick={() => { setActiveTab('sectors'); setTargetMap({}); setSearchQuery(''); }}
             className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'sectors' ? 'bg-blue-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
           >
               <i className="fas fa-building"></i> Setores
           </button>
       </div>
 
-      {/* CONTROLE DE FILTRO (Apenas para Pessoas) */}
+      {/* BUSCA MANUAL E FILTRO */}
       {activeTab === 'people' && (
-          <div className="flex justify-center">
-              <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 hover:bg-slate-50 transition-colors">
-                  <input type="checkbox" checked={showAllHistory} onChange={e => setShowAllHistory(e.target.checked)} className="rounded text-rose-500 focus:ring-rose-500" />
-                  <span className="text-[10px] font-black uppercase text-slate-500">Exibir todos (Mesmo os que parecem corretos)</span>
-              </label>
+          <div className="max-w-xl mx-auto space-y-4">
+              {/* Barra de Busca Forçada */}
+              <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <i className={`fas fa-search text-lg ${searchQuery ? 'text-rose-500' : 'text-slate-300'} transition-colors`}></i>
+                  </div>
+                  <input 
+                      type="text" 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Buscar nome específico para forçar unificação (ex: Alan)..."
+                      className="w-full pl-12 pr-4 py-4 rounded-2xl border-none shadow-sm font-bold text-sm text-slate-700 outline-none focus:ring-4 focus:ring-rose-100 placeholder:text-slate-300 transition-all bg-white"
+                  />
+                  {searchQuery && (
+                      <button onClick={() => setSearchQuery('')} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-rose-500 transition-colors">
+                          <i className="fas fa-times"></i>
+                      </button>
+                  )}
+              </div>
+
+              {/* Filtro Checkbox */}
+              <div className="flex justify-center">
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 hover:bg-slate-50 transition-colors select-none">
+                      <input type="checkbox" checked={showAllHistory} onChange={e => setShowAllHistory(e.target.checked)} className="rounded text-rose-500 focus:ring-rose-500" />
+                      <span className="text-[9px] font-black uppercase text-slate-500">Exibir todos (Mesmo os corretos)</span>
+                  </label>
+              </div>
           </div>
       )}
 
@@ -293,7 +324,7 @@ const DataHealer: React.FC = () => {
                       <i className="fas fa-check-double"></i>
                   </div>
                   <p className="text-slate-400 font-bold uppercase text-sm tracking-widest">
-                      Nenhum registro pendente nesta categoria!
+                      {searchQuery ? `Nenhum resultado para "${searchQuery}"` : 'Nenhum registro pendente nesta categoria!'}
                   </p>
               </div>
           ) : (
@@ -308,8 +339,9 @@ const DataHealer: React.FC = () => {
                         {/* LADO ESQUERDO: O PROBLEMA */}
                         <div className="flex-1 w-full xl:w-1/3">
                             <div className="flex items-center gap-2 mb-2">
-                                <span className="inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-[9px] font-black uppercase">
-                                    <i className="fas fa-exclamation-triangle"></i> {activeTab === 'people' ? 'Registro Pendente' : 'Setor Inválido'}
+                                <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase ${searchQuery ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    <i className={`fas ${searchQuery ? 'fa-search' : 'fa-exclamation-triangle'}`}></i> 
+                                    {activeTab === 'people' ? (searchQuery ? 'Resultado da Busca' : 'Registro Pendente') : 'Setor Inválido'}
                                 </span>
                                 {activeTab === 'people' && (
                                     <div className="flex flex-wrap bg-slate-200 rounded-lg p-0.5">
