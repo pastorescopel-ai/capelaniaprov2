@@ -104,7 +104,8 @@ export const useDataMaintenance = (
     if (!supabase) return "Erro Conexão";
     // Garante que o ID seja numérico para o BIGINT do SQL
     const numericId = targetStaffId.replace(/\D/g, ''); 
-    const { data, error } = await supabase.rpc('unify_identity_global', { 
+    // ATUALIZADO: Chama a função V5 que faz deduplicação
+    const { data, error } = await supabase.rpc('unify_and_deduplicate_identity', { 
         orphan_name: orphanName, 
         target_staff_id: numericId 
     });

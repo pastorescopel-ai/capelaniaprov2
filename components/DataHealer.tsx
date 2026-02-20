@@ -44,14 +44,15 @@ const DataHealer: React.FC = () => {
 
         const norm = normalizeString(cleanName);
         const isMatchSearch = normSearch && norm.includes(normSearch); // Verifica se bate com a busca
-        
+        const isOfficiallyListed = officialNamesNormalized.has(norm);
+
         // LÓGICA DE EXIBIÇÃO:
         // 1. Se o usuário está buscando (isMatchSearch), mostra SEMPRE (para corrigir IDs nulos em nomes corretos).
         // 2. Se não está buscando, mostra apenas se NÃO for oficial (orphan).
         // 3. Se 'showAllHistory' estiver ativo, mostra tudo.
         // 4. Ignora se o nome já tiver matrícula explícita no texto (ex: "Nome (123)"), pois já está vinculado visualmente.
         
-        const shouldShow = isMatchSearch || (!officialNamesNormalized.has(norm) || showAllHistory);
+        const shouldShow = isMatchSearch || (!isOfficiallyListed || showAllHistory);
 
         if (shouldShow && !rawName.match(/\(\d+\)$/)) {
             // Se for paciente/prestador, só mostra se o usuário pedir 'showAllHistory', estiver buscando, ou se tiver erro
@@ -236,6 +237,11 @@ const DataHealer: React.FC = () => {
       finally { setIsProcessing(false); }
   };
 
+  // Helper para verificar se o nome está saudável (está na lista oficial)
+  const isHealthy = (name: string) => {
+      return proStaff.some(s => normalizeString(s.name) === normalizeString(name));
+  };
+
   const currentTheme = activeTab === 'people' ? 'rose' : 'blue';
 
   return (
@@ -332,6 +338,9 @@ const DataHealer: React.FC = () => {
                   const name = activeTab === 'people' ? (item as any).name : (item as string);
                   const sectors = activeTab === 'people' ? (item as any).sectors : [];
                   const currentType = personTypeMap[name] || 'Colaborador';
+                  
+                  // Verifica se é "saudável" (já existe no RH)
+                  const healthy = activeTab === 'people' && isHealthy(name);
 
                   return (
                     <div key={index} className="p-6 flex flex-col xl:flex-row items-center gap-6 hover:bg-slate-50 transition-colors group">
@@ -339,9 +348,9 @@ const DataHealer: React.FC = () => {
                         {/* LADO ESQUERDO: O PROBLEMA */}
                         <div className="flex-1 w-full xl:w-1/3">
                             <div className="flex items-center gap-2 mb-2">
-                                <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase ${searchQuery ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                                    <i className={`fas ${searchQuery ? 'fa-search' : 'fa-exclamation-triangle'}`}></i> 
-                                    {activeTab === 'people' ? (searchQuery ? 'Resultado da Busca' : 'Registro Pendente') : 'Setor Inválido'}
+                                <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase ${healthy ? 'bg-emerald-100 text-emerald-700' : (searchQuery ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700')}`}>
+                                    <i className={`fas ${healthy ? 'fa-check-circle' : (searchQuery ? 'fa-search' : 'fa-exclamation-triangle')}`}></i> 
+                                    {activeTab === 'people' ? (healthy ? 'Vínculo Existente' : (searchQuery ? 'Resultado da Busca' : 'Registro Pendente')) : 'Setor Inválido'}
                                 </span>
                                 {activeTab === 'people' && (
                                     <div className="flex flex-wrap bg-slate-200 rounded-lg p-0.5">
