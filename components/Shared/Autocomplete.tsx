@@ -126,7 +126,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
                     }}
                   >
                     <div className="min-w-0">
-                      <span className={`block text-sm uppercase tracking-tight truncate ${isOfficial ? 'font-black' : 'font-bold'}`}>
+                      <span className={`block text-sm uppercase tracking-tight whitespace-normal leading-tight ${isOfficial ? 'font-black' : 'font-bold'}`}>
                         {o.label}
                       </span>
                       {o.subLabel && (

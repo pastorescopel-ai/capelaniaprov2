@@ -286,7 +286,7 @@ const DataHealer: React.FC = () => {
           <span className="text-[10px] font-bold text-slate-400 uppercase"><i className="fas fa-magic mr-1"></i> Correção em massa no histórico</span>
         </div>
         
-        <div className="divide-y divide-slate-100 max-h-[65vh] overflow-y-auto custom-scrollbar">
+        <div className="divide-y divide-slate-100 max-h-[65vh] overflow-y-auto custom-scrollbar pb-72">
           {(activeTab === 'people' ? peopleOrphans : sectorOrphans).length === 0 ? (
               <div className="p-20 text-center flex flex-col items-center gap-4">
                   <div className="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-4xl animate-bounce">
