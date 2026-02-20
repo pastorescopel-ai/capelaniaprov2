@@ -125,7 +125,7 @@ const DataHealer: React.FC = () => {
 
   const officialSectorOptions = useMemo(() => {
       return proSectors.map(s => ({
-          value: s.id,
+          value: s.name, // CORREÇÃO: Valor deve ser o nome para exibição e busca
           label: `${s.name}`,
           subLabel: `Unidade ${s.unit}`,
           category: 'RH' as const
@@ -353,6 +353,7 @@ const DataHealer: React.FC = () => {
                                                 options={officialSectorOptions}
                                                 value={sectorMap[name] || ''}
                                                 onChange={(val) => setSectorMap(prev => ({...prev, [name]: val}))}
+                                                onSelectOption={(val) => setSectorMap(prev => ({...prev, [name]: val}))}
                                                 placeholder="Selecione o Último Setor Conhecido..."
                                                 className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl font-bold text-xs outline-none focus:border-rose-500"
                                             />
