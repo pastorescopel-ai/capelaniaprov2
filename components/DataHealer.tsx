@@ -10,7 +10,7 @@ type HealerTab = 'people' | 'sectors';
 type PersonType = 'Colaborador' | 'Paciente' | 'Prestador';
 
 const DataHealer: React.FC = () => {
-  const { bibleClasses, bibleStudies, smallGroups, staffVisits, proStaff, proSectors, unifyStudentIdentity, convertIdentityType, healSectorConnection } = useApp();
+  const { bibleClasses, bibleStudies, smallGroups, staffVisits, proStaff, proSectors, unifyStudentIdentity, createAndLinkIdentity, healSectorConnection } = useApp();
   const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState<HealerTab>('people');
@@ -138,15 +138,14 @@ const DataHealer: React.FC = () => {
           finally { setIsProcessing(false); }
 
       } else {
-          // Lógica de Conversão (Paciente ou Prestador)
-          if (!confirm(`Confirma que "${orphanName}" é um ${selectedType}? Isso removerá o registro da lista de pendências de Staff.`)) return;
+          // Lógica de Conversão (Paciente ou Prestador) -> CRIA REGISTRO COM ID ALTO
+          if (!confirm(`Confirma que "${orphanName}" é um ${selectedType}? Um novo registro será criado com ID especial e vinculado ao histórico.`)) return;
           
           setIsProcessing(true);
           try {
-              const result = await convertIdentityType(orphanName, selectedType);
+              const result = await createAndLinkIdentity(orphanName, selectedType);
               showToast(result, "success");
-              // Remove da lista visualmente
-              // (Na próxima renderização, se não for showAllHistory, ele sumirá pois o tipo mudou no banco)
+              // Remove da lista visualmente pois agora tem ID
           } catch (e: any) { showToast("Erro: " + e.message, "warning"); }
           finally { setIsProcessing(false); }
       }
@@ -184,7 +183,7 @@ const DataHealer: React.FC = () => {
             </h2>
             <p className={`text-${currentTheme}-800 text-xs font-bold mt-2 uppercase tracking-widest leading-relaxed`}>
             {activeTab === 'people' 
-                ? 'Unificação de nomes e classificação de tipo (Paciente/Prestador).' 
+                ? 'Unificação de nomes e criação de identidades (IDs especiais).' 
                 : 'Correção de nomes de setores e vínculo com IDs oficiais.'}
             </p>
         </div>
@@ -292,9 +291,9 @@ const DataHealer: React.FC = () => {
                                 <div className="flex-1 p-4 bg-slate-100 rounded-2xl border border-slate-200 flex items-center justify-between">
                                     <span className="text-xs font-bold text-slate-600 uppercase">
                                         <i className={`fas ${currentType === 'Paciente' ? 'fa-procedures' : 'fa-briefcase'} mr-2`}></i>
-                                        Classificar como {currentType}
+                                        Criar {currentType}
                                     </span>
-                                    <span className="text-[9px] text-slate-400 font-bold uppercase">Não requer ID</span>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase">Gera ID Automático</span>
                                 </div>
                             ) : (
                                 <div className="flex-1">
@@ -315,7 +314,7 @@ const DataHealer: React.FC = () => {
                                 className={`px-8 py-4 text-white rounded-2xl font-black text-xs uppercase tracking-widest disabled:opacity-50 disabled:bg-slate-300 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'people' ? 'bg-rose-500 hover:bg-rose-600' : 'bg-blue-500 hover:bg-blue-600'}`}
                             >
                                 {isProcessing ? <i className="fas fa-circle-notch fa-spin"></i> : <i className="fas fa-check-circle"></i>}
-                                <span>{activeTab === 'people' && currentType !== 'Colaborador' ? 'Confirmar Tipo' : 'Unificar'}</span>
+                                <span>{activeTab === 'people' && currentType !== 'Colaborador' ? 'Criar & Vincular' : 'Unificar'}</span>
                             </button>
                         </div>
                     </div>

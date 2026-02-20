@@ -39,7 +39,7 @@ interface AppContextType {
   executeSectorMigration: (oldName: string, newName: string) => Promise<string>;
   executePGMigration: (oldName: string, newName: string) => Promise<string>;
   unifyStudentIdentity: (orphanName: string, targetStaffId: string) => Promise<string>;
-  convertIdentityType: (orphanName: string, newType: 'Paciente' | 'Prestador') => Promise<string>;
+  createAndLinkIdentity: (orphanName: string, newType: 'Paciente' | 'Prestador') => Promise<string>;
   healSectorConnection: (badName: string, targetSectorId: string) => Promise<string>;
 }
 
