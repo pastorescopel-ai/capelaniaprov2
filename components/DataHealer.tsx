@@ -19,6 +19,9 @@ const DataHealer: React.FC = () => {
   // Estado local para armazenar o tipo selecionado para cada registro
   const [personTypeMap, setPersonTypeMap] = useState<Record<string, PersonType>>({});
   
+  // Estado para UX Otimista: Itens resolvidos somem da tela imediatamente
+  const [resolvedItems, setResolvedItems] = useState<Set<string>>(new Set());
+  
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAllHistory, setShowAllHistory] = useState(false);
 
@@ -31,10 +34,11 @@ const DataHealer: React.FC = () => {
     const checkAndAdd = (rawName: string, sourceSector?: string, type?: string) => {
         if (!rawName) return;
         
-        // Verifica se já tem ID vinculado (se tiver staff_id preenchido na origem, não é órfão de fato)
-        // Mas aqui estamos olhando o texto. Vamos assumir que se veio para esta tela, o staff_id está null.
-        
         const cleanName = rawName.split(' (')[0].trim();
+        
+        // FILTRO OTIMISTA: Se já foi resolvido nesta sessão, ignora
+        if (resolvedItems.has(cleanName)) return;
+
         const norm = normalizeString(cleanName);
         
         // Se NÃO estiver na lista oficial OU se o usuário quiser ver todos
@@ -73,7 +77,7 @@ const DataHealer: React.FC = () => {
     return Array.from(orphanMap.entries())
         .map(([name, sectorSet]) => ({ name, sectors: Array.from(sectorSet).sort() }))
         .sort((a, b) => a.name.localeCompare(b.name));
-  }, [bibleClasses, bibleStudies, staffVisits, proStaff, showAllHistory]);
+  }, [bibleClasses, bibleStudies, staffVisits, proStaff, showAllHistory, resolvedItems]);
 
   // --- LÓGICA DE DIAGNÓSTICO: SETORES ÓRFÃOS ---
   const sectorOrphans = useMemo(() => {
@@ -84,6 +88,10 @@ const DataHealer: React.FC = () => {
           if (!sector) return;
           const clean = sector.trim();
           if (!clean) return;
+          
+          // FILTRO OTIMISTA
+          if (resolvedItems.has(clean)) return;
+
           const norm = normalizeString(clean);
           if (!officialNamesNormalized.has(norm)) {
               historySet.add(clean);
@@ -96,7 +104,7 @@ const DataHealer: React.FC = () => {
       bibleClasses.forEach(c => checkSector(c.sector));
 
       return Array.from(historySet).sort();
-  }, [bibleStudies, staffVisits, smallGroups, bibleClasses, proSectors]);
+  }, [bibleStudies, staffVisits, smallGroups, bibleClasses, proSectors, resolvedItems]);
 
   // --- OPÇÕES AUTOCOMPLETE (ATUALIZADO: INCLUI INATIVOS) ---
   const officialStaffOptions = useMemo(() => {
@@ -138,7 +146,11 @@ const DataHealer: React.FC = () => {
           try {
               const result = await unifyStudentIdentity(orphanName, targetId);
               showToast(result, "success");
-              // Remove da lista
+              
+              // REMOÇÃO OTIMISTA: Adiciona aos resolvidos para sumir da lista imediatamente
+              setResolvedItems(prev => new Set(prev).add(orphanName));
+              
+              // Limpa o input
               setTargetMap(prev => { const n = {...prev}; delete n[orphanName]; return n; });
           } catch (e: any) { showToast("Erro: " + e.message, "warning"); } 
           finally { setIsProcessing(false); }
@@ -151,7 +163,9 @@ const DataHealer: React.FC = () => {
           try {
               const result = await createAndLinkIdentity(orphanName, selectedType);
               showToast(result, "success");
-              // Remove da lista visualmente pois agora tem ID
+              
+              // REMOÇÃO OTIMISTA
+              setResolvedItems(prev => new Set(prev).add(orphanName));
           } catch (e: any) { showToast("Erro: " + e.message, "warning"); }
           finally { setIsProcessing(false); }
       }
@@ -170,6 +184,10 @@ const DataHealer: React.FC = () => {
       try {
           const result = await healSectorConnection(badName, selectedSector.id);
           showToast(result, "success");
+          
+          // REMOÇÃO OTIMISTA
+          setResolvedItems(prev => new Set(prev).add(badName));
+          
           setTargetMap(prev => { const n = {...prev}; delete n[badName]; return n; });
       } catch (e: any) { showToast("Erro: " + e.message, "warning"); }
       finally { setIsProcessing(false); }
