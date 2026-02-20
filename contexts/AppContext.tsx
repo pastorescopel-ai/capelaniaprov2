@@ -41,6 +41,7 @@ interface AppContextType {
   unifyStudentIdentity: (orphanName: string, targetStaffId: string) => Promise<string>;
   createAndLinkIdentity: (orphanName: string, newType: 'Paciente' | 'Prestador') => Promise<string>;
   healSectorConnection: (badName: string, targetSectorId: string) => Promise<string>;
+  bulkHealAttendees: () => Promise<string>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);

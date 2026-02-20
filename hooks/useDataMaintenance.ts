@@ -138,6 +138,21 @@ export const useDataMaintenance = (
     return data;
   };
 
+  const bulkHealAttendees = async (): Promise<string> => {
+    if (!supabase) return "Erro Conexão";
+    setIsMaintenanceRunning(true);
+    try {
+        const { data, error } = await supabase.rpc('bulk_heal_attendees');
+        if (error) throw new Error(error.message);
+        await reloadCallback(false);
+        return data;
+    } catch (e: any) {
+        throw new Error(e.message);
+    } finally {
+        setIsMaintenanceRunning(false);
+    }
+  };
+
   return {
     unifyNumericIdsAndCleanPrefixes,
     mergePGs,
@@ -148,6 +163,7 @@ export const useDataMaintenance = (
     unifyStudentIdentity,
     createAndLinkIdentity,
     healSectorConnection,
+    bulkHealAttendees,
     isMaintenanceRunning
   };
 };

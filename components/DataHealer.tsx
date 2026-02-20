@@ -10,7 +10,7 @@ type HealerTab = 'people' | 'sectors';
 type PersonType = 'Colaborador' | 'Ex-Colaborador' | 'Paciente' | 'Prestador';
 
 const DataHealer: React.FC = () => {
-  const { bibleClasses, bibleStudies, smallGroups, staffVisits, proStaff, proSectors, unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, saveRecord } = useApp();
+  const { bibleClasses, bibleStudies, smallGroups, staffVisits, proStaff, proSectors, unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, saveRecord, bulkHealAttendees } = useApp();
   const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState<HealerTab>('people');
@@ -237,6 +237,22 @@ const DataHealer: React.FC = () => {
       finally { setIsProcessing(false); }
   };
 
+  const handleBulkHeal = async () => {
+      if(!confirm("Esta ação irá varrer todo o histórico de presenças e tentar vincular automaticamente alunos aos colaboradores pelo nome (ignorando acentos e espaços). Deseja continuar?")) return;
+      
+      setIsProcessing(true);
+      try {
+          const result = await bulkHealAttendees();
+          showToast(result, "success");
+          // Reseta a lista para forçar recarga visual
+          setResolvedItems(new Set());
+      } catch (e: any) {
+          showToast("Erro no processamento em massa: " + e.message, "warning");
+      } finally {
+          setIsProcessing(false);
+      }
+  };
+
   // Helper para verificar se o nome está saudável (está na lista oficial)
   const isHealthy = (name: string) => {
       return proStaff.some(s => normalizeString(s.name) === normalizeString(name));
@@ -248,7 +264,7 @@ const DataHealer: React.FC = () => {
     <div className="space-y-8 animate-in fade-in duration-500 pb-32 max-w-5xl mx-auto">
       
       {/* HEADER DINÂMICO */}
-      <div className={`bg-${currentTheme}-50 border-l-8 border-${currentTheme}-500 p-8 rounded-r-[3rem] shadow-sm flex items-center justify-between transition-colors duration-500`}>
+      <div className={`bg-${currentTheme}-50 border-l-8 border-${currentTheme}-500 p-8 rounded-r-[3rem] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 transition-colors duration-500`}>
         <div>
             <h2 className={`text-3xl font-black text-${currentTheme}-900 uppercase tracking-tighter flex items-center gap-3`}>
             <i className={`fas ${activeTab === 'people' ? 'fa-user-nurse' : 'fa-map-marked-alt'}`}></i> 
@@ -260,11 +276,22 @@ const DataHealer: React.FC = () => {
                 : 'Correção de nomes de setores e vínculo com IDs oficiais.'}
             </p>
         </div>
-        <div className={`text-center bg-white/50 p-4 rounded-2xl border border-${currentTheme}-200`}>
-            <span className={`block text-4xl font-black text-${currentTheme}-600`}>
-                {activeTab === 'people' ? peopleOrphans.length : sectorOrphans.length}
-            </span>
-            <span className={`text-[10px] font-black text-${currentTheme}-400 uppercase tracking-widest`}>Pendentes</span>
+        <div className="flex flex-col items-center gap-2">
+            <div className={`text-center bg-white/50 p-4 rounded-2xl border border-${currentTheme}-200 w-full`}>
+                <span className={`block text-4xl font-black text-${currentTheme}-600`}>
+                    {activeTab === 'people' ? peopleOrphans.length : sectorOrphans.length}
+                </span>
+                <span className={`text-[10px] font-black text-${currentTheme}-400 uppercase tracking-widest`}>Pendentes</span>
+            </div>
+            {activeTab === 'people' && (
+                <button 
+                    onClick={handleBulkHeal} 
+                    disabled={isProcessing}
+                    className="px-4 py-3 bg-emerald-500 text-white rounded-xl font-black text-[9px] uppercase shadow-md hover:bg-emerald-600 transition-all flex items-center gap-2 disabled:opacity-50 active:scale-95"
+                >
+                    <i className={`fas ${isProcessing ? 'fa-circle-notch fa-spin' : 'fa-magic'}`}></i> Auto-Vincular (Bulk)
+                </button>
+            )}
         </div>
       </div>
 
