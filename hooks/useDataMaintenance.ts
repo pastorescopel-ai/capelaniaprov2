@@ -113,6 +113,17 @@ export const useDataMaintenance = (
     return data;
   };
 
+  const convertIdentityType = async (orphanName: string, newType: 'Paciente' | 'Prestador'): Promise<string> => {
+    if (!supabase) return "Erro Conexão";
+    const { data, error } = await supabase.rpc('convert_identity_type', { 
+        target_name: orphanName, 
+        new_type: newType 
+    });
+    if (error) throw new Error(error.message);
+    await reloadCallback(false);
+    return data;
+  };
+
   const healSectorConnection = async (badName: string, targetSectorId: string): Promise<string> => {
     if (!supabase) return "Erro Conexão";
     const numericId = targetSectorId.replace(/\D/g, '');
@@ -133,6 +144,7 @@ export const useDataMaintenance = (
     executeSectorMigration,
     executePGMigration,
     unifyStudentIdentity,
+    convertIdentityType,
     healSectorConnection,
     isMaintenanceRunning
   };
