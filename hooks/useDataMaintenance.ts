@@ -76,7 +76,7 @@ export const useDataMaintenance = (
       }
   };
 
-  // --- FUNÇÕES DE MIGRAÇÃO (PONTE) ---
+  // --- FUNÇÕES DE MIGRAÇÃO (PONTE & CURA) ---
 
   const executeSectorMigration = async (oldName: string, newName: string): Promise<string> => {
     if (!supabase) return "Erro Conexão";
@@ -104,10 +104,21 @@ export const useDataMaintenance = (
     if (!supabase) return "Erro Conexão";
     // Garante que o ID seja numérico para o BIGINT do SQL
     const numericId = targetStaffId.replace(/\D/g, ''); 
-    // AGORA CHAMA A NOVA RPC GLOBAL
     const { data, error } = await supabase.rpc('unify_identity_global', { 
         orphan_name: orphanName, 
         target_staff_id: numericId 
+    });
+    if (error) throw new Error(error.message);
+    await reloadCallback(false);
+    return data;
+  };
+
+  const healSectorConnection = async (badName: string, targetSectorId: string): Promise<string> => {
+    if (!supabase) return "Erro Conexão";
+    const numericId = targetSectorId.replace(/\D/g, '');
+    const { data, error } = await supabase.rpc('heal_sector_global', {
+        bad_name: badName,
+        target_sector_id: numericId
     });
     if (error) throw new Error(error.message);
     await reloadCallback(false);
@@ -122,6 +133,7 @@ export const useDataMaintenance = (
     executeSectorMigration,
     executePGMigration,
     unifyStudentIdentity,
+    healSectorConnection,
     isMaintenanceRunning
   };
 };

@@ -39,6 +39,7 @@ interface AppContextType {
   executeSectorMigration: (oldName: string, newName: string) => Promise<string>;
   executePGMigration: (oldName: string, newName: string) => Promise<string>;
   unifyStudentIdentity: (orphanName: string, targetStaffId: string) => Promise<string>;
+  healSectorConnection: (badName: string, targetSectorId: string) => Promise<string>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
