@@ -98,14 +98,20 @@ const DataHealer: React.FC = () => {
       return Array.from(historySet).sort();
   }, [bibleStudies, staffVisits, smallGroups, bibleClasses, proSectors]);
 
-  // --- OPÇÕES AUTOCOMPLETE ---
+  // --- OPÇÕES AUTOCOMPLETE (ATUALIZADO: INCLUI INATIVOS) ---
   const officialStaffOptions = useMemo(() => {
-      return proStaff.map(s => ({
-          value: s.id, 
-          label: `${s.name} (${String(s.id).replace(/\D/g, '')})`,
-          subLabel: proSectors.find(sec => sec.id === s.sectorId)?.name || 'Sem Setor',
-          category: 'RH' as const
-      }));
+      return proStaff.map(s => {
+          const idStr = String(s.id).replace(/\D/g, '');
+          const isInactive = s.active === false;
+          
+          return {
+              value: s.id, 
+              // Adiciona etiqueta visual se estiver inativo para facilitar a busca histórica
+              label: `${s.name} (${idStr})${isInactive ? ' ⚠️ [INATIVO]' : ''}`,
+              subLabel: proSectors.find(sec => sec.id === s.sectorId)?.name || 'Sem Setor',
+              category: 'RH' as const
+          };
+      });
   }, [proStaff, proSectors]);
 
   const officialSectorOptions = useMemo(() => {
@@ -125,7 +131,7 @@ const DataHealer: React.FC = () => {
           // Lógica de Vínculo com RH
           const targetLabel = targetMap[orphanName];
           if (!targetLabel) { showToast("Selecione o colaborador correspondente no RH.", "warning"); return; }
-          const targetId = targetLabel.match(/\((\d+)\)$/)?.[1];
+          const targetId = targetLabel.match(/\((\d+)\)/)?.[1]; // Pega apenas os números dentro dos parênteses
           if (!targetId) { showToast("Matrícula inválida.", "warning"); return; }
 
           setIsProcessing(true);
@@ -302,7 +308,7 @@ const DataHealer: React.FC = () => {
                                         value={targetMap[name] || ''}
                                         onChange={(val) => setTargetMap(prev => ({...prev, [name]: val}))}
                                         onSelectOption={(label) => setTargetMap(prev => ({...prev, [name]: label}))}
-                                        placeholder={activeTab === 'people' ? "Buscar no RH (Nome ou Matrícula)..." : "Selecione o Setor Oficial..."}
+                                        placeholder={activeTab === 'people' ? "Buscar no RH (Inclui Inativos)..." : "Selecione o Setor Oficial..."}
                                         className={`w-full p-4 bg-white border-2 border-slate-200 rounded-2xl font-bold text-sm outline-none shadow-sm transition-all ${activeTab === 'people' ? 'focus:border-rose-500 group-hover:border-rose-200' : 'focus:border-blue-500 group-hover:border-blue-200'}`}
                                     />
                                 </div>
