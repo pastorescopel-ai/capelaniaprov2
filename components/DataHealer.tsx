@@ -3,18 +3,19 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import { normalizeString } from '../utils/formatters';
-import { ParticipantType } from '../types';
+import { ParticipantType, ProStaff } from '../types';
 import Autocomplete from './Shared/Autocomplete';
 
 type HealerTab = 'people' | 'sectors';
-type PersonType = 'Colaborador' | 'Paciente' | 'Prestador';
+type PersonType = 'Colaborador' | 'Ex-Colaborador' | 'Paciente' | 'Prestador';
 
 const DataHealer: React.FC = () => {
-  const { bibleClasses, bibleStudies, smallGroups, staffVisits, proStaff, proSectors, unifyStudentIdentity, createAndLinkIdentity, healSectorConnection } = useApp();
+  const { bibleClasses, bibleStudies, smallGroups, staffVisits, proStaff, proSectors, unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, saveRecord } = useApp();
   const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState<HealerTab>('people');
   const [targetMap, setTargetMap] = useState<Record<string, string>>({});
+  const [sectorMap, setSectorMap] = useState<Record<string, string>>({}); // Para selecionar setor do Ex-Colaborador
   
   // Estado local para armazenar o tipo selecionado para cada registro
   const [personTypeMap, setPersonTypeMap] = useState<Record<string, PersonType>>({});
@@ -136,7 +137,7 @@ const DataHealer: React.FC = () => {
       const selectedType = personTypeMap[orphanName] || 'Colaborador';
 
       if (selectedType === 'Colaborador') {
-          // Lógica de Vínculo com RH
+          // Lógica de Vínculo com RH Existente
           const targetLabel = targetMap[orphanName];
           if (!targetLabel) { showToast("Selecione o colaborador correspondente no RH.", "warning"); return; }
           const targetId = targetLabel.match(/\((\d+)\)/)?.[1]; // Pega apenas os números dentro dos parênteses
@@ -147,12 +148,45 @@ const DataHealer: React.FC = () => {
               const result = await unifyStudentIdentity(orphanName, targetId);
               showToast(result, "success");
               
-              // REMOÇÃO OTIMISTA: Adiciona aos resolvidos para sumir da lista imediatamente
               setResolvedItems(prev => new Set(prev).add(orphanName));
-              
-              // Limpa o input
               setTargetMap(prev => { const n = {...prev}; delete n[orphanName]; return n; });
           } catch (e: any) { showToast("Erro: " + e.message, "warning"); } 
+          finally { setIsProcessing(false); }
+
+      } else if (selectedType === 'Ex-Colaborador') {
+          // Lógica de Criação de Inativo (Legacy)
+          const sectorName = sectorMap[orphanName];
+          const sector = proSectors.find(s => s.name === sectorName);
+          
+          if (!sector) { showToast("Selecione um setor para vincular o histórico do ex-colaborador.", "warning"); return; }
+          
+          if (!confirm(`Criar registro de inativo para "${orphanName}" no setor ${sector.name}?`)) return;
+
+          setIsProcessing(true);
+          try {
+              // 1. Gera ID Legado (Faixa 7B)
+              const legacyId = (7000000000 + Math.floor(Math.random() * 1000000)).toString();
+              
+              // 2. Cria no Banco
+              const newLegacyStaff: ProStaff = {
+                  id: legacyId,
+                  name: orphanName,
+                  sectorId: sector.id,
+                  unit: sector.unit,
+                  active: false, // MARCA COMO INATIVO
+                  updatedAt: Date.now()
+              };
+              
+              await saveRecord('proStaff', newLegacyStaff);
+
+              // 3. Vincula Histórico
+              const result = await unifyStudentIdentity(orphanName, legacyId);
+              
+              showToast(`Ex-Colaborador criado! ${result}`, "success");
+              setResolvedItems(prev => new Set(prev).add(orphanName));
+              setSectorMap(prev => { const n = {...prev}; delete n[orphanName]; return n; });
+
+          } catch (e: any) { showToast("Erro: " + e.message, "warning"); }
           finally { setIsProcessing(false); }
 
       } else {
@@ -278,12 +312,12 @@ const DataHealer: React.FC = () => {
                                     <i className="fas fa-exclamation-triangle"></i> {activeTab === 'people' ? 'Registro Pendente' : 'Setor Inválido'}
                                 </span>
                                 {activeTab === 'people' && (
-                                    <div className="flex bg-slate-200 rounded-lg p-0.5">
-                                        {(['Colaborador', 'Paciente', 'Prestador'] as PersonType[]).map(t => (
+                                    <div className="flex flex-wrap bg-slate-200 rounded-lg p-0.5">
+                                        {(['Colaborador', 'Ex-Colaborador', 'Paciente', 'Prestador'] as PersonType[]).map(t => (
                                             <button 
                                                 key={t}
                                                 onClick={() => setPersonTypeMap(prev => ({...prev, [name]: t}))}
-                                                className={`px-2 py-1 rounded-md text-[8px] font-bold uppercase transition-all ${currentType === t ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                                                className={`px-2 py-1 rounded-md text-[7px] font-bold uppercase transition-all whitespace-nowrap ${currentType === t ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
                                             >
                                                 {t}
                                             </button>
@@ -312,13 +346,27 @@ const DataHealer: React.FC = () => {
                         {/* LADO DIREITO: A SOLUÇÃO */}
                         <div className="flex-1 w-full xl:w-2/3 flex flex-col md:flex-row gap-3">
                             {activeTab === 'people' && currentType !== 'Colaborador' ? (
-                                <div className="flex-1 p-4 bg-slate-100 rounded-2xl border border-slate-200 flex items-center justify-between">
-                                    <span className="text-xs font-bold text-slate-600 uppercase">
-                                        <i className={`fas ${currentType === 'Paciente' ? 'fa-procedures' : 'fa-briefcase'} mr-2`}></i>
-                                        Criar {currentType}
-                                    </span>
-                                    <span className="text-[9px] text-slate-400 font-bold uppercase">Gera ID Automático</span>
-                                </div>
+                                <>
+                                    {currentType === 'Ex-Colaborador' ? (
+                                        <div className="flex-1">
+                                            <Autocomplete 
+                                                options={officialSectorOptions}
+                                                value={sectorMap[name] || ''}
+                                                onChange={(val) => setSectorMap(prev => ({...prev, [name]: val}))}
+                                                placeholder="Selecione o Último Setor Conhecido..."
+                                                className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl font-bold text-xs outline-none focus:border-rose-500"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="flex-1 p-4 bg-slate-100 rounded-2xl border border-slate-200 flex items-center justify-between">
+                                            <span className="text-xs font-bold text-slate-600 uppercase">
+                                                <i className={`fas ${currentType === 'Paciente' ? 'fa-procedures' : 'fa-briefcase'} mr-2`}></i>
+                                                Criar {currentType}
+                                            </span>
+                                            <span className="text-[9px] text-slate-400 font-bold uppercase">Gera ID Automático</span>
+                                        </div>
+                                    )}
+                                </>
                             ) : (
                                 <div className="flex-1">
                                     <Autocomplete 
@@ -334,11 +382,11 @@ const DataHealer: React.FC = () => {
                             
                             <button 
                                 onClick={() => activeTab === 'people' ? handleProcessPerson(name) : handleHealSector(name)}
-                                disabled={(activeTab === 'people' && currentType === 'Colaborador' && !targetMap[name]) || (activeTab === 'sectors' && !targetMap[name]) || isProcessing}
+                                disabled={(activeTab === 'people' && currentType === 'Colaborador' && !targetMap[name]) || (activeTab === 'sectors' && !targetMap[name]) || (activeTab === 'people' && currentType === 'Ex-Colaborador' && !sectorMap[name]) || isProcessing}
                                 className={`px-8 py-4 text-white rounded-2xl font-black text-xs uppercase tracking-widest disabled:opacity-50 disabled:bg-slate-300 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'people' ? 'bg-rose-500 hover:bg-rose-600' : 'bg-blue-500 hover:bg-blue-600'}`}
                             >
                                 {isProcessing ? <i className="fas fa-circle-notch fa-spin"></i> : <i className="fas fa-check-circle"></i>}
-                                <span>{activeTab === 'people' && currentType !== 'Colaborador' ? 'Criar & Vincular' : 'Unificar'}</span>
+                                <span>{activeTab === 'people' && currentType !== 'Colaborador' ? (currentType === 'Ex-Colaborador' ? 'Criar Inativo' : 'Criar & Vincular') : 'Unificar'}</span>
                             </button>
                         </div>
                     </div>
