@@ -97,59 +97,58 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     if (editingItem) {
       setFormData({ ...editingItem, participantType: editingItem.participantType || ParticipantType.STAFF, date: editingItem.date ? editingItem.date.split('T')[0] : getToday() });
     }
-    // Removido o 'else' daqui para evitar conflito com o useEffect de reset inicial
   }, [editingItem]);
 
-  // --- MOTOR DE CONTINUIDADE (Lógica Samara) ---
+  // --- MOTOR DE CONTINUIDADE (Lógica Samara + Data Magnet) ---
   const handleSelectStudent = (selectedLabel: string) => {
     const targetName = selectedLabel.split(' (')[0].trim();
+    
+    // Padrão: Mantém o que já estava ou vazio
     let targetSector = formData.sector;
     let targetWhatsApp = formData.whatsapp;
     let targetGuide = formData.guide;
     let targetLesson = formData.lesson;
-    let targetStatus = RecordStatus.INICIO; // Padrão para novo aluno/série
+    let targetStatus = RecordStatus.INICIO; 
     
     const normName = normalizeString(targetName);
 
-    // 1. Puxar Dados do Cadastro (RH/Paciente/Prestador)
+    // 1. DATA MAGNET: Puxar Dados do Cadastro (RH/Paciente/Prestador) com PRIORIDADE
     if (formData.participantType === ParticipantType.STAFF) {
         const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
         if (staff) {
             const sector = proSectors.find(s => s.id === staff.sectorId);
-            targetSector = sector ? sector.name : targetSector;
-            targetWhatsApp = staff.whatsapp ? formatWhatsApp(staff.whatsapp) : targetWhatsApp;
+            // Sobrescreve sempre com o dado oficial
+            targetSector = sector ? sector.name : ''; 
+            targetWhatsApp = staff.whatsapp ? formatWhatsApp(staff.whatsapp) : '';
         }
     } else if (formData.participantType === ParticipantType.PATIENT) {
         const p = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
-        if (p) targetWhatsApp = p.whatsapp ? formatWhatsApp(p.whatsapp) : targetWhatsApp;
+        if (p) targetWhatsApp = p.whatsapp ? formatWhatsApp(p.whatsapp) : '';
     } else {
         const pr = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
-        if (pr) { targetWhatsApp = pr.whatsapp ? formatWhatsApp(pr.whatsapp) : targetWhatsApp; targetSector = pr.sector || targetSector; }
+        if (pr) { 
+            targetWhatsApp = pr.whatsapp ? formatWhatsApp(pr.whatsapp) : ''; 
+            targetSector = pr.sector || ''; 
+        }
     }
 
     // 2. BUSCA DE CONTINUIDADE (Varre o histórico para preencher Guia e Lição + 1)
-    // Busca no histórico total pelo nome normalizado
     const lastRecord = [...allHistory]
-        .filter(h => normalizeString(h.name).includes(normName.split(' ')[0])) // Busca aproximada para captar Samara -> Samara de Alcantara
+        .filter(h => normalizeString(h.name).includes(normName.split(' ')[0]))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
     if (lastRecord) {
         targetGuide = lastRecord.guide;
-        // Incrementa lição se for número
         const lastNum = parseInt(lastRecord.lesson);
         targetLesson = isNaN(lastNum) ? lastRecord.lesson : (lastNum + 1).toString();
-        
-        // Lógica de Status Automático: Se já tem histórico, muda para Continuação
         targetStatus = RecordStatus.CONTINUACAO;
-        
-        showToast(`Continuidade: ${targetGuide}, Lição ${targetLesson}`, "info");
     }
 
     setFormData(prev => ({ 
         ...prev, 
         name: targetName, 
-        sector: targetSector, 
-        whatsapp: targetWhatsApp, 
+        sector: targetSector, // Valor do banco tem prioridade
+        whatsapp: targetWhatsApp, // Valor do banco tem prioridade
         guide: targetGuide, 
         lesson: targetLesson,
         status: targetStatus 

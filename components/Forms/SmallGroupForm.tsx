@@ -41,6 +41,20 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
     }
   }, []); // Executa apenas na montagem (entrada na aba)
 
+  // --- LIMPEZA AUTOMÁTICA AO APAGAR O NOME DO GRUPO ---
+  useEffect(() => {
+    // Se o nome do grupo for limpo (e não estamos editando), limpa os campos dependentes
+    if (!formData.groupName && !editingItem) {
+        setFormData(prev => ({
+            ...prev,
+            leader: '',
+            leaderPhone: '',
+            sector: ''
+        }));
+        setIsSectorLocked(false);
+    }
+  }, [formData.groupName, editingItem]);
+
   const sectorOptions = useMemo(() => {
     return proSectors.filter(s => s.unit === unit).map(s => ({ value: s.name, label: s.name }));
   }, [proSectors, unit]);
@@ -93,7 +107,6 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
               if (sec) {
                   leaderSector = sec.name;
                   locked = true;
-                  showToast(`Local oficial do PG: ${sec.name}`, "info");
               }
           }
 
@@ -101,21 +114,25 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
               const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(leaderName) && s.unit === unit);
               if (staff) {
                   const sec = proSectors.find(s => s.id === staff.sectorId);
-                  // Se não tem local fixo do PG, sugere o do líder, mas não trava
+                  // Se não tem local fixo do PG, sugere o do líder
                   if (sec && !leaderSector) leaderSector = sec.name;
-                  if (staff.whatsapp) leaderPhone = formatWhatsApp(staff.whatsapp);
+                  if (staff.whatsapp && !leaderPhone) leaderPhone = formatWhatsApp(staff.whatsapp);
               }
           }
       }
 
       setIsSectorLocked(locked);
+      
+      // AUTO-PREENCHIMENTO AGRESSIVO: Substitui os campos com dados do mestre
       setFormData(prev => ({ 
         ...prev, 
         groupName: pgName, 
-        leader: leaderName || prev.leader,
-        leaderPhone: leaderPhone || prev.leaderPhone,
-        sector: leaderSector || prev.sector
+        leader: leaderName, // Sobrescreve (mesmo que vazio, para não deixar lixo)
+        leaderPhone: leaderPhone,
+        sector: leaderSector
       }));
+      
+      if(leaderName || leaderSector) showToast("Dados do PG carregados.", "info");
   };
 
   const handleClear = () => {

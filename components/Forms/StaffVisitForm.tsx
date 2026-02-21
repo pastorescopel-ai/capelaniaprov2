@@ -142,9 +142,9 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
           if (staff) {
               const sector = proSectors.find(s => s.id === staff.sectorId);
+              // Força a atualização com os dados do banco (Data Magnet)
               if (sector) {
                   foundSector = sector.name;
-                  showToast(`Setor carregado: ${sector.name}`, "info");
               }
               if (staff.whatsapp) foundWhatsapp = formatWhatsApp(staff.whatsapp);
           }
@@ -152,10 +152,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           // Lógica Prestador (Imã Reverso / Memória)
           const provider = proProviders.find(p => normalizeString(p.name) === normalizeString(nameOnly) && p.unit === unit);
           if (provider) {
-              if (provider.sector) {
-                  foundSector = provider.sector;
-                  showToast(`Setor frequente: ${provider.sector}`, "info");
-              }
+              if (provider.sector) foundSector = provider.sector;
               if (provider.whatsapp) foundWhatsapp = formatWhatsApp(provider.whatsapp);
           }
       }
@@ -163,8 +160,8 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       setFormData(prev => ({ 
         ...prev, 
         staffName: nameOnly, 
-        whatsapp: foundWhatsapp,
-        sector: foundSector
+        whatsapp: foundWhatsapp, // Sobrescreve com o do banco
+        sector: foundSector      // Sobrescreve com o do banco
       }));
   };
 

@@ -85,6 +85,8 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
             const staffInSector = proStaff.filter(s => s.sectorId === sectorObj.id && s.active);
             const autoStudents = staffInSector.map(s => `${s.name} (${String(s.id).split('-')[1] || s.id})`);
             
+            // ATUALIZAÇÃO: Carrega a lista SEMPRE que o setor for válido e houver staff, 
+            // substituindo a lista anterior (comportamento reativo solicitado)
             if (autoStudents.length > 0) {
                 // 2. CONTINUIDADE INTELIGENTE
                 // Busca o último registro de classe feito neste setor para sugerir lição
@@ -100,21 +102,23 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                     nextGuide = lastClass.guide;
                     const lastNum = parseInt(lastClass.lesson);
                     nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
-                    
-                    // Lógica de Status Automático: Se já tem histórico no setor, muda para Continuação
                     nextStatus = RecordStatus.CONTINUACAO;
                 }
 
-                if (formData.students.length === 0) {
-                    setFormData(prev => ({
-                        ...prev,
-                        students: autoStudents,
-                        guide: nextGuide || prev.guide,
-                        lesson: nextLesson || prev.lesson,
-                        status: nextStatus
-                    }));
-                    showToast(`${autoStudents.length} alunos carregados do setor.`, "info");
-                }
+                // Aplica as mudanças (Lista nova + Lição sugerida)
+                setFormData(prev => ({
+                    ...prev,
+                    students: autoStudents,
+                    guide: nextGuide || prev.guide,
+                    lesson: nextLesson || prev.lesson,
+                    status: nextStatus
+                }));
+                
+                // Feedback visual sutil (Opcional, removido toast para não spamar na troca rápida)
+                // showToast(`${autoStudents.length} alunos carregados.`, "info");
+            } else {
+               // Se o setor não tem ninguém, limpa a lista para não ficar com dados do setor anterior
+               setFormData(prev => ({ ...prev, students: [] }));
             }
         }
     }
@@ -206,22 +210,52 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Local</label><Autocomplete options={sectors.map(s => ({value: s, label: s}))} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local..." isStrict={formData.participantType !== ParticipantType.PROVIDER} /></div>
+          
           <div className="space-y-1 md:col-span-2">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Chamada de Presença</label>
             <div className="flex gap-2">
-              <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder="Buscar por nome..." isStrict={formData.participantType === ParticipantType.STAFF} /></div>
+              <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder="Buscar nome para adicionar..." isStrict={formData.participantType === ParticipantType.STAFF} /></div>
               <button type="button" onClick={() => addStudent()} className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg hover:bg-indigo-700 transition-all"><i className="fas fa-plus"></i></button>
             </div>
-            <div className="flex flex-wrap gap-2 mt-4 max-h-40 overflow-y-auto no-scrollbar">
-              {formData.students.map((s, i) => (
-                <div key={i} className="pl-4 pr-2 py-2 rounded-xl flex items-center gap-3 font-black text-[9px] uppercase border bg-indigo-50 text-indigo-700 border-indigo-100 animate-in zoom-in duration-200">
-                  <span>{s}</span>
-                  <button type="button" onClick={() => setFormData({...formData, students: formData.students.filter((_, idx) => idx !== i)})} className="w-6 h-6 hover:bg-rose-100 rounded-lg text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center"><i className="fas fa-times text-[10px]"></i></button>
-                </div>
-              ))}
-              {formData.students.length === 0 && <span className="text-xs text-slate-400 italic px-2">Nenhum aluno selecionado. Escolha um setor para carregar automaticamente.</span>}
+            
+            {/* LISTA DE ALUNOS ZEBRADA (A-Z) */}
+            <div className="mt-6 border border-slate-200 rounded-[1.5rem] overflow-hidden bg-white shadow-sm">
+              <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                 <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-2 flex items-center gap-2"><i className="fas fa-clipboard-list text-indigo-400"></i> Lista de Alunos ({formData.students.length})</span>
+                 {formData.students.length > 0 && <span className="text-[9px] font-bold text-indigo-400 uppercase bg-indigo-50 px-2 py-1 rounded-lg">Ordem Alfabética</span>}
+              </div>
+              <div className="max-h-[20rem] overflow-y-auto custom-scrollbar">
+                 {[...formData.students].sort((a, b) => a.localeCompare(b)).map((s, i) => (
+                    <div key={s} className="flex items-center justify-between p-4 border-b border-slate-100 last:border-none hover:bg-rose-50 transition-colors group even:bg-slate-50/60">
+                        <div className="flex items-center gap-4">
+                            <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-[10px] font-bold group-hover:bg-white group-hover:text-rose-500 transition-colors">
+                                {i + 1}
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xs font-black text-slate-700 uppercase group-hover:text-rose-700 transition-colors leading-tight">{s.split(' (')[0]}</span>
+                                {s.includes('(') && <span className="text-[9px] font-bold text-slate-400 group-hover:text-rose-400 transition-colors">{s.match(/\((.*?)\)/)?.[0]}</span>}
+                            </div>
+                        </div>
+                        <button 
+                            type="button" 
+                            onClick={() => setFormData({...formData, students: formData.students.filter(student => student !== s)})}
+                            className="px-4 py-2 bg-white border border-slate-200 text-slate-400 rounded-xl hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all shadow-sm flex items-center gap-2 group/btn"
+                        >
+                            <span className="text-[9px] font-black uppercase hidden sm:inline group-hover/btn:inline">Ausente</span>
+                            <i className="fas fa-trash-alt text-xs"></i>
+                        </button>
+                    </div>
+                 ))}
+                 {formData.students.length === 0 && (
+                    <div className="p-10 text-center flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 text-xl"><i className="fas fa-user-slash"></i></div>
+                        <p className="text-xs text-slate-400 font-bold uppercase italic">Nenhum aluno na lista.<br/>Selecione um setor acima para carregar automaticamente.</p>
+                    </div>
+                 )}
+              </div>
             </div>
           </div>
+
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome da Classe</label><Autocomplete options={guideOptions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Ex: Classe Sábado" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Lição nº</label><input type="number" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-black" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase border-2 transition-all ${formData.status === opt ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-100 text-slate-400 bg-slate-50'}`}>{opt}</button>))}</div></div>
