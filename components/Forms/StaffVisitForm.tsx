@@ -60,7 +60,9 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   // Opções dinâmicas baseadas no tipo selecionado (Colaborador vs Prestador)
   const nameOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
+    const officialSet = new Set<string>(); // Filtro para duplicatas
     
+    // 1. CARREGA OFICIAIS
     if (formData.participantType === ParticipantType.STAFF) {
         // Modo Colaborador: Fonte proStaff (RH)
         proStaff.filter(s => s.unit === unit).forEach(staff => {
@@ -72,6 +74,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
             subLabel: sector ? sector.name : 'Setor não informado',
             category: 'RH'
           });
+          officialSet.add(normalizeString(staff.name));
         });
     } else {
         // Modo Prestador: Fonte proProviders
@@ -82,19 +85,19 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
                 subLabel: provider.sector || 'Sem setor fixo',
                 category: 'RH' // Usamos a categoria visual 'RH' para indicar registro salvo
             });
+            officialSet.add(normalizeString(provider.name));
         });
     }
 
-    // Histórico (apenas nomes que não estão na lista principal para evitar duplicatas visuais)
+    // 2. CARREGA HISTÓRICO (Ignorando quem já está na lista oficial)
     const uniqueNames = new Set<string>();
     history.forEach(v => {
       // Filtra histórico pelo tipo atual para não misturar
       const historyType = (v as any).participantType || ParticipantType.STAFF;
-      if (historyType === formData.participantType && v.staffName && !uniqueNames.has(normalizeString(v.staffName))) {
-         // Verifica se já não foi adicionado via banco oficial
-         const isOfficiallyListed = options.some(o => normalizeString(o.value) === normalizeString(v.staffName));
-         if (!isOfficiallyListed) {
-             uniqueNames.add(normalizeString(v.staffName));
+      if (historyType === formData.participantType && v.staffName) {
+         const norm = normalizeString(v.staffName);
+         if (!uniqueNames.has(norm) && !officialSet.has(norm)) {
+             uniqueNames.add(norm);
              options.push({
                  value: v.staffName,
                  label: v.staffName,
@@ -174,31 +177,40 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     e.preventDefault();
     if (!formData.date) { showToast("O campo 'Data da Visita' é obrigatório."); return; }
     if (!formData.staffName) { showToast(`O campo '${formData.participantType === ParticipantType.STAFF ? 'Colaborador' : 'Nome do Prestador'}' é obrigatório.`); return; }
-    if (!formData.sector) { showToast("O campo 'Setor / Localização' é obrigatório."); return; }
     if (!formData.reason) { showToast("O campo 'Motivo da Visita' é obrigatório."); return; }
     
-    // --- VALIDAÇÃO RESTRITA (STRICT MODE) ---
-    // 1. Validar Setor (Sempre deve ser oficial)
-    const sectorExists = proSectors.some(s => s.name === formData.sector && s.unit === unit);
-    if (!sectorExists) {
-        showToast("O setor informado não consta na lista oficial.", "warning");
-        return;
-    }
+    const isStaff = formData.participantType === ParticipantType.STAFF;
 
-    // 2. Validar Pessoa conforme Tipo
-    if (formData.participantType === ParticipantType.STAFF) {
-        // Colaborador: Deve existir no RH
+    // --- VALIDAÇÃO RESTRITA (STRICT MODE) ---
+    if (isStaff) {
+        // 1. Validar Setor (Sempre deve ser oficial para STAFF)
+        if (!formData.sector) { showToast("Setor é obrigatório para colaboradores.", "warning"); return; }
+        const sectorExists = proSectors.some(s => s.name === formData.sector && s.unit === unit);
+        if (!sectorExists) {
+            showToast("O setor informado não consta na lista oficial.", "warning");
+            return;
+        }
+
+        // 2. Validar Pessoa
         const staffExists = proStaff.some(s => normalizeString(s.name) === normalizeString(formData.staffName) && s.unit === unit);
         if (!staffExists) {
             showToast("O colaborador informado não consta no Banco de RH.", "warning");
             return;
         }
-        // Sync simples (atualiza zap se necessário)
+        
+        // Sync simples (atualiza zap se necessário, mas zap é opcional)
         if (formData.whatsapp) {
             await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.STAFF);
         }
     } else {
-        // Prestador: Nome livre, mas salva no banco de prestadores (com vínculo de setor)
+        // Prestador: 
+        // 1. WhatsApp Obrigatório
+        if (!formData.whatsapp || formData.whatsapp.length < 10) {
+            showToast("WhatsApp é obrigatório para prestadores.", "warning");
+            return;
+        }
+        
+        // 2. Setor Opcional (não valida, mas salva se tiver)
         // O "Imã Reverso": Salvamos o setor atual como o setor do prestador
         await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.PROVIDER, formData.sector);
     }
@@ -206,6 +218,8 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     onSubmit({...formData, unit});
     setFormData({ ...defaultState, date: getToday(), returnDate: getToday(), participantType: formData.participantType });
   };
+
+  const isStaff = formData.participantType === ParticipantType.STAFF;
 
   return (
     <div className="space-y-10 pb-20">
@@ -246,20 +260,20 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           
           <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">
-                  {formData.participantType === ParticipantType.STAFF ? 'Colaborador Atendido *' : 'Nome do Prestador *'}
+                  {isStaff ? 'Colaborador Atendido *' : 'Nome do Prestador *'}
               </label>
               <Autocomplete 
                   options={nameOptions} 
                   value={formData.staffName} 
                   onChange={v => setFormData({...formData, staffName: v})} 
                   onSelectOption={handleSelectName} 
-                  placeholder={formData.participantType === ParticipantType.STAFF ? "Busque por nome ou matrícula..." : "Busque ou digite o nome..."} 
-                  isStrict={formData.participantType === ParticipantType.STAFF} 
+                  placeholder={isStaff ? "Busque por nome ou matrícula..." : "Busque ou digite o nome..."} 
+                  isStrict={isStaff} 
               />
           </div>
 
           {/* Campo Extra para Prestador */}
-          {formData.participantType === ParticipantType.PROVIDER && (
+          {!isStaff && (
               <div className="space-y-1 md:col-span-2 animate-in slide-in-from-top-2 duration-300">
                   <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Função / Especialidade</label>
                   <input 
@@ -271,9 +285,26 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
               </div>
           )}
 
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">WhatsApp (Opcional)</label><input placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+          <div className="space-y-1">
+              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-rose-600' : 'text-slate-400'}`}>
+                  WhatsApp {!isStaff ? '(Obrigatório)' : '(Opcional)'}
+              </label>
+              <input 
+                  placeholder="(00) 00000-0000" 
+                  value={formData.whatsapp} 
+                  onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} 
+                  className={`w-full p-4 rounded-2xl border-none font-bold transition-all ${!isStaff ? 'bg-rose-50 text-rose-900 ring-2 ring-rose-100 focus:ring-rose-300' : 'bg-slate-50'}`} 
+              />
+          </div>
+
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Motivo da Visita *</label><select value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value as VisitReason})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold">{Object.values(VisitReason).map(r => <option key={r} value={r}>{r}</option>)}</select></div>
-          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Localização *</label><Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local da visita..." isStrict={true} /></div>
+          
+          <div className="space-y-1 md:col-span-2">
+              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>
+                  Setor / Local {isStaff ? '(Obrigatório)' : '(Opcional)'}
+              </label>
+              <Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local da visita..." isStrict={isStaff} />
+          </div>
           
           <div className="space-y-1 md:col-span-2">
             <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border-2 border-transparent hover:border-rose-100 transition-all cursor-pointer" onClick={() => setFormData({...formData, requiresReturn: !formData.requiresReturn})}>

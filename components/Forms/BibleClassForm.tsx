@@ -8,7 +8,7 @@ import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import { isRecordLocked } from '../../utils/validators';
 import { useApp } from '../../contexts/AppContext';
-import { getFirstName, normalizeString } from '../../utils/formatters';
+import { getFirstName, normalizeString, formatWhatsApp } from '../../utils/formatters';
 
 interface FormProps {
   unit: Unit;
@@ -31,7 +31,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
   const { showToast } = useToast();
   
   const getToday = () => new Date().toLocaleDateString('en-CA');
-  const defaultState = { id: '', date: getToday(), sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, participantType: ParticipantType.STAFF, observations: '' };
+  const defaultState = { id: '', date: getToday(), sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, participantType: ParticipantType.STAFF, observations: '', representativePhone: '' };
   
   const [formData, setFormData] = useState(defaultState);
   const [newStudent, setNewStudent] = useState('');
@@ -52,19 +52,22 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
   const studentSearchOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
-    const filterSectorId = formData.sector ? proSectors.find(s => s.name === formData.sector && s.unit === unit)?.id : null;
+    const officialSet = new Set<string>(); // Filtro de duplicatas
     
+    // 1. CARREGA OFICIAIS (RH)
     proStaff.filter(s => s.unit === unit).forEach(staff => {
       const sector = proSectors.find(sec => sec.id === staff.sectorId);
       options.push({ value: staff.name, label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, subLabel: sector ? sector.name : 'Setor não informado', category: 'RH' });
+      officialSet.add(normalizeString(staff.name));
     });
 
+    // 2. CARREGA HISTÓRICO (Ignorando se já está no RH)
     const uniqueHistoryNames = new Set<string>();
     allHistory.forEach(c => {
        if (Array.isArray(c.students)) {
          c.students.forEach(s => {
            const norm = normalizeString(s);
-           if (!uniqueHistoryNames.has(norm)) {
+           if (!uniqueHistoryNames.has(norm) && !officialSet.has(norm)) {
              uniqueHistoryNames.add(norm);
              options.push({ value: s.trim(), label: s.trim(), subLabel: c.sector, category: 'History' });
            }
@@ -72,31 +75,27 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
        }
     });
     return options;
-  }, [proStaff, proSectors, unit, allHistory, formData.sector]);
+  }, [proStaff, proSectors, unit, allHistory]);
 
-  // --- O IMÃ DE SETORES: Carga Automática + Continuidade ---
+  // --- O IMÃ DE SETORES (Apenas Colaborador): Carga Automática + Continuidade ---
   useEffect(() => {
     if (formData.sector && !editingItem && formData.participantType === ParticipantType.STAFF) {
         const sectorObj = proSectors.find(s => s.name === formData.sector && s.unit === unit);
         
         if (sectorObj) {
             // 1. CARGA AUTOMÁTICA DA CLASSE
-            // Puxa todos os colaboradores ativos deste setor
             const staffInSector = proStaff.filter(s => s.sectorId === sectorObj.id && s.active);
             const autoStudents = staffInSector.map(s => `${s.name} (${String(s.id).split('-')[1] || s.id})`);
             
-            // ATUALIZAÇÃO: Carrega a lista SEMPRE que o setor for válido e houver staff, 
-            // substituindo a lista anterior (comportamento reativo solicitado)
             if (autoStudents.length > 0) {
                 // 2. CONTINUIDADE INTELIGENTE
-                // Busca o último registro de classe feito neste setor para sugerir lição
                 const lastClass = [...allHistory]
                     .filter(c => c.sector === formData.sector && c.unit === unit)
                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
                 
                 let nextLesson = '';
                 let nextGuide = '';
-                let nextStatus = RecordStatus.INICIO; // Padrão
+                let nextStatus = RecordStatus.INICIO; 
                 
                 if (lastClass) {
                     nextGuide = lastClass.guide;
@@ -105,7 +104,6 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                     nextStatus = RecordStatus.CONTINUACAO;
                 }
 
-                // Aplica as mudanças (Lista nova + Lição sugerida)
                 setFormData(prev => ({
                     ...prev,
                     students: autoStudents,
@@ -113,11 +111,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                     lesson: nextLesson || prev.lesson,
                     status: nextStatus
                 }));
-                
-                // Feedback visual sutil (Opcional, removido toast para não spamar na troca rápida)
-                // showToast(`${autoStudents.length} alunos carregados.`, "info");
             } else {
-               // Se o setor não tem ninguém, limpa a lista para não ficar com dados do setor anterior
                setFormData(prev => ({ ...prev, students: [] }));
             }
         }
@@ -126,7 +120,13 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
   useEffect(() => {
     if (editingItem) {
-      setFormData({ ...editingItem, participantType: editingItem.participantType || ParticipantType.STAFF, date: editingItem.date ? editingItem.date.split('T')[0] : getToday() });
+      setFormData({ 
+          ...editingItem, 
+          participantType: editingItem.participantType || ParticipantType.STAFF, 
+          date: editingItem.date ? editingItem.date.split('T')[0] : getToday(),
+          // Tenta extrair telefone das observações se existir formato [Rep. WhatsApp: ...]
+          representativePhone: editingItem.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || ''
+      });
     }
   }, [editingItem]);
 
@@ -152,7 +152,43 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
         showToast("Aluno já está na lista.");
         return;
       }
-      setFormData({...formData, students: [...formData.students, finalString]}); 
+
+      // --- IMÃ DE HISTÓRICO (Para Pacientes/Prestadores) ---
+      let peersToAdd: string[] = [];
+      let nextGuide = formData.guide;
+      let nextLesson = formData.lesson;
+      let nextStatus = formData.status;
+
+      if (formData.participantType !== ParticipantType.STAFF) {
+          // Busca última aula onde este aluno esteve presente
+          const lastClassWithStudent = [...allHistory]
+              .filter(c => c.students && c.students.includes(finalString))
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+          if (lastClassWithStudent) {
+              // 1. Encontra colegas da mesma aula (Família/Quarto)
+              peersToAdd = lastClassWithStudent.students.filter(s => s !== finalString && !formData.students.includes(s));
+              
+              // 2. Continuidade
+              nextGuide = lastClassWithStudent.guide;
+              const lastNum = parseInt(lastClassWithStudent.lesson);
+              nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClassWithStudent.lesson;
+              nextStatus = RecordStatus.CONTINUACAO;
+
+              if (peersToAdd.length > 0) {
+                  showToast(`Histórico encontrado! Agrupando com ${peersToAdd.length} colega(s).`, "info");
+              }
+          }
+      }
+
+      setFormData(prev => ({
+          ...prev, 
+          students: [...prev.students, finalString, ...peersToAdd],
+          guide: nextGuide,
+          lesson: nextLesson,
+          status: nextStatus
+      })); 
+      
       setNewStudent(''); 
     } 
   };
@@ -164,32 +200,63 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.sector || formData.students.length === 0 || !formData.guide || !formData.lesson) {
-        showToast("Preencha todos os campos obrigatórios.");
+    
+    // Validação Básica
+    if (formData.students.length === 0 || !formData.guide || !formData.lesson) {
+        showToast("Preencha Alunos, Guia e Lição.");
         return;
     }
 
-    // --- VALIDAÇÃO RESTRITA (STRICT MODE) ---
-    // Colaborador e Paciente: Setor deve estar na lista oficial
-    if (formData.participantType === ParticipantType.STAFF || formData.participantType === ParticipantType.PATIENT) {
+    // --- VALIDAÇÃO ESPECÍFICA POR TIPO ---
+    if (formData.participantType === ParticipantType.STAFF) {
+        // Colaborador: Setor Obrigatório
+        if (!formData.sector) {
+            showToast("Para colaboradores, o Setor é obrigatório.", "warning");
+            return;
+        }
         const sectorExists = proSectors.some(s => s.name === formData.sector && s.unit === unit);
         if (!sectorExists) {
             showToast("Selecione um setor oficial válido da lista.", "warning");
             return;
         }
+    } else {
+        // Paciente/Prestador: WhatsApp Representante Obrigatório
+        if (!formData.representativePhone || formData.representativePhone.length < 10) {
+            showToast("O WhatsApp do Representante é obrigatório para este grupo.", "warning");
+            return;
+        }
     }
 
-    // --- CURA DE DADOS (DATA HEALING) ---
-    if (formData.participantType === ParticipantType.STAFF) {
+    // --- SINCRONIZAÇÃO E PERSISTÊNCIA ---
+    let finalObservations = formData.observations;
+
+    if (formData.participantType !== ParticipantType.STAFF) {
+        // Sincroniza contato com o PRIMEIRO aluno da lista (Assumindo ser o representante)
+        const repName = formData.students[0].split(' (')[0].trim();
+        await syncMasterContact(repName, formData.representativePhone, unit, formData.participantType, formData.sector);
+        
+        // Persiste telefone no registro (sem alterar schema)
+        if (formData.representativePhone) {
+            finalObservations = `[Rep. WhatsApp: ${formData.representativePhone}]\n${finalObservations}`;
+        }
+    } else {
+        // Para colaboradores, sincroniza em massa (Data Healing)
         formData.students.forEach(studentStr => {
             const nameOnly = studentStr.split(' (')[0].trim();
             syncMasterContact(nameOnly, "", unit, ParticipantType.STAFF, formData.sector).catch(console.error);
         });
     }
 
-    onSubmit({...formData, unit, participantType: formData.participantType });
+    onSubmit({
+        ...formData, 
+        unit, 
+        participantType: formData.participantType, 
+        observations: finalObservations 
+    });
     setFormData({ ...defaultState, date: getToday() });
   };
+
+  const isStaff = formData.participantType === ParticipantType.STAFF;
 
   return (
     <div className="space-y-10 pb-20">
@@ -199,7 +266,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           <div className="flex items-center gap-2">
             <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start">
                 {[ParticipantType.STAFF, ParticipantType.PATIENT, ParticipantType.PROVIDER].map(type => (
-                <button key={type} type="button" onClick={() => setFormData({...formData, participantType: type, students: []})} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === type ? 'bg-white shadow-lg text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>{type}</button>
+                <button key={type} type="button" onClick={() => setFormData({...formData, participantType: type, students: [], sector: '', representativePhone: ''})} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === type ? 'bg-white shadow-lg text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>{type}</button>
                 ))}
             </div>
             <button type="button" onClick={handleClear} className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 hover:text-pink-700 transition-all flex items-center justify-center text-lg shadow-sm" title="Limpar Campos">
@@ -207,14 +274,36 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
             </button>
           </div>
         </div>
+        
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Local</label><Autocomplete options={sectors.map(s => ({value: s, label: s}))} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local..." isStrict={formData.participantType !== ParticipantType.PROVIDER} /></div>
+          
+          <div className="space-y-1">
+              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>
+                  Setor / Local {isStaff ? '(Obrigatório)' : '(Opcional)'}
+              </label>
+              <Autocomplete options={sectors.map(s => ({value: s, label: s}))} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder={isStaff ? "Selecione o setor..." : "Leito, Quarto ou Área (Opcional)..."} isStrict={isStaff} />
+          </div>
+
+          <div className={`space-y-1 ${!isStaff ? 'order-first md:order-none col-span-2 md:col-span-2 animate-in slide-in-from-top-2' : ''}`}>
+              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  WhatsApp do Representante {!isStaff ? '*' : '(Opcional)'}
+              </label>
+              <input 
+                  type="text" 
+                  placeholder="(00) 00000-0000" 
+                  value={formData.representativePhone} 
+                  onChange={e => setFormData({...formData, representativePhone: formatWhatsApp(e.target.value)})} 
+                  className={`w-full p-4 rounded-2xl border-none font-bold transition-all ${!isStaff ? 'bg-indigo-50 text-indigo-900 ring-2 ring-indigo-100 focus:ring-indigo-300' : 'bg-slate-50'}`}
+              />
+          </div>
           
           <div className="space-y-1 md:col-span-2">
-            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Chamada de Presença</label>
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">
+                Chamada de Presença {isStaff ? '' : '(Imã de Histórico Ativo 🧲)'}
+            </label>
             <div className="flex gap-2">
-              <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder="Buscar nome para adicionar..." isStrict={formData.participantType === ParticipantType.STAFF} /></div>
+              <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={isStaff ? "Buscar colaborador..." : "Digite o nome e clique + (busca grupos anteriores)..."} isStrict={isStaff} /></div>
               <button type="button" onClick={() => addStudent()} className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg hover:bg-indigo-700 transition-all"><i className="fas fa-plus"></i></button>
             </div>
             
@@ -249,7 +338,9 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                  {formData.students.length === 0 && (
                     <div className="p-10 text-center flex flex-col items-center gap-3">
                         <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 text-xl"><i className="fas fa-user-slash"></i></div>
-                        <p className="text-xs text-slate-400 font-bold uppercase italic">Nenhum aluno na lista.<br/>Selecione um setor acima para carregar automaticamente.</p>
+                        <p className="text-xs text-slate-400 font-bold uppercase italic">
+                            {isStaff ? 'Nenhum aluno na lista. Selecione um setor para carregar.' : 'Adicione o primeiro aluno para buscar familiares/colegas.'}
+                        </p>
                     </div>
                  )}
               </div>

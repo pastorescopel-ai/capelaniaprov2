@@ -11,7 +11,8 @@ type HealerTab = 'people' | 'sectors' | 'attendees';
 type PersonType = 'Colaborador' | 'Ex-Colaborador' | 'Paciente' | 'Prestador';
 
 const DataHealer: React.FC = () => {
-  const { bibleClasses, bibleStudies, smallGroups, staffVisits, proStaff, proSectors, unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, saveRecord } = useApp();
+  // Adicionado proPatients e proProviders na desestruturação
+  const { bibleClasses, bibleStudies, smallGroups, staffVisits, proStaff, proPatients, proProviders, proSectors, unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, saveRecord } = useApp();
   const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState<HealerTab>('people');
@@ -73,10 +74,17 @@ const DataHealer: React.FC = () => {
     }
   }, [activeTab, resolvedItems, showToast]);
 
-  // --- LÓGICA DE DIAGNÓSTICO: PESSOAS ÓRFÃS (OLD LOGIC - MEMORY) ---
+  // --- LÓGICA DE DIAGNÓSTICO: PESSOAS ÓRFÃS (CORRIGIDO PARA INCLUIR TODAS AS ENTIDADES) ---
   const peopleOrphans = useMemo(() => {
     const orphanMap = new Map<string, { sectors: Set<string>, sources: { class: number, study: number, visit: number } }>();
-    const officialNamesNormalized = new Set(proStaff.map(s => normalizeString(s.name)));
+    
+    // Lista Mestra de Nomes Oficiais (RH + Pacientes + Prestadores)
+    const officialNamesNormalized = new Set([
+        ...proStaff.map(s => normalizeString(s.name)),
+        ...proPatients.map(p => normalizeString(p.name)),
+        ...proProviders.map(p => normalizeString(p.name))
+    ]);
+
     const normSearch = normalizeString(searchQuery); // Normaliza a busca
     
     // Função auxiliar para verificar e adicionar à lista
@@ -90,12 +98,16 @@ const DataHealer: React.FC = () => {
 
         const norm = normalizeString(cleanName);
         const isMatchSearch = normSearch && norm.includes(normSearch); // Verifica se bate com a busca
+        
+        // Verifica se o nome existe em QUALQUER tabela oficial
         const isOfficiallyListed = officialNamesNormalized.has(norm);
 
+        // Se está na lista oficial, só mostra se o usuário pediu "Exibir todos" ou está buscando especificamente
         const shouldShow = isMatchSearch || (!isOfficiallyListed || showAllHistory);
 
         if (shouldShow && !rawName.match(/\(\d+\)$/)) {
-            if (participantType && participantType !== 'Colaborador' && !showAllHistory && !isMatchSearch) return;
+            // Filtro de contexto: Se é paciente e não estamos buscando, ignora (a menos que showAllHistory)
+            if (participantType && participantType !== 'Colaborador' && !showAllHistory && !isMatchSearch && isOfficiallyListed) return;
 
             if (!orphanMap.has(cleanName)) {
                 orphanMap.set(cleanName, { sectors: new Set(), sources: { class: 0, study: 0, visit: 0 } });
@@ -114,6 +126,7 @@ const DataHealer: React.FC = () => {
 
     // Varre ESTUDOS (Origem: bibleStudies)
     bibleStudies.forEach(s => { 
+        // Verifica se devemos processar com base no tipo
         if (s.participantType === ParticipantType.STAFF || !s.participantType || showAllHistory || normSearch) {
              checkAndAdd(s.name, s.sector, 'study', s.participantType); 
         }
@@ -129,7 +142,7 @@ const DataHealer: React.FC = () => {
     return Array.from(orphanMap.entries())
         .map(([name, data]) => ({ name, sectors: Array.from(data.sectors).sort(), sources: data.sources }))
         .sort((a, b) => a.name.localeCompare(b.name));
-  }, [bibleClasses, bibleStudies, staffVisits, proStaff, showAllHistory, resolvedItems, searchQuery]);
+  }, [bibleClasses, bibleStudies, staffVisits, proStaff, proPatients, proProviders, showAllHistory, resolvedItems, searchQuery]);
 
   // --- LÓGICA DE DIAGNÓSTICO: SETORES ÓRFÃOS ---
   const sectorOrphans = useMemo(() => {
@@ -254,7 +267,10 @@ const DataHealer: React.FC = () => {
   };
 
   const isHealthy = (name: string) => {
-      return proStaff.some(s => normalizeString(s.name) === normalizeString(name));
+      const norm = normalizeString(name);
+      return proStaff.some(s => normalizeString(s.name) === norm) ||
+             proPatients.some(p => normalizeString(p.name) === norm) ||
+             proProviders.some(p => normalizeString(p.name) === norm);
   };
 
   // Tema dinâmico

@@ -66,16 +66,21 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
       };
     });
 
-    // Filtro de Busca com Normalização (Sem Acento)
-    const normalizedTerm = normalizeString(searchTerm);
+    // Filtro de Busca Inteligente
+    const normSearch = normalizeString(searchTerm);
+    const searchTerms = normSearch.split(' ').filter(t => t);
+
     const filteredData = sectorData.filter(d => {
-        if (!searchTerm) return d.total > 0;
+        if (searchTerms.length === 0) return d.total > 0;
         
-        if (filterType === 'sector') {
-          return normalizeString(d.sector.name).includes(normalizedTerm) && d.total > 0;
-        } else {
-          return d.pgsInSector.some(pg => pg && normalizeString(pg.name).includes(normalizedTerm)) && d.total > 0;
-        }
+        const targetText = filterType === 'sector' 
+            ? d.sector.name 
+            : d.pgsInSector.map(pg => pg?.name || '').join(' '); // Combina nomes dos PGs
+            
+        const normTarget = normalizeString(targetText);
+        
+        // Verifica se todos os termos estão presentes no texto alvo
+        return searchTerms.every(term => normTarget.includes(term)) && d.total > 0;
     });
 
     let totalStaff = 0;

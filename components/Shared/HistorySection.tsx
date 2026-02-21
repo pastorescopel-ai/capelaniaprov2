@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { User, UserRole } from '../../types';
 import HistoryFilterBar from './HistoryFilterBar';
 import SkeletonCard from './SkeletonCard';
+import { normalizeString } from '../../utils/formatters';
 
 interface HistorySectionProps<T> {
   title?: string;
@@ -51,22 +52,31 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
 
   const filteredHistory = useMemo(() => {
     const source = stableData.length > 0 ? stableData : data;
+    const normQuery = normalizeString(searchQuery);
+    const searchTerms = normQuery.split(' ').filter(t => t.trim() !== '');
+
     const filtered = source.filter(item => {
       if (!item.date) return false;
       const itemDate = item.date.split('T')[0];
       const dateMatch = itemDate >= filterStart && itemDate <= filterEnd;
       const matchChaplain = filterChaplain === 'all' || item.userId === filterChaplain;
-      const isSearching = searchQuery.length >= 2;
+      const isSearching = searchTerms.length > 0;
       
       if (!isSearching && !dateMatch) return false;
       if (!matchChaplain) return false;
 
-      if (!searchQuery) return true;
-      const query = searchQuery.toLowerCase();
+      if (!isSearching) return true;
+
+      // Smart Search: Verifica se algum campo configurado contém TODOS os termos da busca
       return searchFields.some(field => {
         const val = item[field];
-        if (Array.isArray(val)) return val.some(v => String(v).toLowerCase().includes(query));
-        return String(val || "").toLowerCase().includes(query);
+        // Concatena se for array, ou usa string direta
+        const textVal = Array.isArray(val) ? val.join(' ') : String(val || "");
+        const normText = normalizeString(textVal);
+        
+        // Verifica se TODOS os termos digitados estão presentes neste campo
+        // Ex: Campo "Maria Silva", Busca "Maria" -> OK. Busca "Maria Silva" -> OK.
+        return searchTerms.every(term => normText.includes(term));
       });
     });
 
@@ -113,7 +123,7 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
           </>
         ) : (
           <div className="bg-white p-20 rounded-[4rem] text-center border-2 border-dashed border-slate-100">
-             <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Nenhum registro para este mês.</p>
+             <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Nenhum registro encontrado.</p>
           </div>
         )}
       </div>

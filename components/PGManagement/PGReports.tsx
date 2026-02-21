@@ -63,12 +63,19 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
         return { sector, totalStaff: staff.length, enrolledCount: enrolled.length, coverage, pgs, notEnrolledList: notEnrolled, enrolledList: enrolled };
     });
 
-    const normalizedTerm = normalizeString(searchTerm);
+    const normSearch = normalizeString(searchTerm);
+    const searchTerms = normSearch.split(' ').filter(t => t);
+
     return data.filter(d => {
         if (d.totalStaff === 0) return false;
-        if (!searchTerm) return true;
-        if (filterType === 'sector') return normalizeString(d.sector.name).includes(normalizedTerm);
-        return d.pgs.some(pg => pg && normalizeString(pg.name).includes(normalizedTerm));
+        if (searchTerms.length === 0) return true;
+        
+        const targetText = filterType === 'sector' 
+            ? d.sector.name 
+            : d.pgs.map(pg => pg?.name || '').join(' ');
+            
+        const normTarget = normalizeString(targetText);
+        return searchTerms.every(term => normTarget.includes(term));
     });
   }, [proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, unit, searchTerm, filterType, endDate]);
 

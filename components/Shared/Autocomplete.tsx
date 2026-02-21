@@ -35,14 +35,23 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   const { showToast } = useToast();
 
   const filtered = useMemo(() => {
-    const search = normalizeString(value);
-    if (!search && !open) return [];
+    const normSearch = normalizeString(value);
+    if (!normSearch && !open) return [];
 
-    // Filtra por label ou subLabel
-    const results = options.filter(o => 
-      normalizeString(o.label).includes(search) || 
-      (o.subLabel && normalizeString(o.subLabel).includes(search))
-    );
+    // BUSCA INTELIGENTE: Quebra a busca em termos (palavras)
+    const searchTerms = normSearch.split(' ').filter(t => t.trim() !== '');
+
+    // Filtra opções onde TODOS os termos digitados aparecem no label OU no subLabel
+    const results = options.filter(o => {
+      const normLabel = normalizeString(o.label);
+      const normSub = o.subLabel ? normalizeString(o.subLabel) : '';
+      
+      // Combina Label e SubLabel para permitir buscas como "João UTI"
+      const fullText = `${normLabel} ${normSub}`;
+
+      // Verifica se CADA termo da busca está presente no texto combinado
+      return searchTerms.every(term => fullText.includes(term));
+    });
 
     // Ordenação: 1. Oficiais (RH), 2. Histórico
     return results.sort((a, b) => {
@@ -57,11 +66,10 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
     if (isStrict && currentValue.trim()) {
         const normVal = normalizeString(currentValue);
         // Verifica se o valor digitado corresponde a alguma das opções disponíveis (pelo value ou label)
-        // Isso permite que o usuário digite apenas o nome (value) ou veja o nome com matrícula (label)
         const match = options.some(o => normalizeString(o.value) === normVal || normalizeString(o.label) === normVal);
         
         if (!match) {
-            showToast("Valor não encontrado no banco de dados.", "warning");
+            showToast("Valor não encontrado no banco de dados. Selecione uma opção da lista.", "warning");
             onChange(''); // Limpa o campo para forçar seleção correta
         }
     }
@@ -120,8 +128,8 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
                       }`} 
                     onMouseDown={(e) => { 
                       e.preventDefault(); 
-                      onChange(o.value);
-                      if(onSelectOption) onSelectOption(o.label); // Passa o label para o parser de matrícula
+                      onChange(o.value); // Define o valor limpo (ex: Nome)
+                      if(onSelectOption) onSelectOption(o.label); // Passa o label completo (com matrícula) para processamento
                       setOpen(false); 
                     }}
                   >
