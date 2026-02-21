@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Unit, StaffVisit, User, UserRole, VisitReason, ProStaff, ParticipantType } from '../../types';
+import { Unit, StaffVisit, User, VisitReason, ProStaff, ParticipantType } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import Autocomplete, { AutocompleteOption } from '../Shared/Autocomplete';
 import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
+import FormScaffold from '../Shared/FormScaffold';
 import { isRecordLocked } from '../../utils/validators';
 import { useApp } from '../../contexts/AppContext';
 import { normalizeString, formatWhatsApp } from '../../utils/formatters';
@@ -23,325 +24,183 @@ interface FormProps {
   onToggleReturn?: (id: string) => void;
 }
 
-const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit, onToggleReturn }) => {
+const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
   const { proStaff, proProviders, proSectors, syncMasterContact } = useApp();
   
   const getToday = () => new Date().toLocaleDateString('en-CA');
-
-  const defaultState = { 
-    id: '', 
-    date: getToday(), 
-    sector: '', 
-    reason: VisitReason.ROTINA, 
-    staffName: '', 
-    whatsapp: '', 
-    participantType: ParticipantType.STAFF, // Padrão: Colaborador
-    providerRole: '', // Apenas para Prestadores
-    requiresReturn: false, 
-    returnDate: getToday(), 
-    returnCompleted: false, 
-    observations: '' 
-  };
+  const defaultState = { id: '', date: getToday(), sector: '', reason: VisitReason.ROTINA, staffName: '', whatsapp: '', participantType: ParticipantType.STAFF, providerRole: '', requiresReturn: false, returnDate: getToday(), returnCompleted: false, observations: '' };
   
   const [formData, setFormData] = useState(defaultState);
+  const [isSectorLocked, setIsSectorLocked] = useState(false);
   const { showToast } = useToast();
 
-  // --- RESET INTELIGENTE AO ENTRAR NA ABA ---
   useEffect(() => {
     if (!editingItem) {
       setFormData(prev => ({ ...defaultState, date: prev.date || getToday(), participantType: prev.participantType }));
+      setIsSectorLocked(false);
     }
-  }, []); // Executa apenas na montagem (entrada na aba)
+  }, []);
 
-  const sectorOptions = useMemo(() => {
-    return proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name})).sort((a,b) => a.label.localeCompare(b.label));
-  }, [proSectors, unit]);
+  const sectorOptions = useMemo(() => proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name})).sort((a,b) => a.label.localeCompare(b.label)), [proSectors, unit]);
 
-  // Opções dinâmicas baseadas no tipo selecionado (Colaborador vs Prestador)
   const nameOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
-    const officialSet = new Set<string>(); // Filtro para duplicatas
+    const officialSet = new Set<string>();
     
-    // 1. CARREGA OFICIAIS
     if (formData.participantType === ParticipantType.STAFF) {
-        // Modo Colaborador: Fonte proStaff (RH)
         proStaff.filter(s => s.unit === unit).forEach(staff => {
           const sector = proSectors.find(sec => sec.id === staff.sectorId);
-          const staffIdStr = String(staff.id);
-          options.push({
-            value: staff.name,
-            label: `${staff.name} (${staffIdStr.split('-')[1] || staffIdStr})`,
-            subLabel: sector ? sector.name : 'Setor não informado',
-            category: 'RH'
-          });
+          options.push({ value: staff.name, label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, subLabel: sector ? sector.name : 'Setor não informado', category: 'RH' });
           officialSet.add(normalizeString(staff.name));
         });
     } else {
-        // Modo Prestador: Fonte proProviders
         proProviders.filter(p => p.unit === unit).forEach(provider => {
-            options.push({
-                value: provider.name,
-                label: provider.name,
-                subLabel: provider.sector || 'Sem setor fixo',
-                category: 'RH' // Usamos a categoria visual 'RH' para indicar registro salvo
-            });
+            options.push({ value: provider.name, label: provider.name, subLabel: provider.sector || 'Sem setor fixo', category: 'RH' });
             officialSet.add(normalizeString(provider.name));
         });
     }
 
-    // 2. CARREGA HISTÓRICO (Ignorando quem já está na lista oficial)
     const uniqueNames = new Set<string>();
     history.forEach(v => {
-      // Filtra histórico pelo tipo atual para não misturar
       const historyType = (v as any).participantType || ParticipantType.STAFF;
       if (historyType === formData.participantType && v.staffName) {
          const norm = normalizeString(v.staffName);
          if (!uniqueNames.has(norm) && !officialSet.has(norm)) {
              uniqueNames.add(norm);
-             options.push({
-                 value: v.staffName,
-                 label: v.staffName,
-                 subLabel: v.sector,
-                 category: 'History'
-             });
+             options.push({ value: v.staffName, label: v.staffName, subLabel: v.sector, category: 'History' });
          }
       }
     });
-    
     return options;
   }, [proStaff, proProviders, proSectors, unit, history, formData.participantType]);
 
   useEffect(() => {
     if (editingItem) {
-      setFormData({ 
-        ...editingItem, 
-        whatsapp: (editingItem as any).whatsapp || '',
-        participantType: (editingItem as any).participantType || ParticipantType.STAFF,
-        providerRole: (editingItem as any).providerRole || '',
-        date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), 
-        returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : getToday(),
-        observations: editingItem.observations || ''
-      });
+      setFormData({ ...editingItem, whatsapp: (editingItem as any).whatsapp || '', participantType: (editingItem as any).participantType || ParticipantType.STAFF, providerRole: (editingItem as any).providerRole || '', date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : getToday(), observations: editingItem.observations || '' });
+      if (editingItem.participantType === ParticipantType.STAFF || !editingItem.participantType) {
+          const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(editingItem.staffName) && s.unit === unit);
+          setIsSectorLocked(!!staff);
+      } else {
+          setIsSectorLocked(false);
+      }
     }
-  }, [editingItem]);
+  }, [editingItem, unit, proStaff]);
 
   const handleSelectName = (label: string) => {
       const nameOnly = label.split(' (')[0].trim();
-      const match = label.match(/\((.*?)\)$/); // Tenta pegar matrícula se houver
-      
+      const match = label.match(/\((.*?)\)$/);
       let foundSector = formData.sector;
       let foundWhatsapp = formData.whatsapp;
+      let lockSector = false;
 
       if (formData.participantType === ParticipantType.STAFF) {
-          // Lógica Colaborador (Imã do RH)
           let staff: ProStaff | undefined;
-          if (match) {
-              const rawId = match[1];
-              staff = proStaff.find(s => s.id === `${unit}-${rawId}` || s.id === rawId || s.id === rawId.padStart(6, '0'));
-          }
-          if (!staff) {
-              staff = proStaff.find(s => normalizeString(s.name) === normalizeString(nameOnly) && s.unit === unit);
-          }
+          if (match) staff = proStaff.find(s => s.id === `${unit}-${match[1]}` || s.id === match[1] || s.id === match[1].padStart(6, '0'));
+          if (!staff) staff = proStaff.find(s => normalizeString(s.name) === normalizeString(nameOnly) && s.unit === unit);
 
           if (staff) {
               const sector = proSectors.find(s => s.id === staff.sectorId);
-              // Força a atualização com os dados do banco (Data Magnet)
-              if (sector) {
-                  foundSector = sector.name;
-              }
+              if (sector) { foundSector = sector.name; lockSector = true; } else { lockSector = false; }
               if (staff.whatsapp) foundWhatsapp = formatWhatsApp(staff.whatsapp);
-          }
+          } else { lockSector = false; }
       } else {
-          // Lógica Prestador (Imã Reverso / Memória)
           const provider = proProviders.find(p => normalizeString(p.name) === normalizeString(nameOnly) && p.unit === unit);
           if (provider) {
               if (provider.sector) foundSector = provider.sector;
               if (provider.whatsapp) foundWhatsapp = formatWhatsApp(provider.whatsapp);
           }
+          lockSector = false;
       }
 
-      setFormData(prev => ({ 
-        ...prev, 
-        staffName: nameOnly, 
-        whatsapp: foundWhatsapp, // Sobrescreve com o do banco
-        sector: foundSector      // Sobrescreve com o do banco
-      }));
+      setFormData(prev => ({ ...prev, staffName: nameOnly, whatsapp: foundWhatsapp, sector: foundSector }));
+      setIsSectorLocked(lockSector);
+      if (lockSector) showToast("Setor vinculado ao cadastro oficial.", "info");
   };
 
   const handleClear = () => {
     setFormData({ ...defaultState, date: formData.date, participantType: formData.participantType });
+    setIsSectorLocked(false);
     showToast("Campos limpos!", "info");
+  };
+
+  const handleChangeName = (v: string) => {
+      setFormData({...formData, staffName: v});
+      if (!v) setIsSectorLocked(false);
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.date) { showToast("O campo 'Data da Visita' é obrigatório."); return; }
-    if (!formData.staffName) { showToast(`O campo '${formData.participantType === ParticipantType.STAFF ? 'Colaborador' : 'Nome do Prestador'}' é obrigatório.`); return; }
-    if (!formData.reason) { showToast("O campo 'Motivo da Visita' é obrigatório."); return; }
+    if (!formData.date) { showToast("Data obrigatória."); return; }
+    if (!formData.staffName) { showToast("Nome obrigatório."); return; }
+    if (!formData.reason) { showToast("Motivo obrigatório."); return; }
     
     const isStaff = formData.participantType === ParticipantType.STAFF;
 
-    // --- VALIDAÇÃO RESTRITA (STRICT MODE) ---
     if (isStaff) {
-        // 1. Validar Setor (Sempre deve ser oficial para STAFF)
         if (!formData.sector) { showToast("Setor é obrigatório para colaboradores.", "warning"); return; }
-        const sectorExists = proSectors.some(s => s.name === formData.sector && s.unit === unit);
-        if (!sectorExists) {
-            showToast("O setor informado não consta na lista oficial.", "warning");
-            return;
-        }
-
-        // 2. Validar Pessoa
-        const staffExists = proStaff.some(s => normalizeString(s.name) === normalizeString(formData.staffName) && s.unit === unit);
-        if (!staffExists) {
-            showToast("O colaborador informado não consta no Banco de RH.", "warning");
-            return;
-        }
-        
-        // Sync simples (atualiza zap se necessário, mas zap é opcional)
-        if (formData.whatsapp) {
-            await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.STAFF);
-        }
+        if (!proSectors.some(s => s.name === formData.sector && s.unit === unit)) { showToast("Setor inválido.", "warning"); return; }
+        if (!proStaff.some(s => normalizeString(s.name) === normalizeString(formData.staffName) && s.unit === unit)) { showToast("Colaborador não encontrado no RH.", "warning"); return; }
+        if (formData.whatsapp) await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.STAFF);
     } else {
-        // Prestador: 
-        // 1. WhatsApp Obrigatório
-        if (!formData.whatsapp || formData.whatsapp.length < 10) {
-            showToast("WhatsApp é obrigatório para prestadores.", "warning");
-            return;
-        }
-        
-        // 2. Setor Opcional (não valida, mas salva se tiver)
-        // O "Imã Reverso": Salvamos o setor atual como o setor do prestador
+        if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast("WhatsApp é obrigatório para prestadores.", "warning"); return; }
         await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.PROVIDER, formData.sector);
     }
     
     onSubmit({...formData, unit});
     setFormData({ ...defaultState, date: getToday(), returnDate: getToday(), participantType: formData.participantType });
+    setIsSectorLocked(false);
   };
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
 
+  const headerActions = (
+    <>
+      <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start">
+        <button type="button" onClick={() => { setFormData({...defaultState, date: formData.date, participantType: ParticipantType.STAFF}); setIsSectorLocked(false); }} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === ParticipantType.STAFF ? 'bg-white shadow-lg text-rose-600' : 'text-slate-400 hover:text-slate-600'}`}>Colaborador</button>
+        <button type="button" onClick={() => { setFormData({...defaultState, date: formData.date, participantType: ParticipantType.PROVIDER}); setIsSectorLocked(false); }} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === ParticipantType.PROVIDER ? 'bg-white shadow-lg text-rose-600' : 'text-slate-400 hover:text-slate-600'}`}>Prestador</button>
+      </div>
+      <button type="button" onClick={handleClear} className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 hover:text-pink-700 transition-all flex items-center justify-center text-lg shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>
+    </>
+  );
+
+  const historySection = (
+    <HistorySection<StaffVisit> data={history} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['staffName']} renderItem={(item) => (
+      <HistoryCard key={item.id} icon="🤝" color="text-rose-600" title={item.staffName} subtitle={`${item.sector} • ${item.reason}`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} middle={(item as any).participantType === ParticipantType.PROVIDER && (<span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">Prestador</span>)} />
+    )} />
+  );
+
   return (
-    <div className="space-y-10 pb-20">
-      <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
-        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Visita Pastoral</h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Unidade {unit}</p>
-          </div>
-          
-          <div className="flex items-center gap-2">
-             {/* TOGGLE TIPO DE PESSOA */}
-             <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start">
-                <button 
-                    type="button" 
-                    onClick={() => setFormData({...defaultState, date: formData.date, participantType: ParticipantType.STAFF})} 
-                    className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === ParticipantType.STAFF ? 'bg-white shadow-lg text-rose-600' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                    Colaborador
-                </button>
-                <button 
-                    type="button" 
-                    onClick={() => setFormData({...defaultState, date: formData.date, participantType: ParticipantType.PROVIDER})} 
-                    className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === ParticipantType.PROVIDER ? 'bg-white shadow-lg text-rose-600' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                    Prestador
-                </button>
-             </div>
-
-             <button type="button" onClick={handleClear} className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 hover:text-pink-700 transition-all flex items-center justify-center text-lg shadow-sm" title="Limpar Campos">
-                <i className="fas fa-eraser"></i>
-             </button>
-          </div>
-        </div>
-
+    <FormScaffold title="Visita Pastoral" subtitle={`Unidade ${unit}`} headerActions={headerActions} history={historySection}>
+      <form onSubmit={handleFormSubmit} className="space-y-6">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data da Visita *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           
-          <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">
-                  {isStaff ? 'Colaborador Atendido *' : 'Nome do Prestador *'}
-              </label>
-              <Autocomplete 
-                  options={nameOptions} 
-                  value={formData.staffName} 
-                  onChange={v => setFormData({...formData, staffName: v})} 
-                  onSelectOption={handleSelectName} 
-                  placeholder={isStaff ? "Busque por nome ou matrícula..." : "Busque ou digite o nome..."} 
-                  isStrict={isStaff} 
-              />
-          </div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{isStaff ? 'Colaborador Atendido *' : 'Nome do Prestador *'}</label><Autocomplete options={nameOptions} value={formData.staffName} onChange={handleChangeName} onSelectOption={handleSelectName} placeholder={isStaff ? "Busque por nome ou matrícula..." : "Busque ou digite o nome..."} isStrict={isStaff} /></div>
 
-          {/* Campo Extra para Prestador */}
           {!isStaff && (
-              <div className="space-y-1 md:col-span-2 animate-in slide-in-from-top-2 duration-300">
-                  <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Função / Especialidade</label>
-                  <input 
-                      placeholder="Ex: Médico Cardiologista, Técnico de TI..." 
-                      value={formData.providerRole} 
-                      onChange={e => setFormData({...formData, providerRole: e.target.value})} 
-                      className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-700" 
-                  />
-              </div>
+              <div className="space-y-1 md:col-span-2 animate-in slide-in-from-top-2 duration-300"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Função / Especialidade</label><input placeholder="Ex: Médico Cardiologista, Técnico de TI..." value={formData.providerRole} onChange={e => setFormData({...formData, providerRole: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-700" /></div>
           )}
 
-          <div className="space-y-1">
-              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-rose-600' : 'text-slate-400'}`}>
-                  WhatsApp {!isStaff ? '(Obrigatório)' : '(Opcional)'}
-              </label>
-              <input 
-                  placeholder="(00) 00000-0000" 
-                  value={formData.whatsapp} 
-                  onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} 
-                  className={`w-full p-4 rounded-2xl border-none font-bold transition-all ${!isStaff ? 'bg-rose-50 text-rose-900 ring-2 ring-rose-100 focus:ring-rose-300' : 'bg-slate-50'}`} 
-              />
-          </div>
+          <div className="space-y-1"><label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-rose-600' : 'text-slate-400'}`}>WhatsApp {!isStaff ? '(Obrigatório)' : '(Opcional)'}</label><input placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className={`w-full p-4 rounded-2xl border-none font-bold transition-all ${!isStaff ? 'bg-rose-50 text-rose-900 ring-2 ring-rose-100 focus:ring-rose-300' : 'bg-slate-50'}`} /></div>
 
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Motivo da Visita *</label><select value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value as VisitReason})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold">{Object.values(VisitReason).map(r => <option key={r} value={r}>{r}</option>)}</select></div>
           
           <div className="space-y-1 md:col-span-2">
-              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>
-                  Setor / Local {isStaff ? '(Obrigatório)' : '(Opcional)'}
-              </label>
-              <Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local da visita..." isStrict={isStaff} />
+              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>Setor / Local {isStaff ? '(Obrigatório)' : '(Opcional)'}</label>
+              {isSectorLocked ? (
+                  <div className="w-full p-4 rounded-2xl bg-slate-100 border border-slate-200 font-bold text-slate-500 cursor-not-allowed flex justify-between items-center group relative" title="Vínculo oficial do RH"><span>{formData.sector}</span><i className="fas fa-lock text-slate-400"></i><span className="absolute -top-2 right-2 bg-blue-100 text-blue-600 text-[8px] font-black px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wider">RH Link</span></div>
+              ) : (
+                  <Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local da visita..." isStrict={isStaff} />
+              )}
           </div>
           
-          <div className="space-y-1 md:col-span-2">
-            <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border-2 border-transparent hover:border-rose-100 transition-all cursor-pointer" onClick={() => setFormData({...formData, requiresReturn: !formData.requiresReturn})}>
-              <input type="checkbox" checked={formData.requiresReturn} readOnly className="w-6 h-6 rounded-lg text-rose-600 cursor-pointer" />
-              <div><label className="font-black text-slate-700 text-xs uppercase tracking-widest cursor-pointer block">Necessita Retorno?</label></div>
-            </div>
-          </div>
+          <div className="space-y-1 md:col-span-2"><div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border-2 border-transparent hover:border-rose-100 transition-all cursor-pointer" onClick={() => setFormData({...formData, requiresReturn: !formData.requiresReturn})}><input type="checkbox" checked={formData.requiresReturn} readOnly className="w-6 h-6 rounded-lg text-rose-600 cursor-pointer" /><div><label className="font-black text-slate-700 text-xs uppercase tracking-widest cursor-pointer block">Necessita Retorno?</label></div></div></div>
           {formData.requiresReturn && (<div className="space-y-1 md:col-span-2 animate-in slide-in-from-left duration-300"><label className="text-[10px] font-black text-rose-500 ml-2 uppercase tracking-widest">Agendar Retorno para *</label><input type="date" value={formData.returnDate} onChange={e => setFormData({...formData, returnDate: e.target.value})} className="w-full p-4 rounded-2xl border-2 border-rose-100 text-rose-700 font-black text-lg" /></div>)}
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Observações da Visita</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium" /></div>
         </div>
         <button type="submit" className="w-full py-6 bg-rose-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs hover:bg-rose-700 transition-all">Registrar Visita Pastoral</button>
       </form>
-
-      <HistorySection<StaffVisit> 
-        data={history} 
-        users={users} 
-        currentUser={currentUser} 
-        isLoading={isLoading} 
-        searchFields={['staffName']} 
-        renderItem={(item) => (
-            <HistoryCard 
-                key={item.id} 
-                icon="🤝" 
-                color="text-rose-600" 
-                title={item.staffName} 
-                subtitle={`${item.sector} • ${item.reason}`} 
-                chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} 
-                isLocked={isRecordLocked(item.date, currentUser.role)} 
-                onEdit={() => onEdit?.(item)} 
-                onDelete={() => onDelete(item.id)} 
-                middle={(item as any).participantType === ParticipantType.PROVIDER && (
-                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">Prestador</span>
-                )}
-            />
-        )} 
-      />
-    </div>
+    </FormScaffold>
   );
 };
 
