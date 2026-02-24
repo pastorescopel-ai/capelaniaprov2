@@ -1,6 +1,24 @@
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --primary-color: #005a9c;
+}
+
+/* Classes personalizadas */
+.solid-card {
+  @apply bg-white border border-slate-200 shadow-sm rounded-[2.5rem];
+}
+.solid-nav {
+  @apply bg-white border-b border-slate-200 shadow-sm;
+}
+input, select, textarea {
+  @apply bg-white border border-slate-300 text-slate-800;
+}
+input:focus, select:focus, textarea:focus {
+  @apply border-[#005a9c] ring-2 ring-[#005a9c] outline-none;
 }
 
 body {

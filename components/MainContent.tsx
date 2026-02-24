@@ -45,6 +45,13 @@ interface MainContentProps {
   loadFromCloud: (showLoader?: boolean) => Promise<void>;
 }
 
+const TabLoading = () => (
+  <div className="flex flex-col items-center justify-center h-[60vh] space-y-6">
+    <div className="w-16 h-16 border-4 border-slate-100 border-t-blue-500 rounded-full animate-spin"></div>
+    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Preparando tela...</p>
+  </div>
+);
+
 const MainContent: React.FC<MainContentProps> = ({
   activeTab, visitedTabs, currentUser, users, bibleStudies, bibleClasses, smallGroups, staffVisits,
   config, currentUnit, unitSectors, editingItem, isLoading,
@@ -52,13 +59,6 @@ const MainContent: React.FC<MainContentProps> = ({
   updateCurrentUser, handleSaveItem, getVisibleHistory, loadFromCloud
 }) => {
   const { showToast } = useToast();
-
-  const TabLoading = () => (
-    <div className="flex flex-col items-center justify-center h-[60vh] space-y-6">
-      <div className="w-16 h-16 border-4 border-slate-100 border-t-blue-500 rounded-full animate-spin"></div>
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Preparando tela...</p>
-    </div>
-  );
 
   const handleTransfer = async (type: string, id: string, newUserId: string) => {
     let collectionName = '';

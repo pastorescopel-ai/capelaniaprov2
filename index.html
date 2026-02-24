@@ -17,58 +17,6 @@
     <title>Capelania Pro</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-
-    <!-- Tailwind CSS CDN (Modo Runtime para correção imediata de layout) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              primary: '#005a9c',
-            },
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            }
-          }
-        }
-      }
-    </script>
-    <style type="text/tailwindcss">
-        /* Classes personalizadas que usam @apply */
-        .solid-card {
-          @apply bg-white border border-slate-200 shadow-sm rounded-[2.5rem];
-        }
-        .solid-nav {
-          @apply bg-white border-b border-slate-200 shadow-sm;
-        }
-        input, select, textarea {
-          @apply bg-white border border-slate-300 text-slate-800;
-        }
-        input:focus, select:focus, textarea:focus {
-          @apply border-[#005a9c] ring-2 ring-[#005a9c] outline-none;
-        }
-    </style>
-
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.3",
-    "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0",
-    "recharts": "https://esm.sh/recharts@^3.7.0",
-    "xlsx": "https://esm.sh/xlsx@^0.18.5",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.95.3",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
-    "jspdf": "https://esm.sh/jspdf@^4.1.0",
-    "jszip": "https://esm.sh/jszip@^3.10.1"
-  }
-}
-</script>
 </head>
 <body class="text-slate-900 antialiased overflow-x-hidden">
     <div id="root"></div>
