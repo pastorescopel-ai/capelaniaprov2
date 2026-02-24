@@ -226,11 +226,21 @@ export const DataRepository = {
     const CHUNK_SIZE = 100;
     for (let i = 0; i < payloads.length; i += CHUNK_SIZE) {
       const chunk = payloads.slice(i, i + CHUNK_SIZE);
-      const { error } = await supabase.from(tableName).upsert(chunk).select();
+      console.log(`[DataRepo] Tentando UPSERT em ${tableName}:`, chunk);
+      
+      const { data, error } = await supabase.from(tableName).upsert(chunk).select();
+      
       if (error) {
-        console.error(`[DataRepo] ERRO CRÍTICO no Supabase (${tableName}):`, error);
+        console.error(`[DataRepo] ERRO CRÍTICO no Supabase (${tableName}):`, {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          payloadSent: chunk
+        });
         return false;
       }
+      console.log(`[DataRepo] Sucesso no UPSERT em ${tableName}. Resposta:`, data);
     }
 
     if (collection === 'bibleClasses') {
@@ -242,7 +252,7 @@ export const DataRepository = {
                 const attendeesPayload = cls.students.map((name: string) => {
                     // Extrai ID numérico do padrão "Nome (123)"
                     const match = name.match(/\((\d+)\)$/);
-                    let staffId = match ? match[1] : null;
+                    const staffId = match ? match[1] : null;
                     return {
                         class_id: cls.id,
                         student_name: name,

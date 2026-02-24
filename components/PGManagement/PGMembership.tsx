@@ -126,7 +126,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     const realMembers = proGroupMembers
       .filter(m => m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id)) // Filtro Soft Delete
       .map(m => {
-        let staff = proStaff.find(s => cleanId(s.id) === cleanId(m.staffId));
+        const staff = proStaff.find(s => cleanId(s.id) === cleanId(m.staffId));
         return { 
             id: m.id,
             staffName: staff?.name || `Desconhecido (ID: ${m.staffId})`, 
@@ -164,6 +164,8 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
 
   const handleEnroll = async (staffId: string) => {
     if (!currentPG) { showToast("Selecione um PG de destino primeiro.", "warning"); return; }
+    console.log(`[Protocolo] Iniciando matrícula: Colaborador ${staffId} -> PG ${currentPG.id}`);
+    
     setPendingTransfers(prev => new Set(prev).add(staffId));
     setIsProcessing(true);
     try {
@@ -171,8 +173,10 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
       const existingActiveMemberships = proGroupMembers.filter(m => cleanId(m.staffId) === cleanId(staffId) && !m.leftAt);
       
       if (existingActiveMemberships.length > 0) {
+        console.log(`[Protocolo] Encontradas ${existingActiveMemberships.length} matrículas ativas. Fechando...`);
         // Se já estiver no grupo de destino, não faz nada
         if (existingActiveMemberships.some(m => m.groupId === currentPG.id)) {
+          console.warn(`[Protocolo] Colaborador já está no PG de destino.`);
           setPendingTransfers(prev => { const newSet = new Set(prev); newSet.delete(staffId); return newSet; });
           return; 
         }
@@ -194,11 +198,12 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
       if (success) {
         showToast("Matrícula realizada!", "success");
       } else {
-        throw new Error("Falha no banco de dados");
+        throw new Error("O banco de dados rejeitou a gravação. Verifique o console.");
       }
-    } catch (e) {
+    } catch (e: any) {
+      console.error(`[Protocolo] Falha na matrícula:`, e);
       setPendingTransfers(prev => { const newSet = new Set(prev); newSet.delete(staffId); return newSet; });
-      showToast("Erro ao matricular. Verifique a conexão.", "warning");
+      showToast(e.message || "Erro ao matricular. Verifique a conexão.", "warning");
     } finally { setIsProcessing(false); }
   };
 
@@ -206,6 +211,8 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     if (!memberToRemove) return;
     const memberId = memberToRemove.id;
     const staffId = memberToRemove.staffId;
+    
+    console.log(`[Protocolo] Iniciando remoção: Membro ${memberId} (Colaborador ${staffId})`);
     
     setPendingRemovals(prev => new Set(prev).add(memberId));
     
@@ -216,7 +223,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
       !m.leftAt
     );
     
-    // Adiciona todos os IDs de duplicatas à lista de pendentes para sumirem da UI
+    console.log(`[Protocolo] Matrículas ativas para fechar:`, activeMemberships.map(m => m.id));
     activeMemberships.forEach(m => setPendingRemovals(prev => new Set(prev).add(m.id)));
     
     setMemberToRemove(null);
@@ -226,19 +233,24 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
       if (activeMemberships.length > 0) {
           // Fecha todas as matrículas encontradas (Data Healing em tempo real)
           const updates = activeMemberships.map(m => ({ ...m, leftAt: Date.now() }));
+          console.log(`[Protocolo] Enviando comando de fechamento (Soft Delete)...`);
           const success = await saveRecord('proGroupMembers', updates);
           
           if (success) {
+            console.log(`[Protocolo] Remoção confirmada pelo servidor.`);
             showToast(`${activeMemberships.length > 1 ? 'Matrículas duplicadas limpas!' : 'Removido com sucesso.'}`, "success");
           } else {
-            throw new Error("Falha ao remover");
+            throw new Error("O servidor não confirmou a remoção. Verifique o console.");
           }
+      } else {
+        console.warn(`[Protocolo] Nenhuma matrícula ativa encontrada para remover.`);
       }
-    } catch (e) {
+    } catch (e: any) {
+      console.error(`[Protocolo] Falha na remoção:`, e);
       activeMemberships.forEach(m => {
         setPendingRemovals(prev => { const newSet = new Set(prev); newSet.delete(m.id); return newSet; });
       });
-      showToast("Erro ao remover do grupo.", "warning");
+      showToast(e.message || "Erro ao remover do grupo.", "warning");
     } finally { setIsProcessing(false); }
   };
 
