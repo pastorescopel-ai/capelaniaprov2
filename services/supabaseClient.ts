@@ -10,5 +10,13 @@ if (!hasCredentials) {
 
 // Se não houver credenciais, exporta null em vez de tentar criar um cliente inválido (o que causaria crash)
 export const supabase = hasCredentials 
-  ? createClient(SUPABASE_URL, SUPABASE_KEY) 
+  ? createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+      global: {
+        headers: { 'x-application-name': 'capelania-pro' },
+      }
+    }) 
   : null;

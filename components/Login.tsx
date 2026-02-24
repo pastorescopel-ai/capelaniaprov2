@@ -15,6 +15,7 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected, config }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { showToast } = useToast();
   
@@ -97,14 +98,23 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
           </div>
           <div className="space-y-1">
             <label className="text-sm font-semibold text-slate-600 px-1 uppercase text-[10px] tracking-widest">Senha</label>
-            <input 
-              required
-              type="password" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)}
-              className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input 
+                required
+                type={showPassword ? "text" : "password"}
+                value={password} 
+                onChange={e => setPassword(e.target.value)}
+                className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 transition-all font-medium pr-12"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+              >
+                <i className={`fas fa-eye${showPassword ? '-slash' : ''}`}></i>
+              </button>
+            </div>
             {errorMsg && (
               <p className="text-rose-600 text-[10px] font-bold uppercase tracking-widest px-2 pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
                 <i className="fas fa-exclamation-circle mr-1"></i> {errorMsg}
