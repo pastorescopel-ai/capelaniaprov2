@@ -4,11 +4,10 @@ import { Unit } from '../../types';
 import PGDashboard from './PGDashboard';
 import PGMembership from './PGMembership';
 import PGReports from './PGReports';
-import PGMaestro from '../Admin/PGMaestro';
 import PGOps from './PGOps';
 
 const PGManagerLayout: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'structure' | 'ops' | 'reports'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'ops' | 'reports'>('dashboard');
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
 
   useEffect(() => {
@@ -21,7 +20,6 @@ const PGManagerLayout: React.FC = () => {
   const tabs = [
     { id: 'dashboard', label: 'Visão Geral', icon: 'fas fa-chart-pie' },
     { id: 'membership', label: 'Matrícula', icon: 'fas fa-user-plus' },
-    { id: 'structure', label: 'Cadastros', icon: 'fas fa-sitemap' },
     { id: 'ops', label: 'Agenda PG', icon: 'fas fa-calendar-check' },
     { id: 'reports', label: 'Relatórios', icon: 'fas fa-print' },
   ];
@@ -87,20 +85,6 @@ const PGManagerLayout: React.FC = () => {
         <main className="animate-in fade-in slide-in-from-top-2 duration-500">
           {activeSubTab === 'dashboard' && <PGDashboard unit={currentUnit} />}
           {activeSubTab === 'membership' && <PGMembership unit={currentUnit} />}
-          {activeSubTab === 'structure' && (
-             <div className="space-y-4">
-               <div className="bg-amber-50 border border-amber-100 p-6 rounded-[2rem] flex gap-4 items-center mb-4">
-                   <div className="w-12 h-12 bg-amber-200 text-amber-700 rounded-xl flex items-center justify-center text-xl">
-                       <i className="fas fa-info-circle"></i>
-                   </div>
-                   <div>
-                       <h4 className="font-black text-amber-800 text-sm uppercase">Gerenciamento Estrutural</h4>
-                       <p className="text-xs text-amber-700/70">Use esta ferramenta para criar novos PGs, fundir duplicatas e definir quais setores cada PG atende.</p>
-                   </div>
-               </div>
-               <PGMaestro />
-             </div>
-          )}
           {activeSubTab === 'ops' && <PGOps unit={currentUnit} />}
           {activeSubTab === 'reports' && <PGReports unit={currentUnit} />}
         </main>

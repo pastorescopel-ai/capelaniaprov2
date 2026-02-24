@@ -1,7 +1,6 @@
 
 import React, { useRef, useState, useMemo } from 'react';
 import { useToast } from '../../contexts/ToastContext';
-import PGMaestro from './PGMaestro';
 import { ProStaff, ProSector, ProGroup, Unit } from '../../types';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 import Autocomplete from '../Shared/Autocomplete';
@@ -198,7 +197,6 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
         </div>
         {totalPages > 1 && (<div className="flex items-center justify-center gap-2 pt-6"><button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600"><i className="fas fa-chevron-left"></i></button><button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600"><i className="fas fa-chevron-right"></i></button></div>)}
       </section>
-      <PGMaestro proData={proData} />
     </div>
   );
 };
