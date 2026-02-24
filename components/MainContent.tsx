@@ -14,6 +14,7 @@ const Reports = lazy(() => import('./Reports'));
 const UserManagement = lazy(() => import('./UserManagement'));
 const AdminPanel = lazy(() => import('./AdminPanel'));
 const PGManager = lazy(() => import('./PGManagement/PGManagerLayout'));
+const AmbassadorsManager = lazy(() => import('./Ambassadors/AmbassadorsManager'));
 const DataHealer = lazy(() => import('./DataHealer')); // Importação Lazy
 
 interface MainContentProps {
@@ -145,6 +146,14 @@ const MainContent: React.FC<MainContentProps> = ({
         <div className={getTabClass('pgManagement')}>
           <Suspense fallback={<TabLoading />}>
             <PGManager />
+          </Suspense>
+        </div>
+      )}
+
+      {visitedTabs.has('ambassadors') && (
+        <div className={getTabClass('ambassadors')}>
+          <Suspense fallback={<TabLoading />}>
+            <AmbassadorsManager />
           </Suspense>
         </div>
       )}

@@ -35,7 +35,7 @@ const App: React.FC = () => {
   }, [activeTab]);
 
   useEffect(() => {
-    if (['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab)) {
+    if (['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit', 'ambassadors'].includes(activeTab)) {
         setEditingItem(null);
     }
   }, [activeTab, setEditingItem]);

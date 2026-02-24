@@ -196,6 +196,17 @@ export interface VisitRequest {
   updatedAt?: string;
 }
 
+export interface Ambassador {
+  id: string;
+  name: string;
+  registrationId?: string; // Matrícula
+  email?: string;
+  sectorId?: string;
+  unit: Unit;
+  completionDate: string;
+  createdAt?: string;
+}
+
 // Interfaces Auxiliares de Integração
 export interface Leader {
   full_name: string;

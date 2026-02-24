@@ -18,6 +18,7 @@ export const NAV_ITEMS = [
   { id: 'smallGroup', label: 'Pequenos Grupos', icon: '🏠', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
   { id: 'staffVisit', label: 'Visitas', icon: '🤝', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
   { id: 'pgManagement', label: 'Gestão de PGs', icon: '🧩', roles: [UserRole.ADMIN] },
+  { id: 'ambassadors', label: 'Embaixadores', icon: '🌟', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
   { id: 'reports', label: 'Relatórios', icon: '📈', roles: [UserRole.ADMIN] },
   { id: 'users', label: 'Equipe', icon: '👥', roles: [UserRole.ADMIN] },
   { id: 'dataHealing', label: 'Cura de Dados', icon: '🚑', roles: [UserRole.ADMIN] }, // NOVO ITEM
