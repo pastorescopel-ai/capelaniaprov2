@@ -24,7 +24,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
   const [pendingRemovals, setPendingRemovals] = useState<Set<string>>(new Set());
 
   // Estado para o Modal de Exclusão
-  const [memberToRemove, setMemberToRemove] = useState<{ id: string; name: string } | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<{ id: string; name: string; staffId: string } | null>(null);
 
   useEffect(() => {
     setPendingTransfers(new Set());
@@ -218,7 +218,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     
     // Busca todas as matrículas ativas deste colaborador neste PG (para limpar duplicatas)
     const activeMemberships = proGroupMembers.filter(m => 
-      cleanId(m.staffId) === cleanId(staffId) && 
+      (cleanId(m.staffId) === cleanId(staffId) || m.id === memberId) && 
       m.groupId === currentPG?.id && 
       !m.leftAt
     );
@@ -361,7 +361,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
                 {!member.isOptimistic && (
                     <div className="flex gap-1 flex-shrink-0 ml-2">
                         <button onClick={() => handleSetLeader(member)} disabled={isProcessing || member.isLeader} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${member.isLeader ? 'bg-amber-100 text-amber-500 cursor-default' : 'bg-slate-50 text-slate-300 hover:text-amber-400 hover:bg-amber-50'}`}><i className="fas fa-crown text-[10px]"></i></button>
-                        <button onClick={() => setMemberToRemove({ id: member.id, name: member.staffName })} disabled={isProcessing} className="w-7 h-7 rounded-lg bg-rose-50 text-rose-300 hover:text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-all"><i className="fas fa-trash text-[10px]"></i></button>
+                        <button onClick={() => setMemberToRemove({ id: member.id, name: member.staffName, staffId: member.staffId })} disabled={isProcessing} className="w-7 h-7 rounded-lg bg-rose-50 text-rose-300 hover:text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-all"><i className="fas fa-trash text-[10px]"></i></button>
                     </div>
                 )}
               </div>
