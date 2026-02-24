@@ -133,11 +133,18 @@ WHERE id IN (
 DROP INDEX IF EXISTS idx_unique_active_membership;
 CREATE UNIQUE INDEX idx_unique_active_membership ON pro_group_members (staff_id, group_id) WHERE (left_at IS NULL);
 
--- 5. REPARO DE INTEGRIDADE - MATRÍCULAS (V6.1)
--- Objetivo: Impedir duplicatas e limpar registros fantasmas
+-- 5. REPARO DE INTEGRIDADE E SEGURANÇA - MATRÍCULAS (V6.5)
+-- Objetivo: Impedir duplicatas e garantir permissões de escrita (RLS)
 
--- A. Blindagem contra novas duplicatas
--- Garante que um colaborador só possa ter UMA matrícula ativa por grupo
+-- A. Ativação de RLS e Políticas de Acesso
+ALTER TABLE IF EXISTS pro_group_members ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Permitir tudo para usuários autenticados" ON pro_group_members;
+CREATE POLICY "Permitir tudo para usuários autenticados" 
+ON pro_group_members FOR ALL TO authenticated 
+USING (true) WITH CHECK (true);
+
+-- B. Blindagem contra novas duplicatas
 DROP INDEX IF EXISTS idx_unique_active_membership;
 CREATE UNIQUE INDEX idx_unique_active_membership ON pro_group_members (staff_id, group_id) WHERE (left_at IS NULL);
 
