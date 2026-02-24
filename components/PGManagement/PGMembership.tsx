@@ -217,11 +217,18 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     setPendingRemovals(prev => new Set(prev).add(memberId));
     
     // Busca todas as matrículas ativas deste colaborador neste PG (para limpar duplicatas)
+    // Usamos staffId e groupId como âncoras de verdade, pois o ID do registro pode estar sujo (UUID vs BIGINT)
     const activeMemberships = proGroupMembers.filter(m => 
-      (cleanId(m.staffId) === cleanId(staffId) || m.id === memberId) && 
+      cleanId(m.staffId) === cleanId(staffId) && 
       m.groupId === currentPG?.id && 
       !m.leftAt
     );
+    
+    if (activeMemberships.length === 0 && memberId) {
+        console.warn(`[Protocolo] Nenhuma matrícula por staffId. Tentando por ID direto: ${memberId}`);
+        const byId = proGroupMembers.find(m => m.id === memberId && !m.leftAt);
+        if (byId) activeMemberships.push(byId);
+    }
     
     console.log(`[Protocolo] Matrículas ativas para fechar:`, activeMemberships.map(m => m.id));
     activeMemberships.forEach(m => setPendingRemovals(prev => new Set(prev).add(m.id)));

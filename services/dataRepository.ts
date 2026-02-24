@@ -89,14 +89,25 @@ const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: st
       if (isProTable && isProIdField) {
           if (val !== null && val !== undefined && val !== '') {
              const valStr = String(val);
-             // Se for um UUID em uma tabela PRO, é um ID temporário do front.
-             // Removemos para que o banco gere o BIGINT automático.
-             if (snakeKey === 'id' && isValidUUID(valStr)) {
-                continue;
+             
+             // BLINDAGEM CRÍTICA (V4.4):
+             // Se for um UUID em uma tabela PRO, e estamos tentando SALVAR, 
+             // isso significa que o frontend tem um ID sujo/antigo.
+             // Se for um UPSERT de um registro existente, precisamos do ID REAL (numérico).
+             // Se for um novo registro, removemos o UUID para o banco gerar o BIGINT.
+             if (isValidUUID(valStr)) {
+                if (snakeKey === 'id') {
+                    // console.warn(`[DataRepo] Descartando ID UUID em tabela PRO: ${valStr}`);
+                    continue; 
+                } else {
+                    // FKs (sector_id, group_id) não podem ser UUIDs em tabelas PRO
+                    val = null;
+                }
+             } else {
+                // Remove caracteres não numéricos para salvar como BIGINT limpo
+                const numericVal = valStr.replace(/\D/g, '');
+                if (numericVal) val = numericVal;
              }
-             // Remove caracteres não numéricos para salvar como BIGINT limpo
-             const numericVal = valStr.replace(/\D/g, '');
-             if (numericVal) val = numericVal; 
           }
       }
 
