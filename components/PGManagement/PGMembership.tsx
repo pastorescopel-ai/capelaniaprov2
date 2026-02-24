@@ -81,8 +81,13 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     return proStaff
       .filter(s => s.sectorId === currentSector.id)
       .map(staff => {
-        // Filtro Soft Delete: Procura apenas matrícula ativa
-        const membership = proGroupMembers.find(m => cleanId(m.staffId) === cleanId(staff.id) && !m.leftAt);
+        // Filtro Soft Delete: Procura apenas matrícula ativa que NÃO esteja na lista de remoção pendente
+        const membership = proGroupMembers.find(m => 
+          cleanId(m.staffId) === cleanId(staff.id) && 
+          !m.leftAt && 
+          !pendingRemovals.has(m.id)
+        );
+        
         const groupName = membership ? proGroups.find(g => g.id === membership.groupId)?.name : null;
         
         // Data formatada para exibição (Se matriculado)
@@ -93,13 +98,20 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         return { ...staff, membership, groupName, joinedDate: dateStr };
       })
       .filter(staff => {
+        // Se estivermos olhando um PG específico, não mostrar quem já está nele (ou está sendo transferido para ele)
         if (currentPG) {
             const isAlreadyInThisGroup = proGroupMembers.some(m => 
-                m.groupId === currentPG.id && cleanId(m.staffId) === cleanId(staff.id) && !m.leftAt
+                m.groupId === currentPG.id && 
+                cleanId(m.staffId) === cleanId(staff.id) && 
+                !m.leftAt &&
+                !pendingRemovals.has(m.id)
             );
             if (isAlreadyInThisGroup) return false;
         }
+        
+        // Se houver uma transferência pendente para este colaborador, ele "some" da lista de disponíveis
         if (pendingTransfers.has(staff.id)) return false;
+        
         return true;
       })
       .sort((a, b) => {
@@ -107,7 +119,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         if (a.membership && !b.membership) return 1;
         return a.name.localeCompare(b.name);
       });
-  }, [proStaff, currentSector, proGroupMembers, proGroups, currentPG, pendingTransfers]);
+  }, [proStaff, currentSector, proGroupMembers, proGroups, currentPG, pendingTransfers, pendingRemovals]);
 
   const pgMembers = useMemo(() => {
     if (!currentPG) return [];
@@ -155,19 +167,22 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     setPendingTransfers(prev => new Set(prev).add(staffId));
     setIsProcessing(true);
     try {
-      // Soft Delete: Verifica se existe uma matrícula ATIVA em outro grupo
-      const existingActive = proGroupMembers.find(m => cleanId(m.staffId) === cleanId(staffId) && !m.leftAt);
+      // Soft Delete: Verifica se existe QUALQUER matrícula ATIVA (em qualquer grupo)
+      const existingActiveMemberships = proGroupMembers.filter(m => cleanId(m.staffId) === cleanId(staffId) && !m.leftAt);
       
-      if (existingActive) {
-        if (existingActive.groupId === currentPG.id) {
+      if (existingActiveMemberships.length > 0) {
+        // Se já estiver no grupo de destino, não faz nada
+        if (existingActiveMemberships.some(m => m.groupId === currentPG.id)) {
           setPendingTransfers(prev => { const newSet = new Set(prev); newSet.delete(staffId); return newSet; });
           return; 
         }
-        // "Fecha" a matrícula anterior (Soft Delete)
-        await saveRecord('proGroupMembers', { ...existingActive, leftAt: Date.now() });
+        
+        // "Fecha" TODAS as matrículas anteriores para garantir limpeza total
+        const closeUpdates = existingActiveMemberships.map(m => ({ ...m, leftAt: Date.now() }));
+        await saveRecord('proGroupMembers', closeUpdates);
       }
 
-      // Cria nova matrícula (ID omitido para o banco gerar BIGINT)
+      // Cria nova matrícula
       const newMember: any = {
         groupId: currentPG.id,
         staffId: staffId,
