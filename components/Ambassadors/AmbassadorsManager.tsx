@@ -8,16 +8,32 @@ import { useToast } from '../../contexts/ToastContext';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell 
 } from 'recharts';
-import { Upload, Download, Users, CheckCircle, AlertCircle, Search, Trash2 } from 'lucide-react';
+import { Upload, Download, Users, CheckCircle, AlertCircle, Search, Trash2, FileText, Printer, Filter, Calendar } from 'lucide-react';
+import { generateAmbassadorReportHtml } from '../../utils/ambassadorPdf';
+import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
 
 const AmbassadorsManager: React.FC = () => {
   const { proSectors, proStaff, config } = useApp();
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'import'>('dashboard');
+  const { generatePdf, isGenerating } = useDocumentGenerator();
+  
+  // Estados de Navegação e Filtro Global
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'import' | 'list' | 'reports'>('dashboard');
+  const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
+  
+  // Dados
   const [ambassadors, setAmbassadors] = useState<Ambassador[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Importação
   const [importPreview, setImportPreview] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Filtros de Relatório
+  const [reportStartDate, setReportStartDate] = useState('');
+  const [reportEndDate, setReportEndDate] = useState('');
+  const [reportSectorId, setReportSectorId] = useState<string>('all');
+  const [reportSortOrder, setReportSortOrder] = useState<'alpha' | 'percent'>('alpha');
 
   // Carregar embaixadores ao montar
   React.useEffect(() => {
@@ -33,7 +49,6 @@ const AmbassadorsManager: React.FC = () => {
     if (error) {
       showToast('Erro ao carregar embaixadores', 'error');
     } else {
-      // Mapear snake_case para camelCase
       const formatted: Ambassador[] = data.map((d: any) => ({
         id: d.id,
         name: d.name,
@@ -55,22 +70,17 @@ const AmbassadorsManager: React.FC = () => {
       [Unit.HABA]: { total: 0, sectors: {} as Record<string, { name: string, count: number, totalStaff: number, percent: number }> }
     };
 
-    // Inicializar setores
     proSectors.forEach(sector => {
       if (!dataByUnit[sector.unit]) return;
-      
-      // Contar total de staff no setor (Meta)
       const staffInSector = proStaff.filter(s => s.sectorId === sector.id && s.active !== false).length;
-      
       dataByUnit[sector.unit].sectors[sector.id] = {
         name: sector.name,
         count: 0,
-        totalStaff: staffInSector || 1, // Evitar divisão por zero, mas idealmente deveria ser 0 se não tem staff
+        totalStaff: staffInSector || 1,
         percent: 0
       };
     });
 
-    // Contar embaixadores
     ambassadors.forEach(amb => {
       if (amb.sectorId && dataByUnit[amb.unit]?.sectors[amb.sectorId]) {
         dataByUnit[amb.unit].sectors[amb.sectorId].count++;
@@ -78,7 +88,6 @@ const AmbassadorsManager: React.FC = () => {
       }
     });
 
-    // Calcular porcentagens
     Object.keys(dataByUnit).forEach(u => {
       const unit = u as Unit;
       Object.values(dataByUnit[unit].sectors).forEach(s => {
@@ -92,8 +101,8 @@ const AmbassadorsManager: React.FC = () => {
   const getChartData = (unit: Unit) => {
     return Object.values(stats[unit].sectors)
       .sort((a, b) => b.percent - a.percent)
-      .filter(s => s.count > 0 || s.totalStaff > 5) // Mostrar apenas relevantes
-      .slice(0, 15); // Top 15
+      .filter(s => s.count > 0 || s.totalStaff > 5)
+      .slice(0, 15);
   };
 
   // --- LÓGICA DE IMPORTAÇÃO ---
@@ -115,46 +124,25 @@ const AmbassadorsManager: React.FC = () => {
 
   const processImport = async () => {
     setIsLoading(true);
-    let importedCount = 0;
-    let skippedCount = 0;
-    
     try {
-      if (importPreview.length === 0) {
-        throw new Error("A planilha está vazia.");
-      }
+      if (importPreview.length === 0) throw new Error("A planilha está vazia.");
 
-      // 1. Validação de Estrutura (Cabeçalhos)
       const headers = Object.keys(importPreview[0]).map(h => normalizeString(h));
       const requiredFields = ['data', 'matricula', 'nome', 'id_setor', 'setor'];
       const forbiddenFields = ['pg', 'pequenos grupos', 'pequeno grupo'];
 
-      // Verificar campos proibidos
-      const hasForbidden = headers.some(h => forbiddenFields.some(f => h.includes(f)));
-      if (hasForbidden) {
-        throw new Error("A planilha contém colunas proibidas (PG ou Pequenos Grupos). Por favor, remova-as.");
+      if (headers.some(h => forbiddenFields.some(f => h.includes(f)))) {
+        throw new Error("A planilha contém colunas proibidas (PG ou Pequenos Grupos).");
       }
 
-      // Verificar campos obrigatórios
-      // Nota: A verificação é flexível para 'id_setor' vs 'id setor' devido à normalização, mas rigorosa na presença.
       const missingFields = requiredFields.filter(req => !headers.some(h => h.includes(req)));
-      
-      // Validação específica: Não pode ter APENAS setor ou APENAS id_setor. Precisa dos dois.
-      const hasSectorName = headers.some(h => h.includes('setor') && !h.includes('id'));
-      const hasSectorId = headers.some(h => h.includes('id_setor') || h.includes('id setor'));
-
       if (missingFields.length > 0) {
-         throw new Error(`Campos obrigatórios ausentes: ${missingFields.join(', ')}. A planilha deve conter: Data, Matricula, Nome, Id_setor, Setor.`);
-      }
-
-      if (!hasSectorName || !hasSectorId) {
-        throw new Error("A planilha deve conter tanto o 'Setor' quanto o 'Id_setor' para garantir a integridade.");
+         throw new Error(`Campos obrigatórios ausentes: ${missingFields.join(', ')}.`);
       }
 
       const toUpsert = [];
-      const errors = [];
 
       for (const row of importPreview) {
-        // Mapeamento seguro das colunas baseado nos nomes normalizados
         const rowKeys = Object.keys(row);
         const getVal = (keyPart: string) => {
           const key = rowKeys.find(k => normalizeString(k).includes(keyPart));
@@ -164,60 +152,34 @@ const AmbassadorsManager: React.FC = () => {
         const rawDate = getVal('data');
         const matricula = getVal('matricula');
         const nome = getVal('nome');
-        const idSetor = getVal('id_setor') || getVal('id setor');
         const nomeSetor = getVal('setor');
 
-        if (!matricula || !nome) {
-          continue; // Pula linhas inválidas sem erro fatal
-        }
+        if (!matricula || !nome) continue;
 
-        // Tratamento da Data (Excel Serial ou String)
         let completionDate = new Date().toISOString();
         if (rawDate) {
             if (typeof rawDate === 'number') {
-                // Excel date serial
                 const date = new Date(Math.round((rawDate - 25569)*86400*1000));
                 completionDate = date.toISOString();
             } else {
-                // Tenta parsear string
                 const parsed = new Date(rawDate);
-                if (!isNaN(parsed.getTime())) {
-                    completionDate = parsed.toISOString();
-                }
+                if (!isNaN(parsed.getTime())) completionDate = parsed.toISOString();
             }
         }
 
-        // Normalização de Unidade baseada no Setor ou Regra de Negócio
-        // O usuário não pediu campo 'Unidade' na planilha, então precisamos inferir ou pedir.
-        // O prompt anterior tinha 'Unidade' na planilha, mas o novo prompt removeu da lista de obrigatórios e pediu 'Id_setor'.
-        // Vamos tentar inferir a unidade pelo match do setor no banco de dados.
-        
-        let unit = Unit.HAB; // Default
+        let unit = Unit.HAB;
         let sectorIdMatch = null;
-
-        // Tenta achar o setor pelo ID fornecido na planilha (Id_setor)
-        // Assumindo que Id_setor na planilha pode bater com id ou nome no banco? 
-        // O usuário pediu "Id_setor" na planilha. Se esse ID for o ID do banco, ótimo.
-        // Se for um ID externo, precisamos mapear.
-        // Vamos tentar achar pelo NOME do setor primeiro, que é mais garantido se o ID for externo.
         
-        const sectorMatch = proSectors.find(s => 
-            normalizeString(s.name) === normalizeString(nomeSetor)
-        );
+        const sectorMatch = proSectors.find(s => normalizeString(s.name) === normalizeString(nomeSetor));
 
         if (sectorMatch) {
             unit = sectorMatch.unit;
             sectorIdMatch = sectorMatch.id;
-        } else {
-            // Se não achar, marca como erro ou importa sem setor vinculado?
-            // O usuário quer "saber quantos colaboradores por setor". É crucial vincular.
-            // Vamos logar como aviso se não achar.
         }
 
         toUpsert.push({
           registration_id: String(matricula).trim(),
           name: String(nome).trim(),
-          // email: email, // Email não foi listado como obrigatório no novo prompt, mas estava no anterior.
           sector_id: sectorIdMatch, 
           unit: unit,
           completion_date: completionDate,
@@ -226,25 +188,17 @@ const AmbassadorsManager: React.FC = () => {
       }
 
       if (toUpsert.length > 0) {
-        // Upsert baseado na matrícula (registration_id)
-        const { error } = await supabase
-            .from('ambassadors')
-            .upsert(toUpsert, { onConflict: 'registration_id' });
-            
+        const { error } = await supabase.from('ambassadors').upsert(toUpsert, { onConflict: 'registration_id' });
         if (error) throw error;
-        
-        importedCount = toUpsert.length;
-        showToast(`${importedCount} registros processados com sucesso!`, 'success');
+        showToast(`${toUpsert.length} registros processados!`, 'success');
         setImportPreview([]);
         fetchAmbassadors();
         setActiveTab('dashboard');
       } else {
-        showToast('Nenhum dado válido encontrado para importação.', 'warning');
+        showToast('Nenhum dado válido encontrado.', 'warning');
       }
-
     } catch (error: any) {
-      console.error(error);
-      showToast(`Erro na importação: ${error.message}`, 'error');
+      showToast(`Erro: ${error.message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -252,78 +206,150 @@ const AmbassadorsManager: React.FC = () => {
 
   const deleteAmbassador = async (id: string) => {
     if (!confirm('Tem certeza que deseja remover este embaixador?')) return;
-    
     const { error } = await supabase.from('ambassadors').delete().eq('id', id);
-    if (error) {
-      showToast('Erro ao excluir', 'error');
-    } else {
+    if (error) showToast('Erro ao excluir', 'error');
+    else {
       showToast('Excluído com sucesso', 'success');
       setAmbassadors(prev => prev.filter(a => a.id !== id));
     }
   };
 
+  // --- GERAÇÃO DE PDF ---
+  const handleGeneratePDF = async (mode: 'sector' | 'full') => {
+    const html = generateAmbassadorReportHtml(ambassadors, {
+      mode,
+      unit: currentUnit,
+      startDate: reportStartDate,
+      endDate: reportEndDate,
+      sectorId: reportSectorId,
+      sortOrder: reportSortOrder,
+      sectors: proSectors,
+      stats,
+      config
+    });
+
+    if (html) {
+      await generatePdf(html, `Relatorio_Embaixadores_${currentUnit}_${mode}`);
+    } else {
+      showToast('Nenhum dado encontrado para os filtros selecionados.', 'warning');
+    }
+  };
+
   return (
-    <div className="space-y-6 pb-24 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20 relative">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Users className="text-blue-600" />
-            Embaixadores da Esperança
-          </h1>
-          <p className="text-slate-500 mt-1">Gestão do projeto de capacitação e engajamento</p>
-        </div>
-        
-        <div className="flex gap-2 mt-4 md:mt-0">
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === 'dashboard' ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
-          >
-            Dashboard
-          </button>
-          <button 
-            onClick={() => setActiveTab('list')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === 'list' ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
-          >
-            Lista Completa
-          </button>
-          <button 
-            onClick={() => setActiveTab('import')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === 'import' ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
-          >
-            Importar
-          </button>
+      {/* Cabeçalho Estilo Gestão de PGs */}
+      <div className="sticky top-[-1rem] md:top-[-2rem] z-[100] -mx-4 md:-mx-8 px-4 md:px-8 py-4 bg-[#f1f5f9]/90 backdrop-blur-xl border-b border-slate-200/50 shadow-sm transition-all">
+        <div className="max-w-7xl mx-auto space-y-6">
+          
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 md:p-6 rounded-[2rem] md:rounded-[3rem] shadow-sm border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-600 rounded-xl md:rounded-2xl flex items-center justify-center text-white text-lg md:text-xl shadow-lg shadow-blue-900/20">
+                <Users />
+              </div>
+              <div>
+                <h1 className="text-lg md:text-2xl font-black text-slate-800 uppercase tracking-tighter leading-none">
+                  Embaixadores da Esperança
+                </h1>
+                <p className="text-slate-500 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-1 hidden sm:block">
+                  Gestão do projeto de capacitação e engajamento
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex bg-slate-100 p-1 rounded-xl md:rounded-2xl border border-slate-200 self-end md:self-auto">
+              {[Unit.HAB, Unit.HABA].map(u => (
+                <button 
+                  key={u} 
+                  onClick={() => setCurrentUnit(u)} 
+                  className={`px-6 md:px-8 py-2 md:py-3 rounded-lg md:rounded-xl font-black text-[9px] md:text-[10px] uppercase transition-all ${
+                    currentUnit === u 
+                      ? 'bg-blue-600 text-white shadow-lg scale-105' 
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  Unidade {u}
+                </button>
+              ))}
+            </div>
+          </header>
+
+          {/* Navegação de Abas (Scrollable) */}
+          <nav className="flex overflow-x-auto no-scrollbar gap-2">
+            {[
+              { id: 'dashboard', label: 'Visão Geral', icon: <Users size={16} /> },
+              { id: 'import', label: 'Importação', icon: <Upload size={16} /> },
+              { id: 'list', label: 'Lista Completa', icon: <FileText size={16} /> },
+              { id: 'reports', label: 'Relatórios', icon: <Printer size={16} /> },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-2 px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl border-2 transition-all whitespace-nowrap ${
+                  activeTab === tab.id 
+                    ? 'bg-white border-blue-600 text-blue-600 shadow-md scale-105' 
+                    : 'bg-white/50 border-transparent text-slate-400 hover:bg-white hover:text-slate-600'
+                }`}
+              >
+                {tab.icon}
+                <span className="text-[9px] md:text-xs font-black uppercase tracking-wider">{tab.label}</span>
+              </button>
+            ))}
+          </nav>
         </div>
       </div>
 
       {/* Conteúdo Principal */}
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 min-h-[500px]">
-        
-        {activeTab === 'dashboard' && (
-          <div className="space-y-12">
-            {/* Cards de Resumo */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[Unit.HAB, Unit.HABA].map(unit => (
-                <div key={unit} className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
-                  <h3 className="text-lg font-bold text-slate-700 mb-4 flex justify-between">
-                    Unidade {unit}
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Meta: 5%</span>
-                  </h3>
-                  <div className="flex items-end gap-2">
-                    <span className="text-4xl font-black text-blue-600">{stats[unit].total}</span>
-                    <span className="text-slate-500 mb-1">embaixadores</span>
+      <div className="max-w-7xl mx-auto min-h-[500px]">
+        <main className="animate-in fade-in slide-in-from-top-2 duration-500">
+          {activeTab === 'dashboard' && (
+            <div className="space-y-8">
+              {/* Conteúdo do Dashboard (Mantido) */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-8 opacity-5">
+                    <Users size={120} />
                   </div>
-                  
-                  <div className="mt-6 h-64">
+                  <h3 className="text-lg font-black text-slate-700 uppercase tracking-tight mb-2">Total de Embaixadores ({currentUnit})</h3>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-5xl font-black text-blue-600">{stats[currentUnit].total}</span>
+                    <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Colaboradores Capacitados</span>
+                  </div>
+                  <div className="mt-8">
+                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Top 5 Setores (Engajamento)</h4>
+                    <div className="space-y-3">
+                      {getChartData(currentUnit).slice(0, 5).map((s, i) => (
+                        <div key={s.name} className="flex items-center gap-3">
+                          <span className="text-xs font-mono text-slate-400 w-4">{i+1}</span>
+                          <div className="flex-1">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="font-bold text-slate-700">{s.name}</span>
+                              <span className="font-mono text-slate-500">{s.percent.toFixed(1)}%</span>
+                            </div>
+                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${s.percent}%` }}></div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-sm flex flex-col">
+                  <h3 className="text-sm font-black text-slate-700 uppercase tracking-tight mb-4">Desempenho por Setor</h3>
+                  <div className="flex-1 min-h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={getChartData(unit)} layout="vertical" margin={{ left: 40 }}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" domain={[0, 'auto']} hide />
-                        <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10}} />
-                        <Tooltip />
-                        <Bar dataKey="percent" name="% Atingido" radius={[0, 4, 4, 0]}>
-                          {getChartData(unit).map((entry, index) => (
+                      <BarChart data={getChartData(currentUnit).slice(0, 10)} layout="vertical" margin={{ left: 0, right: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="name" type="category" width={80} tick={{fontSize: 9}} interval={0} />
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                          cursor={{ fill: '#f8fafc' }}
+                        />
+                        <Bar dataKey="percent" radius={[0, 4, 4, 0]} barSize={12}>
+                          {getChartData(currentUnit).map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.percent >= 5 ? '#22c55e' : '#3b82f6'} />
                           ))}
                         </Bar>
@@ -331,130 +357,260 @@ const AmbassadorsManager: React.FC = () => {
                     </ResponsiveContainer>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'list' && (
-          <div>
-             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="text-slate-400 text-xs uppercase tracking-wider border-b border-slate-100">
-                    <th className="p-3 font-medium">Matrícula</th>
-                    <th className="p-3 font-medium">Nome</th>
-                    <th className="p-3 font-medium">Unidade</th>
-                    <th className="p-3 font-medium">Setor</th>
-                    <th className="p-3 font-medium">Data</th>
-                    <th className="p-3 font-medium text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm text-slate-600">
-                  {ambassadors.map(amb => {
-                    const sectorName = proSectors.find(s => s.id === amb.sectorId)?.name || 'Não identificado';
-                    return (
-                      <tr key={amb.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                        <td className="p-3 font-mono text-xs">{amb.registrationId || '-'}</td>
-                        <td className="p-3 font-medium text-slate-800">{amb.name}</td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${amb.unit === Unit.HAB ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                            {amb.unit}
-                          </span>
-                        </td>
-                        <td className="p-3">{sectorName}</td>
-                        <td className="p-3">{new Date(amb.completionDate).toLocaleDateString()}</td>
-                        <td className="p-3 text-right">
-                          <button 
-                            onClick={() => deleteAmbassador(amb.id)}
-                            className="text-red-400 hover:text-red-600 p-1"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {ambassadors.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-400">
-                        Nenhum embaixador cadastrado.
-                      </td>
+          {activeTab === 'import' && (
+            <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
+              <div className="max-w-2xl mx-auto text-center py-12">
+                <div className="mb-8">
+                  <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-sm">
+                    <Upload size={40} />
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Importar Dados ({currentUnit})</h3>
+                  <p className="text-slate-500 mt-2 font-medium">Carregue a planilha do Google Forms (.xlsx ou .csv)</p>
+                </div>
+
+                <input type="file" accept=".xlsx, .xls, .csv" onChange={handleFileUpload} ref={fileInputRef} className="hidden" />
+
+                {!importPreview.length ? (
+                  <button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl hover:shadow-blue-200 hover:-translate-y-1 flex items-center gap-3 mx-auto">
+                    <Upload size={18} /> Selecionar Arquivo
+                  </button>
+                ) : (
+                  <div className="bg-slate-50 rounded-3xl p-8 border border-slate-200 text-left">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-black text-slate-700 uppercase tracking-tight">Pré-visualização</h4>
+                      <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">{importPreview.length} linhas</span>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto text-xs font-mono text-slate-500 mb-6 bg-white p-4 rounded-xl border border-slate-100 shadow-inner">
+                      <pre>{JSON.stringify(importPreview[0], null, 2)}</pre>
+                      <p className="mt-2 text-center italic opacity-50">... e mais {importPreview.length - 1} linhas</p>
+                    </div>
+                    <div className="flex gap-4 justify-center">
+                      <button onClick={() => setImportPreview([])} className="px-6 py-3 text-slate-500 hover:bg-slate-200 rounded-xl font-bold uppercase tracking-wider text-xs transition-colors">Cancelar</button>
+                      <button onClick={processImport} disabled={isLoading} className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3 rounded-xl font-black uppercase tracking-wider text-xs transition-colors shadow-lg flex items-center gap-2">
+                        {isLoading ? 'Processando...' : 'Confirmar Importação'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="mt-12 text-left bg-amber-50 p-6 rounded-2xl border border-amber-100">
+                  <h5 className="font-black text-amber-800 text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <AlertCircle size={14} /> Regras de Importação
+                  </h5>
+                  <ul className="text-xs text-amber-700 space-y-2 list-disc pl-4 font-medium">
+                    <li>Colunas obrigatórias: <strong>Data, Matricula, Nome, Id_setor, Setor</strong>.</li>
+                    <li>O sistema atualizará automaticamente registros existentes com a mesma matrícula.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'list' && (
+            <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
+               <div className="flex justify-between items-center mb-6">
+                  <h3 className="font-black text-slate-700 uppercase tracking-tight">Lista de Embaixadores ({currentUnit})</h3>
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total: {ambassadors.filter(a => a.unit === currentUnit).length}</div>
+               </div>
+               
+               <div className="overflow-hidden rounded-2xl border border-slate-100">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-50">
+                    <tr className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                      <th className="p-4">Matrícula</th>
+                      <th className="p-4">Nome</th>
+                      <th className="p-4">Setor</th>
+                      <th className="p-4">Data</th>
+                      <th className="p-4 text-right">Ações</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'import' && (
-          <div className="max-w-2xl mx-auto text-center py-12">
-            <div className="mb-8">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Upload size={32} />
+                  </thead>
+                  <tbody className="text-sm text-slate-600 divide-y divide-slate-50">
+                    {ambassadors.filter(a => a.unit === currentUnit).sort((a, b) => a.name.localeCompare(b.name)).map(amb => {
+                      const sectorName = proSectors.find(s => s.id === amb.sectorId)?.name || 'Não identificado';
+                      return (
+                        <tr key={amb.id} className="hover:bg-slate-50 transition-colors group">
+                          <td className="p-4 font-mono text-xs text-slate-400">{amb.registrationId || '-'}</td>
+                          <td className="p-4 font-bold text-slate-700">{amb.name}</td>
+                          <td className="p-4 text-xs">{sectorName}</td>
+                          <td className="p-4 text-xs font-mono">{new Date(amb.completionDate).toLocaleDateString()}</td>
+                          <td className="p-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => deleteAmbassador(amb.id)} className="text-rose-400 hover:text-rose-600 p-2 hover:bg-rose-50 rounded-lg transition-colors" title="Excluir"><Trash2 size={16} /></button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <h3 className="text-xl font-bold text-slate-800">Importar do Google Sheets</h3>
-              <p className="text-slate-500 mt-2">
-                Exporte sua planilha do Google Forms como <strong>.xlsx</strong> ou <strong>.csv</strong> e envie abaixo.
-              </p>
             </div>
+          )}
 
-            <input 
-              type="file" 
-              accept=".xlsx, .xls, .csv" 
-              onChange={handleFileUpload}
-              ref={fileInputRef}
-              className="hidden"
-            />
-
-            {!importPreview.length ? (
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-blue-200 flex items-center gap-2 mx-auto"
-              >
-                Selecionar Arquivo
-              </button>
-            ) : (
-              <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 text-left">
-                <h4 className="font-bold text-slate-700 mb-2">Pré-visualização ({importPreview.length} registros)</h4>
-                <div className="max-h-60 overflow-y-auto text-xs text-slate-500 mb-4 bg-white p-2 rounded border">
-                  <pre>{JSON.stringify(importPreview[0], null, 2)}</pre>
-                  <p className="mt-2 text-center italic">... e mais {importPreview.length - 1} linhas</p>
+          {activeTab === 'reports' && (
+            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300">
+              
+              {/* Filtros e Controles */}
+              <div className="bg-slate-50 p-6 md:p-8 rounded-[2.5rem] border border-slate-200">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                      <Filter size={16} className="text-blue-600" /> Parâmetros do Relatório
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-1">Configure os filtros para gerar o documento</p>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleGeneratePDF('sector')}
+                      disabled={!!isGenerating}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {isGenerating === 'pdf' ? <i className="fas fa-circle-notch fa-spin"></i> : <Printer size={14} />}
+                      Imprimir por Setor
+                    </button>
+                    <button 
+                      onClick={() => handleGeneratePDF('full')}
+                      disabled={!!isGenerating}
+                      className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {isGenerating === 'pdf' ? <i className="fas fa-circle-notch fa-spin"></i> : <FileText size={14} />}
+                      Impressão Completa
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-3 justify-center">
-                  <button 
-                    onClick={() => setImportPreview([])}
-                    className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    onClick={processImport}
-                    disabled={isLoading}
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-md flex items-center gap-2"
-                  >
-                    {isLoading ? 'Processando...' : 'Confirmar Importação'}
-                  </button>
+                
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Data Início</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input 
+                        type="date" 
+                        value={reportStartDate}
+                        onChange={e => setReportStartDate(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Data Fim</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input 
+                        type="date" 
+                        value={reportEndDate}
+                        onChange={e => setReportEndDate(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Setor</label>
+                    <select 
+                      value={reportSectorId}
+                      onChange={e => setReportSectorId(e.target.value)}
+                      className="w-full p-3 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white appearance-none"
+                    >
+                      <option value="all">TODOS OS SETORES</option>
+                      {proSectors
+                        .filter(s => s.unit === currentUnit)
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map(s => (
+                          <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Ordenação</label>
+                    <select 
+                      value={reportSortOrder}
+                      onChange={e => setReportSortOrder(e.target.value as any)}
+                      className="w-full p-3 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white appearance-none"
+                    >
+                      <option value="alpha">ALFABÉTICA (SETOR)</option>
+                      <option value="percent">PERCENTUAL DE ADESÃO</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            )}
-            
-            <div className="mt-12 text-left bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-              <h5 className="font-bold text-yellow-800 text-sm mb-2 flex items-center gap-2">
-                <AlertCircle size={16} />
-                Instruções de Formatação (Rigoroso)
-              </h5>
-              <ul className="text-xs text-yellow-700 space-y-1 list-disc pl-4">
-                <li><strong>Campos Obrigatórios:</strong> Data, Matricula, Nome, Id_setor, Setor.</li>
-                <li><strong>Proibido:</strong> Colunas contendo "PG" ou "Pequenos Grupos".</li>
-                <li><strong>Validação:</strong> A planilha será recusada se faltar campos ou contiver campos proibidos.</li>
-                <li>Registros com a mesma matrícula serão atualizados (não duplicados).</li>
-              </ul>
-            </div>
-          </div>
-        )}
 
+              {/* Listagem de Resultados */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-4">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Posição por Setor</h4>
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase">
+                    {currentUnit} • {reportSortOrder === 'alpha' ? 'Ordem Alfabética' : 'Maior Adesão'}
+                  </span>
+                </div>
+
+                <div className="grid gap-4">
+                  {Object.values(stats[currentUnit].sectors)
+                    .filter(s => reportSectorId === 'all' || proSectors.find(ps => ps.name === s.name)?.id === reportSectorId)
+                    .sort((a, b) => {
+                      if (reportSortOrder === 'alpha') return a.name.localeCompare(b.name);
+                      return b.percent - a.percent;
+                    })
+                    .map(sector => (
+                      <div key={sector.name} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:border-blue-200 transition-all group">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                          <div>
+                            <h4 className="font-black text-slate-800 text-lg uppercase tracking-tight">{sector.name}</h4>
+                            <div className="flex items-center gap-4 mt-1">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                                <Users size={10} /> {sector.count} Embaixadores
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                                <Users size={10} className="opacity-50" /> {sector.totalStaff} Colaboradores
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 w-full md:w-auto">
+                            <div className="flex-1 md:w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full transition-all duration-1000 ${sector.percent >= 5 ? 'bg-emerald-500' : 'bg-blue-500'}`} 
+                                style={{ width: `${Math.min(sector.percent, 100)}%` }}
+                              ></div>
+                            </div>
+                            <span className={`text-sm font-black w-14 text-right ${sector.percent >= 5 ? 'text-emerald-600' : 'text-blue-600'}`}>
+                              {sector.percent.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Lista de Nomes */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-4 border-t border-slate-50">
+                          {ambassadors
+                            .filter(a => {
+                              const matchesUnit = a.unit === currentUnit;
+                              const matchesSector = a.sectorId && proSectors.find(s => s.id === a.sectorId)?.name === sector.name;
+                              const matchesStart = reportStartDate ? new Date(a.completionDate) >= new Date(reportStartDate) : true;
+                              const matchesEnd = reportEndDate ? new Date(a.completionDate) <= new Date(reportEndDate) : true;
+                              return matchesUnit && matchesSector && matchesStart && matchesEnd;
+                            })
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(amb => (
+                              <div key={amb.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                                <div className={`w-1.5 h-1.5 rounded-full ${sector.percent >= 5 ? 'bg-emerald-400' : 'bg-blue-400'}`}></div>
+                                <span className="text-[10px] font-bold text-slate-600 uppercase truncate">{amb.name}</span>
+                              </div>
+                            ))}
+                          {sector.count === 0 && (
+                            <div className="col-span-full py-4 text-center">
+                              <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest italic">Nenhum embaixador capacitado neste setor</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );

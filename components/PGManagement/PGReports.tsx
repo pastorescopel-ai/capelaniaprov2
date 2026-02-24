@@ -5,6 +5,7 @@ import { useApp } from '../../contexts/AppContext';
 import { DEFAULT_APP_LOGO } from '../../assets';
 import { normalizeString } from '../../utils/formatters';
 import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
+import { getBrandedHeader, getBrandedFooter } from '../../utils/reportTemplates';
 
 interface PGReportsProps {
   unit: Unit;
@@ -81,16 +82,9 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
 
   const generateSectorHtml = (data: any) => {
     return `
-      <div id="report-page-${data.sector.id}" class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 20mm 15mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; position: relative;">
-          <div style="border-bottom: 4px solid ${config.primaryColor}; padding-bottom: 20px; margin-bottom: 30px; position: relative; height: 120px; display: flex; align-items: center;">
-              <img src="${config.reportLogoUrl || DEFAULT_APP_LOGO}" style="width: ${config.reportLogoWidth}px; position: absolute; left: ${config.reportLogoX}px; top: ${config.reportLogoY}px;" />
-              <div style="flex: 1; text-align: ${config.headerTextAlign}; padding-top: ${config.headerPaddingTop}px; margin-left: ${config.reportLogoWidth + 20}px;">
-                  <h1 style="font-size: ${config.fontSize1}px; color: ${config.primaryColor}; margin: 0; text-transform: uppercase; font-weight: 900;">${config.headerLine1}</h1>
-                  <h2 style="font-size: ${config.fontSize2}px; color: #475569; margin: 0; text-transform: uppercase; font-weight: 700;">${config.headerLine2}</h2>
-                  <h3 style="font-size: ${config.fontSize3}px; color: #94a3b8; margin: 0; text-transform: uppercase; font-weight: 500;">${reportHeaderInfo.title}</h3>
-                  <p style="font-size: 10px; color: #64748b; text-transform: uppercase; margin: 5px 0; font-weight: bold;">${reportHeaderInfo.periodLabel}</p>
-              </div>
-          </div>
+      <div id="report-page-${data.sector.id}" class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 20mm 15mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; position: relative; display: flex; flex-direction: column;">
+          ${getBrandedHeader(config, reportHeaderInfo.title, reportHeaderInfo.periodLabel)}
+          
           <div style="background: #f8fafc; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-radius: 0 15px 15px 0; border-left: 10px solid ${config.primaryColor};">
               <span style="font-size: 24px; font-weight: 900; text-transform: uppercase;">${data.sector.name}</span>
               <span style="font-size: 16px; font-weight: bold; padding: 8px 20px; border-radius: 12px; color: white; background: ${data.coverage >= 80 ? '#10b981' : data.coverage >= 50 ? '#f59e0b' : '#f43f5e'};">
@@ -127,10 +121,7 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
                   ${data.notEnrolledList.map((s:any) => `<div style="font-size: 12px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-weight: 500;">${s.name}</div>`).join('')}
               </div>
           </div>
-          <div style="text-align: center; border-top: 2px solid #f1f5f9; padding-top: 25px; margin-top: auto;">
-              <div style="font-size: 14px; font-weight: 900; text-transform: uppercase; color: #334155; margin-bottom: 2px;">Pr. Carlos Escopel</div>
-              <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #94a3b8;">Diretor Espiritual - HAB/HABA</div>
-          </div>
+          ${getBrandedFooter()}
       </div>
     `;
   };
