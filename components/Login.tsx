@@ -75,10 +75,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
             </p>
           </div>
           
-          {isConnected && (
+          {isConnected ? (
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
               <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
               <span className="text-[9px] font-black uppercase tracking-widest">Servidor Online</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 text-rose-600 rounded-full border border-rose-100">
+              <div className="w-1.5 h-1.5 bg-rose-500 rounded-full"></div>
+              <span className="text-[9px] font-black uppercase tracking-widest">Offline</span>
             </div>
           )}
         </div>
@@ -123,10 +128,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
           </div>
           <button 
             type="submit" 
-            disabled={isSyncing || isLoading}
-            className="w-full py-5 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 transition-all transform active:scale-[0.98] disabled:opacity-50 mt-4 uppercase text-xs tracking-widest"
+            disabled={(isConnected && isSyncing) || isLoading}
+            className={`w-full py-5 font-black rounded-2xl shadow-xl transition-all transform active:scale-[0.98] disabled:opacity-50 mt-4 uppercase text-xs tracking-widest ${isConnected ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-800 hover:bg-slate-900 text-white'}`}
           >
-            {isLoading ? 'Autenticando...' : (isSyncing ? 'Sincronizando...' : 'Acessar Sistema')}
+            {isLoading ? 'Autenticando...' : (isConnected ? (isSyncing ? 'Sincronizando...' : 'Acessar Sistema') : 'Entrar Offline')}
           </button>
         </form>
 
