@@ -88,9 +88,14 @@ const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: st
       
       if (isProTable && isProIdField) {
           if (val !== null && val !== undefined && val !== '') {
+             const valStr = String(val);
+             // Se for um UUID em uma tabela PRO, é um ID temporário do front.
+             // Removemos para que o banco gere o BIGINT automático.
+             if (snakeKey === 'id' && isValidUUID(valStr)) {
+                continue;
+             }
              // Remove caracteres não numéricos para salvar como BIGINT limpo
-             const numericVal = String(val).replace(/\D/g, '');
-             // Se resultou em vazio (ex: ID era "novo"), mantém null ou original para o banco rejeitar/gerar
+             const numericVal = valStr.replace(/\D/g, '');
              if (numericVal) val = numericVal; 
           }
       }

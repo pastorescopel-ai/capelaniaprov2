@@ -75,16 +75,19 @@ const PGMaestro: React.FC<PGMaestroProps> = () => {
 
     setIsSyncing(true);
     try {
-        const newLink: ProGroupLocation = { 
-            id: crypto.randomUUID(), 
+        const newLink: any = { 
             groupId: group.id, 
             sectorId: currentSector.id, 
             unit: activeUnit, 
             createdAt: Date.now() 
         };
-        await saveRecord('proGroupLocations', newLink);
-        setPgSearch('');
-        showToast("Vínculo estrutural criado!", "success");
+        const success = await saveRecord('proGroupLocations', newLink);
+        if (success) {
+          setPgSearch('');
+          showToast("Vínculo estrutural criado!", "success");
+        } else {
+          throw new Error("Falha ao salvar");
+        }
     } catch (e) { 
         showToast("Falha na integridade dos dados.", "warning"); 
     } finally { 

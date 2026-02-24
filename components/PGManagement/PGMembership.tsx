@@ -159,44 +159,71 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
       const existingActive = proGroupMembers.find(m => cleanId(m.staffId) === cleanId(staffId) && !m.leftAt);
       
       if (existingActive) {
-        if (existingActive.groupId === currentPG.id) return; // Já está neste grupo
+        if (existingActive.groupId === currentPG.id) {
+          setPendingTransfers(prev => { const newSet = new Set(prev); newSet.delete(staffId); return newSet; });
+          return; 
+        }
         // "Fecha" a matrícula anterior (Soft Delete)
         await saveRecord('proGroupMembers', { ...existingActive, leftAt: Date.now() });
       }
 
-      // Cria nova matrícula
-      const newMember: ProGroupMember = {
-        id: crypto.randomUUID(),
+      // Cria nova matrícula (ID omitido para o banco gerar BIGINT)
+      const newMember: any = {
         groupId: currentPG.id,
         staffId: staffId,
         joinedAt: Date.now()
       };
-      await saveRecord('proGroupMembers', newMember);
-      showToast("Matrícula realizada!", "success");
+      
+      const success = await saveRecord('proGroupMembers', newMember);
+      
+      if (success) {
+        showToast("Matrícula realizada!", "success");
+      } else {
+        throw new Error("Falha no banco de dados");
+      }
     } catch (e) {
       setPendingTransfers(prev => { const newSet = new Set(prev); newSet.delete(staffId); return newSet; });
-      showToast("Erro ao matricular.", "warning");
+      showToast("Erro ao matricular. Verifique a conexão.", "warning");
     } finally { setIsProcessing(false); }
   };
 
   const confirmRemoval = async () => {
     if (!memberToRemove) return;
-    setPendingRemovals(prev => new Set(prev).add(memberToRemove.id));
+    const memberId = memberToRemove.id;
+    const staffId = memberToRemove.staffId;
     
-    // Soft Delete: Encontra o membro e atualiza leftAt em vez de deletar
-    const memberToUpdate = proGroupMembers.find(m => m.id === memberToRemove.id);
+    setPendingRemovals(prev => new Set(prev).add(memberId));
+    
+    // Busca todas as matrículas ativas deste colaborador neste PG (para limpar duplicatas)
+    const activeMemberships = proGroupMembers.filter(m => 
+      cleanId(m.staffId) === cleanId(staffId) && 
+      m.groupId === currentPG?.id && 
+      !m.leftAt
+    );
+    
+    // Adiciona todos os IDs de duplicatas à lista de pendentes para sumirem da UI
+    activeMemberships.forEach(m => setPendingRemovals(prev => new Set(prev).add(m.id)));
     
     setMemberToRemove(null);
     setIsProcessing(true);
     
     try {
-      if (memberToUpdate) {
-          await saveRecord('proGroupMembers', { ...memberToUpdate, leftAt: Date.now() });
-          showToast("Removido com sucesso.", "success");
+      if (activeMemberships.length > 0) {
+          // Fecha todas as matrículas encontradas (Data Healing em tempo real)
+          const updates = activeMemberships.map(m => ({ ...m, leftAt: Date.now() }));
+          const success = await saveRecord('proGroupMembers', updates);
+          
+          if (success) {
+            showToast(`${activeMemberships.length > 1 ? 'Matrículas duplicadas limpas!' : 'Removido com sucesso.'}`, "success");
+          } else {
+            throw new Error("Falha ao remover");
+          }
       }
     } catch (e) {
-      setPendingRemovals(prev => { const newSet = new Set(prev); newSet.delete(memberToRemove.id); return newSet; });
-      showToast("Erro ao remover.", "warning");
+      activeMemberships.forEach(m => {
+        setPendingRemovals(prev => { const newSet = new Set(prev); newSet.delete(m.id); return newSet; });
+      });
+      showToast("Erro ao remover do grupo.", "warning");
     } finally { setIsProcessing(false); }
   };
 

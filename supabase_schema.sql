@@ -110,7 +110,28 @@ BEGIN
 END;
 $$;
 
--- Permissões
-GRANT SELECT ON bi_active_memberships TO authenticated, service_role, anon;
-GRANT EXECUTE ON FUNCTION capture_daily_snapshot() TO authenticated, service_role, anon;
-GRANT EXECUTE ON FUNCTION unify_student_identity(text, bigint) TO authenticated, service_role, anon;
+-- 4. REPARO DE INTEGRIDADE - MATRÍCULAS (V6.1)
+-- Objetivo: Impedir duplicatas e limpar registros fantasmas
+
+-- A. Limpeza de duplicatas existentes (Desativa as mais antigas)
+-- Execute isso no SQL Editor do Supabase para correção imediata:
+/*
+UPDATE pro_group_members 
+SET left_at = (extract(epoch from now()) * 1000)::bigint
+WHERE id IN (
+    SELECT id FROM (
+        SELECT id, ROW_NUMBER() OVER (PARTITION BY staff_id, group_id ORDER BY joined_at DESC) as rn
+        FROM pro_group_members
+        WHERE left_at IS NULL
+    ) t WHERE t.rn > 1
+);
+*/
+
+-- B. Blindagem contra novas duplicatas
+-- Garante que um colaborador só possa ter UMA matrícula ativa por grupo
+-- Se tentar inserir de novo, o banco deve permitir o UPSERT ou rejeitar a duplicata
+DROP INDEX IF EXISTS idx_unique_active_membership;
+CREATE UNIQUE INDEX idx_unique_active_membership ON pro_group_members (staff_id, group_id) WHERE (left_at IS NULL);
+
+-- Permissões adicionais
+GRANT ALL ON pro_group_members TO authenticated, service_role, anon;
