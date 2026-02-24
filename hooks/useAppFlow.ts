@@ -29,7 +29,9 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
 
   useEffect(() => {
     if (!currentUser) {
-      setActiveTabState('dashboard');
+      startTransition(() => {
+        setActiveTabState('dashboard');
+      });
       setEditingItem(null);
       setItemToDelete(null);
     }

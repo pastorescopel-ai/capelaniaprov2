@@ -28,11 +28,10 @@ const App: React.FC = () => {
   // Controle de abas visitadas para renderização sob demanda (Performance)
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['dashboard']));
 
-  useEffect(() => {
-    if (activeTab) {
-      setVisitedTabs(prev => new Set(prev).add(activeTab));
-    }
-  }, [activeTab]);
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setVisitedTabs(prev => new Set(prev).add(tab));
+  };
 
   useEffect(() => {
     if (['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit', 'ambassadors'].includes(activeTab)) {
@@ -49,7 +48,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab} userRole={currentUser.role} isSyncing={isSyncing} isConnected={isConnected} config={config} onLogout={logout}>
+    <Layout activeTab={activeTab} setActiveTab={handleTabChange} userRole={currentUser.role} isSyncing={isSyncing} isConnected={isConnected} config={config} onLogout={logout}>
       <div className="max-w-7xl mx-auto px-2 md:px-0 relative">
         
         {/* Loader de Transição Suave */}
@@ -98,7 +97,7 @@ const App: React.FC = () => {
           unitSectors={unitSectors}
           editingItem={editingItem}
           isLoading={isSyncing}
-          setActiveTab={setActiveTab}
+          setActiveTab={handleTabChange}
           setCurrentUnit={setCurrentUnit}
           setEditingItem={setEditingItem}
           setItemToDelete={setItemToDelete}
