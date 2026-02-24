@@ -239,21 +239,35 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     
     try {
       if (activeMemberships.length > 0) {
-          // Fecha todas as matrículas encontradas (Data Healing em tempo real)
-          const updates = activeMemberships.map(m => ({ 
-            ...m, 
-            leftAt: Date.now(),
-            isError: removalType === 'error'
-          }));
-          
-          console.log(`[Protocolo] Enviando comando de fechamento (${removalType})...`);
-          const success = await saveRecord('proGroupMembers', updates);
-          
-          if (success) {
-            console.log(`[Protocolo] Remoção confirmada pelo servidor.`);
-            showToast(`${activeMemberships.length > 1 ? 'Matrículas duplicadas limpas!' : 'Removido com sucesso.'}`, "success");
+          if (removalType === 'error') {
+              // REMOÇÃO DEFINITIVA (DELETE REAL): Para erros de cadastro
+              console.log(`[Protocolo] Executando DELETE REAL (Erro de Cadastro)...`);
+              const idsToDelete = activeMemberships.map(m => m.id);
+              const success = await deleteRecord('proGroupMembers', idsToDelete);
+              
+              if (success) {
+                  console.log(`[Protocolo] Registros apagados com sucesso.`);
+                  showToast("Registro de erro excluído com sucesso.", "success");
+              } else {
+                  throw new Error("O servidor não permitiu a exclusão física. Verifique as permissões de DELETE.");
+              }
           } else {
-            throw new Error("O servidor não confirmou a remoção. Verifique o console.");
+              // ENCERRAMENTO DE CICLO (SOFT DELETE): Para saídas normais
+              const updates = activeMemberships.map(m => ({ 
+                ...m, 
+                leftAt: Date.now(),
+                isError: false
+              }));
+              
+              console.log(`[Protocolo] Executando SOFT DELETE (Saída Normal)...`);
+              const success = await saveRecord('proGroupMembers', updates);
+              
+              if (success) {
+                console.log(`[Protocolo] Saída registrada com sucesso.`);
+                showToast("Saída registrada no histórico.", "success");
+              } else {
+                throw new Error("O servidor não confirmou a saída. Verifique o console.");
+              }
           }
       } else {
         console.warn(`[Protocolo] Nenhuma matrícula ativa encontrada para remover.`);

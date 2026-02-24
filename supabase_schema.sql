@@ -133,23 +133,35 @@ WHERE id IN (
 DROP INDEX IF EXISTS idx_unique_active_membership;
 CREATE UNIQUE INDEX idx_unique_active_membership ON pro_group_members (staff_id, group_id) WHERE (left_at IS NULL);
 
--- 5. REPARO DE INTEGRIDADE E SEGURANÇA - MATRÍCULAS (V6.5)
--- Objetivo: Impedir duplicatas e garantir permissões de escrita (RLS)
+-- #################################################################
+-- # SCHEMA V7.0 - LIBERAÇÃO TOTAL E REMOÇÃO INTELIGENTE
+-- #################################################################
 
--- A. Ativação de RLS e Políticas de Acesso
+-- 1. SEGURANÇA DE ACESSO (MATA ERRO 401/42501)
+-- Desbloqueia a tabela para que o sistema possa Gravar, Editar e Excluir
 ALTER TABLE IF EXISTS pro_group_members ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Permitir tudo para usuários autenticados" ON pro_group_members;
-CREATE POLICY "Permitir tudo para usuários autenticados" 
-ON pro_group_members FOR ALL TO authenticated 
-USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Chave Mestra de Matriculas" ON pro_group_members;
+DROP POLICY IF EXISTS "Full access for authenticated users" ON pro_group_members;
 
--- B. Blindagem contra novas duplicatas
-DROP INDEX IF EXISTS idx_unique_active_membership;
-CREATE UNIQUE INDEX idx_unique_active_membership ON pro_group_members (staff_id, group_id) WHERE (left_at IS NULL);
+CREATE POLICY "Acesso Total Autenticado" 
+ON pro_group_members 
+FOR ALL 
+TO authenticated 
+USING (true) 
+WITH CHECK (true);
 
--- B. Indexação de Performance para buscas por Colaborador
-CREATE INDEX IF NOT EXISTS idx_pro_group_members_staff_active ON pro_group_members (staff_id) WHERE (left_at IS NULL);
+-- 2. PERMISSÕES DIRETAS
+GRANT ALL ON pro_group_members TO authenticated;
+GRANT ALL ON pro_group_members TO service_role;
+GRANT ALL ON pro_group_members TO anon;
 
--- Permissões adicionais
-GRANT ALL ON pro_group_members TO authenticated, service_role, anon;
+-- 3. COLUNA DE APOIO PARA HISTÓRICO
+ALTER TABLE IF EXISTS pro_group_members 
+ADD COLUMN IF NOT EXISTS is_error BOOLEAN DEFAULT FALSE;
+
+-- 4. ÍNDICE DE PERFORMANCE
+CREATE INDEX IF NOT EXISTS idx_pro_group_members_staff_active 
+ON pro_group_members (staff_id) 
+WHERE (left_at IS NULL);
