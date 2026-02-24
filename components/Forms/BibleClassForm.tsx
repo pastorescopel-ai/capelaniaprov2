@@ -41,7 +41,8 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     if (!editingItem) {
       setFormData(prev => ({ ...defaultState, date: prev.date || getToday() }));
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingItem]);
 
   const guideOptions = useMemo(() => {
     const uniqueGuides = new Set<string>();
@@ -103,6 +104,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     if (editingItem) {
       setFormData({ ...editingItem, participantType: editingItem.participantType || ParticipantType.STAFF, date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), representativePhone: editingItem.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || '' });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingItem]);
 
   const addStudent = (val?: string) => { 

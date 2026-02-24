@@ -39,13 +39,15 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
       setFormData(prev => ({ ...defaultState, date: prev.date || getToday() }));
       setIsSectorLocked(false);
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingItem]);
 
   useEffect(() => {
     if (!formData.groupName && !editingItem) {
         setFormData(prev => ({ ...prev, leader: '', leaderPhone: '', sector: '' }));
         setIsSectorLocked(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.groupName, editingItem]);
 
   const sectorOptions = useMemo(() => proSectors.filter(s => s.unit === unit).map(s => ({ value: s.name, label: s.name })), [proSectors, unit]);

@@ -2,7 +2,7 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { useDataMaintenance } from '../hooks/useDataMaintenance';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProPatient, ProProvider, ParticipantType, Unit } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ParticipantType, Unit } from '../types';
 
 interface AppContextType {
   users: User[];
@@ -19,6 +19,7 @@ interface AppContextType {
   proGroups: ProGroup[];
   proGroupLocations: ProGroupLocation[];
   proGroupMembers: ProGroupMember[];
+  proGroupProviderMembers: ProGroupProviderMember[];
   
   config: Config;
   isSyncing: boolean;

@@ -35,12 +35,6 @@ const MeetingScheduleModal: React.FC<MeetingScheduleModalProps> = ({
     );
   };
 
-  useEffect(() => {
-    if (date && date !== currentSchedule?.full_date && !requestChaplain && !isBelem) {
-      handleAutoSave();
-    }
-  }, [date]);
-
   const handleAutoSave = () => {
     setIsSaving(true);
     onSave({ 
@@ -55,6 +49,13 @@ const MeetingScheduleModal: React.FC<MeetingScheduleModalProps> = ({
     });
     setTimeout(onClose, 400);
   };
+
+  useEffect(() => {
+    if (date && date !== currentSchedule?.full_date && !requestChaplain && !isBelem) {
+      handleAutoSave();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

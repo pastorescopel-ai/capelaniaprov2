@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProPatient, ProProvider, ParticipantType, Unit } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ParticipantType, Unit } from '../types';
 import { DataRepository } from '../services/dataRepository';
 import { INITIAL_CONFIG } from '../constants';
 import { supabase } from '../services/supabaseClient';
@@ -21,6 +21,7 @@ export const useAppData = () => {
   const [proGroups, setProGroups] = useState<ProGroup[]>([]);
   const [proGroupLocations, setProGroupLocations] = useState<ProGroupLocation[]>([]);
   const [proGroupMembers, setProGroupMembers] = useState<ProGroupMember[]>([]);
+  const [proGroupProviderMembers, setProGroupProviderMembers] = useState<ProGroupProviderMember[]>([]);
   
   const [config, setConfig] = useState<Config>(INITIAL_CONFIG);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -52,6 +53,7 @@ export const useAppData = () => {
         setProGroups(data.proGroups || []);
         setProGroupLocations(data.proGroupLocations || []);
         setProGroupMembers(data.proGroupMembers || []);
+        setProGroupProviderMembers(data.proGroupProviderMembers || []);
         if (data.config) {
           setConfig(data.config);
           applySystemOverrides(data.config);
@@ -155,6 +157,7 @@ export const useAppData = () => {
       if (overrides?.proGroups) await saveRecord('proGroups', overrides.proGroups);
       if (overrides?.proGroupLocations) await saveRecord('proGroupLocations', overrides.proGroupLocations);
       if (overrides?.proGroupMembers) await saveRecord('proGroupMembers', overrides.proGroupMembers);
+      if (overrides?.proGroupProviderMembers) await saveRecord('proGroupProviderMembers', overrides.proGroupProviderMembers);
       return true;
     } finally {
       if (showLoader) setIsSyncing(false);
@@ -167,7 +170,7 @@ export const useAppData = () => {
 
   return {
     users, bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests,
-    proStaff, proPatients, proProviders, proSectors, proGroups, proGroupLocations, proGroupMembers, config, isSyncing, isConnected, 
+    proStaff, proPatients, proProviders, proSectors, proGroups, proGroupLocations, proGroupMembers, proGroupProviderMembers, config, isSyncing, isConnected, 
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, syncMasterContact
   };
 };

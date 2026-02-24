@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Unit, ProGroupMember, ProGroup } from '../../types';
+import { Unit, ProGroupMember, ProGroup, ProGroupProviderMember } from '../../types';
 import { useApp } from '../../contexts/AppContext';
 import { useToast } from '../../contexts/ToastContext';
 import Autocomplete from '../Shared/Autocomplete';
@@ -12,11 +12,13 @@ interface PGMembershipProps {
 }
 
 const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
-  const { proSectors, proStaff, proGroups, proGroupMembers, proGroupLocations, saveRecord, deleteRecord } = useApp();
+  const { proSectors, proStaff, proProviders, proGroups, proGroupMembers, proGroupProviderMembers, proGroupLocations, saveRecord, deleteRecord } = useApp();
   const { showToast } = useToast();
   
+  const [activeTab, setActiveTab] = useState<'staff' | 'providers'>('staff');
   const [selectedSectorName, setSelectedSectorName] = useState('');
   const [selectedPGName, setSelectedPGName] = useState('');
+  const [providerSearch, setProviderSearch] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   
   // --- ESTADOS OTIMISTAS (UI Instantânea) ---
@@ -37,6 +39,45 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
   // --- DADOS ---
   const currentSector = useMemo(() => proSectors.find(s => s.name === selectedSectorName && s.unit === unit), [proSectors, selectedSectorName, unit]);
   const currentPG = useMemo(() => proGroups.find(g => g.name === selectedPGName && g.unit === unit), [proGroups, selectedPGName, unit]);
+
+  // --- PRESTADORES ---
+  const availableProviders = useMemo(() => {
+    let filtered = proProviders.filter(p => p.unit === unit);
+    if (providerSearch) {
+        const searchNorm = normalizeString(providerSearch);
+        filtered = filtered.filter(p => normalizeString(p.name).includes(searchNorm));
+    }
+    
+    return filtered.map(provider => {
+        const membership = proGroupProviderMembers.find(m => 
+            cleanId(m.providerId) === cleanId(provider.id) && 
+            !m.leftAt && 
+            !pendingRemovals.has(m.id)
+        );
+        const groupName = membership ? proGroups.find(g => g.id === membership.groupId)?.name : null;
+        const dateStr = membership?.joinedAt ? new Date(membership.joinedAt).toLocaleDateString('pt-BR') : null;
+        
+        return { ...provider, membership, groupName, joinedDate: dateStr };
+    }).filter(provider => {
+        if (currentPG) {
+            const isAlreadyInThisGroup = proGroupProviderMembers.some(m => 
+                m.groupId === currentPG.id && 
+                cleanId(m.providerId) === cleanId(provider.id) && 
+                !m.leftAt &&
+                !pendingRemovals.has(m.id)
+            );
+            if (isAlreadyInThisGroup) return false;
+        }
+        if (pendingTransfers.has(provider.id)) return false;
+        return true;
+    }).sort((a, b) => {
+        if (!a.membership && b.membership) return -1;
+        if (a.membership && !b.membership) return 1;
+        return a.name.localeCompare(b.name);
+    });
+  }, [proProviders, unit, providerSearch, proGroupProviderMembers, proGroups, currentPG, pendingRemovals, pendingTransfers]);
+
+  const isNewProvider = providerSearch && !proProviders.some(p => normalizeString(p.name) === normalizeString(providerSearch) && p.unit === unit);
 
   // Radar de Lacunas: Setores com Vacância (Semáforo)
   const coverageGaps = useMemo(() => {
@@ -124,7 +165,9 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
 
   const pgMembers = useMemo(() => {
     if (!currentPG) return [];
-    const realMembers = proGroupMembers
+    
+    // Membros Staff
+    const realStaffMembers = proGroupMembers
       .filter(m => m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id)) // Filtro Soft Delete
       .map(m => {
         const staff = proStaff.find(s => cleanId(s.id) === cleanId(m.staffId));
@@ -134,23 +177,43 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
             staffId: m.staffId,
             joinedDate: m.joinedAt ? new Date(m.joinedAt).toLocaleDateString('pt-BR') : '',
             isOptimistic: false,
-            isLeader: currentPG.currentLeader === staff?.name
+            isLeader: currentPG.currentLeader === staff?.name,
+            type: 'staff'
         };
       });
 
-    const optimisticMembers = Array.from(pendingTransfers).map(staffId => {
-        const staff = proStaff.find(s => s.id === staffId);
+    // Membros Prestadores
+    const realProviderMembers = proGroupProviderMembers
+      .filter(m => m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id))
+      .map(m => {
+        const provider = proProviders.find(p => cleanId(p.id) === cleanId(m.providerId));
         return {
-            id: `temp-${staffId}`, 
-            staffName: staff?.name || "Processando...",
-            staffId: staffId,
+            id: m.id,
+            staffName: provider?.name || `Desconhecido (ID: ${m.providerId})`,
+            staffId: m.providerId,
+            joinedDate: m.joinedAt ? new Date(m.joinedAt).toLocaleDateString('pt-BR') : '',
+            isOptimistic: false,
+            isLeader: currentPG.currentLeader === provider?.name,
+            type: 'provider'
+        };
+      });
+
+    const optimisticMembers = Array.from(pendingTransfers).map(id => {
+        const staff = proStaff.find(s => s.id === id);
+        const provider = proProviders.find(p => p.id === id);
+        const name = staff?.name || provider?.name || "Processando...";
+        return {
+            id: `temp-${id}`, 
+            staffName: name,
+            staffId: id,
             joinedDate: "Hoje",
             isOptimistic: true,
-            isLeader: false
+            isLeader: false,
+            type: staff ? 'staff' : 'provider'
         };
     });
 
-    const allMembers = [...realMembers, ...optimisticMembers].filter((m, index, self) => 
+    const allMembers = [...realStaffMembers, ...realProviderMembers, ...optimisticMembers].filter((m, index, self) => 
         index === self.findIndex((t) => (t.staffId === m.staffId))
     );
 
@@ -159,75 +222,113 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         if (!a.isLeader && b.isLeader) return 1;
         return a.staffName.localeCompare(b.staffName);
     });
-  }, [proGroupMembers, currentPG, proStaff, pendingTransfers, pendingRemovals]);
+  }, [proGroupMembers, proGroupProviderMembers, currentPG, proStaff, proProviders, pendingTransfers, pendingRemovals]);
 
   // --- AÇÕES ---
 
-  const handleEnroll = async (staffId: string) => {
+  const handleEnroll = async (personId: string, type: 'staff' | 'provider' = 'staff') => {
     if (!currentPG) { showToast("Selecione um PG de destino primeiro.", "warning"); return; }
-    console.log(`[Protocolo] Iniciando matrícula: Colaborador ${staffId} -> PG ${currentPG.id}`);
+    console.log(`[Protocolo] Iniciando matrícula: ${type} ${personId} -> PG ${currentPG.id}`);
     
-    setPendingTransfers(prev => new Set(prev).add(staffId));
+    setPendingTransfers(prev => new Set(prev).add(personId));
     setIsProcessing(true);
     try {
+      const collection = type === 'staff' ? 'proGroupMembers' : 'proGroupProviderMembers';
+      const idField = type === 'staff' ? 'staffId' : 'providerId';
+      const membersList = type === 'staff' ? proGroupMembers : proGroupProviderMembers;
+
       // Soft Delete: Verifica se existe QUALQUER matrícula ATIVA (em qualquer grupo)
-      const existingActiveMemberships = proGroupMembers.filter(m => cleanId(m.staffId) === cleanId(staffId) && !m.leftAt);
+      const existingActiveMemberships = membersList.filter(m => cleanId((m as any)[idField]) === cleanId(personId) && !m.leftAt);
       
       if (existingActiveMemberships.length > 0) {
         console.log(`[Protocolo] Encontradas ${existingActiveMemberships.length} matrículas ativas. Fechando...`);
         // Se já estiver no grupo de destino, não faz nada
         if (existingActiveMemberships.some(m => m.groupId === currentPG.id)) {
           console.warn(`[Protocolo] Colaborador já está no PG de destino.`);
-          setPendingTransfers(prev => { const newSet = new Set(prev); newSet.delete(staffId); return newSet; });
+          setPendingTransfers(prev => { const newSet = new Set(prev); newSet.delete(personId); return newSet; });
           return; 
         }
         
         // "Fecha" TODAS as matrículas anteriores para garantir limpeza total
         const closeUpdates = existingActiveMemberships.map(m => ({ ...m, leftAt: Date.now() }));
-        await saveRecord('proGroupMembers', closeUpdates);
+        await saveRecord(collection, closeUpdates);
       }
 
       // Cria nova matrícula
       const newMember: any = {
         groupId: currentPG.id,
-        staffId: staffId,
+        [idField]: personId,
         joinedAt: Date.now()
       };
       
-      const success = await saveRecord('proGroupMembers', newMember);
+      const success = await saveRecord(collection, newMember);
       
       if (success) {
         showToast("Matrícula realizada!", "success");
+        if (type === 'provider') setProviderSearch('');
       } else {
         throw new Error("O banco de dados rejeitou a gravação. Verifique o console.");
       }
     } catch (e: any) {
       console.error(`[Protocolo] Falha na matrícula:`, e);
-      setPendingTransfers(prev => { const newSet = new Set(prev); newSet.delete(staffId); return newSet; });
+      setPendingTransfers(prev => { const newSet = new Set(prev); newSet.delete(personId); return newSet; });
       showToast(e.message || "Erro ao matricular. Verifique a conexão.", "warning");
     } finally { setIsProcessing(false); }
+  };
+
+  const handleCreateAndEnrollProvider = async () => {
+      if (!currentPG || !providerSearch.trim()) return;
+      setIsProcessing(true);
+      try {
+          // Acha o maior ID 8000...
+          const providerIds = proProviders.map(p => parseInt(cleanId(p.id))).filter(id => id >= 8000000000 && id < 9000000000);
+          const maxId = providerIds.length > 0 ? Math.max(...providerIds) : 8000000000;
+          const newId = String(maxId + 1);
+
+          const newProvider = {
+              id: newId,
+              name: providerSearch.trim().toUpperCase(),
+              unit: unit,
+              updatedAt: Date.now()
+          };
+
+          const success = await saveRecord('proProviders', newProvider);
+          if (success) {
+              await handleEnroll(newId, 'provider');
+          } else {
+              showToast("Erro ao criar prestador.", "warning");
+          }
+      } catch (e) {
+          showToast("Erro inesperado ao criar prestador.", "warning");
+      } finally {
+          setIsProcessing(false);
+      }
   };
 
   const confirmRemoval = async () => {
     if (!memberToRemove) return;
     const memberId = memberToRemove.id;
-    const staffId = memberToRemove.staffId;
+    const personId = memberToRemove.staffId;
+    // Descobre se é staff ou provider verificando em qual lista o ID existe
+    const isProvider = proGroupProviderMembers.some(m => m.id === memberId);
+    const collection = isProvider ? 'proGroupProviderMembers' : 'proGroupMembers';
+    const idField = isProvider ? 'providerId' : 'staffId';
+    const membersList = isProvider ? proGroupProviderMembers : proGroupMembers;
     
-    console.log(`[Protocolo] Iniciando remoção: Membro ${memberId} (Colaborador ${staffId})`);
+    console.log(`[Protocolo] Iniciando remoção: Membro ${memberId} (Pessoa ${personId}) de ${collection}`);
     
     setPendingRemovals(prev => new Set(prev).add(memberId));
     
     // Busca todas as matrículas ativas deste colaborador neste PG (para limpar duplicatas)
-    // Usamos staffId e groupId como âncoras de verdade, pois o ID do registro pode estar sujo (UUID vs BIGINT)
-    const activeMemberships = proGroupMembers.filter(m => 
-      cleanId(m.staffId) === cleanId(staffId) && 
+    const activeMemberships = membersList.filter(m => 
+      cleanId((m as any)[idField]) === cleanId(personId) && 
       m.groupId === currentPG?.id && 
       !m.leftAt
     );
     
     if (activeMemberships.length === 0 && memberId) {
-        console.warn(`[Protocolo] Nenhuma matrícula por staffId. Tentando por ID direto: ${memberId}`);
-        const byId = proGroupMembers.find(m => m.id === memberId && !m.leftAt);
+        console.warn(`[Protocolo] Nenhuma matrícula por ID. Tentando por ID direto: ${memberId}`);
+        const byId = membersList.find(m => m.id === memberId && !m.leftAt);
         if (byId) activeMemberships.push(byId);
     }
     
@@ -244,8 +345,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
               console.log(`[Protocolo] Executando DELETE REAL (Erro de Cadastro)...`);
               const idsToDelete = activeMemberships.map(m => m.id);
               
-              // Usamos uma abordagem direta para garantir que o banco receba a ordem de apagar
-              const success = await deleteRecord('proGroupMembers', idsToDelete);
+              const success = await deleteRecord(collection, idsToDelete);
               
               if (success) {
                   console.log(`[Protocolo] Registros apagados com sucesso.`);
@@ -253,12 +353,11 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
               } else {
                   // Se o deleteRecord falhar, tentamos via saveRecord marcando como erro (fallback)
                   const updates = activeMemberships.map(m => ({ ...m, leftAt: Date.now(), isError: true }));
-                  await saveRecord('proGroupMembers', updates);
+                  await saveRecord(collection, updates);
                   showToast("Removido (marcado como erro).", "success");
               }
           } else {
               // ENCERRAMENTO DE CICLO (SOFT DELETE): Para saídas normais
-              // Aqui está o segredo: se o UPSERT falhar por RLS, tentamos garantir que o ID seja numérico
               const updates = activeMemberships.map(m => ({ 
                 ...m, 
                 leftAt: Date.now(),
@@ -266,7 +365,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
               }));
               
               console.log(`[Protocolo] Executando SOFT DELETE (Saída Normal)...`);
-              const success = await saveRecord('proGroupMembers', updates);
+              const success = await saveRecord(collection, updates);
               
               if (success) {
                 console.log(`[Protocolo] Saída registrada com sucesso.`);
@@ -360,18 +459,48 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
         </div>
         
-        <div className="space-y-2 z-10 relative">
-          <label className="text-[10px] font-black uppercase tracking-widest text-blue-400">1. Selecione o Setor (Origem)</label>
-          <Autocomplete 
-            options={proSectors.filter(s => s.unit === unit).map(s => ({ value: s.name, label: s.name }))}
-            value={selectedSectorName}
-            onChange={setSelectedSectorName}
-            placeholder="Buscar Setor..."
-            className="w-full p-4 bg-white/10 border border-white/20 rounded-2xl text-white font-bold placeholder:text-white/30 focus:bg-white/20 outline-none"
-          />
+        <div className="space-y-4 z-10 relative">
+          <div className="flex bg-white/10 p-1 rounded-xl w-fit">
+            <button 
+              onClick={() => setActiveTab('staff')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'staff' ? 'bg-blue-500 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+            >
+              Colaboradores (CLT)
+            </button>
+            <button 
+              onClick={() => setActiveTab('providers')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'providers' ? 'bg-blue-500 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+            >
+              Prestadores
+            </button>
+          </div>
+
+          {activeTab === 'staff' ? (
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-blue-400">1. Selecione o Setor (Origem)</label>
+              <Autocomplete 
+                options={proSectors.filter(s => s.unit === unit).map(s => ({ value: s.name, label: s.name }))}
+                value={selectedSectorName}
+                onChange={setSelectedSectorName}
+                placeholder="Buscar Setor..."
+                className="w-full p-4 bg-white/10 border border-white/20 rounded-2xl text-white font-bold placeholder:text-white/30 focus:bg-white/20 outline-none"
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-blue-400">1. Buscar ou Cadastrar Prestador</label>
+              <input 
+                type="text"
+                value={providerSearch}
+                onChange={e => setProviderSearch(e.target.value)}
+                placeholder="Digite o nome do prestador..."
+                className="w-full p-4 bg-white/10 border border-white/20 rounded-2xl text-white font-bold placeholder:text-white/30 focus:bg-white/20 outline-none"
+              />
+            </div>
+          )}
         </div>
 
-        <div className="space-y-2 z-10 relative">
+        <div className="space-y-2 z-10 relative mt-auto">
           <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400">2. Selecione o PG (Destino)</label>
           <Autocomplete 
             options={proGroups.filter(g => g.unit === unit).map(g => ({ value: g.name, label: g.name }))}
@@ -387,32 +516,75 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col min-h-[400px]">
           <div className="mb-4 pb-4 border-b border-slate-50">
             <h3 className="font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-              <i className="fas fa-users text-slate-400"></i> Disponíveis no Setor
+              <i className="fas fa-users text-slate-400"></i> {activeTab === 'staff' ? 'Disponíveis no Setor' : 'Prestadores Encontrados'}
             </h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{sectorStaff.length} Aguardando Matrícula</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">
+                {activeTab === 'staff' ? `${sectorStaff.length} Aguardando Matrícula` : `${availableProviders.length} Prestadores`}
+            </p>
           </div>
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 max-h-[500px]">
-            {sectorStaff.length === 0 && (
-                <div className="text-center py-10 opacity-50">
-                    <p className="text-xs text-slate-400 font-bold uppercase">{currentSector ? 'Todos vinculados ou lista vazia.' : 'Selecione um setor.'}</p>
-                </div>
+            {activeTab === 'staff' ? (
+                <>
+                    {sectorStaff.length === 0 && (
+                        <div className="text-center py-10 opacity-50">
+                            <p className="text-xs text-slate-400 font-bold uppercase">{currentSector ? 'Todos vinculados ou lista vazia.' : 'Selecione um setor.'}</p>
+                        </div>
+                    )}
+                    {sectorStaff.map(staff => (
+                      <div key={staff.id} className="p-4 rounded-2xl flex items-center justify-between border bg-white border-blue-100 shadow-sm hover:border-blue-300 transition-all animate-in slide-in-from-left duration-300">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-slate-700 text-xs uppercase truncate">{staff.name}</p>
+                          <p className="text-[9px] font-bold uppercase text-slate-400 truncate flex items-center gap-2">
+                              {staff.membership ? (
+                                  <>
+                                    <span>Mover de: {staff.groupName}</span>
+                                    {staff.joinedDate && <span className="text-[8px] bg-slate-100 px-1.5 rounded text-slate-500">Desde: {staff.joinedDate}</span>}
+                                  </>
+                              ) : 'Não Matriculado'}
+                          </p>
+                        </div>
+                        <button onClick={() => handleEnroll(staff.id, 'staff')} disabled={!currentPG || isProcessing} className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${staff.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}><i className={`fas ${staff.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i></button>
+                      </div>
+                    ))}
+                </>
+            ) : (
+                <>
+                    {isNewProvider && (
+                        <div className="p-4 rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50 flex flex-col items-center justify-center text-center space-y-3 animate-in fade-in duration-300 mb-4">
+                            <div className="w-10 h-10 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center">
+                                <i className="fas fa-user-plus"></i>
+                            </div>
+                            <div>
+                                <p className="font-bold text-slate-700 text-sm">{providerSearch.toUpperCase()}</p>
+                                <p className="text-[10px] text-slate-500 uppercase font-bold">Prestador não encontrado</p>
+                            </div>
+                            <button 
+                                onClick={handleCreateAndEnrollProvider}
+                                disabled={!currentPG || isProcessing}
+                                className="px-4 py-2 bg-blue-600 text-white font-bold text-xs uppercase rounded-xl shadow-md hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                ✨ Cadastrar e Matricular
+                            </button>
+                        </div>
+                    )}
+                    {availableProviders.map(provider => (
+                      <div key={provider.id} className="p-4 rounded-2xl flex items-center justify-between border bg-white border-blue-100 shadow-sm hover:border-blue-300 transition-all animate-in slide-in-from-left duration-300">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-slate-700 text-xs uppercase truncate">{provider.name}</p>
+                          <p className="text-[9px] font-bold uppercase text-slate-400 truncate flex items-center gap-2">
+                              {provider.membership ? (
+                                  <>
+                                    <span>Mover de: {provider.groupName}</span>
+                                    {provider.joinedDate && <span className="text-[8px] bg-slate-100 px-1.5 rounded text-slate-500">Desde: {provider.joinedDate}</span>}
+                                  </>
+                              ) : 'Não Matriculado'}
+                          </p>
+                        </div>
+                        <button onClick={() => handleEnroll(provider.id, 'provider')} disabled={!currentPG || isProcessing} className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${provider.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}><i className={`fas ${provider.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i></button>
+                      </div>
+                    ))}
+                </>
             )}
-            {sectorStaff.map(staff => (
-              <div key={staff.id} className="p-4 rounded-2xl flex items-center justify-between border bg-white border-blue-100 shadow-sm hover:border-blue-300 transition-all animate-in slide-in-from-left duration-300">
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-slate-700 text-xs uppercase truncate">{staff.name}</p>
-                  <p className="text-[9px] font-bold uppercase text-slate-400 truncate flex items-center gap-2">
-                      {staff.membership ? (
-                          <>
-                            <span>Mover de: {staff.groupName}</span>
-                            {staff.joinedDate && <span className="text-[8px] bg-slate-100 px-1.5 rounded text-slate-500">Desde: {staff.joinedDate}</span>}
-                          </>
-                      ) : 'Não Matriculado'}
-                  </p>
-                </div>
-                <button onClick={() => handleEnroll(staff.id)} disabled={!currentPG || isProcessing} className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${staff.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}><i className={`fas ${staff.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i></button>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -430,7 +602,10 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
                     {member.isOptimistic && <i className="fas fa-circle-notch fa-spin text-[10px] text-emerald-600"></i>}
                     {member.isLeader && <i className="fas fa-crown text-amber-500 text-xs animate-bounce"></i>}
                     <div className="min-w-0">
-                        <p className={`text-xs uppercase truncate ${member.isLeader ? 'font-black text-amber-800' : 'font-bold text-emerald-900'}`}>{member.staffName}</p>
+                        <p className={`text-xs uppercase truncate ${member.isLeader ? 'font-black text-amber-800' : 'font-bold text-emerald-900'}`}>
+                            {member.staffName}
+                            {(member as any).type === 'provider' && <span className="ml-2 text-[8px] bg-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded-full font-black">PRESTADOR</span>}
+                        </p>
                         {member.joinedDate && <p className="text-[8px] font-bold text-emerald-600/60 uppercase">Desde: {member.joinedDate}</p>}
                     </div>
                 </div>

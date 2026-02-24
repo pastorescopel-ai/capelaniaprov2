@@ -16,11 +16,12 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
   pro_providers: ['id', 'name', 'unit', 'whatsapp', 'sector', 'updated_at'],
   pro_groups: ['id', 'name', 'current_leader', 'leader_phone', 'sector_id', 'unit', 'active'],
   pro_group_locations: ['id', 'group_id', 'sector_id', 'unit', 'created_at'],
-  pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at', 'left_at']
+  pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at', 'left_at', 'is_error'],
+  pro_group_provider_members: ['id', 'group_id', 'provider_id', 'joined_at', 'left_at', 'is_error']
 };
 
 // Campos que devem ser tratados como números puros
-const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at', 'joined_at', 'left_at', 'staff_id', 'sector_id', 'group_id'];
+const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at', 'joined_at', 'left_at', 'staff_id', 'provider_id', 'sector_id', 'group_id'];
 
 const GLOBAL_ID_CACHE: Record<string, string> = {};
 
@@ -84,7 +85,7 @@ const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: st
       // Tratamento especial para IDs das tabelas PRO (Agora são BIGINT no banco)
       // Se vier uma string como "HAB-1020", limpa para "1020" antes de enviar
       const isProTable = tableName.startsWith('pro_') && tableName !== 'pro_patients' && tableName !== 'pro_providers';
-      const isProIdField = (snakeKey === 'id' || snakeKey === 'sector_id' || snakeKey === 'group_id' || snakeKey === 'staff_id');
+      const isProIdField = (snakeKey === 'id' || snakeKey === 'sector_id' || snakeKey === 'group_id' || snakeKey === 'staff_id' || snakeKey === 'provider_id');
       
       if (isProTable && isProIdField) {
           if (val !== null && val !== undefined && val !== '') {
@@ -121,14 +122,14 @@ const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: st
         }
       }
       
-      const isFK = snakeKey === 'user_id' || snakeKey === 'sector_id' || snakeKey === 'record_id' || snakeKey === 'group_id' || snakeKey === 'staff_id';
+      const isFK = snakeKey === 'user_id' || snakeKey === 'sector_id' || snakeKey === 'record_id' || snakeKey === 'group_id' || snakeKey === 'staff_id' || snakeKey === 'provider_id';
       if (isFK && val === "") {
         val = null;
       }
 
       // Validação Crítica de Segurança: UUIDs
       // Tabelas 'pro_' agora usam BIGINT, então pulamos validação de UUID para elas.
-      if (tableName !== 'visit_requests' && !tableName.startsWith('pro_') && snakeKey !== 'staff_id') {
+      if (tableName !== 'visit_requests' && !tableName.startsWith('pro_') && snakeKey !== 'staff_id' && snakeKey !== 'provider_id') {
         if (isFK && val && !isValidUUID(val) && tableName !== 'bible_class_attendees') {
           // console.error(`Bloqueio de Segurança: Tentativa de usar ID não-UUID em ${tableName}.${snakeKey} (${val})`);
           newObj[snakeKey] = null;
@@ -148,7 +149,7 @@ export const DataRepository = {
     try {
       const MAX_ROWS = 9999;
 
-      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, bca] = await Promise.all([
+      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca] = await Promise.all([
         supabase.from('users').select('*').range(0, MAX_ROWS),
         supabase.from('bible_studies').select('*').range(0, MAX_ROWS),
         supabase.from('bible_classes').select('*').range(0, MAX_ROWS),
@@ -163,6 +164,7 @@ export const DataRepository = {
         supabase.from('pro_groups').select('*').range(0, MAX_ROWS),
         supabase.from('pro_group_locations').select('*').range(0, MAX_ROWS),
         supabase.from('pro_group_members').select('*').range(0, MAX_ROWS),
+        supabase.from('pro_group_provider_members').select('*').range(0, MAX_ROWS),
         supabase.from('bible_class_attendees').select('*').range(0, MAX_ROWS)
       ]);
 
@@ -191,7 +193,8 @@ export const DataRepository = {
         proProviders: toCamel(pr.data || []),
         proGroups: toCamel(pg.data || []),
         proGroupLocations: toCamel(pgl.data || []),
-        proGroupMembers: toCamel(pgm.data || [])
+        proGroupMembers: toCamel(pgm.data || []),
+        proGroupProviderMembers: toCamel(pgpm.data || [])
       };
     } catch (error) {
       console.error("Erro ao sincronizar com Supabase:", error);
@@ -212,7 +215,7 @@ export const DataRepository = {
       proSectors: 'pro_sectors', proStaff: 'pro_staff', 
       proPatients: 'pro_patients', proProviders: 'pro_providers',
       proGroups: 'pro_groups', proGroupLocations: 'pro_group_locations',
-      proGroupMembers: 'pro_group_members'
+      proGroupMembers: 'pro_group_members', proGroupProviderMembers: 'pro_group_provider_members'
     };
     
     const tableName = tableMap[collection];
@@ -293,7 +296,7 @@ export const DataRepository = {
       proSectors: 'pro_sectors', proStaff: 'pro_staff', 
       proPatients: 'pro_patients', proProviders: 'pro_providers',
       proGroups: 'pro_groups', proGroupLocations: 'pro_group_locations',
-      proGroupMembers: 'pro_group_members'
+      proGroupMembers: 'pro_group_members', proGroupProviderMembers: 'pro_group_provider_members'
     };
     const tableName = tableMap[collection];
     if (!tableName) return false;

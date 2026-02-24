@@ -41,7 +41,8 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       setFormData(prev => ({ ...defaultState, date: prev.date || getToday() }));
       setIsSectorLocked(false);
     }
-  }, []); 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingItem]); 
 
   const guideOptions = useMemo(() => {
     const uniqueGuides = new Set<string>();
@@ -107,6 +108,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           setIsSectorLocked(false);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingItem, unit, proStaff]);
 
   const handleSelectStudent = (selectedLabel: string) => {
