@@ -1,5 +1,6 @@
 
 import { Unit, RecordStatus, Config } from '../types';
+import { getBrandedHeader, getBrandedFooter } from './reportTemplates';
 
 interface PDFTemplateData {
   config: Config;
@@ -14,19 +15,10 @@ const formatDate = (d: string) => d.split('T')[0].split('-').reverse().join('/')
 
 export const generateExecutiveHTML = (data: PDFTemplateData) => {
   const { config, filters, totalStats, chaplainStats, unitTotals, pColor } = data;
-  const reportLogoSrc = config.reportLogoUrl || '';
+  const title = 'Relatório Executivo de Capelania';
+  const periodLabel = `Período: ${formatDate(filters.startDate)} a ${formatDate(filters.endDate)}`;
 
-  const renderHeader = () => `
-    <header style="border-bottom: 4px solid ${pColor}; padding-bottom: 20px; margin-bottom: 30px; position: relative; height: 120px; display: flex; align-items: center;">
-      <img src="${reportLogoSrc}" style="width: ${config.reportLogoWidth}px; position: absolute; left: ${config.reportLogoX}px; top: ${config.reportLogoY}px;" />
-      <div style="flex: 1; text-align: ${config.headerTextAlign}; padding-top: ${config.headerPaddingTop}px; margin-left: ${config.reportLogoWidth + 20}px;">
-        <h1 style="font-size: ${config.fontSize1}px; color: ${pColor}; margin: 0; text-transform: uppercase; font-weight: 900;">${config.headerLine1}</h1>
-        <h2 style="font-size: ${config.fontSize2}px; color: #475569; margin: 0; text-transform: uppercase; font-weight: 700;">${config.headerLine2}</h2>
-        <h3 style="font-size: ${config.fontSize3}px; color: #94a3b8; margin: 0; text-transform: uppercase; font-weight: 500;">Relatório Executivo de Capelania</h3>
-        <p style="font-size: 10px; color: #64748b; text-transform: uppercase; margin: 5px 0; font-weight: bold;">Período: ${formatDate(filters.startDate)} a ${formatDate(filters.endDate)}</p>
-      </div>
-    </header>
-  `;
+  const renderHeader = () => getBrandedHeader(config, title, periodLabel);
 
   const renderTable = (unit: Unit) => {
     const tableData = chaplainStats.filter(s => (unit === Unit.HAB ? s.hab.total > 0 || s.hab.students > 0 : s.haba.total > 0 || s.haba.students > 0));
