@@ -46,9 +46,9 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
 
   useEffect(() => {
     if (data && data.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStableData(data);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   const filteredHistory = useMemo(() => {
@@ -85,8 +85,8 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
   }, [data, stableData, filterChaplain, filterStart, filterEnd, searchQuery, searchFields]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(PAGE_SIZE);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterChaplain, filterStart, filterEnd, searchQuery]);
 
   useEffect(() => {

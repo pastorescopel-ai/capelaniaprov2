@@ -19,7 +19,7 @@ export const useExcelProcessor = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const normalizeHeader = (h: string) => 
-    String(h || '').trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,º°ª#]/g, "").replace(/\s+/g, " ");
+    String(h || '').trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,º°ª#]/g, "").replace(/[\s_]+/g, " ");
 
   const findColumnIndex = (headers: string[], synonyms: string[]) => {
       const idx = headers.findIndex(h => synonyms.some(s => h === s));
@@ -87,8 +87,6 @@ export const useExcelProcessor = () => {
           const idxSecName = findColumnIndex(headers, ['NOME SETOR', 'SETOR', 'DEPARTAMENTO']);
 
           if (idxId === -1 || idxName === -1) {
-              console.error("Headers found:", headers);
-              console.error("idxId:", idxId, "idxName:", idxName);
               throw new Error("Colunas obrigatórias (ID e Nome) não encontradas.");
           }
 

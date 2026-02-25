@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Unit, SmallGroup, User, ProGroup } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import Autocomplete from '../Shared/Autocomplete';
@@ -28,26 +28,26 @@ interface FormProps {
 const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
   const { proSectors, proGroups, proStaff, saveRecord, visitRequests, syncMasterContact, proGroupLocations } = useApp();
   
-  const getToday = () => new Date().toLocaleDateString('en-CA');
-  const defaultState = { id: '', date: getToday(), sector: '', groupName: '', leader: '', leaderPhone: '', shift: 'Manhã', participantsCount: 0, observations: '' };
+  const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
+  const defaultState = useMemo(() => ({ id: '', date: getToday(), sector: '', groupName: '', leader: '', leaderPhone: '', shift: 'Manhã', participantsCount: 0, observations: '' }), [getToday]);
   const [formData, setFormData] = useState(defaultState);
   const [isSectorLocked, setIsSectorLocked] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
     if (!editingItem) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(prev => ({ ...defaultState, date: prev.date || getToday() }));
       setIsSectorLocked(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingItem]);
+  }, [editingItem, defaultState, getToday]);
 
   useEffect(() => {
     if (!formData.groupName && !editingItem) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setFormData(prev => ({ ...prev, leader: '', leaderPhone: '', sector: '' }));
         setIsSectorLocked(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.groupName, editingItem]);
 
   const sectorOptions = useMemo(() => proSectors.filter(s => s.unit === unit).map(s => ({ value: s.name, label: s.name })), [proSectors, unit]);
@@ -56,6 +56,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
 
   useEffect(() => {
     if (editingItem) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), observations: editingItem.observations || '', leaderPhone: editingItem.leaderPhone || '' });
       const pg = proGroups.find(g => g.name === editingItem.groupName && g.unit === unit);
       if (pg) {
@@ -63,8 +64,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
           setIsSectorLocked(!!loc);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingItem, proGroups, proGroupLocations, unit]);
+  }, [editingItem, proGroups, proGroupLocations, unit, getToday]);
 
   const handleSelectPG = (pgName: string) => {
       const pgMaster = proGroups.find(g => g.name === pgName && g.unit === unit);

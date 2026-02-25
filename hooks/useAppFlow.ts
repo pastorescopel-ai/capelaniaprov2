@@ -32,10 +32,11 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
       startTransition(() => {
         setActiveTabState('dashboard');
       });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEditingItem(null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setItemToDelete(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   const handleSaveItem = async (type: string, data: any) => {

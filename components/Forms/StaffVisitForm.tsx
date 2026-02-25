@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Unit, StaffVisit, User, VisitReason, ProStaff, ParticipantType } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import Autocomplete, { AutocompleteOption } from '../Shared/Autocomplete';
@@ -27,8 +27,8 @@ interface FormProps {
 const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
   const { proStaff, proProviders, proSectors, syncMasterContact } = useApp();
   
-  const getToday = () => new Date().toLocaleDateString('en-CA');
-  const defaultState = { id: '', date: getToday(), sector: '', reason: VisitReason.ROTINA, staffName: '', whatsapp: '', participantType: ParticipantType.STAFF, providerRole: '', requiresReturn: false, returnDate: getToday(), returnCompleted: false, observations: '' };
+  const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
+  const defaultState = useMemo(() => ({ id: '', date: getToday(), sector: '', reason: VisitReason.ROTINA, staffName: '', whatsapp: '', participantType: ParticipantType.STAFF, providerRole: '', requiresReturn: false, returnDate: getToday(), returnCompleted: false, observations: '' }), [getToday]);
   
   const [formData, setFormData] = useState(defaultState);
   const [isSectorLocked, setIsSectorLocked] = useState(false);
@@ -36,11 +36,11 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   useEffect(() => {
     if (!editingItem) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(prev => ({ ...defaultState, date: prev.date || getToday(), participantType: prev.participantType }));
       setIsSectorLocked(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingItem]);
+  }, [editingItem, defaultState, getToday]);
 
   const sectorOptions = useMemo(() => proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name})).sort((a,b) => a.label.localeCompare(b.label)), [proSectors, unit]);
 
@@ -77,6 +77,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   useEffect(() => {
     if (editingItem) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({ ...editingItem, whatsapp: (editingItem as any).whatsapp || '', participantType: (editingItem as any).participantType || ParticipantType.STAFF, providerRole: (editingItem as any).providerRole || '', date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : getToday(), observations: editingItem.observations || '' });
       if (editingItem.participantType === ParticipantType.STAFF || !editingItem.participantType) {
           const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(editingItem.staffName) && s.unit === unit);
@@ -85,7 +86,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           setIsSectorLocked(false);
       }
     }
-  }, [editingItem, unit, proStaff]);
+  }, [editingItem, unit, proStaff, getToday]);
 
   const handleSelectName = (label: string) => {
       const nameOnly = label.split(' (')[0].trim();

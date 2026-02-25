@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Unit, RecordStatus, BibleClass, User, UserRole, ParticipantType } from '../../types';
 import { STATUS_OPTIONS } from '../../constants';
 import { useToast } from '../../contexts/ToastContext';
@@ -31,18 +31,18 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
   const { proStaff, proSectors, syncMasterContact } = useApp();
   const { showToast } = useToast();
   
-  const getToday = () => new Date().toLocaleDateString('en-CA');
-  const defaultState = { id: '', date: getToday(), sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, participantType: ParticipantType.STAFF, observations: '', representativePhone: '' };
+  const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
+  const defaultState = useMemo(() => ({ id: '', date: getToday(), sector: '', students: [] as string[], guide: '', lesson: '', status: RecordStatus.INICIO, participantType: ParticipantType.STAFF, observations: '', representativePhone: '' }), [getToday]);
   
   const [formData, setFormData] = useState(defaultState);
   const [newStudent, setNewStudent] = useState('');
 
   useEffect(() => {
     if (!editingItem) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(prev => ({ ...defaultState, date: prev.date || getToday() }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingItem]);
+  }, [editingItem, defaultState, getToday]);
 
   const guideOptions = useMemo(() => {
     const uniqueGuides = new Set<string>();
@@ -94,19 +94,22 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                     nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
                     nextStatus = RecordStatus.CONTINUACAO;
                 }
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setFormData(prev => ({ ...prev, students: autoStudents, guide: nextGuide || prev.guide, lesson: nextLesson || prev.lesson, status: nextStatus }));
-            } else { setFormData(prev => ({ ...prev, students: [] })); }
+            } else { 
+                // eslint-disable-next-line react-hooks/set-state-in-effect
+                setFormData(prev => ({ ...prev, students: [] })); 
+            }
         }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.sector, proSectors, proStaff, unit, allHistory, editingItem, formData.participantType]);
 
   useEffect(() => {
     if (editingItem) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({ ...editingItem, participantType: editingItem.participantType || ParticipantType.STAFF, date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), representativePhone: editingItem.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || '' });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingItem]);
+  }, [editingItem, getToday]);
 
   const addStudent = (val?: string) => { 
     const inputVal = val || newStudent;

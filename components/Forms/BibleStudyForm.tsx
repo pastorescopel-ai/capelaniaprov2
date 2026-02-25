@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Unit, RecordStatus, BibleStudy, User, UserRole, ParticipantType } from '../../types';
 import { STATUS_OPTIONS } from '../../constants';
 import { useToast } from '../../contexts/ToastContext';
@@ -30,19 +30,19 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   const { proStaff, proPatients, proProviders, proSectors, syncMasterContact } = useApp();
   const { showToast } = useToast();
   
-  const getToday = () => new Date().toLocaleDateString('en-CA');
-  const defaultState = { id: '', date: getToday(), sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, participantType: ParticipantType.STAFF, guide: '', lesson: '', observations: '' };
+  const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
+  const defaultState = useMemo(() => ({ id: '', date: getToday(), sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, participantType: ParticipantType.STAFF, guide: '', lesson: '', observations: '' }), [getToday]);
   
   const [formData, setFormData] = useState(defaultState);
   const [isSectorLocked, setIsSectorLocked] = useState(false);
 
   useEffect(() => {
     if (!editingItem) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(prev => ({ ...defaultState, date: prev.date || getToday() }));
       setIsSectorLocked(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingItem]); 
+  }, [editingItem, defaultState, getToday]); 
 
   const guideOptions = useMemo(() => {
     const uniqueGuides = new Set<string>();
@@ -100,6 +100,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   useEffect(() => {
     if (editingItem) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({ ...editingItem, participantType: editingItem.participantType || ParticipantType.STAFF, date: editingItem.date ? editingItem.date.split('T')[0] : getToday() });
       if (editingItem.participantType === ParticipantType.STAFF) {
           const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(editingItem.name) && s.unit === unit);
@@ -108,8 +109,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           setIsSectorLocked(false);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingItem, unit, proStaff]);
+  }, [editingItem, unit, proStaff, getToday]);
 
   const handleSelectStudent = (selectedLabel: string) => {
     const targetName = selectedLabel.split(' (')[0].trim();
