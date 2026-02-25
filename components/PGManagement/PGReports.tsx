@@ -34,13 +34,13 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
       const monthName = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(s);
       const year = s.getFullYear();
       return {
-        title: `Relatório de ${monthName.charAt(0).toUpperCase() + monthName.slice(1)}/${year}`,
+        title: `Relatório de Pequenos Grupos - ${monthName.charAt(0).toUpperCase() + monthName.slice(1)}/${year}`,
         periodLabel: `Mês de Referência: ${monthName}/${year}`
       };
     }
 
     return {
-      title: 'Relatório de Cobertura Especial',
+      title: 'Relatório de Pequenos Grupos',
       periodLabel: `Período: ${startDate.split('-').reverse().join('/')} até ${endDate.split('-').reverse().join('/')}`
     };
   }, [startDate, endDate]);

@@ -15,7 +15,7 @@ interface PDFOptions {
 
 export const generateAmbassadorReportHtml = (ambassadors: Ambassador[], options: PDFOptions) => {
   const { mode, unit, startDate, endDate, sectorId, sortOrder, sectors, stats, config } = options;
-  const title = `RELATÓRIO DE EMBAIXADORES - ${unit}`;
+  const title = `RELATÓRIO DE EMBAIXADORES DA ESPERANÇA - ${unit}`;
   const periodLabel = `Período: ${startDate ? new Date(startDate).toLocaleDateString() : 'Início'} até ${endDate ? new Date(endDate).toLocaleDateString() : 'Hoje'}`;
 
   // Filtros de dados
