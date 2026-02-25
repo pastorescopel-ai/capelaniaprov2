@@ -153,7 +153,7 @@ const AmbassadorsManager: React.FC = () => {
         const rawDate = getVal('data');
         const matricula = getVal('matricula');
         const nome = getVal('nome');
-        const nomeSetor = getVal('setor');
+        const idSetorExcel = getVal('id_setor');
 
         if (!matricula || !nome) continue;
 
@@ -173,7 +173,8 @@ const AmbassadorsManager: React.FC = () => {
         let unit = Unit.HAB;
         let sectorIdMatch = null;
         
-        const sectorMatch = proSectors.find(s => normalizeString(s.name) === normalizeString(nomeSetor));
+        // BUSCA POR ID: Compara o ID da planilha com o ID (bigint/string) do pro_sectors
+        const sectorMatch = proSectors.find(s => String(s.id) === String(idSetorExcel));
 
         if (sectorMatch) {
             unit = sectorMatch.unit;
