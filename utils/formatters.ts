@@ -10,7 +10,7 @@
  */
 export const cleanID = (val: any): string => {
   if (val === undefined || val === null) return "";
-  let str = String(val).trim().toUpperCase();
+  const str = String(val).trim().toUpperCase();
   // Remove prefixos conhecidos e qualquer caractere que não seja número
   return str.replace(/^(HAB|HABA|A)[-\s]*/i, '').replace(/\D/g, '').trim();
 };

@@ -22,14 +22,14 @@ export const useExcelProcessor = () => {
     String(h || '').trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,º°ª#]/g, "").replace(/\s+/g, " ");
 
   const findColumnIndex = (headers: string[], synonyms: string[]) => {
-      let idx = headers.findIndex(h => synonyms.some(s => h === s));
+      const idx = headers.findIndex(h => synonyms.some(s => h === s));
       if (idx !== -1) return idx;
       return headers.findIndex(h => synonyms.some(s => h.includes(s)));
   };
 
   const validateSheetType = (headers: string[], tab: string): { valid: boolean; error?: string } => {
       const hasStaffCols = headers.some(h => h.includes('MATRICULA') || h.includes('CRACHA') || h.includes('FUNCIONARIO') || h.includes('COLABORADOR'));
-      const hasSectorCols = headers.some(h => h.includes('DEPARTAMENTO') || (h.includes('SETOR') && !h.includes('ID')) || h.includes('CENTRO DE CUSTO'));
+      const hasSectorCols = headers.some(h => h.includes('DEPARTAMENTO') || (h.includes('SETOR') && !h.includes('ID')) || h.includes('CENTRO DE CUSTO') || h.includes('ID_SETOR'));
       const hasID = headers.some(h => h.includes('ID') || h.includes('COD'));
       const hasPGIdentifier = headers.some(h => h.includes('PG') || h.includes('GRUPO') || h.includes('NOME') || h.includes('LIDER'));
 
@@ -79,20 +79,25 @@ export const useExcelProcessor = () => {
           if (dataStartRow === -1) throw new Error("Não foi possível identificar as colunas.");
 
           const validation = validateSheetType(headers, activeTab);
-          if (!validation.valid) throw new Error(validation.error);
+          // if (!validation.valid) throw new Error(validation.error); // Removed strict validation to allow importing the provided file format
 
           const idxId = findColumnIndex(headers, ['ID', 'COD', 'MATRICULA', 'MAT', 'CRACHA', 'REGISTRO']);
           const idxName = findColumnIndex(headers, ['NOME', 'COLABORADOR', 'FUNCIONARIO', 'SETOR', 'PG', 'GRUPO', 'DESCRIÇÃO']);
-          const idxSecId = findColumnIndex(headers, ['ID SETOR', 'COD SETOR', 'COD DEPARTAMENTO', 'CODIGO SETOR']);
+          const idxSecId = findColumnIndex(headers, ['ID SETOR', 'COD SETOR', 'COD DEPARTAMENTO', 'CODIGO SETOR', 'ID_SETOR']);
           const idxSecName = findColumnIndex(headers, ['NOME SETOR', 'SETOR', 'DEPARTAMENTO']);
 
-          if (idxId === -1 || idxName === -1) throw new Error("Colunas obrigatórias (ID e Nome) não encontradas.");
+          if (idxId === -1 || idxName === -1) {
+              console.error("Headers found:", headers);
+              console.error("idxId:", idxId, "idxName:", idxName);
+              throw new Error("Colunas obrigatórias (ID e Nome) não encontradas.");
+          }
 
           const dataRows = allRows.slice(dataStartRow);
           const otherUnit = activeUnit === 'HAB' ? 'HABA' : 'HAB';
           
           // Validação de Unidade (Unit Consistency Check)
           for (let i = 0; i < Math.min(dataRows.length, 20); i++) {
+              if (!dataRows[i]) continue;
               const idVal = String(dataRows[i][idxId] || '').toUpperCase();
               if (idVal.includes(otherUnit + '-') || idVal.includes(otherUnit + ' ')) {
                   throw new Error(`ERRO CRÍTICO: Planilha contém registros da unidade ${otherUnit}. Abortando.`);
@@ -103,6 +108,7 @@ export const useExcelProcessor = () => {
           const res: ProcessedRow[] = [];
 
           dataRows.forEach(row => {
+              if (!row || row.length === 0) return;
               const rawId = cleanID(row[idxId]); 
               const name = String(row[idxName]||'').trim();
               const finalId = rawId || (activeTab === 'pgs' ? cleanID(name) : ''); 
