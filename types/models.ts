@@ -128,7 +128,9 @@ export interface BibleStudy {
   date: string;
   unit: Unit;
   sector: string;
+  sectorId?: string;
   name: string;
+  staffId?: string;
   whatsapp: string;
   status: RecordStatus;
   participantType?: ParticipantType;

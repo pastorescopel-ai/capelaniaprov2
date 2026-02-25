@@ -111,7 +111,7 @@ const MainContent: React.FC<MainContentProps> = ({
       {/* Formulários: RESETAM AO SAIR (Unmount) */}
       {activeTab === 'bibleStudy' && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <BibleStudyForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} history={getVisibleHistory(bibleStudies)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} onTransfer={handleTransfer} />
+          <BibleStudyForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} history={bibleStudies.filter(s => (s.unit || Unit.HAB) === currentUnit)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} onTransfer={handleTransfer} />
         </div>
       )}
 

@@ -31,7 +31,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   const { showToast } = useToast();
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
-  const defaultState = useMemo(() => ({ id: '', date: getToday(), sector: '', name: '', whatsapp: '', status: RecordStatus.INICIO, participantType: ParticipantType.STAFF, guide: '', lesson: '', observations: '' }), [getToday]);
+  const defaultState = useMemo(() => ({ id: '', date: getToday(), sector: '', sectorId: '', name: '', staffId: '', whatsapp: '', status: RecordStatus.INICIO, participantType: ParticipantType.STAFF, guide: '', lesson: '', observations: '' }), [getToday]);
   
   const [formData, setFormData] = useState(defaultState);
   const [isSectorLocked, setIsSectorLocked] = useState(false);
@@ -114,6 +114,8 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   const handleSelectStudent = (selectedLabel: string) => {
     const targetName = selectedLabel.split(' (')[0].trim();
     let targetSector = formData.sector;
+    let targetSectorId = formData.sectorId;
+    let targetStaffId = formData.staffId;
     let targetWhatsApp = formData.whatsapp;
     let targetGuide = formData.guide;
     let targetLesson = formData.lesson;
@@ -124,9 +126,11 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     if (formData.participantType === ParticipantType.STAFF) {
         const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
         if (staff) {
+            targetStaffId = staff.id;
             const sector = proSectors.find(s => s.id === staff.sectorId);
             if (sector) {
                 targetSector = sector.name; 
+                targetSectorId = sector.id;
                 lockSector = true;
             } else {
                 lockSector = false;
@@ -137,27 +141,36 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         }
     } else if (formData.participantType === ParticipantType.PATIENT) {
         const p = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
-        if (p) targetWhatsApp = p.whatsapp ? formatWhatsApp(p.whatsapp) : '';
+        if (p) {
+            targetWhatsApp = p.whatsapp ? formatWhatsApp(p.whatsapp) : '';
+            targetStaffId = p.id;
+        }
         lockSector = false;
     } else {
         const pr = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
         if (pr) { 
             targetWhatsApp = pr.whatsapp ? formatWhatsApp(pr.whatsapp) : ''; 
             targetSector = pr.sector || ''; 
+            targetStaffId = pr.id;
         }
         lockSector = false;
     }
 
-    const lastRecord = [...allHistory].filter(h => normalizeString(h.name).includes(normName.split(' ')[0])).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    const lastRecord = [...allHistory].filter(h => normalizeString(h.name) === normName && h.unit === unit).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
     if (lastRecord) {
         targetGuide = lastRecord.guide;
         const lastNum = parseInt(lastRecord.lesson);
-        targetLesson = isNaN(lastNum) ? lastRecord.lesson : (lastNum + 1).toString();
-        targetStatus = RecordStatus.CONTINUACAO;
+        if (!isNaN(lastNum)) {
+            targetLesson = (lastNum + 1).toString();
+            targetStatus = (lastNum + 1) > 1 ? RecordStatus.CONTINUACAO : RecordStatus.INICIO;
+        } else {
+            targetLesson = lastRecord.lesson;
+            targetStatus = RecordStatus.CONTINUACAO;
+        }
     }
 
     setFormData(prev => ({ 
-        ...prev, name: targetName, sector: targetSector, whatsapp: targetWhatsApp, guide: targetGuide, lesson: targetLesson, status: targetStatus 
+        ...prev, name: targetName, sector: targetSector, sectorId: targetSectorId, staffId: targetStaffId, whatsapp: targetWhatsApp, guide: targetGuide, lesson: targetLesson, status: targetStatus 
     }));
     setIsSectorLocked(lockSector);
     if (lockSector) showToast("Setor vinculado ao cadastro oficial.", "info");
@@ -197,6 +210,22 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
 
+  const groupedHistory = useMemo(() => {
+    const map = new Map<string, BibleStudy>();
+    history.forEach(s => {
+      const key = `${normalizeString(s.name)}-${s.unit}-${s.participantType}`;
+      if (!map.has(key)) {
+        map.set(key, s);
+      } else {
+        const existing = map.get(key)!;
+        if (new Date(s.date).getTime() > new Date(existing.date).getTime()) {
+          map.set(key, s);
+        }
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [history]);
+
   // Renderização do cabeçalho movida para prop headerActions
   const headerActions = (
     <>
@@ -213,7 +242,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   );
 
   const historySection = (
-    <HistorySection<BibleStudy> data={history} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['name']} renderItem={(item) => (
+    <HistorySection<BibleStudy> data={groupedHistory} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['name']} renderItem={(item) => (
       <HistoryCard key={item.id} icon="📖" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-blue-600"} title={item.name} subtitle={`${item.sector} • ${item.status}`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role)} isAdmin={currentUser.role === UserRole.ADMIN} users={users} onTransfer={(newUid) => onTransfer?.('study', item.id, newUid)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} middle={item.participantType && item.participantType !== ParticipantType.STAFF && (<span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${item.participantType === ParticipantType.PATIENT ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{item.participantType}</span>)}/>
     )} />
   );
@@ -245,7 +274,11 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           </div>
 
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Guia de Estudo</label><Autocomplete options={guideOptions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Ex: O Grande Conflito" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Lição nº</label><input type="number" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-black" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Lição nº</label><input type="number" value={formData.lesson} onChange={e => {
+              const val = e.target.value;
+              const num = parseInt(val);
+              setFormData({...formData, lesson: val, status: (!isNaN(num) && num > 1) ? RecordStatus.CONTINUACAO : formData.status});
+          }} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-black" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase border-2 transition-all ${formData.status === opt ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-100 text-slate-400 bg-slate-50'}`}>{opt}</button>))}</div></div>
         </div>
         <button type="submit" className="w-full py-6 bg-blue-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs hover:bg-blue-700">Gravar Registro</button>

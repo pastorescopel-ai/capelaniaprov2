@@ -3,7 +3,7 @@ import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Conf
 
 const TABLE_SCHEMAS: Record<string, string[]> = {
   users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'updated_at'],
-  bible_studies: ['id', 'user_id', 'date', 'unit', 'sector', 'name', 'whatsapp', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
+  bible_study_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'name', 'staff_id', 'whatsapp', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
   bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'], // students removido (migrado para tabela filha)
   bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'created_at'],
   small_groups: ['id', 'user_id', 'date', 'unit', 'sector', 'group_name', 'leader', 'leader_phone', 'shift', 'participants_count', 'observations', 'created_at', 'updated_at'],
@@ -130,7 +130,7 @@ const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: st
 
       // Validação Crítica de Segurança: UUIDs
       // Tabelas 'pro_' agora usam BIGINT, então pulamos validação de UUID para elas.
-      if (tableName !== 'visit_requests' && !tableName.startsWith('pro_') && snakeKey !== 'staff_id' && snakeKey !== 'provider_id') {
+      if (tableName !== 'visit_requests' && !tableName.startsWith('pro_') && snakeKey !== 'staff_id' && snakeKey !== 'provider_id' && snakeKey !== 'sector_id') {
         if (isFK && val && !isValidUUID(val) && tableName !== 'bible_class_attendees') {
           // console.error(`Bloqueio de Segurança: Tentativa de usar ID não-UUID em ${tableName}.${snakeKey} (${val})`);
           newObj[snakeKey] = null;
@@ -152,7 +152,7 @@ export const DataRepository = {
 
       const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca] = await Promise.all([
         supabase.from('users').select('*').range(0, MAX_ROWS),
-        supabase.from('bible_studies').select('*').range(0, MAX_ROWS),
+        supabase.from('bible_study_sessions').select('*').range(0, MAX_ROWS),
         supabase.from('bible_classes').select('*').range(0, MAX_ROWS),
         supabase.from('small_groups').select('*').range(0, MAX_ROWS),
         supabase.from('staff_visits').select('*').range(0, MAX_ROWS),
@@ -209,7 +209,7 @@ export const DataRepository = {
     if (items.length === 0) return true;
 
     const tableMap: Record<string, string> = {
-      bibleStudies: 'bible_studies', bibleClasses: 'bible_classes',
+      bibleStudies: 'bible_study_sessions', bibleClasses: 'bible_classes',
       smallGroups: 'small_groups', staffVisits: 'staff_visits',
       users: 'users', config: 'app_config',
       visitRequests: 'visit_requests',
@@ -291,7 +291,7 @@ export const DataRepository = {
   async deleteRecord(collection: string, id: string) {
     if (!supabase) return false;
     const tableMap: Record<string, string> = {
-      bibleStudies: 'bible_studies', bibleClasses: 'bible_classes', smallGroups: 'small_groups', 
+      bibleStudies: 'bible_study_sessions', bibleClasses: 'bible_classes', smallGroups: 'small_groups', 
       staffVisits: 'staff_visits', users: 'users',
       visitRequests: 'visit_requests',
       proSectors: 'pro_sectors', proStaff: 'pro_staff', 

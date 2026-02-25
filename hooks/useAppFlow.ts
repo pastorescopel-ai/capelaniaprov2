@@ -67,9 +67,13 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
     if (type === 'pg') collectionName = 'smallGroups';
 
     if (collectionName) {
-      await saveRecord(collectionName, itemToSave);
-      setEditingItem(null);
-      showToast("Registro salvo com sucesso!", "success");
+      const success = await saveRecord(collectionName, itemToSave);
+      if (success) {
+        setEditingItem(null);
+        showToast("Registro salvo com sucesso!", "success");
+      } else {
+        showToast("Erro ao salvar registro no banco de dados.", "error");
+      }
     }
   };
 
