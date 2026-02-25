@@ -165,3 +165,35 @@ ADD COLUMN IF NOT EXISTS is_error BOOLEAN DEFAULT FALSE;
 CREATE INDEX IF NOT EXISTS idx_pro_group_members_staff_active 
 ON pro_group_members (staff_id) 
 WHERE (left_at IS NULL);
+
+-- #################################################################
+-- # SCHEMA V8.0 - LIBERAÇÃO DA TABELA AMBASSADORS
+-- #################################################################
+
+-- 1. CRIAÇÃO DA TABELA (Caso não exista)
+CREATE TABLE IF NOT EXISTS ambassadors (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    registration_id TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    sector_id BIGINT, -- Relacionamento com pro_sectors.id
+    unit TEXT NOT NULL,
+    completion_date TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- 2. SEGURANÇA DE ACESSO PARA EMBAIXADORES (MATA ERRO 401)
+-- Garante que a tabela de embaixadores aceite UPSERT do front-end
+ALTER TABLE IF EXISTS ambassadors ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Acesso Total Ambassadors" ON ambassadors;
+CREATE POLICY "Acesso Total Ambassadors" 
+ON ambassadors 
+FOR ALL 
+TO anon, authenticated 
+USING (true) 
+WITH CHECK (true);
+
+-- 3. PERMISSÕES DIRETAS
+GRANT ALL ON ambassadors TO anon;
+GRANT ALL ON ambassadors TO authenticated;
+GRANT ALL ON ambassadors TO service_role;

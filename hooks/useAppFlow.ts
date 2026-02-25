@@ -31,11 +31,9 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
     if (!currentUser) {
       startTransition(() => {
         setActiveTabState('dashboard');
+        setEditingItem(null);
+        setItemToDelete(null);
       });
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setEditingItem(null);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setItemToDelete(null);
     }
   }, [currentUser]);
 

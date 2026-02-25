@@ -17,7 +17,8 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
   pro_groups: ['id', 'name', 'current_leader', 'leader_phone', 'sector_id', 'unit', 'active'],
   pro_group_locations: ['id', 'group_id', 'sector_id', 'unit', 'created_at'],
   pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at', 'left_at', 'is_error'],
-  pro_group_provider_members: ['id', 'group_id', 'provider_id', 'joined_at', 'left_at', 'is_error']
+  pro_group_provider_members: ['id', 'group_id', 'provider_id', 'joined_at', 'left_at', 'is_error'],
+  ambassadors: ['id', 'registration_id', 'name', 'sector_id', 'unit', 'completion_date', 'updated_at']
 };
 
 // Campos que devem ser tratados como números puros
