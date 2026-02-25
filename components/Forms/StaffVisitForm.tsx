@@ -39,7 +39,8 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       setFormData(prev => ({ ...defaultState, date: prev.date || getToday(), participantType: prev.participantType }));
       setIsSectorLocked(false);
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingItem]);
 
   const sectorOptions = useMemo(() => proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name})).sort((a,b) => a.label.localeCompare(b.label)), [proSectors, unit]);
 

@@ -73,11 +73,11 @@ export const useAppData = () => {
     return () => { supabase.removeChannel(channel); };
   }, [loadFromCloud]);
 
-  const saveRecord = async (collection: string, item: any) => {
+  const saveRecord = useCallback(async (collection: string, item: any) => {
     const success = await DataRepository.upsertRecord(collection, item);
     if (success) await loadFromCloud(false);
     return success;
-  };
+  }, [loadFromCloud]);
 
   /**
    * ULTIMATE_ENTITY_SYNC_ENGINE (V4.1 - Enhanced Sector Healing)
@@ -94,7 +94,7 @@ export const useAppData = () => {
         // Localiza pelo nome normalizado e unidade
         const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
         if (staff) {
-            let updates: any = {};
+            const updates: any = {};
             let hasUpdates = false;
 
             // 1. Cura do Telefone

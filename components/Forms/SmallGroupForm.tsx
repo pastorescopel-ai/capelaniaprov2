@@ -63,7 +63,8 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
           setIsSectorLocked(!!loc);
       }
     }
-  }, [editingItem]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingItem, proGroups, proGroupLocations, unit]);
 
   const handleSelectPG = (pgName: string) => {
       const pgMaster = proGroups.find(g => g.name === pgName && g.unit === unit);

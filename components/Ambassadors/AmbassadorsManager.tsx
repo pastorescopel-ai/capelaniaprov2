@@ -38,6 +38,7 @@ const AmbassadorsManager: React.FC = () => {
   // Carregar embaixadores ao montar
   React.useEffect(() => {
     fetchAmbassadors();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchAmbassadors = async () => {

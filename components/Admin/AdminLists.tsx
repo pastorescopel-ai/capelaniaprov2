@@ -48,7 +48,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
     setSyncState({ isOpen: true, status: 'processing', title: 'Sincronizando', message: 'Calculando diferenças e salvando...' });
     
     try {
-        let stats = { updated: 0, deactivated: 0, new: 0 };
+        const stats = { updated: 0, deactivated: 0, new: 0 };
         const mergeData = (currentDB: any[], incomingList: ProcessedRow[], type: 'staff'|'sector'|'pg') => {
             const map = new Map<string, any>();
             currentDB.forEach(item => { const key = cleanID(item.id); map.set(key, item); });

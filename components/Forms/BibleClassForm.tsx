@@ -98,6 +98,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
             } else { setFormData(prev => ({ ...prev, students: [] })); }
         }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.sector, proSectors, proStaff, unit, allHistory, editingItem, formData.participantType]);
 
   useEffect(() => {

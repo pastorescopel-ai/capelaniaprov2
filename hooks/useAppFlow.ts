@@ -35,6 +35,7 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
       setEditingItem(null);
       setItemToDelete(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   const handleSaveItem = async (type: string, data: any) => {

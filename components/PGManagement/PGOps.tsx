@@ -35,7 +35,7 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
     const pg = proGroups.find(g => g.name === selectedPG && g.unit === unit);
     if (!pg) return null;
 
-    let leaderName = pg.currentLeader || 'Não informado';
+    const leaderName = pg.currentLeader || 'Não informado';
     return { name: leaderName };
   }, [selectedPG, proGroups, unit]);
 

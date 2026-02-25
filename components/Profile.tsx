@@ -78,7 +78,7 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
     e.preventDefault();
     
     // Preparar objeto de atualização
-    let updatedUser = { ...user, name, profilePic };
+    const updatedUser = { ...user, name, profilePic };
     
     // Se o usuário está tentando mudar a senha
     if (passData.new || passData.confirm) {
