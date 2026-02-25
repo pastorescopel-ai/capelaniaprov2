@@ -55,7 +55,7 @@ const AmbassadorsManager: React.FC = () => {
         name: d.name,
         registrationId: d.registration_id,
         email: d.email,
-        sectorId: d.sector_id,
+        sectorId: d.sector_id ? String(d.sector_id) : null,
         unit: d.unit,
         completionDate: d.completion_date
       }));
@@ -73,8 +73,10 @@ const AmbassadorsManager: React.FC = () => {
 
     proSectors.forEach(sector => {
       if (!dataByUnit[sector.unit]) return;
-      const staffInSector = proStaff.filter(s => s.sectorId === sector.id && s.active !== false).length;
-      dataByUnit[sector.unit].sectors[sector.id] = {
+      const sectorIdStr = String(sector.id);
+      const staffInSector = proStaff.filter(s => String(s.sectorId) === sectorIdStr && s.active !== false).length;
+      dataByUnit[sector.unit].sectors[sectorIdStr] = {
+        id: sectorIdStr,
         name: sector.name,
         count: 0,
         totalStaff: staffInSector || 1,
@@ -83,8 +85,9 @@ const AmbassadorsManager: React.FC = () => {
     });
 
     ambassadors.forEach(amb => {
-      if (amb.sectorId && dataByUnit[amb.unit]?.sectors[amb.sectorId]) {
-        dataByUnit[amb.unit].sectors[amb.sectorId].count++;
+      const ambSectorIdStr = amb.sectorId ? String(amb.sectorId) : null;
+      if (ambSectorIdStr && dataByUnit[amb.unit]?.sectors[ambSectorIdStr]) {
+        dataByUnit[amb.unit].sectors[ambSectorIdStr].count++;
         dataByUnit[amb.unit].total++;
       }
     });
@@ -437,7 +440,7 @@ const AmbassadorsManager: React.FC = () => {
                   </thead>
                   <tbody className="text-sm text-slate-600 divide-y divide-slate-50">
                     {ambassadors.filter(a => a.unit === currentUnit).sort((a, b) => a.name.localeCompare(b.name)).map(amb => {
-                      const sectorName = proSectors.find(s => s.id === amb.sectorId)?.name || 'Não identificado';
+                      const sectorName = proSectors.find(s => String(s.id) === String(amb.sectorId))?.name || 'Não identificado';
                       return (
                         <tr key={amb.id} className="hover:bg-slate-50 transition-colors group">
                           <td className="p-4 font-mono text-xs text-slate-400">{amb.registrationId || '-'}</td>
@@ -556,7 +559,7 @@ const AmbassadorsManager: React.FC = () => {
 
                 <div className="grid gap-4">
                   {Object.values(stats[currentUnit].sectors)
-                    .filter(s => reportSectorId === 'all' || proSectors.find(ps => ps.name === s.name)?.id === reportSectorId)
+                    .filter(s => reportSectorId === 'all' || String(s.id) === String(reportSectorId))
                     .sort((a, b) => {
                       if (reportSortOrder === 'alpha') return a.name.localeCompare(b.name);
                       return b.percent - a.percent;
@@ -593,7 +596,7 @@ const AmbassadorsManager: React.FC = () => {
                           {ambassadors
                             .filter(a => {
                               const matchesUnit = a.unit === currentUnit;
-                              const matchesSector = a.sectorId && proSectors.find(s => s.id === a.sectorId)?.name === sector.name;
+                              const matchesSector = String(a.sectorId) === String(sector.id);
                               const matchesStart = reportStartDate ? new Date(a.completionDate) >= new Date(reportStartDate) : true;
                               const matchesEnd = reportEndDate ? new Date(a.completionDate) <= new Date(reportEndDate) : true;
                               return matchesUnit && matchesSector && matchesStart && matchesEnd;

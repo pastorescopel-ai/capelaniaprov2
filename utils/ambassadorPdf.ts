@@ -28,13 +28,13 @@ export const generateAmbassadorReportHtml = (ambassadors: Ambassador[], options:
     filtered = filtered.filter(a => new Date(a.completionDate) <= new Date(endDate));
   }
   if (sectorId && sectorId !== 'all') {
-    filtered = filtered.filter(a => a.sectorId === sectorId);
+    filtered = filtered.filter(a => String(a.sectorId) === String(sectorId));
   }
 
   // Agrupar por setor
   const sectorsMap: Record<string, Ambassador[]> = {};
   filtered.forEach(amb => {
-    const sectorName = sectors.find(s => s.id === amb.sectorId)?.name || 'SEM SETOR';
+    const sectorName = sectors.find(s => String(s.id) === String(amb.sectorId))?.name || 'SEM SETOR';
     if (!sectorsMap[sectorName]) sectorsMap[sectorName] = [];
     sectorsMap[sectorName].push(amb);
   });
