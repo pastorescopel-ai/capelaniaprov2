@@ -138,6 +138,31 @@ export const useDataMaintenance = (
     return data;
   };
 
+  const linkStudySessionIdentity = async (orphanName: string, targetStaffId: string, targetSectorId: string | null, participantType: string): Promise<string> => {
+    if (!supabase) return "Erro Conexão";
+    
+    const numericStaffId = targetStaffId.replace(/\D/g, '');
+    const numericSectorId = targetSectorId ? targetSectorId.replace(/\D/g, '') : null;
+
+    const updates: any = { 
+        staff_id: numericStaffId ? parseInt(numericStaffId) : null,
+        participant_type: participantType
+    };
+    
+    if (numericSectorId) {
+        updates.sector_id = parseInt(numericSectorId);
+    }
+
+    const { error } = await supabase
+        .from('bible_study_sessions')
+        .update(updates)
+        .eq('name', orphanName);
+
+    if (error) throw new Error(error.message);
+    await reloadCallback(false);
+    return `Estudos de ${orphanName} vinculados com sucesso!`;
+  };
+
   const bulkHealAttendees = async (): Promise<string> => {
     if (!supabase) return "Erro Conexão";
     setIsMaintenanceRunning(true);
@@ -163,6 +188,7 @@ export const useDataMaintenance = (
     unifyStudentIdentity,
     createAndLinkIdentity,
     healSectorConnection,
+    linkStudySessionIdentity,
     bulkHealAttendees,
     isMaintenanceRunning
   };

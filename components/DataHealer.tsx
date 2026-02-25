@@ -7,16 +7,17 @@ import { ParticipantType, ProStaff } from '../types';
 import Autocomplete from './Shared/Autocomplete';
 import { supabase } from '../services/supabaseClient';
 
-type HealerTab = 'people' | 'sectors' | 'attendees';
+type HealerTab = 'people' | 'sectors' | 'attendees' | 'studies';
 type PersonType = 'Colaborador' | 'Ex-Colaborador' | 'Paciente' | 'Prestador';
 
 const DataHealer: React.FC = () => {
   // Adicionado proPatients e proProviders na desestruturação
-  const { bibleClasses, bibleStudies, smallGroups, staffVisits, proStaff, proPatients, proProviders, proSectors, unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, saveRecord } = useApp();
+  const { bibleClasses, bibleStudies, smallGroups, staffVisits, proStaff, proPatients, proProviders, proSectors, unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, linkStudySessionIdentity, saveRecord } = useApp();
   const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState<HealerTab>('people');
   const [targetMap, setTargetMap] = useState<Record<string, string>>({});
+  const [studyTargetMap, setStudyTargetMap] = useState<Record<string, string>>({}); // Target para aba de estudos
   const [sectorMap, setSectorMap] = useState<Record<string, string>>({}); // Para selecionar setor do Ex-Colaborador
   const [searchQuery, setSearchQuery] = useState(''); // NOVO: Estado para busca forçada
   const [filterClassOnly, setFilterClassOnly] = useState(false); // NOVO: Filtro para alunos de classe
@@ -73,6 +74,30 @@ const DataHealer: React.FC = () => {
         fetchAttendees();
     }
   }, [activeTab, resolvedItems, showToast]);
+
+  // --- LÓGICA DE DIAGNÓSTICO: ESTUDOS BÍBLICOS ÓRFÃOS ---
+  const studyOrphans = useMemo(() => {
+      const orphanMap = new Map<string, { count: number, unit: string, participantType: string }>();
+      
+      bibleStudies.forEach(s => {
+          if (!s.staffId && !s.sectorId) {
+              const cleanName = s.name.trim();
+              if (resolvedItems.has(cleanName)) return;
+              
+              const normSearch = normalizeString(searchQuery);
+              if (normSearch && !normalizeString(cleanName).includes(normSearch)) return;
+
+              if (!orphanMap.has(cleanName)) {
+                  orphanMap.set(cleanName, { count: 0, unit: s.unit, participantType: s.participantType || 'Colaborador' });
+              }
+              orphanMap.get(cleanName)!.count++;
+          }
+      });
+
+      return Array.from(orphanMap.entries())
+          .map(([name, data]) => ({ name, count: data.count, unit: data.unit, participantType: data.participantType }))
+          .sort((a, b) => b.count - a.count);
+  }, [bibleStudies, resolvedItems, searchQuery]);
 
   // --- LÓGICA DE DIAGNÓSTICO: PESSOAS ÓRFÃS (CORRIGIDO PARA INCLUIR TODAS AS ENTIDADES) ---
   const peopleOrphans = useMemo(() => {
@@ -266,6 +291,39 @@ const DataHealer: React.FC = () => {
       finally { setIsProcessing(false); }
   };
 
+  const handleLinkStudy = async (orphanName: string) => {
+      const targetStaffId = studyTargetMap[orphanName];
+      if (!targetStaffId) {
+          showToast("Selecione o cadastro oficial antes de vincular.", "warning");
+          return;
+      }
+
+      setIsProcessing(true);
+      try {
+          // Descobre o tipo e o setor baseado no ID selecionado
+          let participantType = 'Colaborador';
+          let sectorId = null;
+
+          const staff = proStaff.find(s => String(s.id) === targetStaffId);
+          if (staff) {
+              participantType = 'Colaborador';
+              sectorId = staff.sectorId;
+          } else if (proPatients.find(p => String(p.id) === targetStaffId)) {
+              participantType = 'Paciente';
+          } else if (proProviders.find(p => String(p.id) === targetStaffId)) {
+              participantType = 'Prestador';
+          }
+
+          const msg = await linkStudySessionIdentity(orphanName, targetStaffId, sectorId, participantType);
+          showToast(msg, "success");
+          setResolvedItems(prev => new Set(prev).add(orphanName));
+      } catch (e: any) {
+          showToast(e.message, "error");
+      } finally {
+          setIsProcessing(false);
+      }
+  };
+
   const isHealthy = (name: string) => {
       const norm = normalizeString(name);
       return proStaff.some(s => normalizeString(s.name) === norm) ||
@@ -316,6 +374,12 @@ const DataHealer: React.FC = () => {
               <i className="fas fa-users"></i> Pessoas
           </button>
           <button 
+            onClick={() => { setActiveTab('studies'); setStudyTargetMap({}); setSearchQuery(''); }}
+            className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'studies' ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+              <i className="fas fa-book-open"></i> Estudos
+          </button>
+          <button 
             onClick={() => { setActiveTab('attendees'); setTargetMap({}); setSearchQuery(''); }}
             className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'attendees' ? 'bg-violet-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
           >
@@ -329,38 +393,102 @@ const DataHealer: React.FC = () => {
           </button>
       </div>
 
-      {/* BUSCA MANUAL E FILTRO (ABA PESSOAS) */}
-      {activeTab === 'people' && (
+      {/* BUSCA MANUAL E FILTRO (ABA PESSOAS E ESTUDOS) */}
+      {(activeTab === 'people' || activeTab === 'studies') && (
           <div className="max-w-xl mx-auto space-y-4">
               <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <i className={`fas fa-search text-lg ${searchQuery ? 'text-rose-500' : 'text-slate-300'} transition-colors`}></i>
+                      <i className={`fas fa-search text-lg ${searchQuery ? (activeTab === 'studies' ? 'text-indigo-500' : 'text-rose-500') : 'text-slate-300'} transition-colors`}></i>
                   </div>
                   <input 
                       type="text" 
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Buscar nome específico para forçar unificação..."
-                      className="w-full pl-12 pr-4 py-4 rounded-2xl border-none shadow-sm font-bold text-sm text-slate-700 outline-none focus:ring-4 focus:ring-rose-100 placeholder:text-slate-300 transition-all bg-white"
+                      className={`w-full pl-12 pr-4 py-4 rounded-2xl border-none shadow-sm font-bold text-sm text-slate-700 outline-none focus:ring-4 ${activeTab === 'studies' ? 'focus:ring-indigo-100' : 'focus:ring-rose-100'} placeholder:text-slate-300 transition-all bg-white`}
                   />
                   {searchQuery && (
-                      <button onClick={() => setSearchQuery('')} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-rose-500 transition-colors"><i className="fas fa-times"></i></button>
+                      <button onClick={() => setSearchQuery('')} className={`absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:${activeTab === 'studies' ? 'text-indigo-500' : 'text-rose-500'} transition-colors`}><i className="fas fa-times"></i></button>
                   )}
               </div>
-              <div className="flex justify-center gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 hover:bg-slate-50 transition-colors select-none">
-                      <input type="checkbox" checked={filterClassOnly} onChange={e => setFilterClassOnly(e.target.checked)} className="rounded text-rose-500 focus:ring-rose-500" />
-                      <span className="text-[9px] font-black uppercase text-slate-500 flex items-center gap-2"><i className="fas fa-chalkboard-teacher"></i> Apenas Alunos de Classe</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 hover:bg-slate-50 transition-colors select-none">
-                      <input type="checkbox" checked={showAllHistory} onChange={e => setShowAllHistory(e.target.checked)} className="rounded text-rose-500 focus:ring-rose-500" />
-                      <span className="text-[9px] font-black uppercase text-slate-500">Exibir todos</span>
-                  </label>
-              </div>
+              {activeTab === 'people' && (
+                  <div className="flex justify-center gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 hover:bg-slate-50 transition-colors select-none">
+                          <input type="checkbox" checked={filterClassOnly} onChange={e => setFilterClassOnly(e.target.checked)} className="rounded text-rose-500 focus:ring-rose-500" />
+                          <span className="text-[9px] font-black uppercase text-slate-500 flex items-center gap-2"><i className="fas fa-chalkboard-teacher"></i> Apenas Alunos de Classe</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 hover:bg-slate-50 transition-colors select-none">
+                          <input type="checkbox" checked={showAllHistory} onChange={e => setShowAllHistory(e.target.checked)} className="rounded text-rose-500 focus:ring-rose-500" />
+                          <span className="text-[9px] font-black uppercase text-slate-500">Exibir todos</span>
+                      </label>
+                  </div>
+              )}
           </div>
       )}
 
       {/* LISTA DE TRATAMENTO */}
+      {activeTab === 'studies' ? (
+          <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
+              <div className="p-8 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                  <h3 className="font-black text-slate-700 uppercase text-sm tracking-widest">Estudos Bíblicos Desvinculados</h3>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase"><i className="fas fa-magic mr-1"></i> Correção Manual</span>
+              </div>
+              <div className="p-6 bg-indigo-50 border-b border-indigo-100">
+                  <p className="text-indigo-600 text-xs font-bold">Estes registros de estudos bíblicos não possuem vínculo com a base oficial (RH, Pacientes ou Prestadores). Vincule-os manualmente para corrigir os relatórios.</p>
+              </div>
+              <div className="divide-y divide-slate-100 max-h-[65vh] overflow-y-auto custom-scrollbar pb-72">
+                  {studyOrphans.length === 0 ? (
+                      <div className="p-20 text-center flex flex-col items-center gap-4">
+                          <div className="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-4xl animate-bounce">
+                              <i className="fas fa-check-double"></i>
+                          </div>
+                          <p className="text-slate-400 font-bold uppercase text-sm tracking-widest">Todos os estudos estão vinculados corretamente!</p>
+                      </div>
+                  ) : (
+                      studyOrphans.map(orphan => (
+                          <div key={orphan.name} className="p-6 flex flex-col xl:flex-row items-center gap-6 hover:bg-slate-50 transition-colors group">
+                              <div className="flex-1 w-full xl:w-1/3">
+                                  <div className="flex items-center gap-2 mb-2">
+                                      <span className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase bg-indigo-100 text-indigo-700">
+                                          <i className="fas fa-link"></i> Sem Vínculo Oficial
+                                      </span>
+                                  </div>
+                                  <h4 className="font-black text-slate-800 uppercase text-lg leading-tight">{orphan.name}</h4>
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                      <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded uppercase"><i className="fas fa-layer-group mr-1"></i> {orphan.count} registro(s)</span>
+                                      <span className="px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded uppercase"><i className="fas fa-map-marker-alt mr-1"></i> Unidade: {orphan.unit}</span>
+                                      <span className="px-2 py-1 bg-amber-50 text-amber-600 text-[10px] font-bold rounded uppercase"><i className="fas fa-user-tag mr-1"></i> Tipo: {orphan.participantType}</span>
+                                  </div>
+                              </div>
+                              <div className="hidden xl:block text-slate-300">
+                                  <i className="fas fa-arrow-right text-xl transition-colors group-hover:text-indigo-400"></i>
+                              </div>
+                              <div className="flex-1 w-full xl:w-2/3 bg-slate-50 p-6 rounded-3xl border border-slate-100 group-hover:border-indigo-200 transition-colors">
+                                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Vincular à Base Oficial</label>
+                                  <div className="flex flex-col sm:flex-row gap-3">
+                                      <div className="flex-1">
+                                          <Autocomplete 
+                                              options={officialStaffOptions} 
+                                              value={studyTargetMap[orphan.name] || ''} 
+                                              onChange={(val) => setStudyTargetMap(prev => ({...prev, [orphan.name]: val}))} 
+                                              placeholder="Buscar na base oficial..." 
+                                          />
+                                      </div>
+                                      <button 
+                                          onClick={() => handleLinkStudy(orphan.name)} 
+                                          disabled={isProcessing || !studyTargetMap[orphan.name]}
+                                          className="px-6 py-4 bg-indigo-600 text-white font-black text-[10px] uppercase tracking-wider rounded-2xl hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-lg shadow-indigo-200 flex items-center gap-2 whitespace-nowrap"
+                                      >
+                                          {isProcessing ? <><i className="fas fa-circle-notch fa-spin"></i> Vinculando...</> : <><i className="fas fa-link"></i> Vincular Estudo</>}
+                                      </button>
+                                  </div>
+                              </div>
+                          </div>
+                      ))
+                  )}
+              </div>
+          </div>
+      ) : (
       <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
         <div className="p-8 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
           <h3 className="font-black text-slate-700 uppercase text-sm tracking-widest">Fila de Tratamento</h3>
@@ -473,6 +601,7 @@ const DataHealer: React.FC = () => {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };
