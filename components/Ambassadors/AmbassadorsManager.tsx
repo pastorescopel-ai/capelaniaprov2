@@ -141,7 +141,7 @@ const AmbassadorsManager: React.FC = () => {
          throw new Error(`Campos obrigatórios ausentes: ${missingFields.join(', ')}.`);
       }
 
-      const toUpsert = [];
+      const upsertMap = new Map<string, any>();
 
       for (const row of importPreview) {
         const rowKeys = Object.keys(row);
@@ -156,6 +156,8 @@ const AmbassadorsManager: React.FC = () => {
         const nomeSetor = getVal('setor');
 
         if (!matricula || !nome) continue;
+
+        const regId = String(matricula).trim();
 
         let completionDate = new Date().toISOString();
         if (rawDate) {
@@ -178,8 +180,9 @@ const AmbassadorsManager: React.FC = () => {
             sectorIdMatch = sectorMatch.id;
         }
 
-        toUpsert.push({
-          registration_id: String(matricula).trim(),
+        // LÓGICA LAST-WIN: Se a matrícula já existir no mapa, ela será sobrescrita pela última ocorrência
+        upsertMap.set(regId, {
+          registration_id: regId,
           name: String(nome).trim(),
           sector_id: sectorIdMatch, 
           unit: unit,
@@ -187,6 +190,8 @@ const AmbassadorsManager: React.FC = () => {
           updated_at: new Date().toISOString()
         });
       }
+
+      const toUpsert = Array.from(upsertMap.values());
 
       if (toUpsert.length > 0) {
         const { error } = await supabase.from('ambassadors').upsert(toUpsert, { onConflict: 'registration_id' });

@@ -94,8 +94,10 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                     nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
                     nextStatus = RecordStatus.CONTINUACAO;
                 }
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setFormData(prev => ({ ...prev, students: autoStudents, guide: nextGuide || prev.guide, lesson: nextLesson || prev.lesson, status: nextStatus }));
             } else { 
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setFormData(prev => ({ ...prev, students: [] })); 
             }
         }
@@ -104,6 +106,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
   useEffect(() => {
     if (editingItem) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({ ...editingItem, participantType: editingItem.participantType || ParticipantType.STAFF, date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), representativePhone: editingItem.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || '' });
     }
   }, [editingItem, getToday]);
