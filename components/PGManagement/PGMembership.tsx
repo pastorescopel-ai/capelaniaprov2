@@ -149,7 +149,8 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
             ? new Date(membership.joinedAt).toLocaleDateString('pt-BR') 
             : null;
 
-        return { ...staff, membership, groupName, joinedDate: dateStr };
+        const sector = proSectors.find(s => s.id === staff.sectorId);
+        return { ...staff, membership, groupName, joinedDate: dateStr, sectorName: sector?.name || 'Sem Setor' };
       })
       .filter(staff => {
         // Se estivermos olhando um PG específico, não mostrar quem já está nele (ou está sendo transferido para ele)
@@ -173,7 +174,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         if (a.membership && !b.membership) return 1;
         return a.name.localeCompare(b.name);
       });
-  }, [proStaff, currentSector, staffSearch, proGroupMembers, proGroups, currentPG, pendingTransfers, pendingRemovals, unit]);
+  }, [proStaff, currentSector, staffSearch, proGroupMembers, proGroups, currentPG, pendingTransfers, pendingRemovals, unit, proSectors]);
 
   const pgMembers = useMemo(() => {
     if (!currentPG) return [];
@@ -183,10 +184,12 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
       .filter(m => m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id)) // Filtro Soft Delete
       .map(m => {
         const staff = proStaff.find(s => cleanId(s.id) === cleanId(m.staffId));
+        const sector = proSectors.find(s => s.id === staff?.sectorId);
         return { 
             id: m.id,
             staffName: staff?.name || `Desconhecido (ID: ${m.staffId})`, 
             staffId: m.staffId,
+            sectorName: sector?.name || 'Sem Setor',
             joinedDate: m.joinedAt ? new Date(m.joinedAt).toLocaleDateString('pt-BR') : '',
             isOptimistic: false,
             isLeader: currentPG.currentLeader === staff?.name,
@@ -213,11 +216,13 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     const optimisticMembers = Array.from(pendingTransfers).map(id => {
         const staff = proStaff.find(s => s.id === id);
         const provider = proProviders.find(p => p.id === id);
+        const sector = staff ? proSectors.find(s => s.id === staff.sectorId) : null;
         const name = staff?.name || provider?.name || "Processando...";
         return {
             id: `temp-${id}`, 
             staffName: name,
             staffId: id,
+            sectorName: sector?.name || (provider ? 'Prestador' : '...'),
             joinedDate: "Hoje",
             isOptimistic: true,
             isLeader: false,
@@ -234,7 +239,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         if (!a.isLeader && b.isLeader) return 1;
         return a.staffName.localeCompare(b.staffName);
     });
-  }, [proGroupMembers, proGroupProviderMembers, currentPG, proStaff, proProviders, pendingTransfers, pendingRemovals]);
+  }, [proGroupMembers, proGroupProviderMembers, currentPG, proStaff, proProviders, pendingTransfers, pendingRemovals, proSectors]);
 
   // --- AÇÕES ---
 
@@ -545,8 +550,11 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
                     {availableStaff.map(staff => (
                       <div key={staff.id} className="p-4 rounded-2xl flex items-center justify-between border bg-white border-blue-100 shadow-sm hover:border-blue-300 transition-all animate-in slide-in-from-left duration-300">
                         <div className="min-w-0 flex-1">
-                          <p className="font-bold text-slate-700 text-xs uppercase truncate">{staff.name}</p>
-                          <div className="flex items-center gap-2">
+                          <p className="font-bold text-slate-700 text-xs uppercase truncate">
+                            {staff.name}
+                            <span className="ml-2 text-[8px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 uppercase tracking-tighter">{(staff as any).sectorName}</span>
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
                             <p className="text-[9px] font-black text-indigo-500 bg-indigo-50 px-1.5 rounded uppercase">{cleanId(staff.id)}</p>
                             <p className="text-[9px] font-bold uppercase text-slate-400 truncate">
                                 {staff.membership ? `Mover de: ${staff.groupName}` : 'Não Matriculado'}
@@ -614,6 +622,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
                     <div className="min-w-0">
                         <p className={`text-xs uppercase truncate ${member.isLeader ? 'font-black text-amber-800' : 'font-bold text-emerald-900'}`}>
                             {member.staffName}
+                            <span className={`ml-2 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-tighter ${member.isLeader ? 'bg-amber-200 text-amber-900' : 'bg-emerald-100 text-emerald-700'}`}>{(member as any).sectorName}</span>
                             {(member as any).type === 'provider' && <span className="ml-2 text-[8px] bg-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded-full font-black">PRESTADOR</span>}
                         </p>
                         {member.joinedDate && <p className="text-[8px] font-bold text-emerald-600/60 uppercase">Desde: {member.joinedDate}</p>}
