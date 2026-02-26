@@ -52,16 +52,36 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
     const data = sectors.map(sector => {
         const sectorIdClean = cleanId(sector.id);
         const staff = proStaff.filter(s => cleanId(s.sectorId) === sectorIdClean);
-        const enrolled = staff.filter(s => proGroupMembers.some(m => cleanId(m.staffId) === cleanId(s.id) && (m.joinedAt || 0) <= endTimestamp));
-        const notEnrolled = staff.filter(s => !proGroupMembers.some(m => cleanId(m.staffId) === cleanId(s.id) && (m.joinedAt || 0) <= endTimestamp));
         
+        // Filtro de membros ativos no período (ou que ainda não saíram na data final)
+        const activeMemberships = proGroupMembers.filter(m => 
+            (m.joinedAt || 0) <= endTimestamp && 
+            (!m.leftAt || m.leftAt > endTimestamp)
+        );
+
+        const enrolled = staff.filter(s => activeMemberships.some(m => cleanId(m.staffId) === cleanId(s.id)));
+        const notEnrolled = staff.filter(s => !activeMemberships.some(m => cleanId(m.staffId) === cleanId(s.id)));
+        
+        // Agrupamento por PG para o relatório
+        const enrolledByPGMap = new Map<string, any[]>();
+        enrolled.forEach(s => {
+            const m = activeMemberships.find(mem => cleanId(mem.staffId) === cleanId(s.id));
+            const pg = m ? proGroups.find(g => cleanId(g.id) === cleanId(m.groupId)) : null;
+            const pgName = pg?.name || 'Sem PG Definido';
+            if (!enrolledByPGMap.has(pgName)) enrolledByPGMap.set(pgName, []);
+            enrolledByPGMap.get(pgName)!.push(s);
+        });
+        const enrolledByPG = Array.from(enrolledByPGMap.entries())
+            .map(([pgName, members]) => ({ pgName, members }))
+            .sort((a, b) => a.pgName.localeCompare(b.pgName));
+
         const geoGroupIds = new Set(proGroupLocations.filter(loc => cleanId(loc.sectorId) === sectorIdClean).map(loc => cleanId(loc.groupId)));
-        const memberGroupIds = new Set(proGroupMembers.filter(m => (m.joinedAt || 0) <= endTimestamp && staff.some(s => cleanId(s.id) === cleanId(m.staffId))).map(m => cleanId(m.groupId)));
+        const memberGroupIds = new Set(activeMemberships.filter(m => staff.some(s => cleanId(s.id) === cleanId(m.staffId))).map(m => cleanId(m.groupId)));
         const allGroupIdsInSector = new Set([...Array.from(geoGroupIds), ...Array.from(memberGroupIds)]);
         const pgs = Array.from(allGroupIdsInSector).map(gid => proGroups.find(g => cleanId(g.id) === gid)).filter(g => !!g);
         const coverage = staff.length > 0 ? (enrolled.length / staff.length) * 100 : 0;
 
-        return { sector, totalStaff: staff.length, enrolledCount: enrolled.length, coverage, pgs, notEnrolledList: notEnrolled, enrolledList: enrolled };
+        return { sector, totalStaff: staff.length, enrolledCount: enrolled.length, coverage, pgs, notEnrolledList: notEnrolled, enrolledList: enrolled, enrolledByPG };
     });
 
     const normSearch = normalizeString(searchTerm);
@@ -114,11 +134,16 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
           <div style="display: flex; gap: 40px; margin-bottom: 40px;">
               <div style="flex: 1;">
                   <div style="font-size: 14px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #d1fae5; padding-bottom: 8px; margin-bottom: 12px; color: #10b981;">Matriculados (${data.enrolledList.length})</div>
-                  ${data.enrolledList.map((s:any) => `<div style="font-size: 12px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-weight: 500;">${s.name}</div>`).join('')}
+                  ${data.enrolledByPG.length > 0 ? data.enrolledByPG.map((group: any) => `
+                      <div style="margin-top: 12px; margin-bottom: 6px;">
+                          <span style="font-size: 9px; font-weight: 900; color: #059669; background: #ecfdf5; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; border: 1px solid #d1fae5;">${group.pgName}</span>
+                      </div>
+                      ${group.members.map((s: any) => `<div style="font-size: 11px; padding: 5px 0 5px 8px; border-bottom: 1px solid #f1f5f9; color: #334155; font-weight: 500;">${s.name}</div>`).join('')}
+                  `).join('') : `<div style="font-size: 11px; color: #94a3b8; font-style: italic; padding: 10px 0;">Nenhum colaborador matriculado.</div>`}
               </div>
               <div style="flex: 1;">
                   <div style="font-size: 14px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #ffe4e6; padding-bottom: 8px; margin-bottom: 12px; color: #f43f5e;">Não Alcançados (${data.notEnrolledList.length})</div>
-                  ${data.notEnrolledList.map((s:any) => `<div style="font-size: 12px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-weight: 500;">${s.name}</div>`).join('')}
+                  ${data.notEnrolledList.map((s:any) => `<div style="font-size: 11px; padding: 5px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-weight: 500;">${s.name}</div>`).join('')}
               </div>
           </div>
           ${getBrandedFooter()}
