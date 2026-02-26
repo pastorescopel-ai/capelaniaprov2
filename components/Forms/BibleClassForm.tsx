@@ -37,6 +37,40 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
   const [formData, setFormData] = useState(defaultState);
   const [newStudent, setNewStudent] = useState('');
 
+  const lastClassStudents = useMemo(() => {
+    if (!formData.sector || !unit) return [];
+    const lastClass = [...allHistory]
+      .filter(c => c.sector === formData.sector && c.unit === unit)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    return lastClass?.students || [];
+  }, [formData.sector, allHistory, unit]);
+
+  const sectorStaff = useMemo(() => {
+    if (!formData.sector || !unit) return [];
+    const sectorObj = proSectors.find(s => s.name === formData.sector && s.unit === unit);
+    if (!sectorObj) return [];
+    return proStaff
+      .filter(s => s.sectorId === sectorObj.id && s.active)
+      .map(s => `${s.name} (${String(s.id).split('-')[1] || s.id})`);
+  }, [formData.sector, proSectors, proStaff, unit]);
+
+  const callList = useMemo(() => {
+    const present = formData.students;
+    const potential = Array.from(new Set([...lastClassStudents, ...sectorStaff]));
+    const absent = potential.filter(s => !present.includes(s));
+    
+    // Ordenação dos ausentes: alunos da última classe primeiro
+    absent.sort((a, b) => {
+      const aInLast = lastClassStudents.includes(a);
+      const bInLast = lastClassStudents.includes(b);
+      if (aInLast && !bInLast) return -1;
+      if (!aInLast && bInLast) return 1;
+      return a.localeCompare(b);
+    });
+
+    return [...present, ...absent];
+  }, [formData.students, lastClassStudents, sectorStaff]);
+
   useEffect(() => {
     if (!editingItem) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -79,27 +113,19 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     if (formData.sector && !editingItem && formData.participantType === ParticipantType.STAFF) {
         const sectorObj = proSectors.find(s => s.name === formData.sector && s.unit === unit);
         if (sectorObj) {
-            const staffInSector = proStaff.filter(s => s.sectorId === sectorObj.id && s.active);
-            const autoStudents = staffInSector.map(s => `${s.name} (${String(s.id).split('-')[1] || s.id})`);
+            const lastClass = [...allHistory].filter(c => c.sector === formData.sector && c.unit === unit).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+            let nextLesson = '';
+            let nextGuide = '';
+            let nextStatus = RecordStatus.INICIO; 
             
-            if (autoStudents.length > 0) {
-                const lastClass = [...allHistory].filter(c => c.sector === formData.sector && c.unit === unit).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                let nextLesson = '';
-                let nextGuide = '';
-                let nextStatus = RecordStatus.INICIO; 
-                
-                if (lastClass) {
-                    nextGuide = lastClass.guide;
-                    const lastNum = parseInt(lastClass.lesson);
-                    nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
-                    nextStatus = RecordStatus.CONTINUACAO;
-                }
-                // eslint-disable-next-line react-hooks/set-state-in-effect
-                setFormData(prev => ({ ...prev, students: autoStudents, guide: nextGuide || prev.guide, lesson: nextLesson || prev.lesson, status: nextStatus }));
-            } else { 
-                // eslint-disable-next-line react-hooks/set-state-in-effect
-                setFormData(prev => ({ ...prev, students: [] })); 
+            if (lastClass) {
+                nextGuide = lastClass.guide;
+                const lastNum = parseInt(lastClass.lesson);
+                nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
+                nextStatus = RecordStatus.CONTINUACAO;
             }
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setFormData(prev => ({ ...prev, students: [], guide: nextGuide || prev.guide, lesson: nextLesson || prev.lesson, status: nextStatus }));
         }
     }
   }, [formData.sector, proSectors, proStaff, unit, allHistory, editingItem, formData.participantType]);
@@ -127,6 +153,20 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
       let nextGuide = formData.guide;
       let nextLesson = formData.lesson;
       let nextStatus = formData.status;
+      let nextPhone = formData.representativePhone;
+
+      // Se for o primeiro aluno e o telefone estiver vazio, tenta buscar no RH
+      if (formData.students.length === 0 && !nextPhone) {
+          const match = finalString.match(/\((.*?)\)$/);
+          let staff: any;
+          if (match) staff = proStaff.find(s => s.id === `${unit}-${match[1]}` || s.id === match[1]);
+          if (!staff) staff = proStaff.find(s => normalizeString(s.name) === normalizeString(nameToAdd) && s.unit === unit);
+          
+          if (staff && staff.whatsapp) {
+              nextPhone = formatWhatsApp(staff.whatsapp);
+              showToast(`WhatsApp de ${nameToAdd} vinculado.`, "info");
+          }
+      }
 
       if (formData.participantType !== ParticipantType.STAFF) {
           const lastClassWithStudent = [...allHistory].filter(c => c.students && c.students.includes(finalString)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
@@ -139,7 +179,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
               if (peersToAdd.length > 0) showToast(`Histórico encontrado! Agrupando com ${peersToAdd.length} colega(s).`, "info");
           }
       }
-      setFormData(prev => ({ ...prev, students: [...prev.students, finalString, ...peersToAdd], guide: nextGuide, lesson: nextLesson, status: nextStatus })); 
+      setFormData(prev => ({ ...prev, students: [...prev.students, finalString, ...peersToAdd], guide: nextGuide, lesson: nextLesson, status: nextStatus, representativePhone: nextPhone })); 
       setNewStudent(''); 
     } 
   };
@@ -151,7 +191,8 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.students.length === 0 || !formData.guide || !formData.lesson) { showToast("Preencha Alunos, Guia e Lição."); return; }
+    if (formData.students.length < 2) { showToast("É necessário pelo menos 2 alunos presentes para salvar a classe.", "warning"); return; }
+    if (!formData.guide || !formData.lesson) { showToast("Preencha Guia e Lição."); return; }
     if (formData.participantType === ParticipantType.STAFF) {
         if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
         if (!proSectors.some(s => s.name === formData.sector && s.unit === unit)) { showToast("Selecione um setor oficial válido da lista.", "warning"); return; }
@@ -219,16 +260,42 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
             <div className="mt-6 border border-slate-200 rounded-[1.5rem] overflow-hidden bg-white shadow-sm">
               <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-2 flex items-center gap-2"><i className="fas fa-clipboard-list text-indigo-400"></i> Lista de Alunos ({formData.students.length})</span></div>
               <div className="max-h-[20rem] overflow-y-auto custom-scrollbar">
-                 {[...formData.students].sort((a, b) => a.localeCompare(b)).map((s, i) => (
-                    <div key={s} className="flex items-center justify-between p-4 border-b border-slate-100 last:border-none hover:bg-rose-50 transition-colors group even:bg-slate-50/60">
-                        <div className="flex items-center gap-4">
-                            <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-[10px] font-bold group-hover:bg-white group-hover:text-rose-500 transition-colors">{i + 1}</div>
-                            <div className="flex flex-col"><span className="text-xs font-black text-slate-700 uppercase group-hover:text-rose-700 transition-colors leading-tight">{s.split(' (')[0]}</span>{s.includes('(') && <span className="text-[9px] font-bold text-slate-400 group-hover:text-rose-400 transition-colors">{s.match(/\((.*?)\)/)?.[0]}</span>}</div>
-                        </div>
-                        <button type="button" onClick={() => setFormData({...formData, students: formData.students.filter(student => student !== s)})} className="px-4 py-2 bg-white border border-slate-200 text-slate-400 rounded-xl hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all shadow-sm flex items-center gap-2 group/btn"><span className="text-[9px] font-black uppercase hidden sm:inline group-hover/btn:inline">Ausente</span><i className="fas fa-trash-alt text-xs"></i></button>
-                    </div>
-                 ))}
-                 {formData.students.length === 0 && (<div className="p-10 text-center flex flex-col items-center gap-3"><div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 text-xl"><i className="fas fa-user-slash"></i></div><p className="text-xs text-slate-400 font-bold uppercase italic">{isStaff ? 'Nenhum aluno na lista. Selecione um setor para carregar.' : 'Adicione o primeiro aluno para buscar familiares/colegas.'}</p></div>)}
+                 {callList.map((s, i) => {
+                    const isPresent = formData.students.includes(s);
+                    const isFromLastClass = lastClassStudents.includes(s);
+                    
+                    return (
+                      <div key={s} className={`flex items-center justify-between p-4 border-b border-slate-100 last:border-none transition-colors group ${isPresent ? 'bg-emerald-50/50' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
+                          <div className="flex items-center gap-4">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${isPresent ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                {isPresent ? <i className="fas fa-check"></i> : i + 1}
+                              </div>
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs font-black uppercase leading-tight ${isPresent ? 'text-emerald-700' : 'text-slate-700'}`}>{s.split(' (')[0]}</span>
+                                  {!isPresent && isFromLastClass && <span className="text-[8px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Frequente</span>}
+                                </div>
+                                {s.includes('(') && <span className={`text-[9px] font-bold ${isPresent ? 'text-emerald-400' : 'text-slate-400'}`}>{s.match(/\((.*?)\)/)?.[0]}</span>}
+                              </div>
+                          </div>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              if (isPresent) {
+                                setFormData({...formData, students: formData.students.filter(student => student !== s)});
+                              } else {
+                                setFormData({...formData, students: [...formData.students, s]});
+                              }
+                            }} 
+                            className={`px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-2 border ${isPresent ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-rose-500 hover:border-rose-500' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600'}`}
+                          >
+                            <span className="text-[9px] font-black uppercase hidden sm:inline">{isPresent ? 'Presente' : 'Ausente'}</span>
+                            <i className={`fas ${isPresent ? 'fa-user-check' : 'fa-user-plus'} text-xs`}></i>
+                          </button>
+                      </div>
+                    );
+                 })}
+                 {callList.length === 0 && (<div className="p-10 text-center flex flex-col items-center gap-3"><div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 text-xl"><i className="fas fa-user-slash"></i></div><p className="text-xs text-slate-400 font-bold uppercase italic">{isStaff ? 'Nenhum aluno na lista. Selecione um setor para carregar.' : 'Adicione o primeiro aluno para buscar familiares/colegas.'}</p></div>)}
               </div>
             </div>
           </div>

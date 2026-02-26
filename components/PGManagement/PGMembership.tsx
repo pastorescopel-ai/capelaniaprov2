@@ -17,6 +17,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
   
   const [activeTab, setActiveTab] = useState<'staff' | 'providers'>('staff');
   const [selectedSectorName, setSelectedSectorName] = useState('');
+  const [staffSearch, setStaffSearch] = useState('');
   const [selectedPGName, setSelectedPGName] = useState('');
   const [providerSearch, setProviderSearch] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -118,11 +119,22 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [proGroups, proGroupMembers, unit]);
 
-  const sectorStaff = useMemo(() => {
-    if (!currentSector) return [];
-    return proStaff
-      .filter(s => s.sectorId === currentSector.id)
-      .map(staff => {
+  const availableStaff = useMemo(() => {
+    let filtered = proStaff.filter(s => s.unit === unit);
+    
+    if (staffSearch) {
+        const searchNorm = normalizeString(staffSearch);
+        filtered = filtered.filter(s => 
+            normalizeString(s.name).includes(searchNorm) || 
+            cleanId(s.id).includes(searchNorm)
+        );
+    } else if (currentSector) {
+        filtered = filtered.filter(s => s.sectorId === currentSector.id);
+    } else {
+        return [];
+    }
+
+    return filtered.map(staff => {
         // Filtro Soft Delete: Procura apenas matrícula ativa que NÃO esteja na lista de remoção pendente
         const membership = proGroupMembers.find(m => 
           cleanId(m.staffId) === cleanId(staff.id) && 
@@ -161,7 +173,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         if (a.membership && !b.membership) return 1;
         return a.name.localeCompare(b.name);
       });
-  }, [proStaff, currentSector, proGroupMembers, proGroups, currentPG, pendingTransfers, pendingRemovals]);
+  }, [proStaff, currentSector, staffSearch, proGroupMembers, proGroups, currentPG, pendingTransfers, pendingRemovals, unit]);
 
   const pgMembers = useMemo(() => {
     if (!currentPG) return [];
@@ -340,39 +352,22 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     
     try {
       if (activeMemberships.length > 0) {
-          if (removalType === 'error') {
-              // REMOÇÃO DEFINITIVA (DELETE REAL): Para erros de cadastro
-              console.log(`[Protocolo] Executando DELETE REAL (Erro de Cadastro)...`);
-              const idsToDelete = activeMemberships.map(m => m.id);
-              
-              const success = await deleteRecord(collection, idsToDelete);
-              
-              if (success) {
-                  console.log(`[Protocolo] Registros apagados com sucesso.`);
-                  showToast("Registro de erro excluído com sucesso.", "success");
-              } else {
-                  // Se o deleteRecord falhar, tentamos via saveRecord marcando como erro (fallback)
-                  const updates = activeMemberships.map(m => ({ ...m, leftAt: Date.now(), isError: true }));
-                  await saveRecord(collection, updates);
-                  showToast("Removido (marcado como erro).", "success");
-              }
+          // ENCERRAMENTO DE CICLO (SOFT DELETE): Para saídas normais ou erros
+          // A diferença é apenas a flag isError para o BI
+          const updates = activeMemberships.map(m => ({ 
+            ...m, 
+            leftAt: Date.now(),
+            isError: removalType === 'error'
+          }));
+          
+          console.log(`[Protocolo] Executando SOFT DELETE (BI-Ready)...`);
+          const success = await saveRecord(collection, updates);
+          
+          if (success) {
+            console.log(`[Protocolo] Movimentação registrada com sucesso.`);
+            showToast(removalType === 'error' ? "Erro registrado no histórico." : "Saída registrada no histórico.", "success");
           } else {
-              // ENCERRAMENTO DE CICLO (SOFT DELETE): Para saídas normais
-              const updates = activeMemberships.map(m => ({ 
-                ...m, 
-                leftAt: Date.now(),
-                isError: false
-              }));
-              
-              console.log(`[Protocolo] Executando SOFT DELETE (Saída Normal)...`);
-              const success = await saveRecord(collection, updates);
-              
-              if (success) {
-                console.log(`[Protocolo] Saída registrada com sucesso.`);
-                showToast("Saída registrada no histórico.", "success");
-              } else {
-                throw new Error("O servidor não confirmou a saída. Verifique o console.");
-              }
+            throw new Error("O servidor não confirmou a saída. Verifique o console.");
           }
       } else {
         console.warn(`[Protocolo] Nenhuma matrícula ativa encontrada para remover.`);
@@ -476,15 +471,32 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
           </div>
 
           {activeTab === 'staff' ? (
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-blue-400">1. Selecione o Setor (Origem)</label>
-              <Autocomplete 
-                options={proSectors.filter(s => s.unit === unit).map(s => ({ value: s.name, label: s.name }))}
-                value={selectedSectorName}
-                onChange={setSelectedSectorName}
-                placeholder="Buscar Setor..."
-                className="w-full p-4 bg-white/10 border border-white/20 rounded-2xl text-white font-bold placeholder:text-white/30 focus:bg-white/20 outline-none"
-              />
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-blue-400">1. Selecione o Setor (Origem)</label>
+                <Autocomplete 
+                  options={proSectors.filter(s => s.unit === unit).map(s => ({ value: s.name, label: s.name }))}
+                  value={selectedSectorName}
+                  onChange={(v) => { setSelectedSectorName(v); setStaffSearch(''); }}
+                  placeholder="Buscar Setor..."
+                  className="w-full p-4 bg-white/10 border border-white/20 rounded-2xl text-white font-bold placeholder:text-white/30 focus:bg-white/20 outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Ou Busque por Nome/Matrícula</label>
+                <div className="relative">
+                  <input 
+                    type="text"
+                    value={staffSearch}
+                    onChange={e => { setStaffSearch(e.target.value); setSelectedSectorName(''); }}
+                    placeholder="Nome ou Matrícula..."
+                    className="w-full p-4 bg-white/10 border border-white/20 rounded-2xl text-white font-bold placeholder:text-white/30 focus:bg-white/20 outline-none"
+                  />
+                  {staffSearch && (
+                    <button onClick={() => setStaffSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"><i className="fas fa-times"></i></button>
+                  )}
+                </div>
+              </div>
             </div>
           ) : (
             <div className="space-y-2">
@@ -516,32 +528,30 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col min-h-[400px]">
           <div className="mb-4 pb-4 border-b border-slate-50">
             <h3 className="font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-              <i className="fas fa-users text-slate-400"></i> {activeTab === 'staff' ? 'Disponíveis no Setor' : 'Prestadores Encontrados'}
+              <i className="fas fa-users text-slate-400"></i> {activeTab === 'staff' ? 'Disponíveis para Matrícula' : 'Prestadores Encontrados'}
             </h3>
             <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">
-                {activeTab === 'staff' ? `${sectorStaff.length} Aguardando Matrícula` : `${availableProviders.length} Prestadores`}
+                {activeTab === 'staff' ? `${availableStaff.length} Resultados` : `${availableProviders.length} Prestadores`}
             </p>
           </div>
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 max-h-[500px]">
             {activeTab === 'staff' ? (
                 <>
-                    {sectorStaff.length === 0 && (
+                    {availableStaff.length === 0 && (
                         <div className="text-center py-10 opacity-50">
-                            <p className="text-xs text-slate-400 font-bold uppercase">{currentSector ? 'Todos vinculados ou lista vazia.' : 'Selecione um setor.'}</p>
+                            <p className="text-xs text-slate-400 font-bold uppercase">{currentSector || staffSearch ? 'Nenhum colaborador encontrado.' : 'Selecione um setor ou busque por nome.'}</p>
                         </div>
                     )}
-                    {sectorStaff.map(staff => (
+                    {availableStaff.map(staff => (
                       <div key={staff.id} className="p-4 rounded-2xl flex items-center justify-between border bg-white border-blue-100 shadow-sm hover:border-blue-300 transition-all animate-in slide-in-from-left duration-300">
                         <div className="min-w-0 flex-1">
                           <p className="font-bold text-slate-700 text-xs uppercase truncate">{staff.name}</p>
-                          <p className="text-[9px] font-bold uppercase text-slate-400 truncate flex items-center gap-2">
-                              {staff.membership ? (
-                                  <>
-                                    <span>Mover de: {staff.groupName}</span>
-                                    {staff.joinedDate && <span className="text-[8px] bg-slate-100 px-1.5 rounded text-slate-500">Desde: {staff.joinedDate}</span>}
-                                  </>
-                              ) : 'Não Matriculado'}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[9px] font-black text-indigo-500 bg-indigo-50 px-1.5 rounded uppercase">{cleanId(staff.id)}</p>
+                            <p className="text-[9px] font-bold uppercase text-slate-400 truncate">
+                                {staff.membership ? `Mover de: ${staff.groupName}` : 'Não Matriculado'}
+                            </p>
+                          </div>
                         </div>
                         <button onClick={() => handleEnroll(staff.id, 'staff')} disabled={!currentPG || isProcessing} className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${staff.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}><i className={`fas ${staff.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i></button>
                       </div>

@@ -79,18 +79,50 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
               const sec = proSectors.find(s => s.id === location.sectorId);
               if (sec) { leaderSector = sec.name; locked = true; }
           }
-          if (!locked && leaderName) {
+          
+          // Busca oficial no RH (proStaff) para garantir dados atualizados e oficiais
+          if (leaderName) {
               const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(leaderName) && s.unit === unit);
               if (staff) {
                   const sec = proSectors.find(s => s.id === staff.sectorId);
-                  if (sec && !leaderSector) leaderSector = sec.name;
-                  if (staff.whatsapp && !leaderPhone) leaderPhone = formatWhatsApp(staff.whatsapp);
+                  if (sec && !leaderSector) {
+                      leaderSector = sec.name;
+                      locked = true; 
+                  }
+                  if (staff.whatsapp) {
+                      leaderPhone = formatWhatsApp(staff.whatsapp);
+                  }
               }
           }
       }
       setIsSectorLocked(locked);
       setFormData(prev => ({ ...prev, groupName: pgName, leader: leaderName, leaderPhone: leaderPhone, sector: leaderSector }));
-      if(leaderName || leaderSector) showToast("Dados do PG carregados.", "info");
+      if(leaderName || leaderSector) showToast("Dados oficiais do líder carregados.", "info");
+  };
+
+  const handleSelectLeader = (label: string) => {
+      const nameOnly = label.split(' (')[0].trim();
+      const match = label.match(/\((.*?)\)$/);
+      let foundPhone = formData.leaderPhone;
+      let foundSector = formData.sector;
+      let lockSector = false;
+
+      let staff: any;
+      if (match) staff = proStaff.find(s => s.id === `${unit}-${match[1]}` || s.id === match[1]);
+      if (!staff) staff = proStaff.find(s => normalizeString(s.name) === normalizeString(nameOnly) && s.unit === unit);
+
+      if (staff) {
+          if (staff.whatsapp) foundPhone = formatWhatsApp(staff.whatsapp);
+          const sector = proSectors.find(s => s.id === staff.sectorId);
+          if (sector) {
+              foundSector = sector.name;
+              lockSector = true;
+          }
+      }
+
+      setFormData(prev => ({ ...prev, leader: nameOnly, leaderPhone: foundPhone, sector: foundSector }));
+      setIsSectorLocked(lockSector);
+      if (lockSector) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
   };
 
   const handleClear = () => {
@@ -102,6 +134,14 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.groupName || !formData.leader || !formData.leaderPhone || !formData.sector) { showToast("Preencha todos os campos obrigatórios."); return; }
+    
+    // Validação de Líder Oficial (RH)
+    const isOfficialLeader = proStaff.some(s => normalizeString(s.name) === normalizeString(formData.leader) && s.unit === unit);
+    if (!isOfficialLeader) {
+        showToast("Líder não reconhecido. Por favor, use o campo de busca para selecionar um colaborador oficial do RH.", "warning");
+        return;
+    }
+
     if (!proGroups.some(g => g.name === formData.groupName && g.unit === unit)) { showToast("Selecione um Pequeno Grupo válido da lista.", "warning"); return; }
     if (!proSectors.some(s => s.name === formData.sector && s.unit === unit)) { showToast("Selecione um setor oficial válido.", "warning"); return; }
     
@@ -137,7 +177,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data do Encontro *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do Grupo *</label><Autocomplete options={pgOptions} value={formData.groupName} onChange={v => setFormData({...formData, groupName: v})} onSelectOption={handleSelectPG} placeholder="Selecione o PG..." isStrict={true} /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Líder Atual *</label><Autocomplete options={staffOptions} value={formData.leader} onChange={v => setFormData({...formData, leader: v})} placeholder="Busque o líder no banco..." /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Líder Atual *</label><Autocomplete options={staffOptions} value={formData.leader} onChange={v => { setFormData({...formData, leader: v}); if(!v) setIsSectorLocked(false); }} onSelectOption={handleSelectLeader} placeholder="Busque o líder no banco..." /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">WhatsApp do Líder *</label><input placeholder="(00) 00000-0000" value={formData.leaderPhone} onChange={e => setFormData({...formData, leaderPhone: formatWhatsApp(e.target.value)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Localização *</label>

@@ -97,7 +97,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       let lockSector = false;
 
       if (formData.participantType === ParticipantType.STAFF) {
-          let staff: ProStaff | undefined;
+          let staff: any;
           if (match) staff = proStaff.find(s => s.id === `${unit}-${match[1]}` || s.id === match[1] || s.id === match[1].padStart(6, '0'));
           if (!staff) staff = proStaff.find(s => normalizeString(s.name) === normalizeString(nameOnly) && s.unit === unit);
 
@@ -117,7 +117,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
       setFormData(prev => ({ ...prev, staffName: nameOnly, whatsapp: foundWhatsapp, sector: foundSector }));
       setIsSectorLocked(lockSector);
-      if (lockSector) showToast("Setor vinculado ao cadastro oficial.", "info");
+      if (lockSector) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
   };
 
   const handleClear = () => {
@@ -206,8 +206,9 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         if (!visit.requiresReturn) return true;
         const vDate = new Date(visit.date).getTime();
         return (allHistory.length > 0 ? allHistory : history).some(v => 
+          v.id !== visit.id &&
           normalize(v.staffName) === normalize(visit.staffName) && 
-          new Date(v.date).getTime() > vDate
+          new Date(v.date).getTime() >= vDate
         );
       };
 
@@ -233,62 +234,119 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   }, [history, allHistory, currentUser]);
 
   const historySection = (
-    <HistorySection<StaffVisit> data={sortedHistory} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['staffName']} renderItem={(item) => {
-      let isReturnFulfilled = false;
-      if (item.requiresReturn) {
-        const itemDate = new Date(item.date).getTime();
-        const subsequentVisit = (allHistory.length > 0 ? allHistory : history).find(v => 
-          normalizeString(v.staffName) === normalizeString(item.staffName) && 
-          new Date(v.date).getTime() > itemDate
-        );
-        if (subsequentVisit) {
-          isReturnFulfilled = true;
-        }
-      }
+    <HistorySection<StaffVisit> 
+      data={sortedHistory} 
+      users={users} 
+      currentUser={currentUser} 
+      isLoading={isLoading} 
+      searchFields={['staffName']} 
+      disableSort={true}
+      renderItem={(item, index, allItems) => {
+        const isAdmin = currentUser.role === 'ADMIN';
+        const normalize = (s: string) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
+        
+        const isFulfilled = (visit: StaffVisit) => {
+          if (!visit.requiresReturn) return true;
+          const vDate = new Date(visit.date).getTime();
+          return (allHistory.length > 0 ? allHistory : history).some(v => 
+            v.id !== visit.id &&
+            normalize(v.staffName) === normalize(visit.staffName) && 
+            new Date(v.date).getTime() >= vDate
+          );
+        };
 
-      const returnBadge = item.requiresReturn ? (
-        <div className={`px-3 py-1 rounded-lg border flex flex-col items-center justify-center ${isReturnFulfilled ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
-          <span className={`text-[8px] font-black uppercase tracking-widest ${isReturnFulfilled ? 'text-emerald-400' : 'text-rose-400'}`}>Retorno</span>
-          <span className={`text-[10px] font-black ${isReturnFulfilled ? 'text-emerald-600' : 'text-rose-600'}`}>
-            {new Date(item.returnDate + 'T12:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
-          </span>
-        </div>
-      ) : null;
+        const isPending = item.requiresReturn && !isFulfilled(item);
+        const isPriority = isPending && (isAdmin || item.userId === currentUser.id);
 
-      const returnFlag = item.requiresReturn ? (
-        <div className="flex items-center gap-2 mr-2">
-          {isReturnFulfilled ? (
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center border bg-emerald-50 border-emerald-100 text-emerald-500" title="Retorno Realizado">
-              <i className="fas fa-flag text-xs"></i>
+        // Verifica se deve mostrar o separador
+        const showSeparator = index > 0 && isPriority && !(allItems[index-1].requiresReturn && !isFulfilled(allItems[index-1])); // Isso não está certo
+        
+        // Lógica correta para o separador:
+        // 1. Se for o primeiro item e for prioridade, mostra "PENDÊNCIAS"
+        // 2. Se for o primeiro item NÃO prioridade e houver prioridades na lista, mostra "HISTÓRICO"
+        // 3. Se o item anterior era prioridade e este não é, mostra "HISTÓRICO"
+        
+        const prevItem = index > 0 ? allItems[index-1] : null;
+        const isPrevPriority = prevItem ? (prevItem.requiresReturn && !isFulfilled(prevItem) && (isAdmin || prevItem.userId === currentUser.id)) : false;
+        
+        let sectionHeader = null;
+        if (index === 0 && isPriority) {
+          sectionHeader = (
+            <div className="flex items-center gap-2 mb-2 mt-4 px-2">
+              <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></div>
+              <span className="text-[10px] font-black text-rose-600 uppercase tracking-[0.2em]">Retornos Pendentes</span>
+              <div className="flex-1 h-[1px] bg-rose-100"></div>
             </div>
-          ) : (
-            <button 
-              onClick={() => handlePerformReturn(item)}
-              className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-sm animate-pulse group/flag"
-              title="Clique para realizar retorno"
-            >
-              <i className="fas fa-flag text-xs group-hover/flag:scale-125 transition-transform"></i>
-            </button>
-          )}
-        </div>
-      ) : null;
+          );
+        } else if ((index === 0 && !isPriority) || (isPrevPriority && !isPriority)) {
+          sectionHeader = (
+            <div className="flex items-center gap-2 mb-2 mt-8 px-2">
+              <div className="w-2 h-2 rounded-full bg-slate-300"></div>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Histórico Geral</span>
+              <div className="flex-1 h-[1px] bg-slate-100"></div>
+            </div>
+          );
+        }
 
-      return (
-        <HistoryCard 
-          key={item.id}
-          icon="🤝" 
-          color="text-rose-600" 
-          title={item.staffName} 
-          subtitle={`${item.sector} • ${item.reason}`} 
-          chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} 
-          isLocked={isRecordLocked(item.date, currentUser.role)} 
-          onEdit={() => onEdit?.(item)} 
-          onDelete={() => onDelete(item.id)} 
-          middle={returnBadge || ((item as any).participantType === ParticipantType.PROVIDER && (<span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">Prestador</span>))}
-          extra={returnFlag}
-        />
-      );
-    }} />
+        let isReturnFulfilled = false;
+        if (item.requiresReturn) {
+          const itemDate = new Date(item.date).getTime();
+          const subsequentVisit = (allHistory.length > 0 ? allHistory : history).find(v => 
+            v.id !== item.id &&
+            normalize(v.staffName) === normalize(item.staffName) && 
+            new Date(v.date).getTime() >= itemDate
+          );
+          if (subsequentVisit) {
+            isReturnFulfilled = true;
+          }
+        }
+
+        const returnBadge = item.requiresReturn ? (
+          <div className={`px-3 py-1 rounded-lg border flex flex-col items-center justify-center ${isReturnFulfilled ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+            <span className={`text-[8px] font-black uppercase tracking-widest ${isReturnFulfilled ? 'text-emerald-400' : 'text-rose-400'}`}>Retorno</span>
+            <span className={`text-[10px] font-black ${isReturnFulfilled ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {new Date(item.returnDate + 'T12:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
+            </span>
+          </div>
+        ) : null;
+
+        const returnFlag = item.requiresReturn ? (
+          <div className="flex items-center gap-2 mr-2">
+            {isReturnFulfilled ? (
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center border bg-emerald-50 border-emerald-100 text-emerald-500" title="Retorno Realizado">
+                <i className="fas fa-flag text-xs"></i>
+              </div>
+            ) : (
+              <button 
+                onClick={() => handlePerformReturn(item)}
+                className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-sm animate-pulse group/flag"
+                title="Clique para realizar retorno"
+              >
+                <i className="fas fa-flag text-xs group-hover/flag:scale-125 transition-transform"></i>
+              </button>
+            )}
+          </div>
+        ) : null;
+
+        return (
+          <React.Fragment key={item.id}>
+            {sectionHeader}
+            <HistoryCard 
+              icon="🤝" 
+              color="text-rose-600" 
+              title={item.staffName} 
+              subtitle={`${item.sector} • ${item.reason}`} 
+              chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} 
+              isLocked={isRecordLocked(item.date, currentUser.role)} 
+              onEdit={() => onEdit?.(item)} 
+              onDelete={() => onDelete(item.id)} 
+              middle={returnBadge || ((item as any).participantType === ParticipantType.PROVIDER && (<span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">Prestador</span>))}
+              extra={returnFlag}
+            />
+          </React.Fragment>
+        );
+      }} 
+    />
   );
 
   return (

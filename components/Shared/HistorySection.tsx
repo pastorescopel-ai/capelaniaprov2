@@ -12,7 +12,8 @@ interface HistorySectionProps<T> {
   currentUser: User;
   isLoading?: boolean;
   searchFields: (keyof T)[];
-  renderItem: (item: T) => React.ReactNode;
+  renderItem: (item: T, index: number, allItems: T[]) => React.ReactNode;
+  disableSort?: boolean;
 }
 
 const PAGE_SIZE = 10;
@@ -24,7 +25,8 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
   currentUser,
   isLoading,
   searchFields,
-  renderItem
+  renderItem,
+  disableSort = false
 }: HistorySectionProps<T>) => {
   const [filterChaplain, setFilterChaplain] = useState('all');
   
@@ -81,8 +83,9 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
       });
     });
 
+    if (disableSort) return filtered;
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [data, stableData, filterChaplain, filterStart, filterEnd, searchQuery, searchFields]);
+  }, [data, stableData, filterChaplain, filterStart, filterEnd, searchQuery, searchFields, disableSort]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -120,7 +123,7 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
           <SkeletonCard />
         ) : visibleHistory.length > 0 ? (
           <>
-            {visibleHistory.map(item => renderItem(item))}
+            {visibleHistory.map((item, index) => renderItem(item, index, visibleHistory))}
             <div ref={loaderRef} className="h-10"></div>
           </>
         ) : (

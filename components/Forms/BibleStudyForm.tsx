@@ -113,6 +113,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   const handleSelectStudent = (selectedLabel: string) => {
     const targetName = selectedLabel.split(' (')[0].trim();
+    const match = selectedLabel.match(/\((.*?)\)$/);
     let targetSector = formData.sector;
     let targetSectorId = formData.sectorId;
     let targetStaffId = formData.staffId;
@@ -124,7 +125,10 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     const normName = normalizeString(targetName);
 
     if (formData.participantType === ParticipantType.STAFF) {
-        const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
+        let staff: any;
+        if (match) staff = proStaff.find(s => s.id === `${unit}-${match[1]}` || s.id === match[1]);
+        if (!staff) staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
+
         if (staff) {
             targetStaffId = staff.id;
             const sector = proSectors.find(s => s.id === staff.sectorId);
@@ -135,22 +139,22 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
             } else {
                 lockSector = false;
             }
-            targetWhatsApp = staff.whatsapp ? formatWhatsApp(staff.whatsapp) : '';
+            targetWhatsApp = staff.whatsapp ? formatWhatsApp(staff.whatsapp) : targetWhatsApp;
         } else {
             lockSector = false;
         }
     } else if (formData.participantType === ParticipantType.PATIENT) {
         const p = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
         if (p) {
-            targetWhatsApp = p.whatsapp ? formatWhatsApp(p.whatsapp) : '';
+            targetWhatsApp = p.whatsapp ? formatWhatsApp(p.whatsapp) : targetWhatsApp;
             targetStaffId = p.id;
         }
         lockSector = false;
     } else {
         const pr = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
         if (pr) { 
-            targetWhatsApp = pr.whatsapp ? formatWhatsApp(pr.whatsapp) : ''; 
-            targetSector = pr.sector || ''; 
+            targetWhatsApp = pr.whatsapp ? formatWhatsApp(pr.whatsapp) : targetWhatsApp; 
+            targetSector = pr.sector || targetSector; 
             targetStaffId = pr.id;
         }
         lockSector = false;
