@@ -236,9 +236,9 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
   return (
     <FormScaffold title="Classe Bíblica" headerActions={headerActions} history={historySection}>
-      <form onSubmit={handleFormSubmit} className="space-y-6">
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
+      <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-6">
+        <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold" /></div>
           
           <div className="space-y-1">
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>Setor / Local {isStaff ? '(Obrigatório)' : '(Opcional)'}</label>
@@ -247,35 +247,35 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
           <div className={`space-y-1 ${!isStaff ? 'order-first md:order-none col-span-2 md:col-span-2 animate-in slide-in-from-top-2' : ''}`}>
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-indigo-600' : 'text-slate-400'}`}>WhatsApp do Representante {!isStaff ? '*' : '(Opcional)'}</label>
-              <input type="text" placeholder="(00) 00000-0000" value={formData.representativePhone} onChange={e => setFormData({...formData, representativePhone: formatWhatsApp(e.target.value)})} className={`w-full p-4 rounded-2xl border-none font-bold transition-all ${!isStaff ? 'bg-indigo-50 text-indigo-900 ring-2 ring-indigo-100 focus:ring-indigo-300' : 'bg-slate-50'}`}/>
+              <input type="text" placeholder="(00) 00000-0000" value={formData.representativePhone} onChange={e => setFormData({...formData, representativePhone: formatWhatsApp(e.target.value)})} className={`w-full p-3 md:p-4 rounded-2xl border-none font-bold transition-all ${!isStaff ? 'bg-indigo-50 text-indigo-900 ring-2 ring-indigo-100 focus:ring-indigo-300' : 'bg-slate-50'}`}/>
           </div>
           
           <div className="space-y-1 md:col-span-2">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Chamada de Presença {isStaff ? '' : '(Imã de Histórico Ativo 🧲)'}</label>
             <div className="flex gap-2">
               <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={isStaff ? "Buscar colaborador..." : "Digite o nome e clique + (busca grupos anteriores)..."} isStrict={isStaff} /></div>
-              <button type="button" onClick={() => addStudent()} className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg hover:bg-indigo-700 transition-all"><i className="fas fa-plus"></i></button>
+              <button type="button" onClick={() => addStudent()} className="w-12 h-12 md:w-14 md:h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg hover:bg-indigo-700 transition-all"><i className="fas fa-plus"></i></button>
             </div>
             
-            <div className="mt-6 border border-slate-200 rounded-[1.5rem] overflow-hidden bg-white shadow-sm">
-              <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-2 flex items-center gap-2"><i className="fas fa-clipboard-list text-indigo-400"></i> Lista de Alunos ({formData.students.length})</span></div>
-              <div className="max-h-[20rem] overflow-y-auto custom-scrollbar">
+            <div className="mt-4 md:mt-6 border border-slate-200 rounded-[1.5rem] overflow-hidden bg-white shadow-sm">
+              <div className="bg-slate-50 p-3 md:p-4 border-b border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-2 flex items-center gap-2"><i className="fas fa-clipboard-list text-indigo-400"></i> Lista de Alunos ({formData.students.length})</span></div>
+              <div className="max-h-[15rem] md:max-h-[20rem] overflow-y-auto custom-scrollbar">
                  {callList.map((s, i) => {
                     const isPresent = formData.students.includes(s);
                     const isFromLastClass = lastClassStudents.includes(s);
                     
                     return (
-                      <div key={s} className={`flex items-center justify-between p-4 border-b border-slate-100 last:border-none transition-colors group ${isPresent ? 'bg-emerald-50/50' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
-                          <div className="flex items-center gap-4">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${isPresent ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                      <div key={s} className={`flex items-center justify-between p-3 md:p-4 border-b border-slate-100 last:border-none transition-colors group ${isPresent ? 'bg-emerald-50/50' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
+                          <div className="flex items-center gap-3 md:gap-4">
+                              <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${isPresent ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
                                 {isPresent ? <i className="fas fa-check"></i> : i + 1}
                               </div>
                               <div className="flex flex-col">
                                 <div className="flex items-center gap-2">
-                                  <span className={`text-xs font-black uppercase leading-tight ${isPresent ? 'text-emerald-700' : 'text-slate-700'}`}>{s.split(' (')[0]}</span>
+                                  <span className={`text-[11px] md:text-xs font-black uppercase leading-tight ${isPresent ? 'text-emerald-700' : 'text-slate-700'}`}>{s.split(' (')[0]}</span>
                                   {!isPresent && isFromLastClass && <span className="text-[8px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Frequente</span>}
                                 </div>
-                                {s.includes('(') && <span className={`text-[9px] font-bold ${isPresent ? 'text-emerald-400' : 'text-slate-400'}`}>{s.match(/\((.*?)\)/)?.[0]}</span>}
+                                {s.includes('(') && <span className={`text-[8px] md:text-[9px] font-bold ${isPresent ? 'text-emerald-400' : 'text-slate-400'}`}>{s.match(/\((.*?)\)/)?.[0]}</span>}
                               </div>
                           </div>
                           <button 
@@ -287,7 +287,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                                 setFormData({...formData, students: [...formData.students, s]});
                               }
                             }} 
-                            className={`px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-2 border ${isPresent ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-rose-500 hover:border-rose-500' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600'}`}
+                            className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl transition-all shadow-sm flex items-center gap-2 border ${isPresent ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-rose-500 hover:border-rose-500' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600'}`}
                           >
                             <span className="text-[9px] font-black uppercase hidden sm:inline">{isPresent ? 'Presente' : 'Ausente'}</span>
                             <i className={`fas ${isPresent ? 'fa-user-check' : 'fa-user-plus'} text-xs`}></i>
@@ -295,16 +295,16 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                       </div>
                     );
                  })}
-                 {callList.length === 0 && (<div className="p-10 text-center flex flex-col items-center gap-3"><div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 text-xl"><i className="fas fa-user-slash"></i></div><p className="text-xs text-slate-400 font-bold uppercase italic">{isStaff ? 'Nenhum aluno na lista. Selecione um setor para carregar.' : 'Adicione o primeiro aluno para buscar familiares/colegas.'}</p></div>)}
+                 {callList.length === 0 && (<div className="p-6 md:p-10 text-center flex flex-col items-center gap-3"><div className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 text-xl"><i className="fas fa-user-slash"></i></div><p className="text-[10px] md:text-xs text-slate-400 font-bold uppercase italic">{isStaff ? 'Nenhum aluno na lista. Selecione um setor para carregar.' : 'Adicione o primeiro aluno para buscar familiares/colegas.'}</p></div>)}
               </div>
             </div>
           </div>
 
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome da Classe</label><Autocomplete options={guideOptions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Ex: Classe Sábado" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Lição nº</label><input type="number" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-black" /></div>
-          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase border-2 transition-all ${formData.status === opt ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-100 text-slate-400 bg-slate-50'}`}>{opt}</button>))}</div></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Lição nº</label><input type="number" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-black" /></div>
+          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-3 md:py-4 rounded-2xl font-black text-[10px] uppercase border-2 transition-all ${formData.status === opt ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-100 text-slate-400 bg-slate-50'}`}>{opt}</button>))}</div></div>
         </div>
-        <button type="submit" className="w-full py-6 bg-indigo-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs hover:bg-indigo-700">Salvar Classe Bíblica</button>
+        <button type="submit" className="w-full py-4 md:py-6 bg-indigo-600 text-white font-black rounded-2xl shadow-xl uppercase text-xs hover:bg-indigo-700">Salvar Classe Bíblica</button>
       </form>
     </FormScaffold>
   );

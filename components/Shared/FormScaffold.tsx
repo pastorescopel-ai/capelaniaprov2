@@ -17,15 +17,15 @@ const FormScaffold: React.FC<FormScaffoldProps> = ({
   history 
 }) => {
   return (
-    <div className="space-y-10 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+    <div className="space-y-6 md:space-y-10 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-white p-4 md:p-8 rounded-3xl md:rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4 md:space-y-6">
         
         {/* Cabeçalho Unificado */}
-        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">{title}</h2>
+        <div className="flex flex-col md:flex-row justify-between md:items-center gap-2 md:gap-4">
+          <div className="space-y-0.5 md:space-y-1">
+            <h2 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight uppercase">{title}</h2>
             {subtitle && (
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{subtitle}</p>
+              <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest">{subtitle}</p>
             )}
           </div>
           
