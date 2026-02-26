@@ -1,18 +1,19 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { Unit, ProGroupMember, ProGroup, ProGroupProviderMember } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { Unit, ProGroup } from '../../types';
 import { useApp } from '../../contexts/AppContext';
 import { useToast } from '../../contexts/ToastContext';
 import Autocomplete from '../Shared/Autocomplete';
-import ConfirmationModal from '../Shared/ConfirmationModal';
-import { normalizeString } from '../../utils/formatters';
+import { usePGMembershipData } from '../../hooks/usePGMembershipData';
+import GapRadar from './GapRadar';
+import RemovalModal from './RemovalModal';
 
 interface PGMembershipProps {
   unit: Unit;
 }
 
 const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
-  const { proSectors, proStaff, proProviders, proGroups, proGroupMembers, proGroupProviderMembers, proGroupLocations, saveRecord, deleteRecord } = useApp();
+  const { proSectors, proStaff, proProviders, proGroups, proGroupMembers, proGroupProviderMembers, proGroupLocations, saveRecord } = useApp();
   const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState<'staff' | 'providers'>('staff');
@@ -37,208 +38,33 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
 
   const cleanId = (id: any) => String(id || '').replace(/\D/g, '');
 
-  // --- DADOS ---
-  const currentSector = useMemo(() => proSectors.find(s => s.name === selectedSectorName && s.unit === unit), [proSectors, selectedSectorName, unit]);
-  const currentPG = useMemo(() => proGroups.find(g => g.name === selectedPGName && g.unit === unit), [proGroups, selectedPGName, unit]);
+  // --- DADOS (Hook Customizado) ---
+  const {
+    currentSector,
+    currentPG,
+    availableProviders,
+    coverageGaps,
+    emptyPGs,
+    availableStaff,
+    pgMembers
+  } = usePGMembershipData({
+    unit,
+    proStaff,
+    proSectors,
+    proGroups,
+    proGroupMembers,
+    proGroupProviderMembers,
+    proGroupLocations,
+    proProviders,
+    staffSearch,
+    providerSearch,
+    selectedSectorName,
+    selectedPGName,
+    pendingTransfers,
+    pendingRemovals
+  });
 
-  // --- PRESTADORES ---
-  const availableProviders = useMemo(() => {
-    let filtered = proProviders.filter(p => p.unit === unit);
-    if (providerSearch) {
-        const searchNorm = normalizeString(providerSearch);
-        filtered = filtered.filter(p => normalizeString(p.name).includes(searchNorm));
-    }
-    
-    return filtered.map(provider => {
-        const membership = proGroupProviderMembers.find(m => 
-            cleanId(m.providerId) === cleanId(provider.id) && 
-            !m.leftAt && 
-            !pendingRemovals.has(m.id)
-        );
-        const groupName = membership ? proGroups.find(g => g.id === membership.groupId)?.name : null;
-        const dateStr = membership?.joinedAt ? new Date(membership.joinedAt).toLocaleDateString('pt-BR') : null;
-        
-        return { ...provider, membership, groupName, joinedDate: dateStr };
-    }).filter(provider => {
-        if (currentPG) {
-            const isAlreadyInThisGroup = proGroupProviderMembers.some(m => 
-                m.groupId === currentPG.id && 
-                cleanId(m.providerId) === cleanId(provider.id) && 
-                !m.leftAt &&
-                !pendingRemovals.has(m.id)
-            );
-            if (isAlreadyInThisGroup) return false;
-        }
-        if (pendingTransfers.has(provider.id)) return false;
-        return true;
-    }).sort((a, b) => {
-        if (!a.membership && b.membership) return -1;
-        if (a.membership && !b.membership) return 1;
-        return a.name.localeCompare(b.name);
-    });
-  }, [proProviders, unit, providerSearch, proGroupProviderMembers, proGroups, currentPG, pendingRemovals, pendingTransfers]);
-
-  const isNewProvider = providerSearch && !proProviders.some(p => normalizeString(p.name) === normalizeString(providerSearch) && p.unit === unit);
-
-  // Radar de Lacunas: Setores com Vacância (Semáforo)
-  const coverageGaps = useMemo(() => {
-    const sectors = proSectors.filter(s => s.unit === unit);
-    const staff = proStaff.filter(s => s.unit === unit);
-
-    return sectors.map(s => {
-      const sectorStaff = staff.filter(st => cleanId(st.sectorId) === cleanId(s.id));
-      const total = sectorStaff.length;
-      if (total === 0) return null;
-
-      // Filtro de Soft Delete: Considera apenas membros sem leftAt (Ativos)
-      const enrolled = sectorStaff.filter(st => 
-        proGroupMembers.some(m => cleanId(m.staffId) === cleanId(st.id) && !m.leftAt)
-      ).length;
-
-      const percentage = (enrolled / total) * 100;
-
-      // Meta batida (100%) -> Desaparece do radar
-      if (percentage >= 100) return null;
-
-      return {
-        id: s.id,
-        name: s.name,
-        percentage,
-        total,
-        enrolled,
-        color: percentage >= 80 ? 'emerald' : percentage >= 31 ? 'amber' : 'rose'
-      };
-    }).filter(item => item !== null).sort((a, b) => a!.percentage - b!.percentage);
-  }, [proSectors, proStaff, proGroupMembers, unit]);
-
-  // Radar de Lacunas: PGs "Fantasmas" (Cadastrados no banco mas sem membros ATIVOS)
-  const emptyPGs = useMemo(() => {
-    return proGroups
-      .filter(g => g.unit === unit)
-      .filter(g => !proGroupMembers.some(m => m.groupId === g.id && !m.leftAt))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [proGroups, proGroupMembers, unit]);
-
-  const availableStaff = useMemo(() => {
-    let filtered = proStaff.filter(s => s.unit === unit);
-    
-    if (staffSearch) {
-        filtered = filtered.filter(s => 
-            tokenMatch(s.name, staffSearch) || 
-            cleanId(s.id).includes(normalizeString(staffSearch))
-        );
-    } else if (currentSector) {
-        filtered = filtered.filter(s => s.sectorId === currentSector.id);
-    } else {
-        return [];
-    }
-
-    return filtered.map(staff => {
-        // Filtro Soft Delete: Procura apenas matrícula ativa que NÃO esteja na lista de remoção pendente
-        const membership = proGroupMembers.find(m => 
-          cleanId(m.staffId) === cleanId(staff.id) && 
-          !m.leftAt && 
-          !pendingRemovals.has(m.id)
-        );
-        
-        const groupName = membership ? proGroups.find(g => g.id === membership.groupId)?.name : null;
-        
-        // Data formatada para exibição (Se matriculado)
-        const dateStr = membership?.joinedAt 
-            ? new Date(membership.joinedAt).toLocaleDateString('pt-BR') 
-            : null;
-
-        const sector = proSectors.find(s => s.id === staff.sectorId);
-        return { ...staff, membership, groupName, joinedDate: dateStr, sectorName: sector?.name || 'Sem Setor' };
-      })
-      .filter(staff => {
-        // Se estivermos olhando um PG específico, não mostrar quem já está nele (ou está sendo transferido para ele)
-        if (currentPG) {
-            const isAlreadyInThisGroup = proGroupMembers.some(m => 
-                m.groupId === currentPG.id && 
-                cleanId(m.staffId) === cleanId(staff.id) && 
-                !m.leftAt &&
-                !pendingRemovals.has(m.id)
-            );
-            if (isAlreadyInThisGroup) return false;
-        }
-        
-        // Se houver uma transferência pendente para este colaborador, ele "some" da lista de disponíveis
-        if (pendingTransfers.has(staff.id)) return false;
-        
-        return true;
-      })
-      .sort((a, b) => {
-        if (!a.membership && b.membership) return -1;
-        if (a.membership && !b.membership) return 1;
-        return a.name.localeCompare(b.name);
-      });
-  }, [proStaff, currentSector, staffSearch, proGroupMembers, proGroups, currentPG, pendingTransfers, pendingRemovals, unit, proSectors]);
-
-  const pgMembers = useMemo(() => {
-    if (!currentPG) return [];
-    
-    // Membros Staff
-    const realStaffMembers = proGroupMembers
-      .filter(m => m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id)) // Filtro Soft Delete
-      .map(m => {
-        const staff = proStaff.find(s => cleanId(s.id) === cleanId(m.staffId));
-        const sector = proSectors.find(s => s.id === staff?.sectorId);
-        return { 
-            id: m.id,
-            staffName: staff?.name || `Desconhecido (ID: ${m.staffId})`, 
-            staffId: m.staffId,
-            sectorName: sector?.name || 'Sem Setor',
-            joinedDate: m.joinedAt ? new Date(m.joinedAt).toLocaleDateString('pt-BR') : '',
-            isOptimistic: false,
-            isLeader: currentPG.currentLeader === staff?.name,
-            type: 'staff'
-        };
-      });
-
-    // Membros Prestadores
-    const realProviderMembers = proGroupProviderMembers
-      .filter(m => m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id))
-      .map(m => {
-        const provider = proProviders.find(p => cleanId(p.id) === cleanId(m.providerId));
-        return {
-            id: m.id,
-            staffName: provider?.name || `Desconhecido (ID: ${m.providerId})`,
-            staffId: m.providerId,
-            joinedDate: m.joinedAt ? new Date(m.joinedAt).toLocaleDateString('pt-BR') : '',
-            isOptimistic: false,
-            isLeader: currentPG.currentLeader === provider?.name,
-            type: 'provider'
-        };
-      });
-
-    const optimisticMembers = Array.from(pendingTransfers).map(id => {
-        const staff = proStaff.find(s => s.id === id);
-        const provider = proProviders.find(p => p.id === id);
-        const sector = staff ? proSectors.find(s => s.id === staff.sectorId) : null;
-        const name = staff?.name || provider?.name || "Processando...";
-        return {
-            id: `temp-${id}`, 
-            staffName: name,
-            staffId: id,
-            sectorName: sector?.name || (provider ? 'Prestador' : '...'),
-            joinedDate: "Hoje",
-            isOptimistic: true,
-            isLeader: false,
-            type: staff ? 'staff' : 'provider'
-        };
-    });
-
-    const allMembers = [...realStaffMembers, ...realProviderMembers, ...optimisticMembers].filter((m, index, self) => 
-        index === self.findIndex((t) => (t.staffId === m.staffId))
-    );
-
-    return allMembers.sort((a, b) => {
-        if (a.isLeader && !b.isLeader) return -1;
-        if (!a.isLeader && b.isLeader) return 1;
-        return a.staffName.localeCompare(b.staffName);
-    });
-  }, [proGroupMembers, proGroupProviderMembers, currentPG, proStaff, proProviders, pendingTransfers, pendingRemovals, proSectors]);
+  const isNewProvider = providerSearch && !proProviders.some(p => String(p.name || "").toLowerCase().trim() === providerSearch.toLowerCase().trim() && p.unit === unit);
 
   // --- AÇÕES ---
 
@@ -400,58 +226,13 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
   return (
     <div className="space-y-8 animate-in slide-in-from-right duration-500">
       
-      {memberToRemove && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-6">
-              <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center mb-4">
-                <i className="fas fa-user-minus text-rose-500"></i>
-              </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-2">Remover Colaborador</h3>
-              <p className="text-slate-500 text-sm mb-6">
-                Como você deseja remover <span className="font-bold text-slate-700">{memberToRemove.name}</span> deste PG?
-              </p>
-
-              <div className="space-y-3 mb-6">
-                <button 
-                  onClick={() => setRemovalType('exit')}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all ${removalType === 'exit' ? 'border-blue-500 bg-blue-50' : 'border-slate-100 hover:border-slate-200'}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${removalType === 'exit' ? 'border-blue-500' : 'border-slate-300'}`}>
-                      {removalType === 'exit' && <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>}
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm text-slate-700">Saída do PG</p>
-                      <p className="text-[11px] text-slate-500">O colaborador participou e agora está saindo. Mantém histórico.</p>
-                    </div>
-                  </div>
-                </button>
-
-                <button 
-                  onClick={() => setRemovalType('error')}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all ${removalType === 'error' ? 'border-amber-500 bg-amber-50' : 'border-slate-100 hover:border-slate-200'}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${removalType === 'error' ? 'border-amber-500' : 'border-slate-300'}`}>
-                      {removalType === 'error' && <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>}
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm text-slate-700">Erro de Cadastro</p>
-                      <p className="text-[11px] text-slate-500">Ele nunca pertenceu a este PG. Marca como erro administrativo.</p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-
-              <div className="flex gap-3">
-                <button onClick={() => setMemberToRemove(null)} className="flex-1 px-4 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm hover:bg-slate-200 transition-colors">Cancelar</button>
-                <button onClick={confirmRemoval} className="flex-1 px-4 py-3 rounded-xl bg-rose-500 text-white font-bold text-sm hover:bg-rose-600 shadow-lg shadow-rose-200 transition-all">Confirmar</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <RemovalModal 
+        memberToRemove={memberToRemove}
+        removalType={removalType}
+        setRemovalType={setRemovalType}
+        onCancel={() => setMemberToRemove(null)}
+        onConfirm={confirmRemoval}
+      />
 
       <div className="bg-slate-900 p-8 rounded-[3rem] shadow-xl grid md:grid-cols-2 gap-8 text-white relative">
         <div className="absolute inset-0 rounded-[3rem] overflow-hidden pointer-events-none">
@@ -642,94 +423,12 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         </div>
       </div>
 
-      {/* --- RADAR DE LACUNAS OPERACIONAIS (V2 - SEMÁFORO) --- */}
-      <div className="pt-8 border-t border-slate-200">
-        <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight px-4 mb-6 flex items-center gap-3">
-          <i className="fas fa-radar text-blue-600"></i> Radar de Vacância Profissional
-        </h3>
-        
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Radar 1: Saúde de Cobertura por Setor */}
-          <div className="bg-slate-50 p-8 rounded-[3rem] border border-slate-200 space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white text-slate-400 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-slate-100">
-                <i className="fas fa-traffic-light"></i>
-              </div>
-              <div>
-                <h4 className="font-black text-slate-800 uppercase text-sm tracking-widest">Saúde da Cobertura</h4>
-                <p className="text-[10px] text-slate-400 font-bold uppercase">{coverageGaps.length} setores com vacância</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {coverageGaps.length > 0 ? coverageGaps.map(gap => (
-                <button 
-                  key={gap.id} 
-                  onClick={() => { setSelectedSectorName(gap.name); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                  className={`px-4 py-2 bg-white text-[10px] font-black uppercase rounded-xl border shadow-sm transition-all active:scale-95 flex items-center gap-2
-                    ${gap.color === 'rose' ? 'text-rose-600 border-rose-100 hover:bg-rose-500 hover:text-white' : 
-                      gap.color === 'amber' ? 'text-amber-600 border-amber-100 hover:bg-amber-500 hover:text-white' : 
-                      'text-emerald-600 border-emerald-100 hover:bg-emerald-500 hover:text-white'}
-                  `}
-                >
-                  <span className={`w-2 h-2 rounded-full ${
-                    gap.color === 'rose' ? 'bg-rose-500' : 
-                    gap.color === 'amber' ? 'bg-amber-500' : 
-                    'bg-emerald-500'
-                  }`}></span>
-                  {gap.name} ({Math.round(gap.percentage)}%)
-                </button>
-              )) : (
-                <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100">
-                  <i className="fas fa-check-circle"></i>
-                  <span className="text-[10px] font-black uppercase">Meta 100% batida em todos os setores!</span>
-                </div>
-              )}
-            </div>
-            {coverageGaps.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 pt-2">
-                    <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span><span className="text-[8px] font-black uppercase text-slate-400">Crítico (0-30%)</span></div>
-                    <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span className="text-[8px] font-black uppercase text-slate-400">Alerta (31-79%)</span></div>
-                    <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span className="text-[8px] font-black uppercase text-slate-400">Sucesso (80%+)</span></div>
-                </div>
-            )}
-          </div>
-
-          {/* Radar 2: PGs em "Limbo" (Fantasmas) */}
-          <div className="bg-slate-50 p-8 rounded-[3rem] border border-slate-200 space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white text-slate-400 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-slate-100">
-                <i className="fas fa-ghost"></i>
-              </div>
-              <div>
-                <h4 className="font-black text-slate-800 uppercase text-sm tracking-widest">PGs "Fantasmas"</h4>
-                <p className="text-[10px] text-slate-400 font-bold uppercase">{emptyPGs.length} grupos vazios detectados</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {emptyPGs.length > 0 ? emptyPGs.map(pg => (
-                <button 
-                  key={pg.id} 
-                  onClick={() => { setSelectedPGName(pg.name); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                  className="px-4 py-2 bg-white text-slate-400 text-[10px] font-black uppercase rounded-xl border border-slate-200 shadow-sm hover:border-blue-400 hover:text-blue-600 transition-all active:scale-95 flex items-center gap-2"
-                >
-                  <i className="fas fa-user-slash text-[8px]"></i>
-                  {pg.name}
-                </button>
-              )) : (
-                <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100">
-                  <i className="fas fa-check-circle"></i>
-                  <span className="text-[10px] font-black uppercase">Todos os PGs têm membros!</span>
-                </div>
-              )}
-            </div>
-            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest italic pt-2">
-              * Clique em um grupo para começar a matricular membros nele.
-            </p>
-          </div>
-        </div>
-      </div>
+      <GapRadar 
+        coverageGaps={coverageGaps}
+        emptyPGs={emptyPGs}
+        onSelectSector={(name) => { setSelectedSectorName(name); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+        onSelectPG={(name) => { setSelectedPGName(name); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+      />
     </div>
   );
 };
