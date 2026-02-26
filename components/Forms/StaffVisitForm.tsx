@@ -198,6 +198,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   const sortedHistory = useMemo(() => {
     const normalize = (s: string) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
+    const isAdmin = currentUser.role === 'ADMIN';
     
     return [...history].sort((a, b) => {
       // Helper para verificar se retorno foi cumprido
@@ -213,19 +214,23 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       const aPending = a.requiresReturn && !isFulfilled(a);
       const bPending = b.requiresReturn && !isFulfilled(b);
 
-      // 1. Pendentes vêm primeiro
-      if (aPending && !bPending) return -1;
-      if (!aPending && bPending) return 1;
+      // Regra: Admin vê todos pendentes no topo. Capelão/Estagiário vê apenas o próprio no topo.
+      const aPriority = aPending && (isAdmin || a.userId === currentUser.id);
+      const bPriority = bPending && (isAdmin || b.userId === currentUser.id);
 
-      // 2. Se ambos pendentes, o mais antigo (atrasado) vem primeiro
-      if (aPending && bPending) {
+      // 1. Prioritários vêm primeiro
+      if (aPriority && !bPriority) return -1;
+      if (!aPriority && bPriority) return 1;
+
+      // 2. Se ambos prioritários, o mais antigo (atrasado) vem primeiro
+      if (aPriority && bPriority) {
         return new Date(a.returnDate).getTime() - new Date(b.returnDate).getTime();
       }
 
       // 3. O resto segue ordem cronológica decrescente (mais novo primeiro)
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
-  }, [history, allHistory]);
+  }, [history, allHistory, currentUser]);
 
   const historySection = (
     <HistorySection<StaffVisit> data={sortedHistory} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['staffName']} renderItem={(item) => {
@@ -252,18 +257,19 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
       const returnFlag = item.requiresReturn ? (
         <div className="flex items-center gap-2 mr-2">
-          {!isReturnFulfilled && (
-             <button 
-               onClick={() => handlePerformReturn(item)}
-               className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-sm"
-               title="Realizar Retorno Agora"
-             >
-               <i className="fas fa-reply text-[10px]"></i>
-             </button>
+          {isReturnFulfilled ? (
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center border bg-emerald-50 border-emerald-100 text-emerald-500" title="Retorno Realizado">
+              <i className="fas fa-flag text-xs"></i>
+            </div>
+          ) : (
+            <button 
+              onClick={() => handlePerformReturn(item)}
+              className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-sm animate-pulse group/flag"
+              title="Clique para realizar retorno"
+            >
+              <i className="fas fa-flag text-xs group-hover/flag:scale-125 transition-transform"></i>
+            </button>
           )}
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${isReturnFulfilled ? 'bg-emerald-50 border-emerald-100 text-emerald-500' : 'bg-rose-50 border-rose-100 text-rose-500 animate-pulse'}`} title={isReturnFulfilled ? "Retorno Realizado" : "Retorno Pendente"}>
-            <i className="fas fa-flag text-xs"></i>
-          </div>
         </div>
       ) : null;
 
