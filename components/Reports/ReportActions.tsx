@@ -9,9 +9,10 @@ interface ActionsProps {
   onExcel: () => void;
   onAuditVidas: () => void;
   onAuditVisitas: () => void;
+  onPGReport: () => void;
 }
 
-const ReportActions: React.FC<ActionsProps> = ({ pColor, generating, onPdf, onExcel, onAuditVidas, onAuditVisitas }) => {
+const ReportActions: React.FC<ActionsProps> = ({ pColor, generating, onPdf, onExcel, onAuditVidas, onAuditVisitas, onPGReport }) => {
   return (
     <div className="flex flex-wrap gap-3">
       <Button 
@@ -30,6 +31,16 @@ const ReportActions: React.FC<ActionsProps> = ({ pColor, generating, onPdf, onEx
         icon={<i className="fas fa-file-excel"></i>}
       >
         Gerar Excel
+      </Button>
+
+      <Button 
+        variant="ghost" 
+        onClick={onPGReport} 
+        isLoading={generating === 'pg_report'} 
+        icon={<i className="fas fa-users"></i>} 
+        className="!text-[9px]"
+      >
+        Relatório PGs
       </Button>
 
       <Button 

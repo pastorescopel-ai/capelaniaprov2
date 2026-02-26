@@ -5,6 +5,7 @@ import { useReportLogic } from '../hooks/useReportLogic';
 import { resolveDynamicName, normalizeString } from '../utils/formatters';
 import { generateExecutiveHTML } from '../utils/pdfTemplates';
 import { useDocumentGenerator } from '../hooks/useDocumentGenerator';
+import { useApp } from '../contexts/AppContext';
 
 import ReportStats from './Reports/ReportStats';
 import ReportActions from './Reports/ReportActions';
@@ -23,6 +24,7 @@ interface ReportsProps {
 
 const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, users, currentUser, config }) => {
   const { generatePdf, generateExcel, isGenerating } = useDocumentGenerator();
+  const { proGroups, proGroupMembers, proStaff, proSectors, proProviders, proGroupProviderMembers } = useApp();
   // Estado local para controle visual de qual botão está carregando
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
@@ -34,7 +36,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   const [filters, setFilters] = useState({
     startDate: getStartOfMonth(),
     endDate: new Date().toISOString().split('T')[0],
-    selectedChaplain: 'all', selectedUnit: 'all', selectedActivity: ActivityFilter.TODAS, selectedStatus: 'all'
+    selectedChaplain: 'all', selectedUnit: 'all', selectedActivity: ActivityFilter.TODAS, selectedStatus: 'all', selectedPG: 'all'
   });
 
   const { filteredData, auditList, totalStats } = useReportLogic(studies, classes, groups, visits, users, filters as any);
@@ -81,6 +83,124 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
       unitTotals: { hab: habTotal, haba: habaTotal }, 
       pColor
     });
+    
+    await generatePdf(html);
+    setLoadingAction(null);
+  };
+
+  const handleGeneratePGReport = async () => {
+    setLoadingAction('pg_report');
+    
+    // Filtra os PGs com base na seleção (Todos ou Específico)
+    const targetPGs = filters.selectedPG === 'all' 
+      ? proGroups.filter(g => g.unit === filters.selectedUnit || filters.selectedUnit === 'all')
+      : proGroups.filter(g => g.id === filters.selectedPG);
+
+    // Ordena os PGs em ordem alfabética
+    targetPGs.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+    let html = `<div style="background: #f1f5f9; padding: 20px;">`;
+
+    const renderHeader = (title: string, subtitle: string) => `
+      <header style="border-bottom: 4px solid ${pColor}; padding-bottom: 10px; margin-bottom: 20px; display: flex; align-items: center;">
+        <img src="${config.reportLogoUrl || ''}" style="width: 80px; margin-right: 20px;" />
+        <div>
+          <h1 style="font-size: 16px; color: ${pColor}; margin: 0; text-transform: uppercase;">${config.headerLine1}</h1>
+          <h2 style="font-size: 10px; color: #475569; margin: 0;">${title}</h2>
+          <p style="font-size: 8px; color: #94a3b8; margin: 2px 0 0 0;">${subtitle}</p>
+        </div>
+      </header>
+    `;
+
+    // Para cada PG, vamos gerar uma página (ou bloco)
+    for (const pg of targetPGs) {
+      // Pega todos os membros ativos deste PG (Staff e Providers)
+      const activeStaffMembers = proGroupMembers.filter(m => m.groupId === pg.id && !m.leftAt);
+      const activeProviderMembers = proGroupProviderMembers.filter(m => m.groupId === pg.id && !m.leftAt);
+
+      // Mapeia os dados dos membros
+      const membersList = [
+        ...activeStaffMembers.map(m => {
+          const staff = proStaff.find(s => s.id === m.staffId);
+          const sector = proSectors.find(s => s.id === staff?.sectorId);
+          return {
+            name: staff?.name || 'Desconhecido',
+            sectorName: sector?.name || 'Sem Setor',
+            isLeader: normalizeString(staff?.name || '') === normalizeString(pg.currentLeader || ''),
+            type: 'Colaborador'
+          };
+        }),
+        ...activeProviderMembers.map(m => {
+          const provider = proProviders.find(p => p.id === m.providerId);
+          return {
+            name: provider?.name || 'Desconhecido',
+            sectorName: 'Prestador',
+            isLeader: normalizeString(provider?.name || '') === normalizeString(pg.currentLeader || ''),
+            type: 'Prestador'
+          };
+        })
+      ];
+
+      // Ordena: Líder primeiro, depois ordem alfabética
+      membersList.sort((a, b) => {
+        if (a.isLeader && !b.isLeader) return -1;
+        if (!a.isLeader && b.isLeader) return 1;
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+
+      const leaderName = pg.currentLeader || 'Sem Líder Definido';
+
+      html += `
+        <div class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 15mm; background: white; box-sizing: border-box; font-family: sans-serif; position: relative; margin-bottom: 20px;">
+          ${renderHeader(`Relatório de Pequeno Grupo (PG)`, `Unidade: ${pg.unit || 'Todas'}`)}
+          
+          <div style="background: #f8fafc; padding: 20px; border-left: 8px solid ${pColor}; border-radius: 0 12px 12px 0; margin-bottom: 25px;">
+            <h2 style="font-size: 24px; font-weight: 900; color: #1e293b; margin: 0 0 5px 0; text-transform: uppercase;">${pg.name}</h2>
+            <p style="font-size: 14px; color: #475569; margin: 0; font-weight: bold;">Líder: <span style="color: ${pColor};">${leaderName}</span></p>
+            <p style="font-size: 10px; color: #94a3b8; margin: 5px 0 0 0; text-transform: uppercase;">Total de Membros: ${membersList.length}</p>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+            <thead>
+              <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; color: #475569; text-transform: uppercase;">
+                <th style="padding: 12px; text-align: left; width: 50%;">Nome do Membro</th>
+                <th style="padding: 12px; text-align: left; width: 30%;">Setor / Vínculo</th>
+                <th style="padding: 12px; text-align: center; width: 20%;">Assinatura</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${membersList.length > 0 ? membersList.map((m, index) => `
+                <tr style="border-bottom: 1px solid #e2e8f0; background: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                  <td style="padding: 12px; font-weight: ${m.isLeader ? '900' : '500'}; color: ${m.isLeader ? pColor : '#334155'}; text-transform: uppercase;">
+                    ${m.name} ${m.isLeader ? '<span style="font-size: 8px; background: #dbeafe; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; margin-left: 5px;">LÍDER</span>' : ''}
+                  </td>
+                  <td style="padding: 12px; font-weight: 700; color: #64748b;">
+                    ${m.sectorName}
+                  </td>
+                  <td style="padding: 12px; border-left: 1px solid #e2e8f0;">
+                    <!-- Espaço para assinatura -->
+                  </td>
+                </tr>
+              `).join('') : `
+                <tr>
+                  <td colspan="3" style="padding: 20px; text-align: center; color: #94a3b8; font-style: italic;">Nenhum membro matriculado neste PG.</td>
+                </tr>
+              `}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    if (targetPGs.length === 0) {
+      html += `
+        <div class="pdf-page" style="width: 210mm; height: 297mm; padding: 15mm; background: white; box-sizing: border-box; font-family: sans-serif; display: flex; align-items: center; justify-content: center;">
+          <h2 style="color: #94a3b8;">Nenhum PG encontrado para os filtros selecionados.</h2>
+        </div>
+      `;
+    }
+
+    html += `</div>`;
     
     await generatePdf(html);
     setLoadingAction(null);
@@ -137,16 +257,18 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
             onExcel={handleExportExcel} 
             onAuditVidas={() => handleGenerateAudit('students')} 
             onAuditVisitas={() => handleGenerateAudit('visits')}
+            onPGReport={handleGeneratePGReport}
           />
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Início</label><input type="date" value={filters.startDate} onChange={e => setFilters({...filters, startDate: e.target.value})} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Fim</label><input type="date" value={filters.endDate} onChange={e => setFilters({...filters, endDate: e.target.value})} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Capelão</label><select value={filters.selectedChaplain} onChange={e => setFilters({...filters, selectedChaplain: e.target.value})} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm"><option value="all">Todos</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Unidade</label><select value={filters.selectedUnit} onChange={e => setFilters({...filters, selectedUnit: e.target.value as any})} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm"><option value="all">Todas</option><option value={Unit.HAB}>HAB</option><option value={Unit.HABA}>HABA</option></select></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Atividade</label><select value={filters.selectedActivity} onChange={e => setFilters({...filters, selectedActivity: e.target.value as any})} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm">{Object.values(ActivityFilter).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Status</label><select value={filters.selectedStatus} onChange={e => setFilters({...filters, selectedStatus: e.target.value as any})} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm"><option value="all">Todos</option>{Object.values(RecordStatus).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">PG (Relatório)</label><select value={filters.selectedPG} onChange={e => setFilters({...filters, selectedPG: e.target.value})} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm"><option value="all">Todos os PGs</option>{proGroups.map(pg => <option key={pg.id} value={pg.id}>{pg.name}</option>)}</select></div>
         </div>
 
         <ReportStats totalStats={totalStats} />
