@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { User } from '../../types';
 
 interface Goal {
   label: string;
@@ -8,52 +9,140 @@ interface Goal {
   type: 'daily' | 'weekly' | 'monthly';
 }
 
-interface VisitGoalWidgetProps {
-  goals: Goal[];
+interface AccumulatedGoal {
+  expected: number;
+  current: number;
+  deficit: number;
+  historicalTotal: number;
+  status: 'success' | 'warning' | 'critical';
 }
 
-const VisitGoalWidget: React.FC<VisitGoalWidgetProps> = ({ goals }) => {
-  if (goals.length === 0) return null;
+interface VisitGoalWidgetProps {
+  goals: Goal[];
+  accumulated: AccumulatedGoal | null;
+  currentUser: User;
+}
+
+const VisitGoalWidget: React.FC<VisitGoalWidgetProps> = ({ goals, accumulated, currentUser }) => {
+  if (!accumulated) return null;
+
+  const { expected, current, deficit, historicalTotal, status } = accumulated;
+  
+  const isHabaChaplain = currentUser?.attendsHaba === true;
+  const habaDays = currentUser?.habaDays || [];
+  const isIntern = currentUser?.role === 'INTERN';
+  
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const isHabaDay = isHabaChaplain && habaDays.includes(dayOfWeek);
+
+  const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const habaDaysStr = habaDays.map(d => dayNames[d]).join(', ');
+  const nonHabaDaysStr = [1, 2, 3, 4, 5].filter(d => !habaDays.includes(d)).map(d => dayNames[d]).join(', ');
+
+  let goalMessage = "Meta: 2 visitas por dia útil (HAB)";
+  if (isHabaChaplain) {
+    goalMessage = `Meta: 2 visitas/dia (${nonHabaDaysStr})`;
+  } else if (isIntern) {
+    goalMessage = "Meta: 2 visitas por semana (HAB)";
+  }
+  
+  const statusColors = {
+    success: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+    warning: 'bg-amber-50 border-amber-200 text-amber-700',
+    critical: 'bg-rose-50 border-rose-200 text-rose-700'
+  };
+
+  const statusIcons = {
+    success: 'fa-check-circle',
+    warning: 'fa-exclamation-triangle',
+    critical: 'fa-fire'
+  };
+
+  const statusMessages = {
+    success: 'Em Dia! Excelente trabalho.',
+    warning: `Atenção: ${deficit} visitas acumuladas.`,
+    critical: `Crítico: ${deficit} colaboradores aguardando visita!`
+  };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {goals.map((goal, idx) => {
-        const progress = Math.min((goal.current / goal.target) * 100, 100);
-        const isCompleted = goal.current >= goal.target;
-        
-        return (
-          <div key={idx} className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between group hover:border-indigo-200 transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h4 className="font-black text-slate-800 uppercase text-[10px] tracking-widest leading-tight">{goal.label}</h4>
-                <p className="text-2xl font-black text-slate-900 mt-1">
-                  {goal.current} <span className="text-slate-300 text-sm">/ {goal.target}</span>
-                </p>
-              </div>
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${isCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                <i className={`fas ${isCompleted ? 'fa-check-circle' : 'fa-bullseye'}`}></i>
-              </div>
+    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-inner border border-indigo-100">
+            <i className="fas fa-hands-helping"></i>
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Visitas a Colaboradores</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Acompanhamento de Metas</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-200">
+          <i className="fas fa-trophy text-amber-500"></i>
+          <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Total Histórico: {historicalTotal} visitas</span>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* Card 1: Progresso do Mês */}
+        <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 flex flex-col justify-center relative overflow-hidden">
+          {isHabaDay && (
+            <div className="absolute top-0 right-0 bg-indigo-500 text-white text-[8px] font-black px-3 py-1 rounded-bl-xl uppercase tracking-widest shadow-sm">
+              📍 Hoje é dia de HABA!
             </div>
-            
-            <div className="space-y-2">
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full transition-all duration-1000 ease-out rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-indigo-600'}`}
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                  {isCompleted ? 'Alvo atingido! 🎉' : `${goal.target - goal.current} visitas restantes`}
-                </span>
-                <span className={`text-[9px] font-black uppercase ${isCompleted ? 'text-emerald-600' : 'text-indigo-600'}`}>
-                  {Math.round(progress)}%
-                </span>
-              </div>
+          )}
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Visitas no Mês</p>
+          <div className="flex items-end gap-2 mb-2">
+            <span className="text-4xl font-black text-slate-800 leading-none">{current}</span>
+            <span className="text-sm font-bold text-slate-400 mb-1">/ {expected} esperadas</span>
+          </div>
+          <p className="text-[9px] font-bold text-slate-500 bg-white px-2 py-1 rounded-lg border border-slate-200 inline-block self-start">
+            {goalMessage}
+          </p>
+        </div>
+
+        {/* Card 2: Termômetro de Acúmulo */}
+        <div className={`md:col-span-2 p-5 rounded-3xl border flex flex-col justify-center gap-4 ${statusColors[status]}`}>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/50 rounded-2xl flex items-center justify-center text-2xl shadow-sm">
+              <i className={`fas ${statusIcons[status]}`}></i>
+            </div>
+            <div className="flex-1">
+              <h4 className="font-black uppercase text-sm tracking-widest mb-1">Status de Acúmulo</h4>
+              <p className="font-bold text-sm">{statusMessages[status]}</p>
             </div>
           </div>
-        );
-      })}
+          {deficit > 0 && (
+            <div className="h-2 w-full bg-white/50 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full ${status === 'warning' ? 'bg-amber-500' : 'bg-rose-500'}`}
+                style={{ width: `${Math.min((deficit / 10) * 100, 100)}%` }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Seção Extra para Capelão HABA */}
+      {isHabaChaplain && (
+        <div className="mt-4 bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center text-lg">
+              <i className="fas fa-hospital"></i>
+            </div>
+            <div>
+              <h4 className="font-black text-indigo-900 text-xs uppercase tracking-widest">Meta Mensal HABA ({habaDaysStr})</h4>
+              <p className="text-indigo-700 text-[10px] font-bold">Alvo: 8 visitas por mês</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-2xl font-black text-indigo-900 leading-none">
+              {goals.find(g => g.type === 'monthly')?.current || 0}
+            </span>
+            <span className="text-xs font-bold text-indigo-400"> / 8</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

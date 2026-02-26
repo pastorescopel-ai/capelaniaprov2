@@ -109,6 +109,8 @@ export interface User {
   password?: string;
   role: UserRole;
   profilePic?: string;
+  attendsHaba?: boolean;
+  habaDays?: number[];
 }
 
 export interface MasterLists {

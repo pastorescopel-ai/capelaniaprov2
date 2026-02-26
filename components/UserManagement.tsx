@@ -14,7 +14,7 @@ interface UserManagementProps {
 
 const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onUpdateUsers }) => {
   const { deleteRecord, proStaff, proSectors } = useApp();
-  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: UserRole.CHAPLAIN });
+  const [newUser, setNewUser] = useState<Partial<User>>({ name: '', email: '', password: '', role: UserRole.CHAPLAIN, attendsHaba: false, habaDays: [] });
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -48,15 +48,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
       
       const userToAdd: User = {
         id: crypto.randomUUID(),
-        name: newUser.name,
-        email: newUser.email.toLowerCase().trim(),
+        name: newUser.name || '',
+        email: (newUser.email || '').toLowerCase().trim(),
         password: securePassword,
-        role: newUser.role,
-        profilePic: ''
+        role: newUser.role || UserRole.CHAPLAIN,
+        profilePic: '',
+        attendsHaba: newUser.attendsHaba || false,
+        habaDays: newUser.habaDays || []
       };
 
       await onUpdateUsers([...users, userToAdd]);
-      setNewUser({ name: '', email: '', password: '', role: UserRole.CHAPLAIN });
+      setNewUser({ name: '', email: '', password: '', role: UserRole.CHAPLAIN, attendsHaba: false, habaDays: [] });
       showToast('Usuário cadastrado com sucesso!', 'success');
     } catch (e) {
       showToast('Erro ao cadastrar.', 'warning');
@@ -65,6 +67,29 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
     }
   };
 
+  const toggleHabaDay = (day: number, isEditing: boolean) => {
+    if (isEditing && editingUser) {
+      const currentDays = editingUser.habaDays || [];
+      const newDays = currentDays.includes(day) 
+        ? currentDays.filter(d => d !== day)
+        : [...currentDays, day];
+      setEditingUser({ ...editingUser, habaDays: newDays });
+    } else {
+      const currentDays = newUser.habaDays || [];
+      const newDays = currentDays.includes(day) 
+        ? currentDays.filter(d => d !== day)
+        : [...currentDays, day];
+      setNewUser({ ...newUser, habaDays: newDays });
+    }
+  };
+
+  const dayOptions = [
+    { value: 1, label: 'Seg' },
+    { value: 2, label: 'Ter' },
+    { value: 3, label: 'Qua' },
+    { value: 4, label: 'Qui' },
+    { value: 5, label: 'Sex' }
+  ];
   const handleSelectStaff = (label: string) => {
     // Extrai o nome antes do parêntese da matrícula
     const nameOnly = label.split(' (')[0].trim();
@@ -187,6 +212,39 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
                   <option value={UserRole.ADMIN}>Administrador</option>
                 </select>
               </div>
+              
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Atende no HABA?</label>
+                  <button 
+                    onClick={() => setEditingUser({...editingUser, attendsHaba: !editingUser.attendsHaba})}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${editingUser.attendsHaba ? 'bg-indigo-500' : 'bg-slate-300'}`}
+                  >
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${editingUser.attendsHaba ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                
+                {editingUser.attendsHaba && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <label className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest">Dias de Atendimento (HABA)</label>
+                    <div className="flex gap-2">
+                      {dayOptions.map(day => (
+                        <button
+                          key={day.value}
+                          onClick={() => toggleHabaDay(day.value, true)}
+                          className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${
+                            (editingUser.habaDays || []).includes(day.value)
+                              ? 'bg-indigo-500 text-white shadow-md'
+                              : 'bg-white text-indigo-400 border border-indigo-100'
+                          }`}
+                        >
+                          {day.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4 pt-4">
               <button onClick={() => setEditingUser(null)} className="py-4 rounded-2xl bg-slate-100 font-black uppercase text-xs hover:bg-slate-200 transition-colors">Cancelar</button>
@@ -226,6 +284,43 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
               <option value={UserRole.ADMIN}>Administrador</option>
             </select>
           </div>
+          
+          <div className="lg:col-span-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-xs font-black text-indigo-800 uppercase tracking-widest">Atende no HABA?</h4>
+                <p className="text-[9px] text-indigo-600 font-bold">Ative para configurar metas específicas de visitas no HABA.</p>
+              </div>
+              <button 
+                onClick={() => setNewUser({...newUser, attendsHaba: !newUser.attendsHaba})}
+                className={`w-12 h-6 rounded-full transition-colors relative ${newUser.attendsHaba ? 'bg-indigo-500' : 'bg-slate-300'}`}
+              >
+                <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${newUser.attendsHaba ? 'translate-x-7' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            
+            {newUser.attendsHaba && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                <label className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest">Selecione os dias de atendimento no HABA</label>
+                <div className="flex gap-2 max-w-md">
+                  {dayOptions.map(day => (
+                    <button
+                      key={day.value}
+                      onClick={() => toggleHabaDay(day.value, false)}
+                      className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${
+                        (newUser.habaDays || []).includes(day.value)
+                          ? 'bg-indigo-500 text-white shadow-md'
+                          : 'bg-white text-indigo-400 border border-indigo-100'
+                      }`}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
           <button onClick={handleAddUser} className="lg:col-span-4 py-5 bg-emerald-600 text-white font-black uppercase text-xs rounded-2xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all">Cadastrar Membro da Equipe</button>
         </div>
       </section>
@@ -241,7 +336,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
                 </div>
                 <div>
                   <h4 className="font-black text-slate-800 uppercase text-sm leading-tight">{u.name}</h4>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{u.email} • {u.role === UserRole.INTERN ? 'Estagiário' : u.role === UserRole.ADMIN ? 'Admin' : 'Capelão'}</p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                    {u.email} • {u.role === UserRole.INTERN ? 'Estagiário' : u.role === UserRole.ADMIN ? 'Admin' : 'Capelão'}
+                    {u.attendsHaba && ' • 📍 HABA'}
+                  </p>
                 </div>
               </div>
               <div className="flex gap-2">

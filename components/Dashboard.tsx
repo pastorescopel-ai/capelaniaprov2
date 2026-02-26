@@ -38,7 +38,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     totalActionsMonth,
     globalImpact,
     monthName,
-    goals
+    goals,
+    accumulated
   } = useDashboardStats(studies, classes, groups, visits, currentUser);
 
   if (!currentUser) return null;
@@ -66,7 +67,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </header>
 
-      <VisitGoalWidget goals={goals} />
+      <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
+
+      <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
 
       <ClosureBanner userRole={currentUser.role} />
 
@@ -98,7 +101,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
-      <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
       <StatCards stats={stats} />
       <ImpactCharts individualData={[
         { name: 'Estudos', val: monthlyStudies.length },

@@ -125,7 +125,7 @@ export const useDashboardStats = (
   }, [studies, classes, groups, visits]);
 
   // 5. Metas de Visitas
-  const goals = useVisitGoals(userVisits, currentUser);
+  const { goals, accumulated } = useVisitGoals(userVisits, currentUser);
 
   const totalActionsMonth = monthlyStudies.length + monthlyClasses.length + monthlyGroups.length + monthlyVisits.length;
 
@@ -140,6 +140,7 @@ export const useDashboardStats = (
     totalActionsMonth,
     globalImpact,
     monthName,
-    goals
+    goals,
+    accumulated
   };
 };

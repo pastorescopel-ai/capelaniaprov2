@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserRole } from '../../types';
+import { getFifthBusinessDay } from '../../utils/formatters';
 
 interface ClosureBannerProps {
   userRole: UserRole;
@@ -8,27 +9,33 @@ interface ClosureBannerProps {
 
 const ClosureBanner: React.FC<ClosureBannerProps> = ({ userRole }) => {
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number } | null>(null);
+  const [isGracePeriod, setIsGracePeriod] = useState(false);
+  const [isCritical, setIsCritical] = useState(false);
   
   const now = new Date();
-  const currentDay = now.getDate();
-  const isGracePeriod = currentDay <= 7;
 
   useEffect(() => {
     if (userRole === UserRole.ADMIN) return;
 
     const calculateTime = () => {
       const today = new Date();
-      // Data alvo: Dia 8 do mês atual às 00:00:00
-      const target = new Date(today.getFullYear(), today.getMonth(), 8, 0, 0, 0);
+      const target = getFifthBusinessDay(today.getFullYear(), today.getMonth());
+      
       const diff = target.getTime() - today.getTime();
 
       if (diff > 0) {
+        setIsGracePeriod(true);
+        // Se faltar menos de 2 dias (48 horas), é crítico
+        setIsCritical(diff <= 2 * 24 * 60 * 60 * 1000);
+        
         setTimeLeft({
           days: Math.floor(diff / (1000 * 60 * 60 * 24)),
           hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
           minutes: Math.floor((diff / 1000 / 60) % 60)
         });
       } else {
+        setIsGracePeriod(false);
+        setIsCritical(false);
         setTimeLeft(null);
       }
     };
@@ -60,8 +67,6 @@ const ClosureBanner: React.FC<ClosureBannerProps> = ({ userRole }) => {
       </div>
     );
   }
-
-  const isCritical = currentDay >= 5;
 
   return (
     <div className={`${isCritical ? 'bg-amber-500' : 'bg-blue-600'} p-5 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between shadow-xl shadow-blue-100 transition-all duration-500 mb-6 group`}>

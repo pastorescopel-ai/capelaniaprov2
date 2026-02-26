@@ -80,3 +80,31 @@ export const tokenMatch = (target: string, search: string): boolean => {
   const searchTerms = normSearch.split(' ').filter(t => t.trim() !== '');
   return searchTerms.every(term => normTarget.includes(term));
 };
+
+/**
+ * Calcula o 5º dia útil de um dado mês e ano.
+ * Sábados (6) e Domingos (0) não são dias úteis.
+ */
+export const getFifthBusinessDay = (year: number, month: number): Date => {
+  let businessDaysCount = 0;
+  let currentDay = 1;
+  let date = new Date(year, month, currentDay);
+
+  while (businessDaysCount < 5) {
+    date = new Date(year, month, currentDay);
+    const dayOfWeek = date.getDay();
+    
+    // Se não for sábado (6) nem domingo (0), é dia útil
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      businessDaysCount++;
+    }
+    
+    if (businessDaysCount < 5) {
+      currentDay++;
+    }
+  }
+
+  // Retorna a data do 5º dia útil às 23:59:59 para cobrir todo o dia
+  date.setHours(23, 59, 59, 999);
+  return date;
+};

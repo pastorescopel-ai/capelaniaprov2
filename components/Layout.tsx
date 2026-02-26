@@ -1,10 +1,11 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { NAV_ITEMS } from '../constants';
 import { DEFAULT_APP_LOGO } from '../assets';
 import { UserRole, Config } from '../types';
 import NotificationCenter from './NotificationCenter';
 import InstallPrompt from './PWA/InstallPrompt';
+import { getFifthBusinessDay } from '../utils/formatters';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -23,6 +24,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
   
   // Normalização da role para garantir match com NAV_ITEMS
   const normalizedRole = String(userRole || '').toUpperCase().trim();
+  
+  // Verifica se estamos no período de fechamento (até o 5º dia útil)
+  const isGracePeriod = useMemo(() => {
+    const now = new Date();
+    const fifthBusinessDay = getFifthBusinessDay(now.getFullYear(), now.getMonth());
+    return now <= fifthBusinessDay;
+  }, []);
   
   // Detecção de teclado aberto para mobile
   useEffect(() => {
@@ -110,6 +118,16 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
           </button>
         </div>
       </header>
+
+      {/* GLOBAL SYSTEM BANNER */}
+      {isGracePeriod && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-center gap-2 z-50 shadow-sm flex-shrink-0">
+          <i className="fas fa-exclamation-triangle text-amber-500 text-[10px] md:text-xs"></i>
+          <span className="text-[9px] md:text-[11px] font-black text-amber-700 uppercase tracking-widest text-center">
+            ⚠️ Lembrete: O prazo para lançamento de dados do mês anterior encerra no 5º dia útil.
+          </span>
+        </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden content-layer">
         {/* Barra Lateral Desktop */}
