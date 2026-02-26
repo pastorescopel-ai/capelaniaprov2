@@ -229,14 +229,11 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   const historySection = (
     <HistorySection<StaffVisit> data={sortedHistory} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['staffName']} renderItem={(item) => {
-      // Verifica se o retorno foi realizado
       let isReturnFulfilled = false;
       if (item.requiresReturn) {
         const itemDate = new Date(item.date).getTime();
-        const normalize = (s: string) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
-        
         const subsequentVisit = (allHistory.length > 0 ? allHistory : history).find(v => 
-          normalize(v.staffName) === normalize(item.staffName) && 
+          normalizeString(v.staffName) === normalizeString(item.staffName) && 
           new Date(v.date).getTime() > itemDate
         );
         if (subsequentVisit) {
