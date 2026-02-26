@@ -183,6 +183,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
                 <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Cargo / Role</label>
                 <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as UserRole})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold">
                   <option value={UserRole.CHAPLAIN}>Capelão</option>
+                  <option value={UserRole.INTERN}>Capelão Estagiário</option>
                   <option value={UserRole.ADMIN}>Administrador</option>
                 </select>
               </div>
@@ -221,6 +222,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Nível de Acesso</label>
             <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs">
               <option value={UserRole.CHAPLAIN}>Capelão</option>
+              <option value={UserRole.INTERN}>Capelão Estagiário</option>
               <option value={UserRole.ADMIN}>Administrador</option>
             </select>
           </div>
@@ -239,7 +241,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
                 </div>
                 <div>
                   <h4 className="font-black text-slate-800 uppercase text-sm leading-tight">{u.name}</h4>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{u.email} • {u.role}</p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{u.email} • {u.role === UserRole.INTERN ? 'Estagiário' : u.role === UserRole.ADMIN ? 'Admin' : 'Capelão'}</p>
                 </div>
               </div>
               <div className="flex gap-2">

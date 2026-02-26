@@ -12,17 +12,17 @@ export const SUPABASE_KEY = (import.meta as any).env?.VITE_SUPABASE_KEY || "sb_p
 export const STATUS_OPTIONS = [RecordStatus.INICIO, RecordStatus.CONTINUACAO, RecordStatus.TERMINO];
 
 export const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
-  { id: 'bibleStudy', label: 'Estudo Bíblico', icon: '📖', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
-  { id: 'bibleClass', label: 'Classe Bíblica', icon: '👥', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
-  { id: 'smallGroup', label: 'Pequenos Grupos', icon: '🏠', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
-  { id: 'staffVisit', label: 'Visitas', icon: '🤝', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
+  { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
+  { id: 'bibleStudy', label: 'Estudo Bíblico', icon: '📖', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
+  { id: 'bibleClass', label: 'Classe Bíblica', icon: '👥', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
+  { id: 'smallGroup', label: 'Pequenos Grupos', icon: '🏠', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
+  { id: 'staffVisit', label: 'Visitas', icon: '🤝', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
   { id: 'pgManagement', label: 'Gestão de PGs', icon: '🧩', roles: [UserRole.ADMIN] },
-  { id: 'ambassadors', label: 'Embaixadores', icon: '🌟', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
+  { id: 'ambassadors', label: 'Embaixadores', icon: '🌟', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
   { id: 'reports', label: 'Relatórios', icon: '📈', roles: [UserRole.ADMIN] },
   { id: 'users', label: 'Equipe', icon: '👥', roles: [UserRole.ADMIN] },
   { id: 'dataHealing', label: 'Cura de Dados', icon: '🚑', roles: [UserRole.ADMIN] }, // NOVO ITEM
-  { id: 'profile', label: 'Perfil', icon: '👤', roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
+  { id: 'profile', label: 'Perfil', icon: '👤', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
   { id: 'admin', label: 'Painel Admin', icon: '⚙️', roles: [UserRole.ADMIN] },
 ];
 

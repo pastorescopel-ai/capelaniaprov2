@@ -17,9 +17,14 @@ interface HistoryCardProps {
   onTransfer?: (newUserId: string) => void;
   extra?: React.ReactNode;
   middle?: React.ReactNode;
+  flag?: {
+    color: string;
+    icon: string;
+    title?: string;
+  };
 }
 
-const HistoryCard: React.FC<HistoryCardProps> = ({ icon, color, title, subtitle, chaplainName, isLocked, isAdmin, users, onEdit, onDelete, onTransfer, extra, middle }) => {
+const HistoryCard: React.FC<HistoryCardProps> = ({ icon, color, title, subtitle, chaplainName, isLocked, isAdmin, users, onEdit, onDelete, onTransfer, extra, middle, flag }) => {
   const [showTransfer, setShowTransfer] = useState(false);
 
   // Se o título parece ser um nome de pessoa (mais de um caractere e não é nome de classe genérico), encurtamos
@@ -83,6 +88,11 @@ const HistoryCard: React.FC<HistoryCardProps> = ({ icon, color, title, subtitle,
               </div>
             )}
             <button onClick={onEdit} className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors"><i className="fas fa-edit text-xs"></i></button>
+            {flag && (
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${flag.color} bg-opacity-10`} title={flag.title}>
+                <i className={`fas ${flag.icon} ${flag.color.replace('bg-', 'text-')}`}></i>
+              </div>
+            )}
             <button onClick={onDelete} className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl hover:bg-rose-50 hover:text-rose-500 transition-colors"><i className="fas fa-trash text-xs"></i></button>
           </div>
         )}

@@ -58,7 +58,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex-1">
             <h1 className="text-2xl font-black text-slate-800 tracking-tight">Olá, {currentUser.name}!</h1>
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
-                {currentUser.role === UserRole.ADMIN ? 'Gestor de Capelania' : 'Capelão Ativo'}
+                {currentUser.role === UserRole.ADMIN ? 'Gestor de Capelania' : currentUser.role === UserRole.INTERN ? 'Capelão Estagiário' : 'Capelão Ativo'}
             </p>
           </div>
         </div>

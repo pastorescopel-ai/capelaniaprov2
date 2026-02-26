@@ -19,10 +19,26 @@ export const useDashboardStats = (
   // 2. Lógica de Retornos
   const { pendingReturns, todaysReturns } = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
-    const pending = userVisits.filter(v => v.requiresReturn && !v.returnCompleted);
-    const todays = userVisits.filter(v => v.requiresReturn && !v.returnCompleted && v.returnDate === todayStr);
+    
+    const normalizeString = (str: string) => {
+      if (!str) return '';
+      return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    };
+
+    const pending = userVisits.filter(v => {
+      if (!v.requiresReturn) return false;
+      const vDate = new Date(v.date).getTime();
+      const hasSubsequent = visits.some(allV => 
+        normalizeString(allV.staffName) === normalizeString(v.staffName) && 
+        new Date(allV.date).getTime() > vDate
+      );
+      return !hasSubsequent;
+    });
+
+    const todays = pending.filter(v => v.returnDate === todayStr);
+    
     return { pendingReturns: pending, todaysReturns: todays };
-  }, [userVisits]);
+  }, [userVisits, visits]);
 
   // 3. Filtros e Cálculos Mensais
   const { monthlyStudies, monthlyClasses, monthlyGroups, monthlyVisits, uniqueStudentsMonth, monthName } = useMemo(() => {

@@ -1,7 +1,8 @@
 
 export enum UserRole {
   ADMIN = 'ADMIN',
-  CHAPLAIN = 'CHAPLAIN'
+  CHAPLAIN = 'CHAPLAIN',
+  INTERN = 'INTERN'
 }
 
 export enum Unit {

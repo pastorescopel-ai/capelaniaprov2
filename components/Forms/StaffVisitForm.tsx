@@ -15,6 +15,7 @@ interface FormProps {
   users: User[];
   currentUser: User;
   history: StaffVisit[];
+  allHistory?: StaffVisit[];
   editingItem?: StaffVisit;
   isLoading?: boolean;
   onCancelEdit?: () => void;
@@ -24,7 +25,7 @@ interface FormProps {
   onToggleReturn?: (id: string) => void;
 }
 
-const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
+const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
   const { proStaff, proProviders, proSectors, syncMasterContact } = useApp();
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
@@ -165,10 +166,126 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     </>
   );
 
+  const handlePerformReturn = (item: StaffVisit) => {
+    // Preenche o formulário com os dados da pessoa, mas limpa ID e data para criar um novo registro
+    setFormData({
+      ...defaultState,
+      date: getToday(),
+      staffName: item.staffName,
+      sector: item.sector,
+      participantType: (item as any).participantType || ParticipantType.STAFF,
+      providerRole: (item as any).providerRole || '',
+      whatsapp: item.whatsapp || '',
+      reason: VisitReason.RETORNO,
+      requiresReturn: false,
+      returnDate: getToday()
+    });
+    // Se for colaborador e já tiver setor, trava o setor (simulando o comportamento de seleção)
+    if ((item as any).participantType === ParticipantType.STAFF || !(item as any).participantType) {
+      const match = proStaff.find(s => normalizeString(s.name) === normalizeString(item.staffName));
+      if (match && match.sectorId) {
+        setIsSectorLocked(true);
+      }
+    }
+    
+    // Rola para o topo para o usuário ver o formulário preenchido
+    const scrollContainer = document.getElementById('main-scroll-container');
+    if (scrollContainer) {
+      scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    showToast("Formulário preenchido para novo retorno!", "success");
+  };
+
+  const sortedHistory = useMemo(() => {
+    const normalize = (s: string) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
+    
+    return [...history].sort((a, b) => {
+      // Helper para verificar se retorno foi cumprido
+      const isFulfilled = (visit: StaffVisit) => {
+        if (!visit.requiresReturn) return true;
+        const vDate = new Date(visit.date).getTime();
+        return (allHistory.length > 0 ? allHistory : history).some(v => 
+          normalize(v.staffName) === normalize(visit.staffName) && 
+          new Date(v.date).getTime() > vDate
+        );
+      };
+
+      const aPending = a.requiresReturn && !isFulfilled(a);
+      const bPending = b.requiresReturn && !isFulfilled(b);
+
+      // 1. Pendentes vêm primeiro
+      if (aPending && !bPending) return -1;
+      if (!aPending && bPending) return 1;
+
+      // 2. Se ambos pendentes, o mais antigo (atrasado) vem primeiro
+      if (aPending && bPending) {
+        return new Date(a.returnDate).getTime() - new Date(b.returnDate).getTime();
+      }
+
+      // 3. O resto segue ordem cronológica decrescente (mais novo primeiro)
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+  }, [history, allHistory]);
+
   const historySection = (
-    <HistorySection<StaffVisit> data={history} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['staffName']} renderItem={(item) => (
-      <HistoryCard key={item.id} icon="🤝" color="text-rose-600" title={item.staffName} subtitle={`${item.sector} • ${item.reason}`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} middle={(item as any).participantType === ParticipantType.PROVIDER && (<span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">Prestador</span>)} />
-    )} />
+    <HistorySection<StaffVisit> data={sortedHistory} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['staffName']} renderItem={(item) => {
+      // Verifica se o retorno foi realizado
+      let isReturnFulfilled = false;
+      if (item.requiresReturn) {
+        const itemDate = new Date(item.date).getTime();
+        const normalize = (s: string) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
+        
+        const subsequentVisit = (allHistory.length > 0 ? allHistory : history).find(v => 
+          normalize(v.staffName) === normalize(item.staffName) && 
+          new Date(v.date).getTime() > itemDate
+        );
+        if (subsequentVisit) {
+          isReturnFulfilled = true;
+        }
+      }
+
+      const returnBadge = item.requiresReturn ? (
+        <div className={`px-3 py-1 rounded-lg border flex flex-col items-center justify-center ${isReturnFulfilled ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+          <span className={`text-[8px] font-black uppercase tracking-widest ${isReturnFulfilled ? 'text-emerald-400' : 'text-rose-400'}`}>Retorno</span>
+          <span className={`text-[10px] font-black ${isReturnFulfilled ? 'text-emerald-600' : 'text-rose-600'}`}>
+            {new Date(item.returnDate + 'T12:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
+          </span>
+        </div>
+      ) : null;
+
+      const returnFlag = item.requiresReturn ? (
+        <div className="flex items-center gap-2 mr-2">
+          {!isReturnFulfilled && (
+             <button 
+               onClick={() => handlePerformReturn(item)}
+               className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-sm"
+               title="Realizar Retorno Agora"
+             >
+               <i className="fas fa-reply text-[10px]"></i>
+             </button>
+          )}
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${isReturnFulfilled ? 'bg-emerald-50 border-emerald-100 text-emerald-500' : 'bg-rose-50 border-rose-100 text-rose-500 animate-pulse'}`} title={isReturnFulfilled ? "Retorno Realizado" : "Retorno Pendente"}>
+            <i className="fas fa-flag text-xs"></i>
+          </div>
+        </div>
+      ) : null;
+
+      return (
+        <HistoryCard 
+          key={item.id}
+          icon="🤝" 
+          color="text-rose-600" 
+          title={item.staffName} 
+          subtitle={`${item.sector} • ${item.reason}`} 
+          chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} 
+          isLocked={isRecordLocked(item.date, currentUser.role)} 
+          onEdit={() => onEdit?.(item)} 
+          onDelete={() => onDelete(item.id)} 
+          middle={returnBadge || ((item as any).participantType === ParticipantType.PROVIDER && (<span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">Prestador</span>))}
+          extra={returnFlag}
+        />
+      );
+    }} />
   );
 
   return (
