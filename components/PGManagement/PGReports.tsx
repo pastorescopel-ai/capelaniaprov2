@@ -63,16 +63,19 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
         const notEnrolled = staff.filter(s => !activeMemberships.some(m => cleanId(m.staffId) === cleanId(s.id)));
         
         // Agrupamento por PG para o relatório
-        const enrolledByPGMap = new Map<string, any[]>();
+        const enrolledByPGMap = new Map<string, { pgName: string, members: any[], leaderName: string | null }>();
         enrolled.forEach(s => {
             const m = activeMemberships.find(mem => cleanId(mem.staffId) === cleanId(s.id));
             const pg = m ? proGroups.find(g => cleanId(g.id) === cleanId(m.groupId)) : null;
             const pgName = pg?.name || 'Sem PG Definido';
-            if (!enrolledByPGMap.has(pgName)) enrolledByPGMap.set(pgName, []);
-            enrolledByPGMap.get(pgName)!.push(s);
+            const leaderName = pg?.currentLeader || null;
+            
+            if (!enrolledByPGMap.has(pgName)) {
+                enrolledByPGMap.set(pgName, { pgName, members: [], leaderName });
+            }
+            enrolledByPGMap.get(pgName)!.members.push(s);
         });
-        const enrolledByPG = Array.from(enrolledByPGMap.entries())
-            .map(([pgName, members]) => ({ pgName, members }))
+        const enrolledByPG = Array.from(enrolledByPGMap.values())
             .sort((a, b) => a.pgName.localeCompare(b.pgName));
 
         const geoGroupIds = new Set(proGroupLocations.filter(loc => cleanId(loc.sectorId) === sectorIdClean).map(loc => cleanId(loc.groupId)));
@@ -134,12 +137,25 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
           <div style="display: flex; gap: 40px; margin-bottom: 40px;">
               <div style="flex: 1;">
                   <div style="font-size: 14px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #d1fae5; padding-bottom: 8px; margin-bottom: 12px; color: #10b981;">Matriculados (${data.enrolledList.length})</div>
-                  ${data.enrolledByPG.length > 0 ? data.enrolledByPG.map((group: any) => `
+                  ${data.enrolledByPG.length > 0 ? data.enrolledByPG.map((group: any) => {
+                      const leaderInSector = group.members.find((m: any) => normalizeString(m.name) === normalizeString(group.leaderName || ''));
+                      const leaderInfo = !leaderInSector 
+                        ? (group.leaderName ? ` (Líder: ${group.leaderName})` : ' (Sem Líder)')
+                        : '';
+                      
+                      return `
                       <div style="margin-top: 12px; margin-bottom: 6px;">
-                          <span style="font-size: 9px; font-weight: 900; color: #059669; background: #ecfdf5; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; border: 1px solid #d1fae5;">${group.pgName}</span>
+                          <span style="font-size: 9px; font-weight: 900; color: #059669; background: #ecfdf5; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; border: 1px solid #d1fae5;">
+                            ${group.pgName}${leaderInfo}
+                          </span>
                       </div>
-                      ${group.members.map((s: any) => `<div style="font-size: 11px; padding: 5px 0 5px 8px; border-bottom: 1px solid #f1f5f9; color: #334155; font-weight: 500;">${s.name}</div>`).join('')}
-                  `).join('') : `<div style="font-size: 11px; color: #94a3b8; font-style: italic; padding: 10px 0;">Nenhum colaborador matriculado.</div>`}
+                      ${group.members.map((s: any) => {
+                          const isLeader = normalizeString(s.name) === normalizeString(group.leaderName || '');
+                          return `<div style="font-size: 11px; padding: 5px 0 5px 8px; border-bottom: 1px solid #f1f5f9; color: #334155; font-weight: 500;">
+                            ${s.name}${isLeader ? ' <span style="font-weight: 900; color: #059669;">(Líder)</span>' : ''}
+                          </div>`;
+                      }).join('')}
+                  `;}).join('') : `<div style="font-size: 11px; color: #94a3b8; font-style: italic; padding: 10px 0;">Nenhum colaborador matriculado.</div>`}
               </div>
               <div style="flex: 1;">
                   <div style="font-size: 14px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #ffe4e6; padding-bottom: 8px; margin-bottom: 12px; color: #f43f5e;">Não Alcançados (${data.notEnrolledList.length})</div>
