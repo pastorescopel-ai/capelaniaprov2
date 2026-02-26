@@ -68,3 +68,15 @@ export const normalizeString = (str: string) => {
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
 };
+
+/**
+ * Verifica se todos os tokens de busca estão presentes no texto alvo (independente da ordem).
+ */
+export const tokenMatch = (target: string, search: string): boolean => {
+  const normTarget = normalizeString(target);
+  const normSearch = normalizeString(search);
+  if (!normSearch) return true;
+  
+  const searchTerms = normSearch.split(' ').filter(t => t.trim() !== '');
+  return searchTerms.every(term => normTarget.includes(term));
+};

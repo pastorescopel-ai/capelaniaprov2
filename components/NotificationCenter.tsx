@@ -3,12 +3,20 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole, VisitRequest } from '../types';
+import { useDashboardStats } from '../hooks/useDashboardStats';
 
 const NotificationCenter: React.FC = () => {
-  const { visitRequests, saveRecord, proGroups, proGroupLocations, proSectors, smallGroups } = useApp();
+  const { visitRequests, saveRecord, proGroups, proGroupLocations, proSectors, smallGroups, bibleStudies, bibleClasses, staffVisits } = useApp();
   const { currentUser } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Calcula metas para o lembrete
+  const { goals } = useDashboardStats(bibleStudies, bibleClasses, smallGroups, staffVisits, currentUser!);
+
+  const goalReminders = useMemo(() => {
+    return goals.filter(g => g.current < g.target);
+  }, [goals]);
 
   const filteredRequests = useMemo(() => {
     if (!currentUser) return [];
@@ -50,8 +58,8 @@ const NotificationCenter: React.FC = () => {
   };
 
   const unreadCount = useMemo(() => {
-    return filteredRequests.filter(req => !req.isRead).length;
-  }, [filteredRequests]);
+    return filteredRequests.filter(req => !req.isRead).length + goalReminders.length;
+  }, [filteredRequests, goalReminders]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -100,6 +108,22 @@ const NotificationCenter: React.FC = () => {
           </div>
 
           <div className="max-h-[400px] overflow-y-auto no-scrollbar py-2">
+            {/* LEMBRETES DE METAS */}
+            {goalReminders.map((goal, idx) => (
+              <div key={`goal-${idx}`} className="p-5 border-b border-slate-50 bg-indigo-50/20 flex gap-4 animate-in slide-in-from-right duration-300">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-100">
+                  <i className="fas fa-bullseye"></i>
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">Meta Pendente</p>
+                  <p className="text-xs text-slate-800 font-bold leading-tight mb-1">
+                    {goal.label}: {goal.current} de {goal.target}
+                  </p>
+                  <p className="text-[9px] text-slate-500 font-medium italic">Faltam {goal.target - goal.current} visitas para bater o alvo.</p>
+                </div>
+              </div>
+            ))}
+
             {filteredRequests.length > 0 ? (
               filteredRequests.map(req => {
                 const { sectorName, phone } = getEnhancedInfo(req);

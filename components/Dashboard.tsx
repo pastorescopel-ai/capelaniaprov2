@@ -8,6 +8,7 @@ import StatCards from './Dashboard/StatCards';
 import ImpactCharts from './Dashboard/ImpactCharts';
 import VisitRequestsWidget from './Dashboard/VisitRequestsWidget'; 
 import ClosureBanner from './Dashboard/ClosureBanner';
+import VisitGoalWidget from './Dashboard/VisitGoalWidget';
 
 interface DashboardProps {
   studies: BibleStudy[];
@@ -36,7 +37,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     uniqueStudentsMonth,
     totalActionsMonth,
     globalImpact,
-    monthName
+    monthName,
+    goals
   } = useDashboardStats(studies, classes, groups, visits, currentUser);
 
   if (!currentUser) return null;
@@ -63,6 +65,8 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </header>
+
+      <VisitGoalWidget goals={goals} />
 
       <ClosureBanner userRole={currentUser.role} />
 

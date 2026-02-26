@@ -123,10 +123,9 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     let filtered = proStaff.filter(s => s.unit === unit);
     
     if (staffSearch) {
-        const searchNorm = normalizeString(staffSearch);
         filtered = filtered.filter(s => 
-            normalizeString(s.name).includes(searchNorm) || 
-            cleanId(s.id).includes(searchNorm)
+            tokenMatch(s.name, staffSearch) || 
+            cleanId(s.id).includes(normalizeString(staffSearch))
         );
     } else if (currentSector) {
         filtered = filtered.filter(s => s.sectorId === currentSector.id);
