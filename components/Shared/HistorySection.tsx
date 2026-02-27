@@ -111,7 +111,7 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
 
   return (
     <div className="space-y-4">
-      <h3 className="text-xl font-black text-slate-800 px-2 uppercase tracking-tight">{title}</h3>
+      <h3 className="text-lg md:text-xl font-black text-slate-800 px-2 uppercase tracking-tight">{title}</h3>
       <HistoryFilterBar 
         users={users} isAdmin={currentUser.role === UserRole.ADMIN} 
         selectedChaplain={filterChaplain} onChaplainChange={setFilterChaplain} 
@@ -119,7 +119,7 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
         endDate={filterEnd} onEndChange={setFilterEnd} 
         searchQuery={searchQuery} onSearchChange={setSearchQuery}
       />
-      <div className="grid gap-4">
+      <div className="grid gap-3 md:gap-4">
         {isLoading && visibleHistory.length === 0 ? (
           <SkeletonCard />
         ) : visibleHistory.length > 0 ? (
@@ -128,7 +128,7 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
             <div ref={loaderRef} className="h-10"></div>
           </>
         ) : (
-          <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
             <EmptyState 
               icon="fa-folder-open" 
               title="Nenhum registro encontrado" 

@@ -51,14 +51,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   ];
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-24">
-      <header className="flex items-center justify-between bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-24">
+      <header className="flex items-center justify-between bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-4 w-full">
           <div className="w-12 h-12 bg-[#005a9c] rounded-2xl flex items-center justify-center text-white text-xl shadow-md overflow-hidden">
             {currentUser.profilePic ? <img src={currentUser.profilePic} className="w-full h-full object-cover" alt="Perfil" /> : <i className="fas fa-user"></i>}
           </div>
           <div className="flex-1">
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Olá, {currentUser.name}!</h1>
+            <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">Olá, {currentUser.name}!</h1>
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
                 {currentUser.role === UserRole.ADMIN ? 'Gestor de Capelania' : currentUser.role === UserRole.INTERN ? 'Capelão Estagiário' : 'Capelão Ativo'}
             </p>
@@ -73,28 +73,28 @@ const Dashboard: React.FC<DashboardProps> = ({
       <VisitRequestsWidget requests={visitRequests} currentUser={currentUser} users={users} />
 
       {todaysReturns.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 p-6 rounded-[2.5rem] flex items-center justify-between shadow-md group animate-bounce">
-          <div className="flex items-center gap-5">
-            <div className="w-14 h-14 bg-amber-500 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-amber-200"><i className="fas fa-calendar-check"></i></div>
+        <div className="bg-amber-50 border border-amber-200 p-5 rounded-3xl flex items-center justify-between shadow-sm group animate-bounce">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-amber-500 text-white rounded-xl flex items-center justify-center text-xl shadow-md shadow-amber-200"><i className="fas fa-calendar-check"></i></div>
             <div>
-              <h4 className="font-black text-amber-900 text-lg uppercase tracking-tight">Seus Retornos para Hoje!</h4>
-              <p className="text-amber-700 font-bold text-sm">Você tem {todaysReturns.length} retorno(s) agendado(s).</p>
+              <h4 className="font-black text-amber-900 text-base uppercase tracking-tight">Seus Retornos para Hoje!</h4>
+              <p className="text-amber-700 font-bold text-xs">Você tem {todaysReturns.length} retorno(s) agendado(s).</p>
             </div>
           </div>
-          <button onClick={() => onGoToTab('staffVisit')} className="px-6 py-3 bg-white text-amber-600 rounded-xl font-black text-xs uppercase shadow-sm border border-amber-100 hover:bg-amber-50 transition-colors">Ver Agora</button>
+          <button onClick={() => onGoToTab('staffVisit')} className="px-5 py-2.5 bg-white text-amber-600 rounded-xl font-black text-[10px] uppercase shadow-sm border border-amber-100 hover:bg-amber-50 active:scale-95 transition-all">Ver Agora</button>
         </div>
       )}
 
       {pendingReturns.length > 0 && todaysReturns.length === 0 && (
-        <div onClick={() => onGoToTab('staffVisit')} className="bg-white p-6 rounded-[2.5rem] border border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-all shadow-sm group">
-          <div className="flex items-center gap-5">
-            <div className="w-14 h-14 bg-rose-500 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-rose-200 animate-pulse"><i className="fas fa-flag"></i></div>
+        <div onClick={() => onGoToTab('staffVisit')} className="bg-white p-5 rounded-3xl border border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-all shadow-sm group">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-rose-500 text-white rounded-xl flex items-center justify-center text-xl shadow-md shadow-rose-200 animate-pulse"><i className="fas fa-flag"></i></div>
             <div>
-              <h4 className="font-black text-rose-900 text-lg uppercase tracking-tight">Retornos Pendentes!</h4>
-              <p className="text-rose-600 font-bold text-sm">Há {pendingReturns.length} atendimentos aguardando retorno.</p>
+              <h4 className="font-black text-rose-900 text-base uppercase tracking-tight">Retornos Pendentes!</h4>
+              <p className="text-rose-600 font-bold text-xs">Há {pendingReturns.length} atendimentos aguardando retorno.</p>
             </div>
           </div>
-          <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-rose-500 shadow-sm group-hover:translate-x-1 transition-transform border border-slate-100"><i className="fas fa-chevron-right"></i></div>
+          <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-rose-500 shadow-sm group-hover:translate-x-1 transition-transform border border-slate-100"><i className="fas fa-chevron-right"></i></div>
         </div>
       )}
 

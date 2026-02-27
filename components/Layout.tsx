@@ -156,14 +156,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
 
       {/* GLOBAL SYSTEM BANNER */}
       {isGracePeriod && timeLeft && (
-        <div className={`${isCritical ? 'bg-rose-500 text-white' : 'bg-amber-400 text-slate-900'} px-4 py-2 flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 z-50 shadow-md flex-shrink-0 animate-in slide-in-from-top-2`}>
-          <div className="flex items-center gap-2">
-            <i className={`fas ${isCritical ? 'fa-exclamation-circle animate-pulse' : 'fa-clock'} text-sm`}></i>
-            <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-center">
+        <div className={`${isCritical ? 'bg-rose-500 text-white' : 'bg-amber-400 text-slate-900'} px-3 py-1.5 md:px-4 md:py-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 md:gap-4 z-50 shadow-sm flex-shrink-0 animate-in slide-in-from-top-2`}>
+          <div className="flex items-center gap-1.5 md:gap-2">
+            <i className={`fas ${isCritical ? 'fa-exclamation-circle animate-pulse' : 'fa-clock'} text-xs md:text-sm`}></i>
+            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-center">
               Prazo para lançamentos de {prevMonthName} encerra em:
             </span>
           </div>
-          <div className="flex items-center gap-2 font-black text-xs md:text-sm bg-black/10 px-3 py-1 rounded-lg">
+          <div className="flex items-center gap-1 md:gap-2 font-black text-[10px] md:text-xs bg-black/10 px-2 py-0.5 md:px-3 md:py-1 rounded-md md:rounded-lg">
             <span>{timeLeft.days}d</span>
             <span>:</span>
             <span>{String(timeLeft.hours).padStart(2, '0')}h</span>
@@ -196,7 +196,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
 
         {/* Conteúdo Principal */}
         <main className="flex-1 flex flex-col min-w-0 bg-transparent overflow-hidden">
-          <div id="main-scroll-container" className="flex-1 overflow-y-auto p-4 md:p-8 pb-32 md:pb-8 no-scrollbar animate-in fade-in duration-500">
+          <div id="main-scroll-container" className="flex-1 overflow-y-auto p-3 md:p-6 pb-28 md:pb-6 no-scrollbar animate-in fade-in duration-500">
             {children}
           </div>
         </main>
