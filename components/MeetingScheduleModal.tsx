@@ -75,6 +75,7 @@ const MeetingScheduleModal: React.FC<MeetingScheduleModalProps> = ({
             requestNotes: requestNotes,
             preferredChaplainId: preferredId || undefined,
             status: 'pending',
+            sectorName: user.sector_name,
             isRead: false
         };
 

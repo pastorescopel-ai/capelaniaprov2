@@ -205,6 +205,8 @@ export interface VisitRequest {
   preferredChaplainId?: string;
   assignedChaplainId?: string;
   chaplainResponse?: string;
+  sectorId?: string;
+  sectorName?: string;
   isRead: boolean;
   createdAt?: string;
   updatedAt?: string;

@@ -64,14 +64,35 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
       // Se for uma missão do dashboard (isMission)
       if ((editingItem as any).isMission) {
         const mission = editingItem as any;
-        const pg = proGroups.find(g => g.name === mission.groupName && g.unit === unit);
-        let leaderSector = '';
-        let locked = false;
+        let leaderSector = mission.sectorName || '';
+        let locked = !!leaderSector;
 
-        if (pg) {
-          const loc = proGroupLocations.find(l => l.groupId === pg.id);
-          if (loc) {
-            const sec = proSectors.find(s => s.id === loc.sectorId);
+        // Se a missão não tiver o nome do setor, mas tiver o ID, busca o nome
+        if (!leaderSector && mission.sectorId) {
+          const sec = proSectors.find(s => s.id === mission.sectorId);
+          if (sec) {
+            leaderSector = sec.name;
+            locked = true;
+          }
+        }
+
+        // Se ainda não tiver setor, tenta buscar pelo PG
+        if (!leaderSector) {
+          const pg = proGroups.find(g => g.name === mission.groupName && g.unit === unit);
+          if (pg) {
+            const loc = proGroupLocations.find(l => l.groupId === pg.id);
+            if (loc) {
+              const sec = proSectors.find(s => s.id === loc.sectorId);
+              if (sec) { leaderSector = sec.name; locked = true; }
+            }
+          }
+        }
+
+        // Se ainda não tiver setor, tenta buscar pelo Líder no RH (proStaff)
+        if (!leaderSector && mission.leader) {
+          const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(mission.leader) && s.unit === unit);
+          if (staff) {
+            const sec = proSectors.find(s => s.id === staff.sectorId);
             if (sec) { leaderSector = sec.name; locked = true; }
           }
         }

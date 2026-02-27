@@ -52,6 +52,13 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
     setIsProcessing(true);
     try {
         const leaderPhone = pg.leaderPhone || "";
+        
+        // Tenta pegar o setor do PG diretamente ou via proGroupLocations
+        let sectorId = pg.sectorId;
+        if (!sectorId) {
+            const loc = proGroupLocations.find(l => l.groupId === pg.id);
+            if (loc) sectorId = loc.sectorId;
+        }
 
         const newRequest: VisitRequest = {
             id: crypto.randomUUID(),
@@ -63,6 +70,7 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
             status: 'assigned',
             assignedChaplainId: chaplain.id,
             requestNotes: notes || "Visita de acompanhamento designada pela gestão.",
+            sectorId: sectorId,
             isRead: false
         };
         await saveRecord('visitRequests', newRequest);
