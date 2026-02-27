@@ -46,9 +46,22 @@ interface MainContentProps {
 }
 
 const TabLoading = () => (
-  <div className="flex flex-col items-center justify-center h-[60vh] space-y-6">
-    <div className="w-16 h-16 border-4 border-slate-100 border-t-blue-500 rounded-full animate-spin"></div>
-    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Preparando tela...</p>
+  <div className="flex flex-col space-y-6 animate-pulse p-4 md:p-8">
+    {/* Skeleton Header */}
+    <div className="flex items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
+      <div className="w-12 h-12 bg-slate-200 rounded-2xl"></div>
+      <div className="flex-1 space-y-2">
+        <div className="h-6 bg-slate-200 rounded-lg w-1/3"></div>
+        <div className="h-3 bg-slate-100 rounded-lg w-1/4"></div>
+      </div>
+    </div>
+    
+    {/* Skeleton Content Blocks */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="h-40 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm"></div>
+      <div className="h-40 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm"></div>
+    </div>
+    <div className="h-64 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm"></div>
   </div>
 );
 

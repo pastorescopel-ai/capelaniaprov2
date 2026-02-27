@@ -203,7 +203,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
       </div>
 
       {/* Navegação Mobile (Bottom) */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-2 flex justify-between items-center z-[100] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] transition-transform duration-300 ${isKeyboardOpen ? 'translate-y-full' : 'translate-y-0'}`}>
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex justify-between items-center z-[100] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] transition-transform duration-300 ${isKeyboardOpen ? 'translate-y-full' : 'translate-y-0'}`}>
         <div className="flex w-full overflow-x-auto no-scrollbar space-x-1">
           {visibleNavItems.map((item) => (
             <button

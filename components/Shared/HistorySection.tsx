@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { User, UserRole } from '../../types';
 import HistoryFilterBar from './HistoryFilterBar';
 import SkeletonCard from './SkeletonCard';
+import EmptyState from './EmptyState';
 import { normalizeString } from '../../utils/formatters';
 
 interface HistorySectionProps<T> {
@@ -127,8 +128,13 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
             <div ref={loaderRef} className="h-10"></div>
           </>
         ) : (
-          <div className="bg-white p-20 rounded-[4rem] text-center border-2 border-dashed border-slate-100">
-             <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Nenhum registro encontrado.</p>
+          <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
+            <EmptyState 
+              icon="fa-folder-open" 
+              title="Nenhum registro encontrado" 
+              description="Não encontramos nenhum dado para os filtros selecionados neste período."
+              colorClass="text-slate-400 bg-slate-50 border-slate-100"
+            />
           </div>
         )}
       </div>
