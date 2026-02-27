@@ -2,7 +2,7 @@ import { supabase } from './supabaseClient';
 import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, MasterLists, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember } from '../types';
 
 const TABLE_SCHEMAS: Record<string, string[]> = {
-  users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'updated_at'],
+  users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'attends_haba', 'haba_days', 'updated_at'],
   bible_study_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'name', 'staff_id', 'whatsapp', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
   bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'], // students removido (migrado para tabela filha)
   bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'created_at'],
