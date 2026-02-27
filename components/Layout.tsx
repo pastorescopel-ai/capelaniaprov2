@@ -1,5 +1,6 @@
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { NAV_ITEMS } from '../constants';
 import { DEFAULT_APP_LOGO } from '../assets';
 import { UserRole, Config, User } from '../types';
@@ -21,6 +22,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, currentUser, isSyncing, isConnected, isLabMode, config, onLogout }) => {
   const [isKeyboardOpen, setIsKeyboardOpen] = React.useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   
   // Normalização da role para garantir match com NAV_ITEMS
   const normalizedRole = String(currentUser?.role || '').toUpperCase().trim();
@@ -28,6 +30,24 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
   const [timeLeft, setTimeLeft] = React.useState<{ days: number; hours: number; minutes: number } | null>(null);
   const [isGracePeriod, setIsGracePeriod] = React.useState(false);
   const [isCritical, setIsCritical] = React.useState(false);
+
+  // Monitoramento de Scroll para Morphing Header
+  useEffect(() => {
+    const scrollContainer = document.getElementById('main-scroll-container');
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      // Ativa a transição quando o scroll passar de 40px
+      if (scrollContainer.scrollTop > 40) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll);
+    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+  }, []);
 
   React.useEffect(() => {
     if (normalizedRole === 'ADMIN') {
@@ -142,6 +162,25 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
 
             {/* CENTRAL DE NOTIFICAÇÕES (Sininho) */}
             <NotificationCenter />
+
+            {/* AVATAR MOBILE (OPÇÃO 2 - MORPHED) */}
+            <AnimatePresence>
+              {isScrolled && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.5, x: 20 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.5, x: 20 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  className="md:hidden w-8 h-8 rounded-lg bg-[#005a9c] flex items-center justify-center text-white text-sm shadow-sm overflow-hidden flex-shrink-0 border border-white/20"
+                >
+                  {currentUser?.profilePic ? (
+                    <img src={currentUser.profilePic} className="w-full h-full object-cover" alt="Perfil" />
+                  ) : (
+                    <i className="fas fa-user text-[10px]"></i>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           
           <button 
@@ -216,6 +255,34 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
         {/* Conteúdo Principal */}
         <main className="flex-1 flex flex-col min-w-0 bg-transparent overflow-hidden">
           <div id="main-scroll-container" className="flex-1 overflow-y-auto p-3 md:p-6 pb-28 md:pb-6 no-scrollbar animate-in fade-in duration-500">
+            {/* IDENTIDADE MOBILE (OPÇÃO 3 - PILL STYLE) */}
+            <AnimatePresence>
+              {!isScrolled && (
+                <motion.div 
+                  initial={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.8 }}
+                  transition={{ duration: 0.3 }}
+                  className="md:hidden mb-4 flex justify-center sticky top-0 z-40"
+                >
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white rounded-full shadow-sm border border-slate-200">
+                    <div className="w-6 h-6 rounded-full bg-[#005a9c] flex items-center justify-center text-white text-[10px] shadow-sm overflow-hidden flex-shrink-0">
+                      {currentUser?.profilePic ? (
+                        <img src={currentUser.profilePic} className="w-full h-full object-cover" alt="Perfil" />
+                      ) : (
+                        <i className="fas fa-user"></i>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-slate-700 uppercase tracking-tight">{currentUser?.name.split(' ')[0]}</span>
+                      <div className="w-1 h-1 rounded-full bg-slate-300"></div>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+                        {currentUser?.role === UserRole.ADMIN ? 'Gestor' : currentUser?.role === UserRole.INTERN ? 'Estagiário' : 'Capelão'}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
             {children}
           </div>
         </main>
