@@ -1,8 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import Cropper from 'react-easy-crop';
 import { User } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { hashPassword } from '../utils/crypto';
+import { getCroppedImg } from '../utils/imageUtils';
 
 interface ProfileProps {
   user: User;
@@ -16,49 +18,48 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
   const [profilePic, setProfilePic] = useState(user.profilePic || '');
   const { showToast } = useToast();
 
-  const compressImage = (base64Str: string): Promise<string> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.src = base64Str;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 200;
-        const MAX_HEIGHT = 200;
-        let width = img.width;
-        let height = img.height;
+  // Cropper State
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [isCropping, setIsCropping] = useState(false);
 
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.7));
-      };
-    });
-  };
+  const onCropComplete = useCallback((_croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = async () => {
-        const compressed = await compressImage(reader.result as string);
-        setProfilePic(compressed);
-        onUpdateUser({ ...user, profilePic: compressed });
-        showToast("Sua foto de perfil foi sincronizada!", "success");
+      reader.onloadend = () => {
+        setImageToCrop(reader.result as string);
+        setIsCropping(true);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleConfirmCrop = async () => {
+    if (!imageToCrop || !croppedAreaPixels) return;
+    try {
+      const croppedImage = await getCroppedImg(imageToCrop, croppedAreaPixels, rotation);
+      setProfilePic(croppedImage);
+      onUpdateUser({ ...user, profilePic: croppedImage });
+      setIsCropping(false);
+      setImageToCrop(null);
+      showToast("Foto de perfil atualizada!", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("Erro ao processar imagem.", "error");
+    }
+  };
+
+  const handleCancelCrop = () => {
+    setIsCropping(false);
+    setImageToCrop(null);
   };
 
   const handleRemovePhoto = (e: React.MouseEvent) => {
@@ -104,6 +105,86 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500 pb-24">
+      {/* Modal de Recorte de Imagem */}
+      {isCropping && imageToCrop && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={handleCancelCrop} />
+          <div className="relative bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300 flex flex-col">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Ajustar Foto</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Arraste e use o zoom para enquadrar</p>
+              </div>
+              <button onClick={handleCancelCrop} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            <div className="relative h-[400px] bg-slate-900">
+              <Cropper
+                image={imageToCrop}
+                crop={crop}
+                zoom={zoom}
+                rotation={rotation}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+                onRotationChange={setRotation}
+              />
+            </div>
+
+            <div className="p-8 space-y-6 bg-white">
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <i className="fas fa-search-plus text-slate-400 text-sm"></i>
+                  <input
+                    type="range"
+                    value={zoom}
+                    min={1}
+                    max={3}
+                    step={0.1}
+                    aria-labelledby="Zoom"
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                    className="flex-1 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  />
+                </div>
+                <div className="flex items-center gap-4">
+                  <i className="fas fa-redo text-slate-400 text-sm"></i>
+                  <input
+                    type="range"
+                    value={rotation}
+                    min={0}
+                    max={360}
+                    step={1}
+                    aria-labelledby="Rotation"
+                    onChange={(e) => setRotation(Number(e.target.value))}
+                    className="flex-1 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={handleCancelCrop}
+                  className="flex-1 py-4 bg-slate-50 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-100 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmCrop}
+                  className="flex-1 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-200 uppercase text-[10px] tracking-widest hover:bg-blue-700 active:scale-95 transition-all"
+                >
+                  Confirmar Ajuste
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isSyncing && (
         <div className="fixed inset-0 z-[1000]">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl" />
