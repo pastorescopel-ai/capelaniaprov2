@@ -1,21 +1,21 @@
 
 import React, { lazy, Suspense } from 'react';
 import { Unit, User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config } from '../types';
-import Dashboard from './Dashboard';
-import BibleStudyForm from './Forms/BibleStudyForm';
-import BibleClassForm from './Forms/BibleClassForm';
-import SmallGroupForm from './Forms/SmallGroupForm';
-import StaffVisitForm from './Forms/StaffVisitForm';
-import Profile from './Profile';
-import { useToast } from '../contexts/ToastContext';
+import { useAppOperations } from '../hooks/useAppOperations';
 
 // Lazy Imports
+const Dashboard = lazy(() => import('./Dashboard'));
+const BibleStudyForm = lazy(() => import('./Forms/BibleStudyForm'));
+const BibleClassForm = lazy(() => import('./Forms/BibleClassForm'));
+const SmallGroupForm = lazy(() => import('./Forms/SmallGroupForm'));
+const StaffVisitForm = lazy(() => import('./Forms/StaffVisitForm'));
+const Profile = lazy(() => import('./Profile'));
 const Reports = lazy(() => import('./Reports'));
 const UserManagement = lazy(() => import('./UserManagement'));
 const AdminPanel = lazy(() => import('./AdminPanel'));
 const PGManager = lazy(() => import('./PGManagement/PGManagerLayout'));
 const AmbassadorsManager = lazy(() => import('./Ambassadors/AmbassadorsManager'));
-const DataHealer = lazy(() => import('./DataHealer')); // Importação Lazy
+const DataHealer = lazy(() => import('./DataHealer'));
 
 interface MainContentProps {
   activeTab: string;
@@ -58,78 +58,64 @@ const MainContent: React.FC<MainContentProps> = ({
   setActiveTab, setCurrentUnit, setEditingItem, setItemToDelete, saveToCloud, saveRecord,
   updateCurrentUser, handleSaveItem, getVisibleHistory, loadFromCloud
 }) => {
-  const { showToast } = useToast();
-
-  const handleTransfer = async (type: string, id: string, newUserId: string) => {
-    let collectionName = '';
-    let itemToUpdate: any = null;
-
-    if (type === 'study') {
-      collectionName = 'bibleStudies';
-      itemToUpdate = bibleStudies.find(i => i.id === id);
-    } else if (type === 'class') {
-      collectionName = 'bibleClasses';
-      itemToUpdate = bibleClasses.find(i => i.id === id);
-    }
-
-    if (collectionName && itemToUpdate) {
-      const updatedItem = { ...itemToUpdate, userId: newUserId, updatedAt: Date.now() };
-      const success = await saveRecord(collectionName, updatedItem);
-      
-      const targetUser = users.find(u => u.id === newUserId)?.name || "Outro Capelão";
-      
-      if (success) {
-        showToast(`Registro transferido para ${targetUser}`, "success");
-      } else {
-        showToast("Erro ao transferir registro.", "warning");
-      }
-    }
-  };
-
-  // Mantém cache visual apenas para Dashboard e telas pesadas
-  const getTabClass = (id: string) => 
-    `transition-opacity duration-300 ${activeTab === id ? 'block opacity-100' : 'hidden opacity-0'}`;
+  const { handleTransfer, getTabClass } = useAppOperations({
+    bibleStudies,
+    bibleClasses,
+    users,
+    saveRecord,
+    activeTab
+  });
 
   return (
     <div id="main-content-wrapper" className="relative min-h-[70vh]">
       
       {/* Dashboard (Mantém Cache para Performance) */}
       <div className={getTabClass('dashboard')}>
-        <Dashboard 
-          studies={bibleStudies} 
-          classes={bibleClasses} 
-          groups={smallGroups} 
-          visits={staffVisits} 
-          currentUser={currentUser} 
-          config={config} 
-          onGoToTab={setActiveTab} 
-          onUpdateConfig={c => saveToCloud({config: c}, false)} 
-          onUpdateUser={u => saveRecord('users', u)} 
-        />
+        <Suspense fallback={<TabLoading />}>
+          <Dashboard 
+            studies={bibleStudies} 
+            classes={bibleClasses} 
+            groups={smallGroups} 
+            visits={staffVisits} 
+            currentUser={currentUser} 
+            config={config} 
+            onGoToTab={setActiveTab} 
+            onUpdateConfig={c => saveToCloud({config: c}, false)} 
+            onUpdateUser={u => saveRecord('users', u)} 
+          />
+        </Suspense>
       </div>
 
       {/* Formulários: RESETAM AO SAIR (Unmount) */}
       {activeTab === 'bibleStudy' && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <BibleStudyForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} history={getVisibleHistory(bibleStudies)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} onTransfer={handleTransfer} />
+          <Suspense fallback={<TabLoading />}>
+            <BibleStudyForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} history={getVisibleHistory(bibleStudies)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} onTransfer={handleTransfer} />
+          </Suspense>
         </div>
       )}
 
       {activeTab === 'bibleClass' && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <BibleClassForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={unitSectors} history={getVisibleHistory(bibleClasses)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} onTransfer={handleTransfer} />
+          <Suspense fallback={<TabLoading />}>
+            <BibleClassForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={unitSectors} history={getVisibleHistory(bibleClasses)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} onTransfer={handleTransfer} />
+          </Suspense>
         </div>
       )}
 
       {activeTab === 'smallGroup' && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <SmallGroupForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(smallGroups)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />
+          <Suspense fallback={<TabLoading />}>
+            <SmallGroupForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(smallGroups)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />
+          </Suspense>
         </div>
       )}
 
       {activeTab === 'staffVisit' && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <StaffVisitForm currentUser={currentUser} users={users} onToggleReturn={id => { const item = staffVisits.find(v=>v.id===id); if(item) saveRecord('staffVisits', {...item, returnCompleted: !item.returnCompleted}); }} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(staffVisits)} allHistory={staffVisits} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />
+          <Suspense fallback={<TabLoading />}>
+            <StaffVisitForm currentUser={currentUser} users={users} onToggleReturn={id => { const item = staffVisits.find(v=>v.id===id); if(item) saveRecord('staffVisits', {...item, returnCompleted: !item.returnCompleted}); }} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(staffVisits)} allHistory={staffVisits} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />
+          </Suspense>
         </div>
       )}
 
