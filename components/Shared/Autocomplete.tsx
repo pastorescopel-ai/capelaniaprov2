@@ -97,7 +97,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
              validateInput(value);
            }, 250);
         }}
-        className={className || "w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-800 transition-all placeholder:text-slate-400"}
+        className={className || "w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500/20 font-medium text-slate-800 transition-all placeholder:text-slate-400"}
       />
       
       {open && filtered.length > 0 && (

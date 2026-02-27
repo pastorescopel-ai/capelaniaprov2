@@ -70,11 +70,11 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
   };
 
   return (
-    <div className="bg-white p-6 rounded-[2.5rem] border border-blue-100 shadow-lg mb-8 animate-in slide-in-from-top duration-500">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center animate-pulse"><i className="fas fa-bell text-lg"></i></div>
+    <div className="bg-white p-5 md:p-6 rounded-3xl border border-blue-100 shadow-sm mb-6 animate-in slide-in-from-top duration-500">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><i className="fas fa-bell text-lg"></i></div>
         <div>
-          <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Agenda de Pequenos Grupos</h3>
+          <h3 className="text-base md:text-lg font-black text-slate-800 uppercase tracking-tight">Agenda de PGs</h3>
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{myRequests.length} convite(s) pendente(s)</p>
         </div>
       </div>
@@ -85,25 +85,25 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
           const waLink = req.leaderPhone ? `https://wa.me/55${req.leaderPhone.replace(/\D/g, '')}` : null;
           
           return (
-            <div key={req.id} className="min-w-[280px] max-w-[300px] bg-slate-50 p-5 rounded-[2rem] border border-slate-200 flex flex-col justify-between relative group">
-              {req.status === 'pending' && <span className="absolute top-4 right-4 w-3 h-3 bg-amber-400 rounded-full animate-ping"></span>}
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between items-start">
-                  <span className="bg-blue-600 text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase">{req.unit}</span>
+            <div key={req.id} className="min-w-[260px] max-w-[280px] bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between relative group hover:border-blue-200 transition-colors">
+              {req.status === 'pending' && <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse"></span>}
+              <div className="space-y-2 mb-4">
+                <div className="flex justify-between items-center">
+                  <span className="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded uppercase">{req.unit}</span>
                   <span className="text-[10px] font-bold text-slate-400">{formatDate(req.date)}</span>
                 </div>
                 <div>
                   <h4 className="font-black text-slate-800 text-sm leading-tight mb-1">{req.pgName}</h4>
-                  <p className="text-[9px] text-blue-600 font-black uppercase flex items-center gap-1 mb-2">
+                  <p className="text-[9px] text-blue-600 font-bold uppercase flex items-center gap-1 mb-3">
                     <i className="fas fa-map-marker-alt"></i> {sector}
                   </p>
-                  <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-100">
+                  <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-100">
                     <div className="min-w-0">
-                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Líder do Grupo</p>
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Líder</p>
                         <p className="text-[10px] font-bold text-slate-700 truncate">{req.leaderName}</p>
                     </div>
                     {waLink && (
-                        <a href={waLink} target="_blank" rel="noreferrer" className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm">
+                        <a href={waLink} target="_blank" rel="noreferrer" className="w-7 h-7 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all">
                             <i className="fab fa-whatsapp"></i>
                         </a>
                     )}
@@ -112,11 +112,11 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
               </div>
               <div className="flex gap-2 mt-auto">
                 {currentUser.role === UserRole.ADMIN ? (
-                  <button onClick={() => { setSelectedRequest(req); setActionType('assign'); }} className="flex-1 bg-slate-800 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">Designar</button>
+                  <button onClick={() => { setSelectedRequest(req); setActionType('assign'); }} className="flex-1 bg-slate-800 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all">Designar</button>
                 ) : (
                   <>
-                    <button onClick={() => handleUpdateStatus(req, 'confirmed')} disabled={isProcessing} className="flex-1 bg-emerald-500 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200">Aceitar</button>
-                    <button onClick={() => { setSelectedRequest(req); setActionType('decline'); }} className="flex-1 bg-rose-100 text-rose-600 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">Recusar</button>
+                    <button onClick={() => handleUpdateStatus(req, 'confirmed')} disabled={isProcessing} className="flex-1 bg-emerald-500 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm shadow-emerald-500/20 active:scale-95 transition-all">Aceitar</button>
+                    <button onClick={() => { setSelectedRequest(req); setActionType('decline'); }} className="flex-1 bg-rose-50 text-rose-600 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 active:scale-95 transition-all">Recusar</button>
                   </>
                 )}
               </div>
