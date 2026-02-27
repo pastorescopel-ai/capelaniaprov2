@@ -8,6 +8,7 @@ import StatCards from './Dashboard/StatCards';
 import ImpactCharts from './Dashboard/ImpactCharts';
 import VisitRequestsWidget from './Dashboard/VisitRequestsWidget'; 
 import VisitGoalWidget from './Dashboard/VisitGoalWidget';
+import SmallGroupVisitWidget from './Dashboard/SmallGroupVisitWidget';
 
 interface DashboardProps {
   studies: BibleStudy[];
@@ -53,6 +54,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-24">
       <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
+
+      <SmallGroupVisitWidget requests={visitRequests} currentUser={currentUser} onGoToTab={onGoToTab} />
 
       <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
 
