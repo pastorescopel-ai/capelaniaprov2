@@ -126,7 +126,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
         }
       }
     }
-  }, [editingItem, proGroups, proGroupLocations, unit, getToday, defaultState, proSectors, showToast]);
+  }, [editingItem, proGroups, proGroupLocations, unit, getToday, defaultState, proSectors, showToast, proStaff]);
 
   const handleSelectPG = (pgName: string) => {
       const pgMaster = proGroups.find(g => g.name === pgName && g.unit === unit);
