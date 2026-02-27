@@ -12,7 +12,7 @@ interface PGOpsProps {
 }
 
 const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
-  const { proGroups, users, saveRecord, visitRequests, proStaff, deleteRecord } = useApp();
+  const { proGroups, users, saveRecord, visitRequests, proStaff, deleteRecord, proGroupLocations } = useApp();
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   
