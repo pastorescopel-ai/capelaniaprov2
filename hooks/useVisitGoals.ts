@@ -51,7 +51,7 @@ export const useVisitGoals = (userVisits: StaffVisit[], currentUser: User | null
     // --- LÓGICA DE ACÚMULO (BACKLOG DE VISITAS) ---
     const getWorkingDays = (startDate: Date, endDate: Date) => {
       let count = 0;
-      let curDate = new Date(startDate.getTime());
+      const curDate = new Date(startDate.getTime());
       while (curDate <= endDate) {
         const dWeek = curDate.getDay();
         if (dWeek !== 0 && dWeek !== 6) count++;
@@ -68,7 +68,7 @@ export const useVisitGoals = (userVisits: StaffVisit[], currentUser: User | null
     if (isHabaChaplain) {
       // Capelão HABA: 2 visitas por dia apenas nos dias que NÃO são de HABA
       let countNonHabaDays = 0;
-      let curDate = new Date(startOfMonth.getTime());
+      const curDate = new Date(startOfMonth.getTime());
       while (curDate <= now) {
         const dWeek = curDate.getDay();
         if (dWeek !== 0 && dWeek !== 6 && !habaDays.includes(dWeek)) countNonHabaDays++;

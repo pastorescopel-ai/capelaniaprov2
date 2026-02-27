@@ -233,15 +233,15 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   // Renderização do cabeçalho movida para prop headerActions
   const headerActions = (
     <>
-      <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start">
+      <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 self-start">
           {[ParticipantType.STAFF, ParticipantType.PATIENT, ParticipantType.PROVIDER].map(type => (
           <button key={type} type="button" onClick={() => {
               setFormData({...formData, participantType: type, name: '', whatsapp: '', sector: '', guide: '', lesson: ''});
               setIsSectorLocked(false);
-          }} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === type ? 'bg-white shadow-lg text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>{type}</button>
+          }} className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase transition-all ${formData.participantType === type ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>{type}</button>
           ))}
       </div>
-      <button type="button" onClick={handleClear} className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 hover:text-pink-700 transition-all flex items-center justify-center text-lg shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>
+      <button type="button" onClick={handleClear} className="w-9 h-9 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 active:scale-95 transition-all flex items-center justify-center text-base shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>
     </>
   );
 
@@ -253,16 +253,16 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   return (
     <FormScaffold title="Estudo Bíblico" headerActions={headerActions} history={historySection}>
-      <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-6">
-        <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
+      <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
+        <div className="grid md:grid-cols-2 gap-4 md:gap-5">
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
           
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do {formData.participantType}</label><Autocomplete options={studentOptions} value={formData.name} onChange={handleChangeName} onSelectOption={handleSelectStudent} placeholder="Buscar..." isStrict={isStaff} /></div>
           
           <div className="space-y-1">
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>Setor / Local {isStaff ? '(Obrigatório)' : '(Opcional)'}</label>
               {isSectorLocked ? (
-                  <div className="w-full p-3 md:p-4 rounded-2xl bg-slate-100 border border-slate-200 font-bold text-slate-500 cursor-not-allowed flex justify-between items-center group relative" title="Vínculo oficial do RH">
+                  <div className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-100 border border-slate-200 font-bold text-slate-500 cursor-not-allowed flex justify-between items-center group relative" title="Vínculo oficial do RH">
                       <span>{formData.sector}</span>
                       <i className="fas fa-lock text-slate-400"></i>
                       <span className="absolute -top-2 right-2 bg-blue-100 text-blue-600 text-[8px] font-black px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wider">RH Link</span>
@@ -274,7 +274,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           
           <div className="space-y-1">
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-blue-600' : 'text-slate-400'}`}>WhatsApp {!isStaff ? '(Obrigatório)' : '(Opcional)'}</label>
-              <input placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className={`w-full p-3 md:p-4 rounded-2xl border-none font-bold transition-all focus:ring-2 focus:ring-blue-500/20 ${!isStaff ? 'bg-blue-50 text-blue-900 ring-2 ring-blue-100 focus:ring-blue-300' : 'bg-slate-50'}`}/>
+              <input placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className={`w-full p-3 md:p-3.5 rounded-2xl border-none font-bold transition-all focus:ring-2 focus:ring-blue-500/20 ${!isStaff ? 'bg-blue-50 text-blue-900 ring-2 ring-blue-100 focus:ring-blue-300' : 'bg-slate-50'}`}/>
           </div>
 
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Guia de Estudo</label><Autocomplete options={guideOptions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Ex: O Grande Conflito" /></div>
@@ -282,10 +282,10 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
               const val = e.target.value;
               const num = parseInt(val);
               setFormData({...formData, lesson: val, status: (!isNaN(num) && num > 1) ? RecordStatus.CONTINUACAO : formData.status});
-          }} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
-          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-3 md:py-4 rounded-2xl font-black text-[10px] uppercase border-2 transition-all active:scale-95 ${formData.status === opt ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm' : 'border-slate-100 text-slate-400 bg-slate-50 hover:bg-slate-100'}`}>{opt}</button>))}</div></div>
+          }} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
+          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-3 md:py-3.5 rounded-2xl font-black text-[10px] uppercase border-2 transition-all active:scale-95 ${formData.status === opt ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm' : 'border-slate-100 text-slate-400 bg-slate-50 hover:bg-slate-100'}`}>{opt}</button>))}</div></div>
         </div>
-        <button type="submit" className="w-full py-4 md:py-6 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-600/20 uppercase text-xs hover:bg-blue-700 hover:-translate-y-1 active:scale-95 transition-all">Gravar Registro</button>
+        <button type="submit" className="w-full py-4 md:py-5 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-600/20 uppercase text-xs hover:bg-blue-700 hover:-translate-y-0.5 active:scale-95 transition-all">Gravar Registro</button>
       </form>
     </FormScaffold>
   );
