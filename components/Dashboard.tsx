@@ -7,7 +7,6 @@ import Mural from './Dashboard/Mural';
 import StatCards from './Dashboard/StatCards';
 import ImpactCharts from './Dashboard/ImpactCharts';
 import VisitRequestsWidget from './Dashboard/VisitRequestsWidget'; 
-import ClosureBanner from './Dashboard/ClosureBanner';
 import VisitGoalWidget from './Dashboard/VisitGoalWidget';
 
 interface DashboardProps {
@@ -70,8 +69,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
 
       <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
-
-      <ClosureBanner userRole={currentUser.role} />
 
       <VisitRequestsWidget requests={visitRequests} currentUser={currentUser} users={users} />
 

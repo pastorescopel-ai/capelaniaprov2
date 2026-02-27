@@ -25,11 +25,46 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
   // Normalização da role para garantir match com NAV_ITEMS
   const normalizedRole = String(userRole || '').toUpperCase().trim();
   
-  // Verifica se estamos no período de fechamento (até o 5º dia útil)
-  const isGracePeriod = useMemo(() => {
+  const [timeLeft, setTimeLeft] = React.useState<{ days: number; hours: number; minutes: number } | null>(null);
+  const [isGracePeriod, setIsGracePeriod] = React.useState(false);
+  const [isCritical, setIsCritical] = React.useState(false);
+
+  React.useEffect(() => {
+    if (normalizedRole === 'ADMIN') {
+      setIsGracePeriod(false);
+      return;
+    }
+
+    const calculateTime = () => {
+      const today = new Date();
+      const target = getFifthBusinessDay(today.getFullYear(), today.getMonth());
+      const diff = target.getTime() - today.getTime();
+
+      if (diff > 0) {
+        setIsGracePeriod(true);
+        setIsCritical(diff <= 2 * 24 * 60 * 60 * 1000);
+        setTimeLeft({
+          days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((diff / 1000 / 60) % 60)
+        });
+      } else {
+        setIsGracePeriod(false);
+        setIsCritical(false);
+        setTimeLeft(null);
+      }
+    };
+
+    calculateTime();
+    const timer = setInterval(calculateTime, 60000);
+    return () => clearInterval(timer);
+  }, [normalizedRole]);
+
+  const prevMonthName = useMemo(() => {
     const now = new Date();
-    const fifthBusinessDay = getFifthBusinessDay(now.getFullYear(), now.getMonth());
-    return now <= fifthBusinessDay;
+    return new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(
+      new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    );
   }, []);
   
   // Detecção de teclado aberto para mobile
@@ -120,12 +155,21 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
       </header>
 
       {/* GLOBAL SYSTEM BANNER */}
-      {isGracePeriod && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-center gap-2 z-50 shadow-sm flex-shrink-0">
-          <i className="fas fa-exclamation-triangle text-amber-500 text-[10px] md:text-xs"></i>
-          <span className="text-[9px] md:text-[11px] font-black text-amber-700 uppercase tracking-widest text-center">
-            ⚠️ Lembrete: O prazo para lançamento de dados do mês anterior encerra no 5º dia útil.
-          </span>
+      {isGracePeriod && timeLeft && (
+        <div className={`${isCritical ? 'bg-rose-500 text-white' : 'bg-amber-400 text-slate-900'} px-4 py-2 flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 z-50 shadow-md flex-shrink-0 animate-in slide-in-from-top-2`}>
+          <div className="flex items-center gap-2">
+            <i className={`fas ${isCritical ? 'fa-exclamation-circle animate-pulse' : 'fa-clock'} text-sm`}></i>
+            <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-center">
+              Prazo para lançamentos de {prevMonthName} encerra em:
+            </span>
+          </div>
+          <div className="flex items-center gap-2 font-black text-xs md:text-sm bg-black/10 px-3 py-1 rounded-lg">
+            <span>{timeLeft.days}d</span>
+            <span>:</span>
+            <span>{String(timeLeft.hours).padStart(2, '0')}h</span>
+            <span>:</span>
+            <span>{String(timeLeft.minutes).padStart(2, '0')}m</span>
+          </div>
         </div>
       )}
 

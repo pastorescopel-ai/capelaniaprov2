@@ -51,8 +51,13 @@ const toCamel = (obj: any): any => {
     // Converte chaves snake_case para camelCase
     if (!keyCache[key]) {
       let camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-      if (camelKey.endsWith('Haba')) camelKey = camelKey.replace('Haba', 'HABA');
-      else if (camelKey.endsWith('Hab')) camelKey = camelKey.replace('Hab', 'HAB');
+      if (camelKey === 'attendsHaba') {
+        // Mantém como attendsHaba
+      } else if (camelKey.endsWith('Haba')) {
+        camelKey = camelKey.replace('Haba', 'HABA');
+      } else if (camelKey.endsWith('Hab')) {
+        camelKey = camelKey.replace('Hab', 'HAB');
+      }
       keyCache[key] = camelKey;
     }
     
