@@ -48,7 +48,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={handleTabChange} userRole={currentUser.role} isSyncing={isSyncing} isConnected={isConnected} config={config} onLogout={logout}>
+    <Layout activeTab={activeTab} setActiveTab={handleTabChange} currentUser={currentUser} isSyncing={isSyncing} isConnected={isConnected} config={config} onLogout={logout}>
       <div className="max-w-7xl mx-auto px-2 md:px-0 relative">
         
         {/* Loader de Transição Suave */}

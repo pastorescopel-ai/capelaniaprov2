@@ -69,7 +69,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
           </div>
           
           <div className="space-y-2">
-            <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Capelania Pro</h1>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Capelania HAB</h1>
             <p className="text-blue-600 font-black text-[10px] uppercase tracking-[0.2em] leading-relaxed px-4">
               Bem-vindo ao sistema de capelania do hospital adventista de Belém
             </p>

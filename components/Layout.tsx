@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { NAV_ITEMS } from '../constants';
 import { DEFAULT_APP_LOGO } from '../assets';
-import { UserRole, Config } from '../types';
+import { UserRole, Config, User } from '../types';
 import NotificationCenter from './NotificationCenter';
 import InstallPrompt from './PWA/InstallPrompt';
 import { getFifthBusinessDay } from '../utils/formatters';
@@ -11,7 +11,7 @@ interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  userRole: string;
+  currentUser: User;
   isSyncing: boolean;
   isConnected: boolean;
   isLabMode?: boolean;
@@ -19,11 +19,11 @@ interface LayoutProps {
   onLogout: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, userRole, isSyncing, isConnected, isLabMode, config, onLogout }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, currentUser, isSyncing, isConnected, isLabMode, config, onLogout }) => {
   const [isKeyboardOpen, setIsKeyboardOpen] = React.useState(false);
   
   // Normalização da role para garantir match com NAV_ITEMS
-  const normalizedRole = String(userRole || '').toUpperCase().trim();
+  const normalizedRole = String(currentUser?.role || '').toUpperCase().trim();
   
   const [timeLeft, setTimeLeft] = React.useState<{ days: number; hours: number; minutes: number } | null>(null);
   const [isGracePeriod, setIsGracePeriod] = React.useState(false);
@@ -116,7 +116,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
             )}
           </div>
           <span className="font-black text-base md:text-xl text-slate-800 tracking-tighter uppercase whitespace-nowrap">
-            Capelania <span className="text-[#005a9c]">Pro</span>
+            Capelania <span className="text-[#005a9c]">HAB</span>
           </span>
         </div>
 
@@ -192,6 +192,25 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
               </button>
             ))}
           </nav>
+
+          {/* Perfil do Usuário Fixado na Sidebar */}
+          <div className="mt-auto p-4 border-t border-slate-100 bg-slate-50/50">
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-white shadow-sm border border-slate-100 group transition-all hover:shadow-md">
+              <div className="w-10 h-10 rounded-xl bg-[#005a9c] flex items-center justify-center text-white text-lg shadow-sm overflow-hidden flex-shrink-0">
+                {currentUser?.profilePic ? (
+                  <img src={currentUser.profilePic} className="w-full h-full object-cover" alt="Perfil" />
+                ) : (
+                  <i className="fas fa-user"></i>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black text-slate-800 truncate uppercase tracking-tight">{currentUser?.name}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate">
+                  {currentUser?.role === UserRole.ADMIN ? 'Gestor' : currentUser?.role === UserRole.INTERN ? 'Estagiário' : 'Capelão'}
+                </p>
+              </div>
+            </div>
+          </div>
         </aside>
 
         {/* Conteúdo Principal */}

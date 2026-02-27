@@ -140,8 +140,18 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Observações para o Capelão</label>
                     <textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-medium text-sm text-slate-700 h-24 resize-none outline-none" placeholder="Ex: Focar no discipulado do líder..."/>
                 </div>
-                <button onClick={handleCreateMission} disabled={isProcessing} className="w-full py-5 bg-[#005a9c] text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all">
-                    {isProcessing ? 'Sincronizando...' : 'Enviar Convite Oficial'}
+                <button 
+                    onClick={handleCreateMission} 
+                    disabled={isProcessing} 
+                    className={`w-full py-5 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl transition-all flex items-center justify-center gap-2
+                        ${isProcessing ? 'bg-slate-400 cursor-not-allowed' : 'bg-[#005a9c] hover:bg-[#004a80] active:scale-95'}`}
+                >
+                    {isProcessing ? (
+                        <>
+                            <i className="fas fa-circle-notch fa-spin"></i>
+                            Sincronizando...
+                        </>
+                    ) : 'Enviar Convite Oficial'}
                 </button>
             </div>
         </div>

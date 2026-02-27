@@ -36,6 +36,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
   
   const [formData, setFormData] = useState(defaultState);
   const [newStudent, setNewStudent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const lastClassStudents = useMemo(() => {
     if (!formData.sector || !unit) return [];
@@ -191,6 +192,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (formData.students.length < 2) { showToast("É necessário pelo menos 2 alunos presentes para salvar a classe.", "warning"); return; }
     if (!formData.guide || !formData.lesson) { showToast("Preencha Guia e Lição."); return; }
     if (formData.participantType === ParticipantType.STAFF) {
@@ -200,19 +202,27 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
         if (!formData.representativePhone || formData.representativePhone.length < 10) { showToast("O WhatsApp do Representante é obrigatório para este grupo.", "warning"); return; }
     }
 
-    let finalObservations = formData.observations;
-    if (formData.participantType !== ParticipantType.STAFF) {
-        const repName = formData.students[0].split(' (')[0].trim();
-        await syncMasterContact(repName, formData.representativePhone, unit, formData.participantType, formData.sector);
-        if (formData.representativePhone) finalObservations = `[Rep. WhatsApp: ${formData.representativePhone}]\n${finalObservations}`;
-    } else {
-        formData.students.forEach(studentStr => {
-            const nameOnly = studentStr.split(' (')[0].trim();
-            syncMasterContact(nameOnly, "", unit, ParticipantType.STAFF, formData.sector).catch(console.error);
-        });
+    setIsSubmitting(true);
+    try {
+      let finalObservations = formData.observations;
+      if (formData.participantType !== ParticipantType.STAFF) {
+          const repName = formData.students[0].split(' (')[0].trim();
+          await syncMasterContact(repName, formData.representativePhone, unit, formData.participantType, formData.sector);
+          if (formData.representativePhone) finalObservations = `[Rep. WhatsApp: ${formData.representativePhone}]\n${finalObservations}`;
+      } else {
+          // Processa sincronização de todos os alunos de forma paralela
+          await Promise.all(formData.students.map(studentStr => {
+              const nameOnly = studentStr.split(' (')[0].trim();
+              return syncMasterContact(nameOnly, "", unit, ParticipantType.STAFF, formData.sector).catch(console.error);
+          }));
+      }
+      await onSubmit({ ...formData, unit, participantType: formData.participantType, observations: finalObservations });
+      setFormData({ ...defaultState, date: getToday() });
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+    } finally {
+      setIsSubmitting(false);
     }
-    onSubmit({ ...formData, unit, participantType: formData.participantType, observations: finalObservations });
-    setFormData({ ...defaultState, date: getToday() });
   };
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
@@ -304,7 +314,19 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Lição nº</label><input type="number" value={formData.lesson} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-indigo-500/20 transition-all" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-3 md:py-4 rounded-2xl font-black text-[10px] uppercase border-2 transition-all active:scale-95 ${formData.status === opt ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-100 text-slate-400 bg-slate-50 hover:bg-slate-100'}`}>{opt}</button>))}</div></div>
         </div>
-        <button type="submit" className="w-full py-4 md:py-6 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-600/20 uppercase text-xs hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all">Salvar Classe Bíblica</button>
+        <button 
+          type="submit" 
+          disabled={isSubmitting}
+          className={`w-full py-4 md:py-6 text-white font-black rounded-2xl shadow-xl uppercase text-xs transition-all flex items-center justify-center gap-2
+            ${isSubmitting ? 'bg-slate-400 cursor-not-allowed' : 'bg-indigo-600 shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95'}`}
+        >
+          {isSubmitting ? (
+            <>
+              <i className="fas fa-circle-notch fa-spin"></i>
+              Gravando...
+            </>
+          ) : 'Salvar Classe Bíblica'}
+        </button>
       </form>
     </FormScaffold>
   );

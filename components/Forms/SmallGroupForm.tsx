@@ -32,6 +32,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
   const defaultState = useMemo(() => ({ id: '', date: getToday(), sector: '', groupName: '', leader: '', leaderPhone: '', shift: 'Manhã', participantsCount: 0, observations: '' }), [getToday]);
   const [formData, setFormData] = useState(defaultState);
   const [isSectorLocked, setIsSectorLocked] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -133,6 +134,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!formData.groupName || !formData.leader || !formData.leaderPhone || !formData.sector) { showToast("Preencha todos os campos obrigatórios."); return; }
     
     // Validação de Líder Oficial (RH)
@@ -145,20 +147,27 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
     if (!proGroups.some(g => g.name === formData.groupName && g.unit === unit)) { showToast("Selecione um Pequeno Grupo válido da lista.", "warning"); return; }
     if (!proSectors.some(s => s.name === formData.sector && s.unit === unit)) { showToast("Selecione um setor oficial válido.", "warning"); return; }
     
-    await syncMasterContact(formData.leader, formData.leaderPhone, unit, ParticipantType.STAFF);
-    const pgMaster = proGroups.find(g => g.name === formData.groupName && g.unit === unit);
-    if (pgMaster) {
-        const cleanPhone = formData.leaderPhone.replace(/\D/g, '');
-        if (cleanPhone !== (pgMaster.leaderPhone || '')) {
-            await saveRecord('proGroups', { ...pgMaster, leaderPhone: cleanPhone });
-        }
-    }
-    const pendingAgenda = visitRequests.find(req => (req.status === 'assigned' || req.status === 'pending') && (req.assignedChaplainId === currentUser.id) && normalizeString(req.pgName) === normalizeString(formData.groupName));
-    if (pendingAgenda) await saveRecord('visitRequests', { ...pendingAgenda, status: 'confirmed', isRead: true });
+    setIsSubmitting(true);
+    try {
+      await syncMasterContact(formData.leader, formData.leaderPhone, unit, ParticipantType.STAFF);
+      const pgMaster = proGroups.find(g => g.name === formData.groupName && g.unit === unit);
+      if (pgMaster) {
+          const cleanPhone = formData.leaderPhone.replace(/\D/g, '');
+          if (cleanPhone !== (pgMaster.leaderPhone || '')) {
+              await saveRecord('proGroups', { ...pgMaster, leaderPhone: cleanPhone });
+          }
+      }
+      const pendingAgenda = visitRequests.find(req => (req.status === 'assigned' || req.status === 'pending') && (req.assignedChaplainId === currentUser.id) && normalizeString(req.pgName) === normalizeString(formData.groupName));
+      if (pendingAgenda) await saveRecord('visitRequests', { ...pendingAgenda, status: 'confirmed', isRead: true });
 
-    onSubmit({ ...formData, unit, leaderPhone: formData.leaderPhone.replace(/\D/g, '') });
-    setFormData({ ...defaultState, date: getToday() });
-    setIsSectorLocked(false);
+      await onSubmit({ ...formData, unit, leaderPhone: formData.leaderPhone.replace(/\D/g, '') });
+      setFormData({ ...defaultState, date: getToday() });
+      setIsSectorLocked(false);
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const headerActions = (
@@ -187,7 +196,19 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Turno *</label><select value={formData.shift} onChange={e => setFormData({...formData, shift: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-500/20 transition-all"><option>Manhã</option><option>Tarde</option><option>Noite</option></select></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Relato / Observações</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium focus:ring-2 focus:ring-emerald-500/20 transition-all" /></div>
         </div>
-        <button type="submit" className="w-full py-4 md:py-6 bg-emerald-600 text-white font-black rounded-2xl shadow-xl shadow-emerald-600/20 uppercase text-xs active:scale-95 transition-all hover:bg-emerald-700 hover:-translate-y-1">Salvar Registro de PG</button>
+        <button 
+          type="submit" 
+          disabled={isSubmitting}
+          className={`w-full py-4 md:py-6 text-white font-black rounded-2xl shadow-xl uppercase text-xs transition-all flex items-center justify-center gap-2
+            ${isSubmitting ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-700 hover:-translate-y-1 active:scale-95'}`}
+        >
+          {isSubmitting ? (
+            <>
+              <i className="fas fa-circle-notch fa-spin"></i>
+              Gravando...
+            </>
+          ) : 'Salvar Registro de PG'}
+        </button>
       </form>
     </FormScaffold>
   );

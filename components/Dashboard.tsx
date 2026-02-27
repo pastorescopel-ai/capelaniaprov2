@@ -52,20 +52,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-24">
-      <header className="flex items-center justify-between bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-4 w-full">
-          <div className="w-12 h-12 bg-[#005a9c] rounded-2xl flex items-center justify-center text-white text-xl shadow-md overflow-hidden">
-            {currentUser.profilePic ? <img src={currentUser.profilePic} className="w-full h-full object-cover" alt="Perfil" /> : <i className="fas fa-user"></i>}
-          </div>
-          <div className="flex-1">
-            <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">Olá, {currentUser.name}!</h1>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
-                {currentUser.role === UserRole.ADMIN ? 'Gestor de Capelania' : currentUser.role === UserRole.INTERN ? 'Capelão Estagiário' : 'Capelão Ativo'}
-            </p>
-          </div>
-        </div>
-      </header>
-
       <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
 
       <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />

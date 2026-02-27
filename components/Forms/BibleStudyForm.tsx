@@ -35,6 +35,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   
   const [formData, setFormData] = useState(defaultState);
   const [isSectorLocked, setIsSectorLocked] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!editingItem) {
@@ -193,6 +194,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!formData.name || !formData.guide || !formData.lesson) { showToast("Preencha Nome, Guia e Lição."); return; }
     const isStaff = formData.participantType === ParticipantType.STAFF;
 
@@ -206,10 +208,17 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast(`O WhatsApp é obrigatório para ${formData.participantType}.`, "warning"); return; }
     }
 
-    await syncMasterContact(formData.name, formData.whatsapp, unit, formData.participantType!, formData.sector);
-    onSubmit({ ...formData, unit, participantType: formData.participantType });
-    setFormData({ ...defaultState, date: getToday() });
-    setIsSectorLocked(false);
+    setIsSubmitting(true);
+    try {
+      await syncMasterContact(formData.name, formData.whatsapp, unit, formData.participantType!, formData.sector);
+      await onSubmit({ ...formData, unit, participantType: formData.participantType });
+      setFormData({ ...defaultState, date: getToday() });
+      setIsSectorLocked(false);
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
@@ -285,7 +294,19 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           }} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-3 md:py-3.5 rounded-2xl font-black text-[10px] uppercase border-2 transition-all active:scale-95 ${formData.status === opt ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm' : 'border-slate-100 text-slate-400 bg-slate-50 hover:bg-slate-100'}`}>{opt}</button>))}</div></div>
         </div>
-        <button type="submit" className="w-full py-4 md:py-5 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-600/20 uppercase text-xs hover:bg-blue-700 hover:-translate-y-0.5 active:scale-95 transition-all">Gravar Registro</button>
+        <button 
+          type="submit" 
+          disabled={isSubmitting}
+          className={`w-full py-4 md:py-5 text-white font-black rounded-2xl shadow-lg uppercase text-xs transition-all flex items-center justify-center gap-2
+            ${isSubmitting ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 shadow-blue-600/20 hover:bg-blue-700 hover:-translate-y-0.5 active:scale-95'}`}
+        >
+          {isSubmitting ? (
+            <>
+              <i className="fas fa-circle-notch fa-spin"></i>
+              Gravando...
+            </>
+          ) : 'Gravar Registro'}
+        </button>
       </form>
     </FormScaffold>
   );

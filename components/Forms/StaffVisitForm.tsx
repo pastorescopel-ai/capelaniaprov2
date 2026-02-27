@@ -33,6 +33,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   
   const [formData, setFormData] = useState(defaultState);
   const [isSectorLocked, setIsSectorLocked] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -133,6 +134,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!formData.date) { showToast("Data obrigatória."); return; }
     if (!formData.staffName) { showToast("Nome obrigatório."); return; }
     if (!formData.reason) { showToast("Motivo obrigatório."); return; }
@@ -143,15 +145,26 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         if (!formData.sector) { showToast("Setor é obrigatório para colaboradores.", "warning"); return; }
         if (!proSectors.some(s => s.name === formData.sector && s.unit === unit)) { showToast("Setor inválido.", "warning"); return; }
         if (!proStaff.some(s => normalizeString(s.name) === normalizeString(formData.staffName) && s.unit === unit)) { showToast("Colaborador não encontrado no RH.", "warning"); return; }
-        if (formData.whatsapp) await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.STAFF);
     } else {
         if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast("WhatsApp é obrigatório para prestadores.", "warning"); return; }
-        await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.PROVIDER, formData.sector);
     }
     
-    onSubmit({...formData, unit});
-    setFormData({ ...defaultState, date: getToday(), returnDate: getToday(), participantType: formData.participantType });
-    setIsSectorLocked(false);
+    setIsSubmitting(true);
+    try {
+      if (isStaff) {
+          if (formData.whatsapp) await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.STAFF);
+      } else {
+          await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.PROVIDER, formData.sector);
+      }
+      
+      await onSubmit({...formData, unit});
+      setFormData({ ...defaultState, date: getToday(), returnDate: getToday(), participantType: formData.participantType });
+      setIsSectorLocked(false);
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
@@ -378,7 +391,19 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           {formData.requiresReturn && (<div className="space-y-1 md:col-span-2 animate-in slide-in-from-left duration-300"><label className="text-[10px] font-black text-rose-500 ml-2 uppercase tracking-widest">Agendar Retorno para *</label><input type="date" value={formData.returnDate} onChange={e => setFormData({...formData, returnDate: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl border-2 border-rose-100 text-rose-700 font-black text-lg focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>)}
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Observações da Visita</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>
         </div>
-        <button type="submit" className="w-full py-4 md:py-6 bg-rose-600 text-white font-black rounded-2xl shadow-xl shadow-rose-600/20 uppercase text-xs hover:bg-rose-700 hover:-translate-y-1 active:scale-95 transition-all">Registrar Visita Pastoral</button>
+        <button 
+          type="submit" 
+          disabled={isSubmitting}
+          className={`w-full py-4 md:py-6 text-white font-black rounded-2xl shadow-xl uppercase text-xs transition-all flex items-center justify-center gap-2
+            ${isSubmitting ? 'bg-slate-400 cursor-not-allowed' : 'bg-rose-600 shadow-rose-600/20 hover:bg-rose-700 hover:-translate-y-1 active:scale-95'}`}
+        >
+          {isSubmitting ? (
+            <>
+              <i className="fas fa-circle-notch fa-spin"></i>
+              Gravando...
+            </>
+          ) : 'Registrar Visita Pastoral'}
+        </button>
       </form>
     </FormScaffold>
   );
