@@ -41,6 +41,7 @@ interface MainContentProps {
   saveRecord: (collection: string, item: any) => Promise<boolean>;
   updateCurrentUser: (user: User) => void;
   handleSaveItem: (type: string, data: any) => void;
+  onRegisterMission: (visit: any) => void;
   getVisibleHistory: (list: any[]) => any[];
   loadFromCloud: (showLoader?: boolean) => Promise<void>;
 }
@@ -69,7 +70,7 @@ const MainContent: React.FC<MainContentProps> = ({
   activeTab, visitedTabs, currentUser, users, bibleStudies, bibleClasses, smallGroups, staffVisits,
   config, currentUnit, unitSectors, editingItem, isLoading,
   setActiveTab, setCurrentUnit, setEditingItem, setItemToDelete, saveToCloud, saveRecord,
-  updateCurrentUser, handleSaveItem, getVisibleHistory, loadFromCloud
+  updateCurrentUser, handleSaveItem, onRegisterMission, getVisibleHistory, loadFromCloud
 }) => {
   const { handleTransfer, getTabClass } = useAppOperations({
     bibleStudies,
@@ -93,6 +94,7 @@ const MainContent: React.FC<MainContentProps> = ({
             currentUser={currentUser} 
             config={config} 
             onGoToTab={setActiveTab} 
+            onRegisterMission={onRegisterMission}
             onUpdateConfig={c => saveToCloud({config: c}, false)} 
             onUpdateUser={u => saveRecord('users', u)} 
           />

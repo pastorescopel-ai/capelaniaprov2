@@ -35,6 +35,10 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showToast } = useToast();
 
+  // Refs para controle de foco
+  const phoneInputRef = React.useRef<HTMLInputElement>(null);
+  const participantsInputRef = React.useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!editingItem) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -57,15 +61,51 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
 
   useEffect(() => {
     if (editingItem) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), observations: editingItem.observations || '', leaderPhone: editingItem.leaderPhone || '' });
-      const pg = proGroups.find(g => g.name === editingItem.groupName && g.unit === unit);
-      if (pg) {
+      // Se for uma missão do dashboard (isMission)
+      if ((editingItem as any).isMission) {
+        const mission = editingItem as any;
+        const pg = proGroups.find(g => g.name === mission.groupName && g.unit === unit);
+        let leaderSector = '';
+        let locked = false;
+
+        if (pg) {
           const loc = proGroupLocations.find(l => l.groupId === pg.id);
-          setIsSectorLocked(!!loc);
+          if (loc) {
+            const sec = proSectors.find(s => s.id === loc.sectorId);
+            if (sec) { leaderSector = sec.name; locked = true; }
+          }
+        }
+
+        setFormData({
+          ...defaultState,
+          date: mission.date || getToday(),
+          groupName: mission.groupName,
+          leader: mission.leader,
+          leaderPhone: mission.leaderPhone ? formatWhatsApp(mission.leaderPhone) : '',
+          sector: leaderSector
+        });
+        setIsSectorLocked(locked);
+        showToast(`Missão carregada: ${mission.pgName}`, "success");
+
+        // Lógica de Foco
+        setTimeout(() => {
+          if (!mission.leaderPhone) {
+            phoneInputRef.current?.focus();
+          } else {
+            participantsInputRef.current?.focus();
+          }
+        }, 500);
+      } else {
+        // Edição normal de registro existente
+        setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), observations: editingItem.observations || '', leaderPhone: editingItem.leaderPhone || '' });
+        const pg = proGroups.find(g => g.name === editingItem.groupName && g.unit === unit);
+        if (pg) {
+            const loc = proGroupLocations.find(l => l.groupId === pg.id);
+            setIsSectorLocked(!!loc);
+        }
       }
     }
-  }, [editingItem, proGroups, proGroupLocations, unit, getToday]);
+  }, [editingItem, proGroups, proGroupLocations, unit, getToday, defaultState, proSectors, showToast]);
 
   const handleSelectPG = (pgName: string) => {
       const pgMaster = proGroups.find(g => g.name === pgName && g.unit === unit);
@@ -187,12 +227,12 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data do Encontro *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-500/20 transition-all" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do Grupo *</label><Autocomplete options={pgOptions} value={formData.groupName} onChange={v => setFormData({...formData, groupName: v})} onSelectOption={handleSelectPG} placeholder="Selecione o PG..." isStrict={true} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Líder Atual *</label><Autocomplete options={staffOptions} value={formData.leader} onChange={v => { setFormData({...formData, leader: v}); if(!v) setIsSectorLocked(false); }} onSelectOption={handleSelectLeader} placeholder="Busque o líder no banco..." /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">WhatsApp do Líder *</label><input placeholder="(00) 00000-0000" value={formData.leaderPhone} onChange={e => setFormData({...formData, leaderPhone: formatWhatsApp(e.target.value)})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-500/20 transition-all" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">WhatsApp do Líder *</label><input ref={phoneInputRef} placeholder="(00) 00000-0000" value={formData.leaderPhone} onChange={e => setFormData({...formData, leaderPhone: formatWhatsApp(e.target.value)})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-500/20 transition-all" /></div>
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Localização *</label>
             {isSectorLocked ? (<div className="w-full p-3 md:p-4 rounded-2xl bg-slate-100 border border-slate-200 font-bold text-slate-500 cursor-not-allowed flex justify-between items-center"><span>{formData.sector}</span><i className="fas fa-lock text-slate-400"></i></div>) : (<Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Onde o PG se reúne?" isStrict={true} />)}
           </div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nº de Participantes *</label><input type="number" value={formData.participantsCount || ''} onChange={e => setFormData({...formData, participantsCount: parseInt(e.target.value)})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-emerald-500/20 transition-all" placeholder="0" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nº de Participantes *</label><input ref={participantsInputRef} type="number" value={formData.participantsCount || ''} onChange={e => setFormData({...formData, participantsCount: parseInt(e.target.value)})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-emerald-500/20 transition-all" placeholder="0" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Turno *</label><select value={formData.shift} onChange={e => setFormData({...formData, shift: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-500/20 transition-all"><option>Manhã</option><option>Tarde</option><option>Noite</option></select></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Relato / Observações</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium focus:ring-2 focus:ring-emerald-500/20 transition-all" /></div>
         </div>

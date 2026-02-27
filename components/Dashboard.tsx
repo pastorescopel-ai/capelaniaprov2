@@ -6,7 +6,6 @@ import { useDashboardStats } from '../hooks/useDashboardStats';
 import Mural from './Dashboard/Mural';
 import StatCards from './Dashboard/StatCards';
 import ImpactCharts from './Dashboard/ImpactCharts';
-import VisitRequestsWidget from './Dashboard/VisitRequestsWidget'; 
 import VisitGoalWidget from './Dashboard/VisitGoalWidget';
 import SmallGroupVisitWidget from './Dashboard/SmallGroupVisitWidget';
 
@@ -18,12 +17,13 @@ interface DashboardProps {
   currentUser: User;
   config: Config;
   onGoToTab: (tab: string) => void;
+  onRegisterMission: (visit: any) => void;
   onUpdateConfig: (newConfig: Config) => any;
   onUpdateUser: (updatedUser: User) => any;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
-  studies, classes, groups, visits, currentUser, config, onGoToTab, onUpdateConfig 
+  studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onUpdateConfig 
 }) => {
   const { visitRequests, users } = useApp(); 
   
@@ -55,11 +55,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     <div className="space-y-6 animate-in fade-in duration-500 pb-24">
       <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
 
-      <SmallGroupVisitWidget requests={visitRequests} currentUser={currentUser} onGoToTab={onGoToTab} />
+      <SmallGroupVisitWidget requests={visitRequests} registeredGroups={groups} currentUser={currentUser} onGoToTab={onGoToTab} onRegisterMission={onRegisterMission} />
 
       <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
-
-      <VisitRequestsWidget requests={visitRequests} currentUser={currentUser} users={users} />
 
       {todaysReturns.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 p-5 rounded-3xl flex items-center justify-between shadow-sm group animate-bounce">

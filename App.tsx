@@ -27,15 +27,42 @@ const App: React.FC = () => {
 
   // Controle de abas visitadas para renderização sob demanda (Performance)
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['dashboard']));
+  const skipClearRef = React.useRef(false);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     setVisitedTabs(prev => new Set(prev).add(tab));
   };
 
+  const handleRegisterMission = (visit: any) => {
+    skipClearRef.current = true;
+    // Definir o item de edição com uma flag especial de missão
+    setEditingItem({
+      ...visit,
+      isMission: true,
+      groupName: visit.pgName,
+      leader: visit.leaderName,
+      leaderPhone: visit.leaderPhone || '',
+      unit: visit.unit,
+      date: visit.date.split('T')[0]
+    });
+    
+    // Mudar a unidade se necessário
+    if (visit.unit !== currentUnit) {
+      setCurrentUnit(visit.unit);
+    }
+    
+    // Mudar para a aba de Pequenos Grupos
+    handleTabChange('smallGroup');
+  };
+
   useEffect(() => {
     if (['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit', 'ambassadors'].includes(activeTab)) {
-        setEditingItem(null);
+        if (skipClearRef.current) {
+            skipClearRef.current = false;
+        } else {
+            setEditingItem(null);
+        }
     }
   }, [activeTab, setEditingItem]);
 
@@ -105,6 +132,7 @@ const App: React.FC = () => {
           saveRecord={saveRecord}
           updateCurrentUser={updateCurrentUser}
           handleSaveItem={handleSaveItem}
+          onRegisterMission={handleRegisterMission}
           getVisibleHistory={getVisibleHistory}
           loadFromCloud={loadFromCloud}
         />
