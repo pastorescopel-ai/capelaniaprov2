@@ -10,6 +10,7 @@ import { isRecordLocked } from '../../utils/validators';
 import { useApp } from '../../contexts/AppContext';
 import { normalizeString, formatWhatsApp } from '../../utils/formatters';
 import { ParticipantType } from '../../types';
+import { usePGInference } from '../../hooks/usePGInference';
 
 interface FormProps {
   unit: Unit;
@@ -27,6 +28,7 @@ interface FormProps {
 
 const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
   const { proSectors, proGroups, proStaff, saveRecord, visitRequests, syncMasterContact, proGroupLocations } = useApp();
+  const { inferPGDetails, inferLeaderDetails } = usePGInference(unit, proGroups, proSectors, proGroupLocations, proStaff);
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ id: '', date: getToday(), sector: '', groupName: '', leader: '', leaderPhone: '', shift: 'Manhã', participantsCount: 0, observations: '' }), [getToday]);
@@ -61,138 +63,69 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
 
   useEffect(() => {
     if (editingItem) {
-      // Se for uma missão do dashboard (isMission)
       if ((editingItem as any).isMission) {
         const mission = editingItem as any;
-        let leaderSector = mission.sectorName || '';
-        let locked = !!leaderSector;
+        const details = inferPGDetails(mission.groupName);
+        
         let shift = 'Manhã';
-
         if (mission.scheduledTime) {
             const hour = parseInt(mission.scheduledTime.split(':')[0]);
             if (hour >= 18) shift = 'Noite';
             else if (hour >= 12) shift = 'Tarde';
         }
 
-        // Se a missão não tiver o nome do setor, mas tiver o ID, busca o nome
-        if (!leaderSector && mission.sectorId) {
-          const sec = proSectors.find(s => s.id === mission.sectorId);
-          if (sec) {
-            leaderSector = sec.name;
-            locked = true;
-          }
-        }
-
-        // Se ainda não tiver setor, tenta buscar pelo PG
-        if (!leaderSector) {
-          const pg = proGroups.find(g => g.name === mission.groupName && g.unit === unit);
-          if (pg) {
-            const loc = proGroupLocations.find(l => l.groupId === pg.id);
-            if (loc) {
-              const sec = proSectors.find(s => s.id === loc.sectorId);
-              if (sec) { leaderSector = sec.name; locked = true; }
-            }
-          }
-        }
-
-        // Se ainda não tiver setor, tenta buscar pelo Líder no RH (proStaff)
-        if (!leaderSector && mission.leader) {
-          const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(mission.leader) && s.unit === unit);
-          if (staff) {
-            const sec = proSectors.find(s => s.id === staff.sectorId);
-            if (sec) { leaderSector = sec.name; locked = true; }
-          }
-        }
-
         setFormData({
           ...defaultState,
           date: mission.date || getToday(),
           groupName: mission.groupName,
-          leader: mission.leader,
-          leaderPhone: mission.leaderPhone ? formatWhatsApp(mission.leaderPhone) : '',
-          sector: leaderSector,
+          leader: details.leaderName || mission.leader,
+          leaderPhone: details.leaderPhone ? formatWhatsApp(details.leaderPhone) : (mission.leaderPhone ? formatWhatsApp(mission.leaderPhone) : ''),
+          sector: details.sectorName || mission.sectorName || '',
           shift: shift
         });
-        setIsSectorLocked(locked);
+        setIsSectorLocked(!!details.sectorId);
         showToast(`Missão carregada: ${mission.pgName}`, "success");
 
-        // Lógica de Foco
         setTimeout(() => {
-          if (!mission.leaderPhone) {
+          if (!details.leaderPhone && !mission.leaderPhone) {
             phoneInputRef.current?.focus();
           } else {
             participantsInputRef.current?.focus();
           }
         }, 500);
       } else {
-        // Edição normal de registro existente
         setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), observations: editingItem.observations || '', leaderPhone: editingItem.leaderPhone || '' });
-        const pg = proGroups.find(g => g.name === editingItem.groupName && g.unit === unit);
-        if (pg) {
-            const loc = proGroupLocations.find(l => l.groupId === pg.id);
-            setIsSectorLocked(!!loc);
-        }
+        const details = inferPGDetails(editingItem.groupName);
+        setIsSectorLocked(!!details.sectorId);
       }
     }
-  }, [editingItem, proGroups, proGroupLocations, unit, getToday, defaultState, proSectors, showToast, proStaff]);
+  }, [editingItem, inferPGDetails, unit, getToday, defaultState, showToast]);
 
   const handleSelectPG = (pgName: string) => {
-      const pgMaster = proGroups.find(g => g.name === pgName && g.unit === unit);
-      const leaderName = pgMaster?.currentLeader || '';
-      let leaderSector = '';
-      let leaderPhone = pgMaster?.leaderPhone ? formatWhatsApp(pgMaster.leaderPhone) : '';
-      let locked = false;
-      
-      if (pgMaster) {
-          const location = proGroupLocations.find(l => l.groupId === pgMaster.id);
-          if (location) {
-              const sec = proSectors.find(s => s.id === location.sectorId);
-              if (sec) { leaderSector = sec.name; locked = true; }
-          }
-          
-          // Busca oficial no RH (proStaff) para garantir dados atualizados e oficiais
-          if (leaderName) {
-              const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(leaderName) && s.unit === unit);
-              if (staff) {
-                  const sec = proSectors.find(s => s.id === staff.sectorId);
-                  if (sec && !leaderSector) {
-                      leaderSector = sec.name;
-                      locked = true; 
-                  }
-                  if (staff.whatsapp) {
-                      leaderPhone = formatWhatsApp(staff.whatsapp);
-                  }
-              }
-          }
-      }
-      setIsSectorLocked(locked);
-      setFormData(prev => ({ ...prev, groupName: pgName, leader: leaderName, leaderPhone: leaderPhone, sector: leaderSector }));
-      if(leaderName || leaderSector) showToast("Dados oficiais do líder carregados.", "info");
+      const details = inferPGDetails(pgName);
+      setIsSectorLocked(!!details.sectorId);
+      setFormData(prev => ({ 
+        ...prev, 
+        groupName: pgName, 
+        leader: details.leaderName, 
+        leaderPhone: details.leaderPhone ? formatWhatsApp(details.leaderPhone) : '', 
+        sector: details.sectorName 
+      }));
+      if(details.leaderName || details.sectorName) showToast("Dados oficiais do líder carregados.", "info");
   };
 
   const handleSelectLeader = (label: string) => {
       const nameOnly = label.split(' (')[0].trim();
-      const match = label.match(/\((.*?)\)$/);
-      let foundPhone = formData.leaderPhone;
-      let foundSector = formData.sector;
-      let lockSector = false;
-
-      let staff: any;
-      if (match) staff = proStaff.find(s => s.id === `${unit}-${match[1]}` || s.id === match[1]);
-      if (!staff) staff = proStaff.find(s => normalizeString(s.name) === normalizeString(nameOnly) && s.unit === unit);
-
-      if (staff) {
-          if (staff.whatsapp) foundPhone = formatWhatsApp(staff.whatsapp);
-          const sector = proSectors.find(s => s.id === staff.sectorId);
-          if (sector) {
-              foundSector = sector.name;
-              lockSector = true;
-          }
-      }
-
-      setFormData(prev => ({ ...prev, leader: nameOnly, leaderPhone: foundPhone, sector: foundSector }));
-      setIsSectorLocked(lockSector);
-      if (lockSector) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
+      const details = inferLeaderDetails(label);
+      
+      setFormData(prev => ({ 
+        ...prev, 
+        leader: nameOnly, 
+        leaderPhone: details.leaderPhone ? formatWhatsApp(details.leaderPhone) : prev.leaderPhone, 
+        sector: details.sectorName || prev.sector 
+      }));
+      setIsSectorLocked(!!details.sectorId);
+      if (details.sectorId) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
   };
 
   const handleClear = () => {
