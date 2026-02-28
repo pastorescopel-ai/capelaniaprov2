@@ -66,6 +66,13 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
         const mission = editingItem as any;
         let leaderSector = mission.sectorName || '';
         let locked = !!leaderSector;
+        let shift = 'Manhã';
+
+        if (mission.scheduledTime) {
+            const hour = parseInt(mission.scheduledTime.split(':')[0]);
+            if (hour >= 18) shift = 'Noite';
+            else if (hour >= 12) shift = 'Tarde';
+        }
 
         // Se a missão não tiver o nome do setor, mas tiver o ID, busca o nome
         if (!leaderSector && mission.sectorId) {
@@ -103,7 +110,8 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
           groupName: mission.groupName,
           leader: mission.leader,
           leaderPhone: mission.leaderPhone ? formatWhatsApp(mission.leaderPhone) : '',
-          sector: leaderSector
+          sector: leaderSector,
+          shift: shift
         });
         setIsSectorLocked(locked);
         showToast(`Missão carregada: ${mission.pgName}`, "success");

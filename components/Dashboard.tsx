@@ -7,7 +7,6 @@ import Mural from './Dashboard/Mural';
 import StatCards from './Dashboard/StatCards';
 import ImpactCharts from './Dashboard/ImpactCharts';
 import VisitGoalWidget from './Dashboard/VisitGoalWidget';
-import SmallGroupVisitWidget from './Dashboard/SmallGroupVisitWidget';
 import VisitRequestsWidget from './Dashboard/VisitRequestsWidget';
 
 interface DashboardProps {
@@ -57,8 +56,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
 
       <VisitRequestsWidget requests={visitRequests} currentUser={currentUser} users={users} onRegisterMission={onRegisterMission} />
-
-      <SmallGroupVisitWidget requests={visitRequests} registeredGroups={groups} currentUser={currentUser} onGoToTab={onGoToTab} onRegisterMission={onRegisterMission} />
 
       <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
 

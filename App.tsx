@@ -45,6 +45,7 @@ const App: React.FC = () => {
       leaderPhone: visit.leaderPhone || '',
       unit: visit.unit,
       date: visit.date.split('T')[0],
+      scheduledTime: visit.scheduledTime,
       sectorId: visit.sectorId,
       sectorName: visit.sectorName
     });

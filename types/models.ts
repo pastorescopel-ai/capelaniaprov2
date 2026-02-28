@@ -207,6 +207,7 @@ export interface VisitRequest {
   chaplainResponse?: string;
   sectorId?: string;
   sectorName?: string;
+  scheduledTime?: string;
   isRead: boolean;
   createdAt?: string;
   updatedAt?: string;

@@ -12,12 +12,14 @@ interface VisitRequestsWidgetProps {
 }
 
 const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, currentUser, users, onRegisterMission }) => {
-  const { saveRecord, proGroups, proSectors, proGroupLocations, proStaff } = useApp();
+  const { saveRecord, deleteRecord, proGroups, proSectors, proGroupLocations, proStaff } = useApp();
   const { showToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<VisitRequest | null>(null);
-  const [actionType, setActionType] = useState<'assign' | null>(null);
+  const [actionType, setActionType] = useState<'assign' | 'delete' | null>(null);
   const [selectedChaplainId, setSelectedChaplainId] = useState('');
+
+  const todayStr = new Date().toLocaleDateString('en-CA');
 
   const myRequests = useMemo(() => {
     return requests.filter(req => {
@@ -102,10 +104,32 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
     }
   };
 
+  const handleDeleteRequest = async (id: string) => {
+    setIsProcessing(true);
+    try {
+      await deleteRecord('visitRequests', id);
+      showToast('Agendamento removido.', 'success');
+      setSelectedRequest(null);
+      setActionType(null);
+    } catch (e) {
+      showToast('Erro ao remover.', 'warning');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     try {
-      const d = new Date(dateString);
-      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      // Evitar deslocamento de fuso horário pegando apenas a parte da data
+      const datePart = dateString.split('T')[0];
+      const [year, month, day] = datePart.split('-').map(Number);
+      const d = new Date(year, month - 1, day);
+      
+      return d.toLocaleDateString('pt-BR', { 
+        weekday: 'short', 
+        day: '2-digit', 
+        month: '2-digit' 
+      }).replace('.', '').toUpperCase();
     } catch { return dateString; }
   };
 
@@ -126,13 +150,28 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
           const sector = getMeetingSector(req);
           const waLink = req.leaderPhone ? `https://wa.me/55${req.leaderPhone.replace(/\D/g, '')}` : null;
           const assignedChaplainName = getChaplainName(req.assignedChaplainId);
+          const isToday = req.date.split('T')[0] === todayStr;
           
           return (
-            <div key={req.id} className="min-w-[260px] max-w-[280px] bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between relative group hover:border-blue-200 transition-colors">
+            <div key={req.id} className={`min-w-[260px] max-w-[280px] p-4 rounded-2xl border flex flex-col justify-between relative group transition-all ${
+              isToday ? 'bg-blue-50/50 border-blue-200 ring-1 ring-blue-100' : 'bg-slate-50 border-slate-100 hover:border-blue-200'
+            }`}>
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between items-center">
-                  <span className="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded uppercase">{req.unit}</span>
-                  <span className="text-[10px] font-bold text-slate-400">{formatDate(req.date)}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded uppercase">{req.unit}</span>
+                    {isToday && (
+                      <span className="bg-amber-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase animate-pulse">Hoje</span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[11px] font-black text-slate-600 block leading-tight">{formatDate(req.date)}</span>
+                    {req.scheduledTime && (
+                      <span className="text-[11px] font-black text-blue-600 block uppercase tracking-tighter mt-0.5">
+                        <i className="far fa-clock mr-1 text-[9px]"></i>{req.scheduledTime}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <h4 className="font-black text-slate-800 text-sm leading-tight mb-1">{req.pgName}</h4>
@@ -159,13 +198,22 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
                           <p className="text-[10px] font-bold text-slate-700 truncate">{assignedChaplainName}</p>
                       </div>
                       {currentUser.role === UserRole.ADMIN && (
-                        <button 
-                          onClick={() => { setSelectedRequest(req); setActionType('assign'); }}
-                          className="w-7 h-7 bg-slate-50 text-slate-400 rounded-lg flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-all absolute right-2 top-2"
-                          title="Alterar Capelão"
-                        >
-                          <i className="fas fa-pencil-alt text-[10px]"></i>
-                        </button>
+                        <div className="flex items-center gap-1 absolute right-2 top-2">
+                          <button 
+                            onClick={() => { setSelectedRequest(req); setActionType('assign'); }}
+                            className="w-7 h-7 bg-slate-50 text-slate-400 rounded-lg flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-all"
+                            title="Alterar Capelão"
+                          >
+                            <i className="fas fa-pencil-alt text-[10px]"></i>
+                          </button>
+                          <button 
+                            onClick={() => { setSelectedRequest(req); setActionType('delete'); }}
+                            className="w-7 h-7 bg-slate-50 text-slate-400 rounded-lg flex items-center justify-center hover:bg-rose-50 hover:text-rose-600 transition-all"
+                            title="Excluir Agendamento"
+                          >
+                            <i className="fas fa-trash-alt text-[10px]"></i>
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -199,6 +247,21 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
                 {users.map(u => (<option key={u.id} value={u.id}>{u.name}</option>))}
               </select>
               <button onClick={() => selectedChaplainId && handleUpdateStatus(selectedRequest, 'assigned', undefined, selectedChaplainId)} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase">Salvar Alteração</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {selectedRequest && actionType === 'delete' && (
+        <div className="fixed inset-0 z-[8000] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => { setSelectedRequest(null); setActionType(null); }} />
+          <div className="relative bg-white w-full max-w-sm p-8 rounded-[2.5rem] shadow-2xl animate-in zoom-in duration-300">
+            <h4 className="text-lg font-black text-slate-800 mb-4 uppercase tracking-tight">Excluir Agendamento?</h4>
+            <p className="text-sm text-slate-500 font-medium mb-6">Esta ação removerá permanentemente a missão de {selectedRequest.pgName} da escala.</p>
+            <div className="flex gap-3">
+              <button onClick={() => { setSelectedRequest(null); setActionType(null); }} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-xl font-black text-[10px] uppercase">Cancelar</button>
+              <button onClick={() => handleDeleteRequest(selectedRequest.id)} disabled={isProcessing} className="flex-1 py-4 bg-rose-600 text-white rounded-xl font-black text-[10px] uppercase shadow-lg shadow-rose-200">
+                {isProcessing ? 'Excluindo...' : 'Confirmar Exclusão'}
+              </button>
             </div>
           </div>
         </div>

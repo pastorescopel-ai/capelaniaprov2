@@ -18,11 +18,12 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
   
   const [selectedPG, setSelectedPG] = useState('');
   const [selectedChaplainId, setSelectedChaplainId] = useState('');
+  const [visitDate, setVisitDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [visitTime, setVisitTime] = useState('19:00');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [inviteToDelete, setInviteToDelete] = useState<string | null>(null);
-  const [inviteToReassign, setInviteToReassign] = useState<VisitRequest | null>(null);
-  const [newChaplainId, setNewChaplainId] = useState('');
 
   const chaplains = useMemo(() => users, [users]);
   
@@ -65,8 +66,8 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
   }, [selectedPG, proGroups, unit, proGroupLocations, proSectors, proStaff]);
 
   const handleCreateMission = async () => {
-    if (!selectedPG || !selectedChaplainId) {
-        showToast("Preencha o PG e o Capelão.", "warning");
+    if (!selectedPG || !selectedChaplainId || !visitDate || !visitTime) {
+        showToast("Preencha todos os campos, incluindo data e hora.", "warning");
         return;
     }
     const pg = proGroups.find(g => g.name === selectedPG && g.unit === unit);
@@ -77,18 +78,16 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
     setIsProcessing(true);
     try {
         const leaderPhone = pg.leaderPhone || "";
-        
-        // Use sectorId from leaderInfo which includes all fallback logic (PG -> Location -> Staff)
-        // Ensure it's null if undefined to satisfy Supabase/JSON requirements
         const sectorId = leaderInfo?.sectorId || pg.sectorId || null;
 
-        const newRequest: VisitRequest = {
-            id: crypto.randomUUID(),
+        const requestData: VisitRequest = {
+            id: editingRequestId || crypto.randomUUID(),
             pgName: pg.name || '',
             leaderName: pg.currentLeader || 'Líder não registrado',
             leaderPhone: leaderPhone || null,
             unit: unit,
-            date: new Date().toISOString(),
+            date: `${visitDate}T00:00:00Z`,
+            scheduledTime: visitTime,
             status: 'assigned',
             assignedChaplainId: chaplain.id,
             requestNotes: notes || "Visita de acompanhamento designada pela gestão.",
@@ -96,27 +95,39 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
             isRead: false
         };
         
-        console.log('[PGOps] Sending VisitRequest:', newRequest);
-        
-        // Optimistic update logic could be here, but we rely on saveRecord triggering a reload
-        // However, if saveRecord is async and takes time, we might want to force a refresh or wait properly
-        const success = await saveRecord('visitRequests', newRequest);
+        const success = await saveRecord('visitRequests', requestData);
         
         if (success) {
-            showToast(`Convite enviado para ${chaplain.name}!`, "success");
-            setNotes('');
-            setSelectedPG('');
-            setSelectedChaplainId('');
-            // The useApp hook should automatically update visitRequests via loadFromCloud called inside saveRecord
+            showToast(editingRequestId ? 'Agendamento atualizado!' : `Convite enviado para ${chaplain.name}!`, "success");
+            handleCancelEdit();
         } else {
-            showToast("Erro ao salvar convite no banco.", "warning");
+            showToast("Erro ao salvar agendamento.", "warning");
         }
     } catch (e) {
         console.error(e);
-        showToast("Erro ao processar convite.", "warning");
+        showToast("Erro ao processar agendamento.", "warning");
     } finally {
         setIsProcessing(false);
     }
+  };
+
+  const handleEditRequest = (req: VisitRequest) => {
+    setEditingRequestId(req.id);
+    setSelectedPG(req.pgName);
+    setSelectedChaplainId(req.assignedChaplainId || '');
+    setVisitDate(req.date.split('T')[0]);
+    setVisitTime(req.scheduledTime || '19:00');
+    setNotes(req.requestNotes || '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRequestId(null);
+    setNotes('');
+    setSelectedPG('');
+    setSelectedChaplainId('');
+    setVisitDate(new Date().toLocaleDateString('en-CA'));
+    setVisitTime('19:00');
   };
 
   const executeDelete = async () => {
@@ -125,32 +136,12 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
     try {
         await deleteRecord('visitRequests', inviteToDelete);
         showToast("Agendamento excluído.", "success");
+        if (editingRequestId === inviteToDelete) handleCancelEdit();
     } catch (e) {
         showToast("Erro ao excluir.", "warning");
     } finally {
         setIsProcessing(false);
         setInviteToDelete(null);
-    }
-  };
-
-  const executeReassign = async () => {
-    if (!inviteToReassign || !newChaplainId) return;
-    setIsProcessing(true);
-    try {
-        const updatedReq = {
-            ...inviteToReassign,
-            assignedChaplainId: newChaplainId,
-            status: 'assigned',
-            isRead: false
-        };
-        await saveRecord('visitRequests', updatedReq);
-        showToast("Capelão alterado com sucesso.", "success");
-    } catch (e) {
-        showToast("Erro ao alterar capelão.", "warning");
-    } finally {
-        setIsProcessing(false);
-        setInviteToReassign(null);
-        setNewChaplainId('');
     }
   };
 
@@ -169,10 +160,16 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
 
         <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-6">
             <div className="flex items-center gap-4 mb-4">
-                <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-2xl shadow-xl"><i className="fas fa-calendar-alt"></i></div>
+                <div className={`w-14 h-14 ${editingRequestId ? 'bg-blue-600' : 'bg-slate-900'} text-white rounded-2xl flex items-center justify-center text-2xl shadow-xl transition-colors`}>
+                    <i className={`fas ${editingRequestId ? 'fa-edit' : 'fa-calendar-alt'}`}></i>
+                </div>
                 <div>
-                    <h3 className="font-black text-slate-800 text-xl uppercase tracking-tighter">Agendar Visita PG</h3>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Escalar capelão para suporte estratégico</p>
+                    <h3 className="font-black text-slate-800 text-xl uppercase tracking-tighter">
+                        {editingRequestId ? 'Editar Agendamento' : 'Agendar Visita PG'}
+                    </h3>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+                        {editingRequestId ? 'Ajuste os detalhes da missão selecionada' : 'Escalar capelão para suporte estratégico'}
+                    </p>
                 </div>
             </div>
 
@@ -196,6 +193,16 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
                         </div>
                     )}
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Data da Visita</label>
+                        <input type="date" value={visitDate} onChange={e => setVisitDate(e.target.value)} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none"/>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Horário</label>
+                        <input type="time" value={visitTime} onChange={e => setVisitTime(e.target.value)} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none"/>
+                    </div>
+                </div>
                 <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Escalar Capelão</label>
                     <select value={selectedChaplainId} onChange={e => setSelectedChaplainId(e.target.value)} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none">
@@ -207,19 +214,30 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Observações para o Capelão</label>
                     <textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-medium text-sm text-slate-700 h-24 resize-none outline-none" placeholder="Ex: Focar no discipulado do líder..."/>
                 </div>
-                <button 
-                    onClick={handleCreateMission} 
-                    disabled={isProcessing} 
-                    className={`w-full py-5 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl transition-all flex items-center justify-center gap-2
-                        ${isProcessing ? 'bg-slate-400 cursor-not-allowed' : 'bg-[#005a9c] hover:bg-[#004a80] active:scale-95'}`}
-                >
-                    {isProcessing ? (
-                        <>
-                            <i className="fas fa-circle-notch fa-spin"></i>
-                            Agendando...
-                        </>
-                    ) : 'Agendar Visita'}
-                </button>
+                
+                <div className="flex gap-3">
+                    {editingRequestId && (
+                        <button 
+                            onClick={handleCancelEdit}
+                            className="flex-1 py-5 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition-all"
+                        >
+                            Cancelar
+                        </button>
+                    )}
+                    <button 
+                        onClick={handleCreateMission} 
+                        disabled={isProcessing} 
+                        className={`flex-[2] py-5 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl transition-all flex items-center justify-center gap-2
+                            ${isProcessing ? 'bg-slate-400 cursor-not-allowed' : (editingRequestId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#005a9c] hover:bg-[#004a80]')} active:scale-95`}
+                    >
+                        {isProcessing ? (
+                            <>
+                                <i className="fas fa-circle-notch fa-spin"></i>
+                                {editingRequestId ? 'Salvando...' : 'Agendando...'}
+                            </>
+                        ) : (editingRequestId ? 'Salvar Alterações' : 'Agendar Visita')}
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -241,24 +259,31 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
                         </div>
                         <div className="text-right flex items-center gap-4 flex-shrink-0 ml-4">
                             <div>
-                                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">{new Date(req.date).toLocaleDateString()}</span>
+                                <span className="block text-[10px] font-black text-slate-600 uppercase tracking-tight">
+                                    {(() => {
+                                        try {
+                                            const datePart = req.date.split('T')[0];
+                                            const [year, month, day] = datePart.split('-').map(Number);
+                                            const d = new Date(year, month - 1, day);
+                                            return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }).replace('.', '').toUpperCase();
+                                        } catch { return req.date; }
+                                    })()}
+                                    {req.scheduledTime && ` às ${req.scheduledTime}`}
+                                </span>
                                 <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${req.status === 'assigned' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>{req.status === 'assigned' ? 'Pendente' : 'Designado'}</span>
                             </div>
                             {currentUser?.role === UserRole.ADMIN && (
-                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                <div className="flex items-center gap-2 transition-all">
                                     <button 
-                                        onClick={() => {
-                                            setInviteToReassign(req);
-                                            setNewChaplainId(req.assignedChaplainId || '');
-                                        }}
-                                        className="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center hover:bg-blue-500 hover:text-white transition-all shadow-sm"
-                                        title="Alterar Capelão"
+                                        onClick={() => handleEditRequest(req)}
+                                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm ${editingRequestId === req.id ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white'}`}
+                                        title="Editar Agendamento"
                                     >
-                                        <i className="fas fa-user-edit text-xs"></i>
+                                        <i className="fas fa-edit text-xs"></i>
                                     </button>
                                     <button 
                                         onClick={() => setInviteToDelete(req.id)}
-                                        className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                                        className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all shadow-sm"
                                         title="Excluir Convite"
                                     >
                                         <i className="fas fa-trash-alt text-xs"></i>
@@ -271,23 +296,6 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
             })}
         </div>
 
-        {inviteToReassign && (
-            <div className="fixed inset-0 z-[8000] flex items-center justify-center p-4">
-                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setInviteToReassign(null)} />
-                <div className="relative bg-white w-full max-w-sm p-8 rounded-[2.5rem] shadow-2xl animate-in zoom-in duration-300">
-                    <h4 className="text-lg font-black text-slate-800 mb-6 uppercase tracking-tight">Alterar Capelão</h4>
-                    <div className="space-y-4">
-                        <select className="w-full p-4 bg-slate-50 border-none rounded-xl font-bold text-xs" value={newChaplainId} onChange={e => setNewChaplainId(e.target.value)}>
-                            <option value="">Selecione um Capelão...</option>
-                            {chaplains.map(u => (<option key={u.id} value={u.id}>{u.name}</option>))}
-                        </select>
-                        <button onClick={executeReassign} disabled={!newChaplainId || isProcessing} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase disabled:opacity-50">
-                            Confirmar Alteração
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )}
     </div>
   );
 };
