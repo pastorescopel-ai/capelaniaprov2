@@ -12,7 +12,7 @@ interface PGOpsProps {
 }
 
 const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
-  const { proGroups, users, saveRecord, visitRequests, proStaff, deleteRecord, proGroupLocations } = useApp();
+  const { proGroups, users, saveRecord, visitRequests, proStaff, deleteRecord, proGroupLocations, proSectors } = useApp();
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   
@@ -21,6 +21,8 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [inviteToDelete, setInviteToDelete] = useState<string | null>(null);
+  const [inviteToReassign, setInviteToReassign] = useState<VisitRequest | null>(null);
+  const [newChaplainId, setNewChaplainId] = useState('');
 
   const chaplains = useMemo(() => users, [users]);
   
@@ -36,8 +38,31 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
     if (!pg) return null;
 
     const leaderName = pg.currentLeader || 'Não informado';
-    return { name: leaderName };
-  }, [selectedPG, proGroups, unit]);
+    
+    // Determine sector name
+    let sectorName = 'Setor não informado';
+    let sectorId = pg.sectorId;
+    
+    // 1. Check proGroupLocations
+    if (!sectorId) {
+        const loc = proGroupLocations.find(l => l.groupId === pg.id);
+        if (loc) sectorId = loc.sectorId;
+    }
+
+    // 2. Check Leader's Registration (ProStaff) - "Matrícula"
+    if (!sectorId && pg.currentLeader) {
+        // Try to find staff by name (case insensitive)
+        const staff = proStaff.find(s => s.name.toLowerCase() === pg.currentLeader?.toLowerCase() && s.unit === unit);
+        if (staff) sectorId = staff.sectorId;
+    }
+    
+    if (sectorId) {
+        const sec = proSectors.find(s => s.id === sectorId);
+        if (sec) sectorName = sec.name;
+    }
+
+    return { name: leaderName, sectorName, sectorId };
+  }, [selectedPG, proGroups, unit, proGroupLocations, proSectors, proStaff]);
 
   const handleCreateMission = async () => {
     if (!selectedPG || !selectedChaplainId) {
@@ -53,18 +78,15 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
     try {
         const leaderPhone = pg.leaderPhone || "";
         
-        // Tenta pegar o setor do PG diretamente ou via proGroupLocations
-        let sectorId = pg.sectorId;
-        if (!sectorId) {
-            const loc = proGroupLocations.find(l => l.groupId === pg.id);
-            if (loc) sectorId = loc.sectorId;
-        }
+        // Use sectorId from leaderInfo which includes all fallback logic (PG -> Location -> Staff)
+        // Ensure it's null if undefined to satisfy Supabase/JSON requirements
+        const sectorId = leaderInfo?.sectorId || pg.sectorId || null;
 
         const newRequest: VisitRequest = {
             id: crypto.randomUUID(),
-            pgName: pg.name,
+            pgName: pg.name || '',
             leaderName: pg.currentLeader || 'Líder não registrado',
-            leaderPhone: leaderPhone,
+            leaderPhone: leaderPhone || null,
             unit: unit,
             date: new Date().toISOString(),
             status: 'assigned',
@@ -73,12 +95,24 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
             sectorId: sectorId,
             isRead: false
         };
-        await saveRecord('visitRequests', newRequest);
-        showToast(`Convite enviado para ${chaplain.name}!`, "success");
-        setNotes('');
-        setSelectedPG('');
-        setSelectedChaplainId('');
+        
+        console.log('[PGOps] Sending VisitRequest:', newRequest);
+        
+        // Optimistic update logic could be here, but we rely on saveRecord triggering a reload
+        // However, if saveRecord is async and takes time, we might want to force a refresh or wait properly
+        const success = await saveRecord('visitRequests', newRequest);
+        
+        if (success) {
+            showToast(`Convite enviado para ${chaplain.name}!`, "success");
+            setNotes('');
+            setSelectedPG('');
+            setSelectedChaplainId('');
+            // The useApp hook should automatically update visitRequests via loadFromCloud called inside saveRecord
+        } else {
+            showToast("Erro ao salvar convite no banco.", "warning");
+        }
     } catch (e) {
+        console.error(e);
         showToast("Erro ao processar convite.", "warning");
     } finally {
         setIsProcessing(false);
@@ -96,6 +130,27 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
     } finally {
         setIsProcessing(false);
         setInviteToDelete(null);
+    }
+  };
+
+  const executeReassign = async () => {
+    if (!inviteToReassign || !newChaplainId) return;
+    setIsProcessing(true);
+    try {
+        const updatedReq = {
+            ...inviteToReassign,
+            assignedChaplainId: newChaplainId,
+            status: 'assigned',
+            isRead: false
+        };
+        await saveRecord('visitRequests', updatedReq);
+        showToast("Capelão alterado com sucesso.", "success");
+    } catch (e) {
+        showToast("Erro ao alterar capelão.", "warning");
+    } finally {
+        setIsProcessing(false);
+        setInviteToReassign(null);
+        setNewChaplainId('');
     }
   };
 
@@ -132,8 +187,12 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
                         className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700"
                     />
                     {leaderInfo && (
-                        <div className="mx-2 mt-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                        <div className="mx-2 mt-2 p-3 bg-blue-50 rounded-xl border border-blue-100 flex justify-between items-center">
                             <span className="text-[10px] font-black text-blue-800 uppercase block">Responsável: {leaderInfo.name}</span>
+                            <span className="text-[10px] font-bold text-blue-600 uppercase block bg-white px-2 py-1 rounded-lg border border-blue-100">
+                                <i className="fas fa-map-marker-alt mr-1"></i>
+                                {leaderInfo.sectorName}
+                            </span>
                         </div>
                     )}
                 </div>
@@ -157,15 +216,15 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
                     {isProcessing ? (
                         <>
                             <i className="fas fa-circle-notch fa-spin"></i>
-                            Sincronizando...
+                            Agendando...
                         </>
-                    ) : 'Enviar Convite Oficial'}
+                    ) : 'Agendar Visita'}
                 </button>
             </div>
         </div>
 
         <div className="space-y-4">
-            <h3 className="font-black text-slate-400 uppercase text-xs tracking-widest px-4">Histórico de Convites Recentes</h3>
+            <h3 className="font-black text-slate-400 uppercase text-xs tracking-widest px-4">Histórico de Agendamentos Recentes</h3>
             {activeRequests.length === 0 && (
                 <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-[2rem]"><p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Tudo em dia!</p></div>
             )}
@@ -186,19 +245,49 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
                                 <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${req.status === 'assigned' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>{req.status === 'assigned' ? 'Pendente' : 'Designado'}</span>
                             </div>
                             {currentUser?.role === UserRole.ADMIN && (
-                                <button 
-                                    onClick={() => setInviteToDelete(req.id)}
-                                    className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-rose-500 hover:text-white transition-all shadow-sm"
-                                    title="Excluir Convite"
-                                >
-                                    <i className="fas fa-trash-alt text-xs"></i>
-                                </button>
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                    <button 
+                                        onClick={() => {
+                                            setInviteToReassign(req);
+                                            setNewChaplainId(req.assignedChaplainId || '');
+                                        }}
+                                        className="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center hover:bg-blue-500 hover:text-white transition-all shadow-sm"
+                                        title="Alterar Capelão"
+                                    >
+                                        <i className="fas fa-user-edit text-xs"></i>
+                                    </button>
+                                    <button 
+                                        onClick={() => setInviteToDelete(req.id)}
+                                        className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                                        title="Excluir Convite"
+                                    >
+                                        <i className="fas fa-trash-alt text-xs"></i>
+                                    </button>
+                                </div>
                             )}
                         </div>
                     </div>
                 );
             })}
         </div>
+
+        {inviteToReassign && (
+            <div className="fixed inset-0 z-[8000] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setInviteToReassign(null)} />
+                <div className="relative bg-white w-full max-w-sm p-8 rounded-[2.5rem] shadow-2xl animate-in zoom-in duration-300">
+                    <h4 className="text-lg font-black text-slate-800 mb-6 uppercase tracking-tight">Alterar Capelão</h4>
+                    <div className="space-y-4">
+                        <select className="w-full p-4 bg-slate-50 border-none rounded-xl font-bold text-xs" value={newChaplainId} onChange={e => setNewChaplainId(e.target.value)}>
+                            <option value="">Selecione um Capelão...</option>
+                            {chaplains.map(u => (<option key={u.id} value={u.id}>{u.name}</option>))}
+                        </select>
+                        <button onClick={executeReassign} disabled={!newChaplainId || isProcessing} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase disabled:opacity-50">
+                            Confirmar Alteração
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
   );
 };
