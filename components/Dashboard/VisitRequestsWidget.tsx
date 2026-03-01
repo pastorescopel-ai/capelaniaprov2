@@ -1,8 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { User, VisitRequest, UserRole } from '../../types';
-import { useApp } from '../../contexts/AppContext';
-import { useToast } from '../../contexts/ToastContext';
+import { useVisitRequestsWidget } from '../../hooks/useVisitRequestsWidget';
 
 interface VisitRequestsWidgetProps {
   requests: VisitRequest[];
@@ -12,126 +11,21 @@ interface VisitRequestsWidgetProps {
 }
 
 const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, currentUser, users, onRegisterMission }) => {
-  const { saveRecord, deleteRecord, proGroups, proSectors, proGroupLocations, proStaff } = useApp();
-  const { showToast } = useToast();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<VisitRequest | null>(null);
-  const [actionType, setActionType] = useState<'assign' | 'delete' | null>(null);
-  const [selectedChaplainId, setSelectedChaplainId] = useState('');
-
-  const todayStr = new Date().toLocaleDateString('en-CA');
-
-  const myRequests = useMemo(() => {
-    return requests.filter(req => {
-      // Show all active requests (assigned or confirmed) but not completed/declined
-      if (req.status === 'confirmed' || req.status === 'declined') return false;
-      
-      if (currentUser.role === UserRole.ADMIN) return true;
-      return req.assignedChaplainId === currentUser.id;
-    }).sort((a, b) => {
-      // Prioritize requests assigned to the current user (especially for admins)
-      const aIsMine = a.assignedChaplainId === currentUser.id;
-      const bIsMine = b.assignedChaplainId === currentUser.id;
-      if (aIsMine && !bIsMine) return -1;
-      if (!aIsMine && bIsMine) return 1;
-      
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
-    });
-  }, [requests, currentUser]);
-
-  const getMeetingSector = (req: VisitRequest) => {
-      // 1. Try to get sector directly from request if available (though not currently stored in VisitRequest type usually)
-      if (req.sectorId) {
-          const sec = proSectors.find(s => s.id === req.sectorId);
-          if (sec) return sec.name;
-      }
-
-      // 2. Try to find the PG
-      const pg = proGroups.find(g => g.name === req.pgName && g.unit === req.unit);
-      if (pg) {
-          // 3. Check if PG has sectorId directly
-          if (pg.sectorId) {
-              const sec = proSectors.find(s => s.id === pg.sectorId);
-              if (sec) return sec.name;
-          }
-
-          // 4. Check proGroupLocations
-          const loc = proGroupLocations.find(l => l.groupId === pg.id);
-          if (loc && loc.sectorId) {
-              const sec = proSectors.find(s => s.id === loc.sectorId);
-              if (sec) return sec.name;
-          }
-      }
-
-      // 5. Check Leader's Registration (ProStaff)
-      if (req.leaderName) {
-          const staff = proStaff.find(s => s.name.toLowerCase() === req.leaderName.toLowerCase() && s.unit === req.unit);
-          if (staff && staff.sectorId) {
-             const sec = proSectors.find(s => s.id === staff.sectorId);
-             if (sec) return sec.name;
-          }
-      }
-
-      return 'Setor não informado';
-  };
-
-  const getChaplainName = (chaplainId?: string) => {
-    if (!chaplainId) return 'Aguardando';
-    const chaplain = users.find(u => u.id === chaplainId);
-    return chaplain ? chaplain.name : 'Desconhecido';
-  };
+  const {
+    isProcessing,
+    selectedRequest, setSelectedRequest,
+    actionType, setActionType,
+    selectedChaplainId, setSelectedChaplainId,
+    todayStr,
+    myRequests,
+    getMeetingSector,
+    getChaplainName,
+    handleUpdateStatus,
+    handleDeleteRequest,
+    formatDate
+  } = useVisitRequestsWidget({ requests, currentUser, users });
 
   if (myRequests.length === 0) return null;
-
-  const handleUpdateStatus = async (req: VisitRequest, newStatus: string, notes?: string, assignedId?: string) => {
-    setIsProcessing(true);
-    try {
-      const updatedReq = {
-        ...req,
-        status: newStatus,
-        chaplainResponse: notes || req.chaplainResponse,
-        assignedChaplainId: assignedId || req.assignedChaplainId,
-        isRead: false
-      };
-      await saveRecord('visitRequests', updatedReq);
-      showToast('Escala atualizada com sucesso.', 'success');
-      setSelectedRequest(null);
-      setActionType(null);
-    } catch (e) {
-      showToast('Erro ao atualizar.', 'warning');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleDeleteRequest = async (id: string) => {
-    setIsProcessing(true);
-    try {
-      await deleteRecord('visitRequests', id);
-      showToast('Agendamento removido.', 'success');
-      setSelectedRequest(null);
-      setActionType(null);
-    } catch (e) {
-      showToast('Erro ao remover.', 'warning');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    try {
-      // Evitar deslocamento de fuso horário pegando apenas a parte da data
-      const datePart = dateString.split('T')[0];
-      const [year, month, day] = datePart.split('-').map(Number);
-      const d = new Date(year, month - 1, day);
-      
-      return d.toLocaleDateString('pt-BR', { 
-        weekday: 'short', 
-        day: '2-digit', 
-        month: '2-digit' 
-      }).replace('.', '').toUpperCase();
-    } catch { return dateString; }
-  };
 
   return (
     <div className="bg-white p-5 md:p-6 rounded-3xl border border-blue-100 shadow-sm mb-6 animate-in slide-in-from-top duration-500">

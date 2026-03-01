@@ -1,10 +1,8 @@
 
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import Cropper from 'react-easy-crop';
 import { User } from '../types';
-import { useToast } from '../contexts/ToastContext';
-import { hashPassword } from '../utils/crypto';
-import { getCroppedImg } from '../utils/imageUtils';
+import { useProfile } from '../hooks/useProfile';
 
 interface ProfileProps {
   user: User;
@@ -13,95 +11,23 @@ interface ProfileProps {
 }
 
 const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
-  const [name, setName] = useState(user.name);
-  const [passData, setPassData] = useState({ current: '', new: '', confirm: '' });
-  const [profilePic, setProfilePic] = useState(user.profilePic || '');
-  const { showToast } = useToast();
-
-  // Cropper State
-  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
-  const [isCropping, setIsCropping] = useState(false);
-
-  const onCropComplete = useCallback((_croppedArea: any, croppedAreaPixels: any) => {
-    setCroppedAreaPixels(croppedAreaPixels);
-  }, []);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageToCrop(reader.result as string);
-        setIsCropping(true);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleConfirmCrop = async () => {
-    if (!imageToCrop || !croppedAreaPixels) return;
-    try {
-      const croppedImage = await getCroppedImg(imageToCrop, croppedAreaPixels, rotation);
-      setProfilePic(croppedImage);
-      onUpdateUser({ ...user, profilePic: croppedImage });
-      setIsCropping(false);
-      setImageToCrop(null);
-      showToast("Foto de perfil atualizada!", "success");
-    } catch (e) {
-      console.error(e);
-      showToast("Erro ao processar imagem.", "error");
-    }
-  };
-
-  const handleCancelCrop = () => {
-    setIsCropping(false);
-    setImageToCrop(null);
-  };
-
-  const handleRemovePhoto = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirm("Deseja realmente remover sua foto de perfil?")) {
-      setProfilePic('');
-      onUpdateUser({ ...user, profilePic: '' });
-      showToast("Foto removida.", "warning");
-    }
-  };
-
-  const triggerFileInput = () => {
-    document.getElementById('fileInput')?.click();
-  };
-
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Preparar objeto de atualização
-    const updatedUser = { ...user, name, profilePic };
-    
-    // Se o usuário está tentando mudar a senha
-    if (passData.new || passData.confirm) {
-      if (passData.new !== passData.confirm) {
-        showToast('As novas senhas digitadas não coincidem!', "warning");
-        return;
-      }
-      
-      if (passData.new.length < 4) {
-        showToast('A nova senha deve ter pelo menos 4 caracteres.', "warning");
-        return;
-      }
-
-      // IMPORTANTE: Criptografar a nova senha antes de salvar no banco
-      const securePassword = await hashPassword(passData.new.trim());
-      updatedUser.password = securePassword;
-    }
-    
-    onUpdateUser(updatedUser);
-    setPassData({ current: '', new: '', confirm: '' });
-    showToast("Suas alterações foram salvas com segurança!", "success");
-  };
+  const {
+    name, setName,
+    passData, setPassData,
+    profilePic,
+    imageToCrop,
+    crop, setCrop,
+    zoom, setZoom,
+    rotation, setRotation,
+    isCropping,
+    onCropComplete,
+    handleFileChange,
+    handleConfirmCrop,
+    handleCancelCrop,
+    handleRemovePhoto,
+    triggerFileInput,
+    handleUpdateProfile
+  } = useProfile({ user, onUpdateUser });
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500 pb-24">

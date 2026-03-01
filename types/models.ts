@@ -200,9 +200,8 @@ export interface VisitRequest {
   leaderPhone?: string;
   unit: 'HAB' | 'HABA';
   date: string;
-  status: 'pending' | 'confirmed' | 'declined' | 'assigned';
+  status: 'confirmed' | 'declined' | 'assigned';
   requestNotes?: string;
-  preferredChaplainId?: string;
   assignedChaplainId?: string;
   chaplainResponse?: string;
   sectorId?: string;
@@ -222,34 +221,4 @@ export interface Ambassador {
   unit: Unit;
   completionDate: string;
   createdAt?: string;
-}
-
-// Interfaces Auxiliares de Integração
-export interface Leader {
-  full_name: string;
-  whatsapp?: string;
-  pg_name?: string;
-  sector_name?: string;
-  hospital?: string;
-}
-
-export interface Chaplain {
-  id: string;
-  name: string;
-  active: boolean;
-  hospital: string;
-}
-
-export interface MeetingSchedule {
-  full_date: string;
-  request_chaplain: boolean;
-  request_notes?: string;
-  preferred_chaplain_id?: string;
-  assigned_chaplain_id?: string;
-  chaplain_status: 'none' | 'pending' | 'confirmed' | 'declined';
-  leader_name: string;
-  leader_whatsapp?: string;
-  pg_name: string;
-  sector_name?: string;
-  hospital?: string;
 }

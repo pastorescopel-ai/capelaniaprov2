@@ -1,14 +1,13 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Unit, StaffVisit, User, VisitReason, ProStaff, ParticipantType } from '../../types';
-import { useToast } from '../../contexts/ToastContext';
-import Autocomplete, { AutocompleteOption } from '../Shared/Autocomplete';
+import React from 'react';
+import { Unit, StaffVisit, User, VisitReason, ParticipantType } from '../../types';
+import Autocomplete from '../Shared/Autocomplete';
 import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import FormScaffold from '../Shared/FormScaffold';
 import { isRecordLocked } from '../../utils/validators';
-import { useApp } from '../../contexts/AppContext';
-import { normalizeString, formatWhatsApp } from '../../utils/formatters';
+import { formatWhatsApp } from '../../utils/formatters';
+import { useStaffVisitForm } from '../../hooks/useStaffVisitForm';
 
 interface FormProps {
   unit: Unit;
@@ -26,146 +25,14 @@ interface FormProps {
 }
 
 const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
-  const { proStaff, proProviders, proSectors, syncMasterContact } = useApp();
-  
-  const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
-  const defaultState = useMemo(() => ({ id: '', date: getToday(), sector: '', reason: VisitReason.ROTINA, staffName: '', whatsapp: '', participantType: ParticipantType.STAFF, providerRole: '', requiresReturn: false, returnDate: getToday(), returnCompleted: false, observations: '' }), [getToday]);
-  
-  const [formData, setFormData] = useState(defaultState);
-  const [isSectorLocked, setIsSectorLocked] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { showToast } = useToast();
-
-  useEffect(() => {
-    if (!editingItem) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFormData(prev => ({ ...defaultState, date: prev.date || getToday(), participantType: prev.participantType }));
-      setIsSectorLocked(false);
-    }
-  }, [editingItem, defaultState, getToday]);
-
-  const sectorOptions = useMemo(() => proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name})).sort((a,b) => a.label.localeCompare(b.label)), [proSectors, unit]);
-
-  const nameOptions = useMemo(() => {
-    const options: AutocompleteOption[] = [];
-    const officialSet = new Set<string>();
-    
-    if (formData.participantType === ParticipantType.STAFF) {
-        proStaff.filter(s => s.unit === unit).forEach(staff => {
-          const sector = proSectors.find(sec => sec.id === staff.sectorId);
-          options.push({ value: staff.name, label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, subLabel: sector ? sector.name : 'Setor não informado', category: 'RH' });
-          officialSet.add(normalizeString(staff.name));
-        });
-    } else {
-        proProviders.filter(p => p.unit === unit).forEach(provider => {
-            options.push({ value: provider.name, label: provider.name, subLabel: provider.sector || 'Sem setor fixo', category: 'RH' });
-            officialSet.add(normalizeString(provider.name));
-        });
-    }
-
-    const uniqueNames = new Set<string>();
-    history.forEach(v => {
-      const historyType = (v as any).participantType || ParticipantType.STAFF;
-      if (historyType === formData.participantType && v.staffName) {
-         const norm = normalizeString(v.staffName);
-         if (!uniqueNames.has(norm) && !officialSet.has(norm)) {
-             uniqueNames.add(norm);
-             options.push({ value: v.staffName, label: v.staffName, subLabel: v.sector, category: 'History' });
-         }
-      }
-    });
-    return options;
-  }, [proStaff, proProviders, proSectors, unit, history, formData.participantType]);
-
-  useEffect(() => {
-    if (editingItem) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFormData({ ...editingItem, whatsapp: (editingItem as any).whatsapp || '', participantType: (editingItem as any).participantType || ParticipantType.STAFF, providerRole: (editingItem as any).providerRole || '', date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : getToday(), observations: editingItem.observations || '' });
-      if (editingItem.participantType === ParticipantType.STAFF || !editingItem.participantType) {
-          const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(editingItem.staffName) && s.unit === unit);
-          setIsSectorLocked(!!staff);
-      } else {
-          setIsSectorLocked(false);
-      }
-    }
-  }, [editingItem, unit, proStaff, getToday]);
-
-  const handleSelectName = (label: string) => {
-      const nameOnly = label.split(' (')[0].trim();
-      const match = label.match(/\((.*?)\)$/);
-      let foundSector = formData.sector;
-      let foundWhatsapp = formData.whatsapp;
-      let lockSector = false;
-
-      if (formData.participantType === ParticipantType.STAFF) {
-          let staff: any;
-          if (match) staff = proStaff.find(s => s.id === `${unit}-${match[1]}` || s.id === match[1] || s.id === match[1].padStart(6, '0'));
-          if (!staff) staff = proStaff.find(s => normalizeString(s.name) === normalizeString(nameOnly) && s.unit === unit);
-
-          if (staff) {
-              const sector = proSectors.find(s => s.id === staff.sectorId);
-              if (sector) { foundSector = sector.name; lockSector = true; } else { lockSector = false; }
-              if (staff.whatsapp) foundWhatsapp = formatWhatsApp(staff.whatsapp);
-          } else { lockSector = false; }
-      } else {
-          const provider = proProviders.find(p => normalizeString(p.name) === normalizeString(nameOnly) && p.unit === unit);
-          if (provider) {
-              if (provider.sector) foundSector = provider.sector;
-              if (provider.whatsapp) foundWhatsapp = formatWhatsApp(provider.whatsapp);
-          }
-          lockSector = false;
-      }
-
-      setFormData(prev => ({ ...prev, staffName: nameOnly, whatsapp: foundWhatsapp, sector: foundSector }));
-      setIsSectorLocked(lockSector);
-      if (lockSector) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
-  };
-
-  const handleClear = () => {
-    setFormData({ ...defaultState, date: formData.date, participantType: formData.participantType });
-    setIsSectorLocked(false);
-    showToast("Campos limpos!", "info");
-  };
-
-  const handleChangeName = (v: string) => {
-      setFormData({...formData, staffName: v});
-      if (!v) setIsSectorLocked(false);
-  };
-
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    if (!formData.date) { showToast("Data obrigatória."); return; }
-    if (!formData.staffName) { showToast("Nome obrigatório."); return; }
-    if (!formData.reason) { showToast("Motivo obrigatório."); return; }
-    
-    const isStaff = formData.participantType === ParticipantType.STAFF;
-
-    if (isStaff) {
-        if (!formData.sector) { showToast("Setor é obrigatório para colaboradores.", "warning"); return; }
-        if (!proSectors.some(s => s.name === formData.sector && s.unit === unit)) { showToast("Setor inválido.", "warning"); return; }
-        if (!proStaff.some(s => normalizeString(s.name) === normalizeString(formData.staffName) && s.unit === unit)) { showToast("Colaborador não encontrado no RH.", "warning"); return; }
-    } else {
-        if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast("WhatsApp é obrigatório para prestadores.", "warning"); return; }
-    }
-    
-    setIsSubmitting(true);
-    try {
-      if (isStaff) {
-          if (formData.whatsapp) await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.STAFF);
-      } else {
-          await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.PROVIDER, formData.sector);
-      }
-      
-      await onSubmit({...formData, unit});
-      setFormData({ ...defaultState, date: getToday(), returnDate: getToday(), participantType: formData.participantType });
-      setIsSectorLocked(false);
-    } catch (error) {
-      console.error("Erro ao salvar:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const {
+    formData, setFormData,
+    isSectorLocked, setIsSectorLocked,
+    isSubmitting,
+    sectorOptions, nameOptions,
+    handleSelectName, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
+    sortedHistory, defaultState
+  } = useStaffVisitForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
 
@@ -178,73 +45,6 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       <button type="button" onClick={handleClear} className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 hover:text-pink-700 transition-all flex items-center justify-center text-lg shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>
     </>
   );
-
-  const handlePerformReturn = (item: StaffVisit) => {
-    // Preenche o formulário com os dados da pessoa, mas limpa ID e data para criar um novo registro
-    setFormData({
-      ...defaultState,
-      date: getToday(),
-      staffName: item.staffName,
-      sector: item.sector,
-      participantType: (item as any).participantType || ParticipantType.STAFF,
-      providerRole: (item as any).providerRole || '',
-      whatsapp: item.whatsapp || '',
-      reason: VisitReason.RETORNO,
-      requiresReturn: false,
-      returnDate: getToday()
-    });
-    // Se for colaborador e já tiver setor, trava o setor (simulando o comportamento de seleção)
-    if ((item as any).participantType === ParticipantType.STAFF || !(item as any).participantType) {
-      const match = proStaff.find(s => normalizeString(s.name) === normalizeString(item.staffName));
-      if (match && match.sectorId) {
-        setIsSectorLocked(true);
-      }
-    }
-    
-    // Rola para o topo para o usuário ver o formulário preenchido
-    const scrollContainer = document.getElementById('main-scroll-container');
-    if (scrollContainer) {
-      scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-    showToast("Formulário preenchido para novo retorno!", "success");
-  };
-
-  const sortedHistory = useMemo(() => {
-    const normalize = (s: string) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
-    const isAdmin = currentUser.role === 'ADMIN';
-    
-    return [...history].sort((a, b) => {
-      // Helper para verificar se retorno foi cumprido
-      const isFulfilled = (visit: StaffVisit) => {
-        if (!visit.requiresReturn) return true;
-        const vDate = new Date(visit.date).getTime();
-        return (allHistory.length > 0 ? allHistory : history).some(v => 
-          v.id !== visit.id &&
-          normalize(v.staffName) === normalize(visit.staffName) && 
-          new Date(v.date).getTime() >= vDate
-        );
-      };
-
-      const aPending = a.requiresReturn && !isFulfilled(a);
-      const bPending = b.requiresReturn && !isFulfilled(b);
-
-      // Regra: Admin vê todos pendentes no topo. Capelão/Estagiário vê apenas o próprio no topo.
-      const aPriority = aPending && (isAdmin || a.userId === currentUser.id);
-      const bPriority = bPending && (isAdmin || b.userId === currentUser.id);
-
-      // 1. Prioritários vêm primeiro
-      if (aPriority && !bPriority) return -1;
-      if (!aPriority && bPriority) return 1;
-
-      // 2. Se ambos prioritários, o mais antigo (atrasado) vem primeiro
-      if (aPriority && bPriority) {
-        return new Date(a.returnDate).getTime() - new Date(b.returnDate).getTime();
-      }
-
-      // 3. O resto segue ordem cronológica decrescente (mais novo primeiro)
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
-    });
-  }, [history, allHistory, currentUser]);
 
   const historySection = (
     <HistorySection<StaffVisit> 
@@ -271,14 +71,6 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         const isPending = item.requiresReturn && !isFulfilled(item);
         const isPriority = isPending && (isAdmin || item.userId === currentUser.id);
 
-        // Verifica se deve mostrar o separador
-        const showSeparator = index > 0 && isPriority && !(allItems[index-1].requiresReturn && !isFulfilled(allItems[index-1])); // Isso não está certo
-        
-        // Lógica correta para o separador:
-        // 1. Se for o primeiro item e for prioridade, mostra "PENDÊNCIAS"
-        // 2. Se for o primeiro item NÃO prioridade e houver prioridades na lista, mostra "HISTÓRICO"
-        // 3. Se o item anterior era prioridade e este não é, mostra "HISTÓRICO"
-        
         const prevItem = index > 0 ? allItems[index-1] : null;
         const isPrevPriority = prevItem ? (prevItem.requiresReturn && !isFulfilled(prevItem) && (isAdmin || prevItem.userId === currentUser.id)) : false;
         

@@ -54,9 +54,9 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
         
         <ConfirmationModal 
             isOpen={!!inviteToDelete}
-            title="Cancelar Convite?"
+            title="Excluir Agendamento?"
             message="Esta ação removerá o agendamento da lista do capelão designado. Deseja continuar?"
-            confirmLabel="Sim, Cancelar"
+            confirmLabel="Sim, Excluir"
             variant="danger"
             onConfirm={() => inviteToDelete && handleDeleteVisit(inviteToDelete)}
             onCancel={() => setInviteToDelete(null)}

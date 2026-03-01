@@ -118,6 +118,22 @@ export const useAppData = () => {
             if (hasUpdates) {
                 // Atualização silenciosa do RH oficial
                 await saveRecord('proStaff', { ...staff, ...updates });
+                
+                // 3. Cura de Escalas Futuras (VisitRequests)
+                // Se o telefone foi atualizado, atualiza também as escalas pendentes desse líder
+                if (updates.whatsapp) {
+                    const pendingRequests = visitRequests.filter(req => 
+                        req.unit === unit && 
+                        req.status === 'assigned' && 
+                        normalizeString(req.leaderName) === normName &&
+                        req.leaderPhone !== updates.whatsapp
+                    );
+                    
+                    for (const req of pendingRequests) {
+                        await saveRecord('visitRequests', { ...req, leaderPhone: updates.whatsapp });
+                        console.log(`[DataHealing] Atualizando telefone na escala futura do PG ${req.pgName}`);
+                    }
+                }
             }
         }
     } else if (type === ParticipantType.PATIENT) {

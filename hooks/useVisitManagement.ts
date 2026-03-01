@@ -66,7 +66,7 @@ export const useVisitManagement = (
 
       const success = await saveRecord('visitRequests', requestData);
       if (success) {
-        showToast(editingRequestId ? 'Agendamento atualizado!' : 'Convite enviado!', "success");
+        showToast(editingRequestId ? 'Agendamento atualizado!' : 'Visita agendada!', "success");
         handleCancelEdit();
         return true;
       }

@@ -1,12 +1,14 @@
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { NAV_ITEMS } from '../constants';
 import { DEFAULT_APP_LOGO } from '../assets';
 import { UserRole, Config, User } from '../types';
 import NotificationCenter from './NotificationCenter';
 import InstallPrompt from './PWA/InstallPrompt';
-import { getFifthBusinessDay } from '../utils/formatters';
+import { useScrollDetection } from '../hooks/useScrollDetection';
+import { useKeyboardDetection } from '../hooks/useKeyboardDetection';
+import { useGracePeriod } from '../hooks/useGracePeriod';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -21,89 +23,13 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, currentUser, isSyncing, isConnected, isLabMode, config, onLogout }) => {
-  const [isKeyboardOpen, setIsKeyboardOpen] = React.useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  
   // Normalização da role para garantir match com NAV_ITEMS
   const normalizedRole = String(currentUser?.role || '').toUpperCase().trim();
   
-  const [timeLeft, setTimeLeft] = React.useState<{ days: number; hours: number; minutes: number } | null>(null);
-  const [isGracePeriod, setIsGracePeriod] = React.useState(false);
-  const [isCritical, setIsCritical] = React.useState(false);
-
-  // Monitoramento de Scroll para Morphing Header
-  useEffect(() => {
-    const scrollContainer = document.getElementById('main-scroll-container');
-    if (!scrollContainer) return;
-
-    const handleScroll = () => {
-      // Ativa a transição quando o scroll passar de 40px
-      if (scrollContainer.scrollTop > 40) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
-    };
-
-    scrollContainer.addEventListener('scroll', handleScroll);
-    return () => scrollContainer.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  React.useEffect(() => {
-    if (normalizedRole === 'ADMIN') {
-      setIsGracePeriod(false);
-      return;
-    }
-
-    const calculateTime = () => {
-      const today = new Date();
-      const target = getFifthBusinessDay(today.getFullYear(), today.getMonth());
-      const diff = target.getTime() - today.getTime();
-
-      if (diff > 0) {
-        setIsGracePeriod(true);
-        setIsCritical(diff <= 2 * 24 * 60 * 60 * 1000);
-        setTimeLeft({
-          days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((diff / 1000 / 60) % 60)
-        });
-      } else {
-        setIsGracePeriod(false);
-        setIsCritical(false);
-        setTimeLeft(null);
-      }
-    };
-
-    calculateTime();
-    const timer = setInterval(calculateTime, 60000);
-    return () => clearInterval(timer);
-  }, [normalizedRole]);
-
-  const prevMonthName = useMemo(() => {
-    const now = new Date();
-    return new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(
-      new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    );
-  }, []);
-  
-  // Detecção de teclado aberto para mobile
-  useEffect(() => {
-    const handleFocus = (e: FocusEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-        setIsKeyboardOpen(true);
-      }
-    };
-    const handleBlur = () => setIsKeyboardOpen(false);
-
-    window.addEventListener('focusin', handleFocus);
-    window.addEventListener('focusout', handleBlur);
-    return () => {
-      window.removeEventListener('focusin', handleFocus);
-      window.removeEventListener('focusout', handleBlur);
-    };
-  }, []);
+  // Hooks Customizados
+  const isScrolled = useScrollDetection('main-scroll-container', 40);
+  const isKeyboardOpen = useKeyboardDetection();
+  const { timeLeft, isGracePeriod, isCritical, prevMonthName } = useGracePeriod(normalizedRole);
 
   // Gatilho para resetar scroll ao mudar de aba
   useEffect(() => {
@@ -194,21 +120,23 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
       </header>
 
       {/* GLOBAL SYSTEM BANNER */}
-      {isGracePeriod && timeLeft && (
+      {isGracePeriod && (
         <div className={`${isCritical ? 'bg-rose-500 text-white' : 'bg-amber-400 text-slate-900'} px-3 py-1.5 md:px-4 md:py-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 md:gap-4 z-50 shadow-sm flex-shrink-0 animate-in slide-in-from-top-2`}>
           <div className="flex items-center gap-1.5 md:gap-2">
             <i className={`fas ${isCritical ? 'fa-exclamation-circle animate-pulse' : 'fa-clock'} text-xs md:text-sm`}></i>
             <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-center">
-              Prazo para lançamentos de {prevMonthName} encerra em:
+              Prazo para lançamentos de {prevMonthName}{timeLeft ? ' encerra em:' : ' se aproxima.'}
             </span>
           </div>
-          <div className="flex items-center gap-1 md:gap-2 font-black text-[10px] md:text-xs bg-black/10 px-2 py-0.5 md:px-3 md:py-1 rounded-md md:rounded-lg">
-            <span>{timeLeft.days}d</span>
-            <span>:</span>
-            <span>{String(timeLeft.hours).padStart(2, '0')}h</span>
-            <span>:</span>
-            <span>{String(timeLeft.minutes).padStart(2, '0')}m</span>
-          </div>
+          {timeLeft && (
+            <div className="flex items-center gap-1 md:gap-2 font-black text-[10px] md:text-xs bg-black/10 px-2 py-0.5 md:px-3 md:py-1 rounded-md md:rounded-lg">
+              <span>{timeLeft.days}d</span>
+              <span>:</span>
+              <span>{String(timeLeft.hours).padStart(2, '0')}h</span>
+              <span>:</span>
+              <span>{String(timeLeft.minutes).padStart(2, '0')}m</span>
+            </div>
+          )}
         </div>
       )}
 

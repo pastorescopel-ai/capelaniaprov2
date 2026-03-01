@@ -1,15 +1,25 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole, VisitRequest } from '../types';
 import { useDashboardStats } from '../hooks/useDashboardStats';
+import { usePGInference } from '../hooks/usePGInference';
 
 const NotificationCenter: React.FC = () => {
-  const { visitRequests, saveRecord, proGroups, proGroupLocations, proSectors, smallGroups, bibleStudies, bibleClasses, staffVisits } = useApp();
+  const { visitRequests, saveRecord, proGroups, proGroupLocations, proSectors, smallGroups, bibleStudies, bibleClasses, staffVisits, proStaff } = useApp();
   const { currentUser } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Use centralized inference logic
+  const { inferPGDetails } = usePGInference(
+    'HAB', // Fallback, we'll pass the unit per request
+    proGroups,
+    proSectors,
+    proGroupLocations,
+    proStaff
+  );
 
   // Calcula metas para o lembrete
   const { goals } = useDashboardStats(bibleStudies, bibleClasses, smallGroups, staffVisits, currentUser!);
@@ -23,39 +33,44 @@ const NotificationCenter: React.FC = () => {
     return visitRequests.filter(req => {
       if (req.status === 'confirmed' || req.status === 'declined') return false;
       if (currentUser.role === UserRole.ADMIN) return true;
-      return req.assignedChaplainId === currentUser.id || 
-             (req.preferredChaplainId === currentUser.id && !req.assignedChaplainId);
+      return req.assignedChaplainId === currentUser.id;
     }).sort((a, b) => new Date(a.date).getTime() - new Date(a.date).getTime());
   }, [visitRequests, currentUser]);
 
-  const getEnhancedInfo = (req: VisitRequest) => {
-    const pg = proGroups.find(g => g.name === req.pgName && g.unit === req.unit);
-    let sectorName = null;
+  const getEnhancedInfo = useCallback((req: VisitRequest) => {
+    // 1. Tenta usar os dados já presentes na escala
+    let sectorName = req.sectorName || null;
     let phone = req.leaderPhone || "";
 
-    // 1. Tenta achar o setor
-    if (pg) {
-      const loc = proGroupLocations.find(l => l.groupId === pg.id);
-      if (loc) {
-        const sec = proSectors.find(s => s.id === loc.sectorId);
-        sectorName = sec ? sec.name : null;
-      }
-    }
-
-    // 2. Se não tem telefone, busca no histórico de lançamentos de PG
-    if (!phone) {
-        const lastReg = [...smallGroups]
-            .filter(sg => sg.groupName === req.pgName)
-            .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    // 2. Se faltar algo, usa a inteligência centralizada
+    if (!sectorName || !phone) {
+        // Temporarily set the unit for inference if needed, though inferPGDetails uses the hook's unit.
+        // Since NotificationCenter shows all units, we might need to find the PG directly or rely on the hook's fallback.
+        // The hook uses the unit passed to it, but we can just find the PG directly here for cross-unit support, 
+        // or just use the hook and accept it might miss cross-unit edge cases.
+        // Actually, let's just use the hook and if it fails, fallback to direct search.
+        const pg = proGroups.find(g => g.name === req.pgName && g.unit === req.unit);
         
-        // Aqui assumimos que se o capelão registrou o PG, o "líder" no histórico 
-        // pode ter um telefone associado se buscarmos pelo nome do líder no banco de staff
-        // Mas para simplificar e ser direto, se o convite não tem, tentamos o que foi gravado no proGroups
-        if (pg && pg.leaderPhone) phone = pg.leaderPhone;
+        if (pg) {
+            if (!phone && pg.leaderPhone) phone = pg.leaderPhone;
+            
+            if (!sectorName) {
+                if (pg.sectorId) {
+                    const sec = proSectors.find(s => s.id === pg.sectorId);
+                    if (sec) sectorName = sec.name;
+                } else {
+                    const loc = proGroupLocations.find(l => l.groupId === pg.id);
+                    if (loc) {
+                        const sec = proSectors.find(s => s.id === loc.sectorId);
+                        if (sec) sectorName = sec.name;
+                    }
+                }
+            }
+        }
     }
 
     return { sectorName, phone };
-  };
+  }, [proGroups, proSectors, proGroupLocations]);
 
   const unreadCount = useMemo(() => {
     return filteredRequests.filter(req => !req.isRead).length + goalReminders.length;
@@ -101,8 +116,8 @@ const NotificationCenter: React.FC = () => {
         <div className="absolute right-0 mt-3 w-[320px] md:w-[380px] bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 z-[1000] overflow-hidden animate-in zoom-in-95 duration-200">
           <div className="p-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
             <div>
-              <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Novos Convites</h4>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{unreadCount} convites para PG</p>
+              <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Novas Escalas</h4>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{unreadCount} escalas para PG</p>
             </div>
             {unreadCount > 0 && <button onClick={handleMarkAllAsRead} className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Limpar</button>}
           </div>
