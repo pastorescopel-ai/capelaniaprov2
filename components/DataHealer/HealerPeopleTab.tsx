@@ -12,6 +12,8 @@ interface HealerPeopleTabProps {
   sectorMap: Record<string, string>;
   setSectorMap: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   officialStaffOptions: any[];
+  officialPatientOptions: any[];
+  officialProviderOptions: any[];
   officialSectorOptions: any[];
   handleProcessPerson: (name: string) => void;
   isProcessing: boolean;
@@ -27,6 +29,8 @@ const HealerPeopleTab: React.FC<HealerPeopleTabProps> = ({
   sectorMap,
   setSectorMap,
   officialStaffOptions,
+  officialPatientOptions,
+  officialProviderOptions,
   officialSectorOptions,
   handleProcessPerson,
   isProcessing
@@ -87,28 +91,40 @@ const HealerPeopleTab: React.FC<HealerPeopleTabProps> = ({
                 </div>
 
                 <div className="flex-1 w-full xl:w-2/3 flex flex-col md:flex-row gap-3">
-                  {currentType !== 'Colaborador' ? (
-                    <>
-                      {currentType === 'Ex-Colaborador' ? (
-                        <div className="flex-1">
-                          <Autocomplete 
-                            options={officialSectorOptions} 
-                            value={sectorMap[name] || ''} 
-                            onChange={(val) => setSectorMap(prev => ({...prev, [name]: val}))} 
-                            onSelectOption={(val) => setSectorMap(prev => ({...prev, [name]: val}))} 
-                            placeholder="Selecione o Último Setor Conhecido..." 
-                            className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl font-bold text-xs outline-none focus:border-rose-500" 
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex-1 p-4 bg-slate-100 rounded-2xl border border-slate-200 flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-600 uppercase">
-                            <i className={`fas ${currentType === 'Paciente' ? 'fa-procedures' : 'fa-briefcase'} mr-2`}></i>Criar {currentType}
-                          </span>
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">Gera ID Automático</span>
-                        </div>
-                      )}
-                    </>
+                  {currentType === 'Ex-Colaborador' ? (
+                    <div className="flex-1 flex flex-col md:flex-row gap-3">
+                      <div className="flex-1">
+                        <Autocomplete 
+                          options={officialStaffOptions}
+                          value={targetMap[name] || ''}
+                          onChange={(val) => setTargetMap(prev => ({...prev, [name]: val}))}
+                          onSelectOption={(label) => setTargetMap(prev => ({...prev, [name]: label}))}
+                          placeholder="Buscar no RH (Inativos)..."
+                          className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl font-bold text-sm outline-none shadow-sm transition-all focus:border-rose-500"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <Autocomplete 
+                          options={officialSectorOptions} 
+                          value={sectorMap[name] || ''} 
+                          onChange={(val) => setSectorMap(prev => ({...prev, [name]: val}))} 
+                          onSelectOption={(val) => setSectorMap(prev => ({...prev, [name]: val}))} 
+                          placeholder="Último Setor (Opcional)..." 
+                          className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl font-bold text-xs outline-none focus:border-rose-500" 
+                        />
+                      </div>
+                    </div>
+                  ) : currentType === 'Paciente' || currentType === 'Prestador' ? (
+                    <div className="flex-1">
+                      <Autocomplete 
+                        options={currentType === 'Paciente' ? officialPatientOptions : officialProviderOptions}
+                        value={targetMap[name] || ''}
+                        onChange={(val) => setTargetMap(prev => ({...prev, [name]: val}))}
+                        onSelectOption={(label) => setTargetMap(prev => ({...prev, [name]: label}))}
+                        placeholder={`Vincular a ${currentType} Existente (Opcional)...`}
+                        className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl font-bold text-sm outline-none shadow-sm transition-all focus:border-rose-500"
+                      />
+                    </div>
                   ) : (
                     <div className="flex-1">
                       <Autocomplete 
@@ -124,11 +140,14 @@ const HealerPeopleTab: React.FC<HealerPeopleTabProps> = ({
                   
                   <button 
                     onClick={() => handleProcessPerson(name)}
-                    disabled={(!targetMap[name] && currentType === 'Colaborador') || (currentType === 'Ex-Colaborador' && !sectorMap[name]) || isProcessing}
+                    disabled={(!targetMap[name] && (currentType === 'Colaborador' || currentType === 'Ex-Colaborador')) || isProcessing}
                     className="px-8 py-4 text-white rounded-2xl font-black text-xs uppercase tracking-widest disabled:opacity-50 disabled:bg-slate-300 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap bg-rose-500 hover:bg-rose-600"
                   >
                     {isProcessing ? <i className="fas fa-circle-notch fa-spin"></i> : <i className="fas fa-check-circle"></i>}
-                    <span>{currentType !== 'Colaborador' ? (currentType === 'Ex-Colaborador' ? 'Criar Inativo' : 'Criar & Vincular') : 'Unificar'}</span>
+                    <span>
+                      {currentType === 'Colaborador' || currentType === 'Ex-Colaborador' ? 'Unificar' : 
+                       targetMap[name] ? 'Vincular' : 'Criar & Vincular'}
+                    </span>
                   </button>
                 </div>
               </div>

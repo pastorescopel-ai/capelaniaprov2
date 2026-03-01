@@ -102,21 +102,40 @@ export const useDataHealer = () => {
 
     const normSearch = normalizeString(searchQuery);
     
-    const checkAndAdd = (rawName: string, sourceSector: string | undefined, type: 'class' | 'study' | 'visit', participantType?: string) => {
-        if (!rawName) return;
-        const cleanName = rawName.split(' (')[0].trim();
+    const checkAndAdd = (rawName: string | null | undefined, sourceSector: string | undefined, type: 'class' | 'study' | 'visit' | 'group', participantType?: string) => {
+        const effectiveName = rawName?.trim() || "[REGISTRO SEM NOME]";
+        const cleanName = effectiveName.split(' (')[0].trim();
         if (resolvedItems.has(cleanName)) return;
 
         const norm = normalizeString(cleanName);
         const isMatchSearch = normSearch && norm.includes(normSearch);
+        
+        // Verifica se já possui vínculo por ID (ex: "Nome (123)")
+        const hasIdLink = rawName && rawName.match(/\(\d+\)$/);
+        
+        // Verifica se o nome existe no banco oficial
         const isOfficiallyListed = officialNamesNormalized.has(norm);
-        const shouldShow = isMatchSearch || (!isOfficiallyListed || showAllHistory);
+        
+        // MOSTRA SOMENTE SE:
+        // 1. É uma busca ativa (searchQuery)
+        // 2. OU se o usuário pediu para ver todo o histórico (showAllHistory)
+        // 3. OU se NÃO tem vínculo por ID E NÃO está no banco oficial (é um órfão real)
+        
+        // REGRA DE OURO ATUALIZADA: Se o nome já existe no banco oficial (isOfficiallyListed), 
+        // considera SAUDÁVEL e esconde, mesmo que não tenha o ID "(123)" no texto.
+        // O usuário reclamou que "vínculo existente" não deveria aparecer na lista.
+        if (isOfficiallyListed && !isMatchSearch && !showAllHistory) return;
 
-        if (shouldShow && !rawName.match(/\(\d+\)$/)) {
-            if (participantType && participantType !== 'Colaborador' && !showAllHistory && !isMatchSearch && isOfficiallyListed) return;
+        // Se tem ID explícito, também esconde
+        if (hasIdLink && !isMatchSearch && !showAllHistory) return;
+
+        const shouldShow = isMatchSearch || showAllHistory || !isOfficiallyListed;
+
+        if (shouldShow) {
+            if (participantType && participantType !== 'Colaborador' && !showAllHistory && !isMatchSearch && isOfficiallyListed && hasIdLink) return;
 
             if (!orphanMap.has(cleanName)) {
-                orphanMap.set(cleanName, { sectors: new Set(), sources: { class: 0, study: 0, visit: 0 } });
+                orphanMap.set(cleanName, { sectors: new Set(), sources: { class: 0, study: 0, visit: 0, group: 0 } });
             }
             
             const entry = orphanMap.get(cleanName)!;
@@ -142,7 +161,7 @@ export const useDataHealer = () => {
     });
 
     smallGroups.forEach(sg => {
-        checkAndAdd(sg.leader, sg.sector, 'visit', 'Colaborador');
+        checkAndAdd(sg.leader, sg.sector, 'group', 'Colaborador');
     });
 
     visitRequests.forEach(vr => {
@@ -150,8 +169,8 @@ export const useDataHealer = () => {
     });
 
     proGroups.forEach(pg => {
-        if (pg.currentLeader) checkAndAdd(pg.currentLeader, undefined, 'visit', 'Colaborador');
-        if (pg.leader) checkAndAdd(pg.leader, undefined, 'visit', 'Colaborador');
+        if (pg.currentLeader) checkAndAdd(pg.currentLeader, undefined, 'group', 'Colaborador');
+        if (pg.leader) checkAndAdd(pg.leader, undefined, 'group', 'Colaborador');
     });
     
     return Array.from(orphanMap.entries())
@@ -228,51 +247,119 @@ export const useDataHealer = () => {
       return peopleOrphans.filter(p => !filterClassOnly || p.sources.class > 0);
   }, [peopleOrphans, filterClassOnly]);
 
+  // --- MOTOR DE SUGESTÃO INTELIGENTE ---
+  useEffect(() => {
+    if (activeTab === 'people' && peopleOrphans.length > 0) {
+        setTargetMap(prev => {
+            const next = { ...prev };
+            let changed = false;
+            peopleOrphans.forEach(orphan => {
+                if (!next[orphan.name]) {
+                    const normOrphan = normalizeString(orphan.name);
+                    if (normOrphan && normOrphan !== normalizeString("[REGISTRO SEM NOME]")) {
+                        const currentType = personTypeMap[orphan.name] || 'Colaborador';
+                        let match: any;
+
+                        if (currentType === 'Colaborador' || currentType === 'Ex-Colaborador') {
+                            match = proStaff.find(s => {
+                                const normStaff = normalizeString(s.name);
+                                return normStaff.includes(normOrphan) || normOrphan.includes(normStaff);
+                            });
+                        } else if (currentType === 'Paciente') {
+                            match = proPatients.find(p => {
+                                const normP = normalizeString(p.name);
+                                return normP.includes(normOrphan) || normOrphan.includes(normP);
+                            });
+                        } else if (currentType === 'Prestador') {
+                            match = proProviders.find(p => {
+                                const normP = normalizeString(p.name);
+                                return normP.includes(normOrphan) || normOrphan.includes(normP);
+                            });
+                        }
+                        
+                        if (match) {
+                            if (currentType === 'Colaborador' || currentType === 'Ex-Colaborador') {
+                                const idStr = String(match.id).replace(/\D/g, '');
+                                next[orphan.name] = `${match.name} (${idStr})`;
+                            } else {
+                                next[orphan.name] = match.name;
+                            }
+                            changed = true;
+                        }
+                    }
+                }
+            });
+            return changed ? next : prev;
+        });
+    }
+  }, [peopleOrphans, activeTab, proStaff, proPatients, proProviders, personTypeMap]);
+
   const handleProcessPerson = async (orphanName: string) => {
       const selectedType = personTypeMap[orphanName] || 'Colaborador';
 
-      if (selectedType === 'Colaborador') {
+      if (selectedType === 'Colaborador' || selectedType === 'Ex-Colaborador') {
           const targetLabel = targetMap[orphanName];
-          if (!targetLabel) { showToast("Selecione o colaborador correspondente no RH.", "warning"); return; }
+          if (!targetLabel) { showToast(`Selecione o ${selectedType} correspondente.`, "warning"); return; }
           const targetId = targetLabel.match(/\((\d+)\)/)?.[1];
           if (!targetId) { showToast("Matrícula inválida.", "warning"); return; }
 
           setIsProcessing(true);
           try {
+              // 1. Unifica Identidade (Classes, Estudos, Visitas)
               const result = await unifyStudentIdentity(orphanName, targetId);
-              showToast(result, "success");
+              
+              // 2. CURA PROFUNDA: Atualiza Cadastros Mestres e Histórico de PGs
+              const targetStaff = proStaff.find(s => String(s.id).includes(targetId));
+              if (targetStaff) {
+                  const normOrphan = normalizeString(orphanName);
+                  
+                  // Atualiza Líderes nos Grupos Mestres
+                  const groupsToUpdate = proGroups.filter(g => normalizeString(g.leader) === normOrphan || normalizeString(g.currentLeader) === normOrphan);
+                  for (const g of groupsToUpdate) {
+                      await saveRecord('proGroups', { 
+                          ...g, 
+                          leader: normalizeString(g.leader) === normOrphan ? targetStaff.name : g.leader,
+                          currentLeader: normalizeString(g.currentLeader) === normOrphan ? targetStaff.name : g.currentLeader,
+                          leaderPhone: targetStaff.whatsapp || g.leaderPhone
+                      });
+                  }
+
+                  // Atualiza Líderes no Histórico de PGs
+                  const historyToUpdate = smallGroups.filter(sg => normalizeString(sg.leader) === normOrphan);
+                  for (const sg of historyToUpdate) {
+                      await saveRecord('smallGroups', { ...sg, leader: targetStaff.name });
+                  }
+              }
+
+              showToast(`Cura profunda concluída! ${result}`, "success");
               setResolvedItems(prev => new Set(prev).add(orphanName));
               setResolvedItems(prev => new Set(prev).add(normalizeString(orphanName)));
               setTargetMap(prev => { const n = {...prev}; delete n[orphanName]; return n; });
           } catch (e: any) { showToast("Erro: " + e.message, "warning"); } 
           finally { setIsProcessing(false); }
 
-      } else if (selectedType === 'Ex-Colaborador') {
-          const sectorName = sectorMap[orphanName];
-          const sector = proSectors.find(s => s.name === sectorName);
-          if (!sector) { showToast("Selecione um setor para vincular o histórico do ex-colaborador.", "warning"); return; }
-          if (!confirm(`Criar registro de inativo para "${orphanName}" no setor ${sector.name}?`)) return;
-
+      } else if (selectedType === 'Paciente' || selectedType === 'Prestador') {
+          const targetName = targetMap[orphanName];
+          
           setIsProcessing(true);
           try {
-              const legacyId = (7000000000 + Math.floor(Math.random() * 1000000)).toString();
-              const newLegacyStaff: ProStaff = {
-                  id: legacyId, name: orphanName, sectorId: sector.id, unit: sector.unit, active: false, updatedAt: Date.now()
-              };
-              await saveRecord('proStaff', newLegacyStaff);
-              const result = await unifyStudentIdentity(orphanName, legacyId);
-              showToast(`Ex-Colaborador criado! ${result}`, "success");
-              setResolvedItems(prev => new Set(prev).add(orphanName));
-              setSectorMap(prev => { const n = {...prev}; delete n[orphanName]; return n; });
-          } catch (e: any) { showToast("Erro: " + e.message, "warning"); }
-          finally { setIsProcessing(false); }
-
-      } else {
-          if (!confirm(`Confirma que "${orphanName}" é um ${selectedType}?`)) return;
-          setIsProcessing(true);
-          try {
-              const result = await createAndLinkIdentity(orphanName, selectedType);
-              showToast(result, "success");
+              if (targetName) {
+                  // VINCULAR A EXISTENTE
+                  const list = selectedType === 'Paciente' ? proPatients : proProviders;
+                  const existing = list.find(p => p.name === targetName);
+                  if (!existing) throw new Error(`${selectedType} selecionado não encontrado.`);
+                  
+                  const result = await unifyStudentIdentity(orphanName, existing.id);
+                  showToast(`Vínculo universal realizado: ${result}`, "success");
+              } else {
+                  // CRIAR NOVO (Comportamento antigo)
+                  if (!confirm(`Confirma criar novo cadastro de ${selectedType} para "${orphanName}"?`)) {
+                      setIsProcessing(false);
+                      return;
+                  }
+                  const result = await createAndLinkIdentity(orphanName, selectedType);
+                  showToast(result, "success");
+              }
               setResolvedItems(prev => new Set(prev).add(orphanName));
           } catch (e: any) { showToast("Erro: " + e.message, "warning"); }
           finally { setIsProcessing(false); }

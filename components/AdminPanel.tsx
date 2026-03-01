@@ -110,6 +110,20 @@ const AdminPanel: React.FC = () => {
           <button onClick={handleManualRefresh} className={`px-5 py-4 bg-emerald-50 text-emerald-600 font-black rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm`}>
             <i className={`fas fa-sync-alt ${isRefreshing ? 'animate-spin' : ''}`}></i> Sincronizar Agora
           </button>
+          <button onClick={async () => {
+            try {
+              if (window.aistudio && window.aistudio.openSelectKey) {
+                await window.aistudio.openSelectKey();
+                window.location.reload();
+              } else {
+                showToast("Recurso indisponível neste ambiente.", "warning");
+              }
+            } catch (e) {
+              showToast("Erro ao abrir seletor de chave.", "error");
+            }
+          }} className="px-5 py-4 bg-indigo-50 text-indigo-600 font-black rounded-2xl hover:bg-indigo-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm">
+            <i className="fas fa-key"></i> Configurar Chave API Pro
+          </button>
           <button onClick={handleExportFullDNA} className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg">
             <i className="fas fa-download text-amber-400"></i> Baixar Backup JSON
           </button>
