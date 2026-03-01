@@ -33,14 +33,18 @@ const HealerPeopleTab: React.FC<HealerPeopleTabProps> = ({
   officialProviderOptions,
   officialSectorOptions,
   handleProcessPerson,
+  handleDeleteSourceRecord,
+  getSourceRecords,
   isProcessing
 }) => {
+  const [expandedPerson, setExpandedPerson] = React.useState<string | null>(null);
+
   return (
     <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
-      <div className="p-8 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-        <h3 className="font-black text-slate-700 uppercase text-sm tracking-widest">Fila de Tratamento</h3>
-        <span className="text-[10px] font-bold text-slate-400 uppercase"><i className="fas fa-magic mr-1"></i> Correção em massa</span>
-      </div>
+        <div className="p-8 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+            <h3 className="font-black text-slate-700 uppercase text-sm tracking-widest">Fila de Tratamento</h3>
+            <span className="text-[10px] font-bold text-slate-400 uppercase"><i className="fas fa-magic mr-1"></i> Correção em massa</span>
+        </div>
       
       <div className="divide-y divide-slate-100 max-h-[65vh] overflow-y-auto custom-scrollbar pb-72">
         {filteredPeopleList.length === 0 ? (
@@ -83,6 +87,41 @@ const HealerPeopleTab: React.FC<HealerPeopleTabProps> = ({
                       <i className="fas fa-map-marker-alt text-slate-400 mt-0.5"></i>
                       <span>{sectors.length > 0 ? `Visto em: ${sectors.join(', ')}` : <span className="italic text-slate-400">Local não registrado</span>}</span>
                     </div>
+                    
+                    <button 
+                        onClick={() => setExpandedPerson(expandedPerson === name ? null : name)}
+                        className="mt-2 text-[10px] font-bold text-slate-400 hover:text-rose-500 flex items-center gap-1 transition-colors uppercase tracking-wider"
+                    >
+                        <i className={`fas ${expandedPerson === name ? 'fa-chevron-up' : 'fa-search'}`}></i>
+                        {expandedPerson === name ? 'Ocultar Detalhes' : 'Investigar Origem'}
+                    </button>
+
+                    {expandedPerson === name && (
+                        <div className="mt-3 bg-slate-100 rounded-xl p-3 space-y-2 animate-in slide-in-from-top-2">
+                            <h4 className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2">Registros Encontrados:</h4>
+                            {getSourceRecords(name).map((rec: any, idx: number) => (
+                                <div key={idx} className="bg-white p-2 rounded-lg border border-slate-200 flex justify-between items-center gap-2">
+                                    <div className="text-[10px] text-slate-600">
+                                        <span className="font-bold block uppercase text-[9px] text-slate-400">{rec.type}</span>
+                                        {rec.date && <span className="mr-2">{new Date(rec.date).toLocaleDateString('pt-BR')}</span>}
+                                        {rec.sector && <span className="bg-slate-100 px-1 rounded text-[9px]">{rec.sector}</span>}
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            if(confirm("Tem certeza que deseja EXCLUIR este registro original? Esta ação é irreversível.")) {
+                                                handleDeleteSourceRecord(rec.collection, rec.id);
+                                            }
+                                        }}
+                                        className="text-rose-400 hover:text-rose-600 p-1 hover:bg-rose-50 rounded transition-colors"
+                                        title="Excluir Registro Original"
+                                    >
+                                        <i className="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            ))}
+                            {getSourceRecords(name).length === 0 && <div className="text-[10px] italic text-slate-400">Nenhum registro detalhado encontrado.</div>}
+                        </div>
+                    )}
                   </div>
                 </div>
 

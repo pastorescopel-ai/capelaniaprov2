@@ -25,7 +25,9 @@ const DataHealer: React.FC = () => {
     handleProcessPerson, handleHealSector, handleLinkStudy, isHealthy,
     healthScore,
     duplicatePGs,
-    handleMergePGs
+    handleMergePGs,
+    getSourceRecords,
+    handleDeleteSourceRecord
   } = useDataHealer();
 
   // Tema dinâmico
@@ -198,8 +200,12 @@ const DataHealer: React.FC = () => {
                   sectorMap={sectorMap}
                   setSectorMap={setSectorMap}
                   officialStaffOptions={officialStaffOptions}
+                  officialPatientOptions={officialPatientOptions}
+                  officialProviderOptions={officialProviderOptions}
                   officialSectorOptions={officialSectorOptions}
                   handleProcessPerson={handleProcessPerson}
+                  getSourceRecords={getSourceRecords}
+                  handleDeleteSourceRecord={handleDeleteSourceRecord}
                   isProcessing={isProcessing}
                 />
               )}

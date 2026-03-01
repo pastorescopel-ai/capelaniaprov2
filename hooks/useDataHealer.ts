@@ -484,6 +484,65 @@ export const useDataHealer = () => {
     handleProcessPerson, handleHealSector, handleLinkStudy, isHealthy,
     healthScore,
     duplicatePGs,
-    handleMergePGs
+    handleMergePGs,
+    getSourceRecords: (orphanName: string) => {
+        const records: any[] = [];
+        const norm = normalizeString(orphanName);
+
+        // Helper para checar nome
+        const check = (name: string | undefined) => name && normalizeString(name) === norm;
+
+        bibleClasses.forEach(c => {
+            if (c.students?.some(s => check(s))) {
+                records.push({ type: 'Aula Bíblica', date: c.date, sector: c.sector, id: c.id, collection: 'bible_classes' });
+            }
+        });
+
+        bibleStudies.forEach(s => {
+            if (check(s.name)) {
+                records.push({ type: 'Estudo Bíblico', date: s.date, sector: s.sector, id: s.id, collection: 'bible_study_sessions' });
+            }
+        });
+
+        staffVisits.forEach(v => {
+            if (check(v.staffName)) {
+                records.push({ type: 'Visita Colaborador', date: v.date, sector: v.sector, id: v.id, collection: 'staff_visits' });
+            }
+        });
+        
+        smallGroups.forEach(sg => {
+            if (check(sg.leader)) {
+                records.push({ type: 'Pequeno Grupo (Histórico)', date: sg.date, sector: sg.sector, id: sg.id, collection: 'small_groups' });
+            }
+        });
+
+        visitRequests.forEach(vr => {
+            if (check(vr.leaderName)) {
+                records.push({ type: 'Solicitação Visita', date: vr.requestDate, sector: vr.sectorName, id: vr.id, collection: 'visit_requests' });
+            }
+        });
+
+        proGroups.forEach(pg => {
+            if (check(pg.leader) || check(pg.currentLeader)) {
+                records.push({ type: 'Cadastro Mestre PG', sector: pg.unit, id: pg.id, collection: 'pro_groups' });
+            }
+        });
+
+        return records;
+    },
+    handleDeleteSourceRecord: async (collection: string, id: string) => {
+        if (!confirm("Tem certeza absoluta? Esta ação apagará o registro original do banco de dados.")) return;
+        setIsProcessing(true);
+        try {
+            await deleteRecord(collection, id);
+            showToast("Registro excluído com sucesso.", "success");
+            // Força recarga dos dados para atualizar a lista
+            await loadFromCloud(false);
+        } catch (e: any) {
+            showToast("Erro ao excluir: " + e.message, "error");
+        } finally {
+            setIsProcessing(false);
+        }
+    }
   };
 };
