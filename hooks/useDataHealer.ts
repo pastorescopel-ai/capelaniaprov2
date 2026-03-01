@@ -13,7 +13,7 @@ export const useDataHealer = () => {
     bibleClasses, bibleStudies, smallGroups, staffVisits, visitRequests,
     proStaff, proPatients, proProviders, proSectors, proGroups,
     unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, 
-    linkStudySessionIdentity, saveRecord, mergePGs
+    linkStudySessionIdentity, saveRecord, mergePGs, deleteRecord, loadFromCloud
   } = useApp();
   const { showToast } = useToast();
   
