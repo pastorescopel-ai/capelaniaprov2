@@ -170,7 +170,18 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
               if (peersToAdd.length > 0) showToast(`Histórico encontrado! Agrupando com ${peersToAdd.length} colega(s).`, "info");
           }
       }
-      setFormData(prev => ({ ...prev, students: [...prev.students, finalString, ...peersToAdd], guide: nextGuide, lesson: nextLesson, status: nextStatus, representativePhone: nextPhone })); 
+      
+      // Garante que não haja duplicatas na lista final
+      const updatedStudents = Array.from(new Set([...formData.students, finalString, ...peersToAdd]));
+      
+      setFormData(prev => ({ 
+        ...prev, 
+        students: updatedStudents, 
+        guide: nextGuide, 
+        lesson: nextLesson, 
+        status: nextStatus, 
+        representativePhone: nextPhone 
+      })); 
       setNewStudent(''); 
     } 
   };

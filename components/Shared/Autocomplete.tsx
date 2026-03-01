@@ -80,7 +80,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
       <input 
         required={required} // Usa a prop dinâmica aqui
         placeholder={placeholder}
-        value={value}
+        value={value || ''}
         onChange={(e) => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onKeyDown={(e) => {
