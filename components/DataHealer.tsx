@@ -5,6 +5,7 @@ import HealerPeopleTab from './DataHealer/HealerPeopleTab';
 import HealerStudiesTab from './DataHealer/HealerStudiesTab';
 import HealerAttendeesTab from './DataHealer/HealerAttendeesTab';
 import HealerSectorsTab from './DataHealer/HealerSectorsTab';
+import HealerPGsTab from './DataHealer/HealerPGsTab';
 
 const DataHealer: React.FC = () => {
   const {
@@ -21,42 +22,85 @@ const DataHealer: React.FC = () => {
     studyOrphans, peopleOrphans, sectorOrphans,
     officialStaffOptions, officialPatientOptions, officialProviderOptions, officialSectorOptions,
     filteredPeopleList,
-    handleProcessPerson, handleHealSector, handleLinkStudy, isHealthy
+    handleProcessPerson, handleHealSector, handleLinkStudy, isHealthy,
+    healthScore,
+    duplicatePGs,
+    handleMergePGs
   } = useDataHealer();
 
   // Tema dinâmico
   const getTheme = () => {
       if (activeTab === 'attendees') return 'violet';
       if (activeTab === 'people') return 'rose';
+      if (activeTab === 'studies') return 'indigo';
+      if (activeTab === 'pgs') return 'amber';
       return 'blue';
   };
   const currentTheme = getTheme();
 
+  const totalOrphans = peopleOrphans.length + studyOrphans.length + sectorOrphans.length + attendeeOrphans.length + duplicatePGs.length;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-32 max-w-5xl mx-auto">
       
-      {/* HEADER DINÂMICO */}
-      <div className={`bg-${currentTheme}-50 border-l-8 border-${currentTheme}-500 p-8 rounded-r-[3rem] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 transition-colors duration-500`}>
-        <div>
-            <h2 className={`text-3xl font-black text-${currentTheme}-900 uppercase tracking-tighter flex items-center gap-3`}>
-            <i className={`fas ${activeTab === 'people' ? 'fa-user-nurse' : activeTab === 'attendees' ? 'fa-clipboard-user' : 'fa-map-marked-alt'}`}></i> 
-            Centro de Cura {activeTab === 'people' ? 'de Pessoas' : activeTab === 'attendees' ? 'de Presenças' : 'de Setores'}
-            </h2>
-            <p className={`text-${currentTheme}-800 text-xs font-bold mt-2 uppercase tracking-widest leading-relaxed`}>
-            {activeTab === 'people' && 'Unificação de nomes e criação de identidades.'}
-            {activeTab === 'attendees' && 'Correção de vínculo técnico (Staff ID nulo) em aulas.'}
-            {activeTab === 'sectors' && 'Correção de nomes de setores e vínculo com IDs oficiais.'}
+      {/* HEADER DE AUDITORIA COM SCORE DE SAÚDE */}
+      <div className={`bg-white border border-slate-100 p-8 rounded-[3rem] shadow-xl flex flex-col md:flex-row items-center justify-between gap-8 transition-all duration-500 relative overflow-hidden`}>
+        {/* Background Decorativo */}
+        <div className={`absolute top-0 right-0 w-64 h-64 bg-${currentTheme}-50 rounded-full -mr-32 -mt-32 opacity-50 blur-3xl`}></div>
+        
+        <div className="relative z-10 space-y-4 text-center md:text-left">
+            <div className="flex items-center justify-center md:justify-start gap-3">
+                <div className={`w-12 h-12 rounded-2xl bg-${currentTheme}-100 text-${currentTheme}-600 flex items-center justify-center text-xl shadow-inner`}>
+                    <i className={`fas ${activeTab === 'people' ? 'fa-user-shield' : activeTab === 'attendees' ? 'fa-clipboard-check' : activeTab === 'studies' ? 'fa-book-reader' : activeTab === 'pgs' ? 'fa-users-rectangle' : 'fa-building-shield'}`}></i>
+                </div>
+                <div>
+                    <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">
+                        Auditoria de Qualidade
+                    </h2>
+                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Monitoramento de Integridade de Dados</p>
+                </div>
+            </div>
+            
+            <p className="text-slate-500 text-xs font-bold max-w-md leading-relaxed">
+                {activeTab === 'people' && 'Validando identidades e vínculos de colaboradores, pacientes e prestadores.'}
+                {activeTab === 'attendees' && 'Auditando presenças em classes bíblicas sem identificação de matrícula.'}
+                {activeTab === 'studies' && 'Verificando sessões de estudo bíblico com nomes não normalizados.'}
+                {activeTab === 'sectors' && 'Garantindo que todos os setores históricos estejam ancorados no RH oficial.'}
+                {activeTab === 'pgs' && 'Detectando e fundindo cadastros duplicados de Pequenos Grupos.'}
             </p>
         </div>
-        <div className="flex flex-col items-center gap-2">
-            <div className={`text-center bg-white/50 p-4 rounded-2xl border border-${currentTheme}-200 w-full`}>
-                <span className={`block text-4xl font-black text-${currentTheme}-600`}>
-                    {activeTab === 'people' ? filteredPeopleList.length : activeTab === 'attendees' ? attendeeOrphans.length : sectorOrphans.length}
+
+        <div className="relative z-10 flex items-center gap-8 bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100 shadow-inner">
+            <div className="text-center space-y-1">
+                <span className={`block text-4xl font-black ${healthScore === 100 ? 'text-emerald-500' : healthScore > 70 ? 'text-amber-500' : 'text-rose-500'}`}>
+                    {healthScore}%
                 </span>
-                <span className={`text-[10px] font-black text-${currentTheme}-400 uppercase tracking-widest`}>Pendentes</span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saúde da Base</span>
+            </div>
+            <div className="w-px h-12 bg-slate-200"></div>
+            <div className="text-center space-y-1">
+                <span className={`block text-4xl font-black ${totalOrphans === 0 ? 'text-emerald-500' : 'text-slate-700'}`}>
+                    {totalOrphans}
+                </span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Anomalias</span>
             </div>
         </div>
       </div>
+
+      {/* MENSAGEM DE SUCESSO (BASE 100% LIMPA) */}
+      {totalOrphans === 0 && (
+          <div className="bg-emerald-50 border-2 border-emerald-100 p-10 rounded-[3rem] text-center space-y-4 animate-in zoom-in duration-500">
+              <div className="w-20 h-20 bg-emerald-500 text-white rounded-[2rem] flex items-center justify-center text-3xl mx-auto shadow-lg shadow-emerald-200">
+                  <i className="fas fa-check-double"></i>
+              </div>
+              <div className="space-y-2">
+                  <h3 className="text-2xl font-black text-emerald-900 uppercase tracking-tighter">Qualidade Garantida</h3>
+                  <p className="text-emerald-700 text-xs font-bold uppercase tracking-widest max-w-md mx-auto leading-relaxed">
+                      Sua base de dados está 100% íntegra. Todos os lançamentos estão devidamente vinculados ao RH oficial.
+                  </p>
+              </div>
+          </div>
+      )}
 
       {/* ABAS DE NAVEGAÇÃO */}
       <div className="flex bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 max-w-xl mx-auto gap-2">
@@ -79,6 +123,12 @@ const DataHealer: React.FC = () => {
               <i className="fas fa-clipboard-check"></i> Presenças
           </button>
           <button 
+            onClick={() => { setActiveTab('pgs'); setTargetMap({}); setSearchQuery(''); }}
+            className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'pgs' ? 'bg-amber-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+              <i className="fas fa-users-rectangle"></i> PGs
+          </button>
+          <button 
             onClick={() => { setActiveTab('sectors'); setTargetMap({}); setSearchQuery(''); }}
             className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'sectors' ? 'bg-blue-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
           >
@@ -97,7 +147,7 @@ const DataHealer: React.FC = () => {
                       type="text" 
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Buscar nome específico para forçar unificação..."
+                      placeholder="Buscar nome específico para forçar auditoria..."
                       className={`w-full pl-12 pr-4 py-4 rounded-2xl border-none shadow-sm font-bold text-sm text-slate-700 outline-none focus:ring-4 ${activeTab === 'studies' ? 'focus:ring-indigo-100' : 'focus:ring-rose-100'} placeholder:text-slate-300 transition-all bg-white`}
                   />
                   {searchQuery && (
@@ -120,59 +170,71 @@ const DataHealer: React.FC = () => {
       )}
 
       {/* LISTA DE TRATAMENTO */}
-      {activeTab === 'studies' && (
-        <HealerStudiesTab 
-          studyOrphans={studyOrphans}
-          activeStudyTab={activeStudyTab}
-          setActiveStudyTab={setActiveStudyTab}
-          studyTargetMap={studyTargetMap}
-          setStudyTargetMap={setStudyTargetMap}
-          officialStaffOptions={officialStaffOptions}
-          officialPatientOptions={officialPatientOptions}
-          officialProviderOptions={officialProviderOptions}
-          handleLinkStudy={handleLinkStudy}
-          isProcessing={isProcessing}
-        />
-      )}
+      {totalOrphans > 0 && (
+          <div className="animate-in slide-in-from-bottom-4 duration-700">
+              {activeTab === 'studies' && (
+                <HealerStudiesTab 
+                  studyOrphans={studyOrphans}
+                  activeStudyTab={activeStudyTab}
+                  setActiveStudyTab={setActiveStudyTab}
+                  studyTargetMap={studyTargetMap}
+                  setStudyTargetMap={setStudyTargetMap}
+                  officialStaffOptions={officialStaffOptions}
+                  officialPatientOptions={officialPatientOptions}
+                  officialProviderOptions={officialProviderOptions}
+                  handleLinkStudy={handleLinkStudy}
+                  isProcessing={isProcessing}
+                />
+              )}
 
-      {activeTab === 'people' && (
-        <HealerPeopleTab 
-          filteredPeopleList={filteredPeopleList}
-          personTypeMap={personTypeMap}
-          setPersonTypeMap={setPersonTypeMap}
-          isHealthy={isHealthy}
-          targetMap={targetMap}
-          setTargetMap={setTargetMap}
-          sectorMap={sectorMap}
-          setSectorMap={setSectorMap}
-          officialStaffOptions={officialStaffOptions}
-          officialSectorOptions={officialSectorOptions}
-          handleProcessPerson={handleProcessPerson}
-          isProcessing={isProcessing}
-        />
-      )}
+              {activeTab === 'people' && (
+                <HealerPeopleTab 
+                  filteredPeopleList={filteredPeopleList}
+                  personTypeMap={personTypeMap}
+                  setPersonTypeMap={setPersonTypeMap}
+                  isHealthy={isHealthy}
+                  targetMap={targetMap}
+                  setTargetMap={setTargetMap}
+                  sectorMap={sectorMap}
+                  setSectorMap={setSectorMap}
+                  officialStaffOptions={officialStaffOptions}
+                  officialSectorOptions={officialSectorOptions}
+                  handleProcessPerson={handleProcessPerson}
+                  isProcessing={isProcessing}
+                />
+              )}
 
-      {activeTab === 'attendees' && (
-        <HealerAttendeesTab 
-          attendeeOrphans={attendeeOrphans}
-          isLoadingAttendees={isLoadingAttendees}
-          targetMap={targetMap}
-          setTargetMap={setTargetMap}
-          officialStaffOptions={officialStaffOptions}
-          handleProcessPerson={handleProcessPerson}
-          isProcessing={isProcessing}
-        />
-      )}
+              {activeTab === 'attendees' && (
+                <HealerAttendeesTab 
+                  attendeeOrphans={attendeeOrphans}
+                  isLoadingAttendees={isLoadingAttendees}
+                  targetMap={targetMap}
+                  setTargetMap={setTargetMap}
+                  officialStaffOptions={officialStaffOptions}
+                  handleProcessPerson={handleProcessPerson}
+                  isProcessing={isProcessing}
+                />
+              )}
 
-      {activeTab === 'sectors' && (
-        <HealerSectorsTab 
-          sectorOrphans={sectorOrphans}
-          targetMap={targetMap}
-          setTargetMap={setTargetMap}
-          officialSectorOptions={officialSectorOptions}
-          handleHealSector={handleHealSector}
-          isProcessing={isProcessing}
-        />
+              {activeTab === 'sectors' && (
+                <HealerSectorsTab 
+                  sectorOrphans={sectorOrphans}
+                  targetMap={targetMap}
+                  setTargetMap={setTargetMap}
+                  officialSectorOptions={officialSectorOptions}
+                  handleHealSector={handleHealSector}
+                  isProcessing={isProcessing}
+                />
+              )}
+
+              {activeTab === 'pgs' && (
+                <HealerPGsTab 
+                  duplicatePGs={duplicatePGs}
+                  handleMergePGs={handleMergePGs}
+                  isProcessing={isProcessing}
+                />
+              )}
+          </div>
       )}
     </div>
   );

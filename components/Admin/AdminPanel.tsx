@@ -1,11 +1,10 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Config } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import AdminConfig from './AdminConfig';
 import AdminLists from './AdminLists';
 import AdminDataTools from './AdminDataTools';
-import MigrationBridge from '../MigrationBridge/MigrationBridge'; // Importação Adicionada
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -101,9 +100,6 @@ const AdminPanel: React.FC = () => {
         onRestoreFullDNA={importFromDNA} 
         isRefreshing={isRefreshing} 
       />
-
-      {/* FERRAMENTA DE MIGRAÇÃO (Ativa durante fase de transição) */}
-      <MigrationBridge />
 
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">

@@ -34,7 +34,6 @@ interface AppContextType {
   
   // Maintenance Functions
   importFromDNA: (dnaData: any) => Promise<{ success: boolean; message: string }>;
-  migrateLegacyStructure: () => Promise<{ success: boolean; message: string; details?: string }>;
   unifyNumericIdsAndCleanPrefixes: () => Promise<{ success: boolean; message: string }>;
   mergePGs: (sourceId: string, targetId: string) => Promise<{ success: boolean; message: string }>;
   executeSectorMigration: (oldName: string, newName: string) => Promise<string>;

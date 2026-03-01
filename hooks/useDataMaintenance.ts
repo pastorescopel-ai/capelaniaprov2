@@ -33,9 +33,13 @@ export const useDataMaintenance = (
   const mergePGs = async (sourceId: string, targetId: string): Promise<{ success: boolean; message: string }> => {
     if (!supabase) return { success: false, message: "Offline mode." };
     try {
+      // Garante que os IDs sejam tratados como números para o BIGINT do Postgres
+      const numericSourceId = sourceId.replace(/\D/g, '');
+      const numericTargetId = targetId.replace(/\D/g, '');
+
       const { data, error } = await supabase.rpc('merge_pro_group', { 
-        old_id: sourceId, 
-        new_id: targetId 
+        old_id: numericSourceId ? parseInt(numericSourceId) : 0, 
+        new_id: numericTargetId ? parseInt(numericTargetId) : 0 
       });
 
       if (error) throw new Error(error.message);
@@ -44,17 +48,6 @@ export const useDataMaintenance = (
       return { success: true, message: data || "Fusão concluída." };
     } catch (e: any) {
       return { success: false, message: e.message || "Erro desconhecido na fusão." };
-    }
-  };
-
-  const migrateLegacyStructure = async (): Promise<{ success: boolean; message: string; details?: string }> => {
-    setIsMaintenanceRunning(true);
-    try {
-      return { success: true, message: "Função de migração legada desativada." };
-    } catch (e: any) {
-      return { success: false, message: e.message };
-    } finally {
-      setIsMaintenanceRunning(false);
     }
   };
 
@@ -181,7 +174,6 @@ export const useDataMaintenance = (
   return {
     unifyNumericIdsAndCleanPrefixes,
     mergePGs,
-    migrateLegacyStructure,
     importFromDNA,
     executeSectorMigration,
     executePGMigration,

@@ -21,7 +21,7 @@ export const NAV_ITEMS = [
   { id: 'ambassadors', label: 'Embaixadores', icon: '🌟', roles: [UserRole.ADMIN] },
   { id: 'reports', label: 'Relatórios', icon: '📈', roles: [UserRole.ADMIN] },
   { id: 'users', label: 'Equipe', icon: '👥', roles: [UserRole.ADMIN] },
-  { id: 'dataHealing', label: 'Cura de Dados', icon: '🚑', roles: [UserRole.ADMIN] }, // NOVO ITEM
+  { id: 'dataHealing', label: 'Auditoria de Qualidade', icon: '🛡️', roles: [UserRole.ADMIN] }, // RENOMEADO
   { id: 'profile', label: 'Perfil', icon: '👤', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
   { id: 'admin', label: 'Painel Admin', icon: '⚙️', roles: [UserRole.ADMIN] },
 ];

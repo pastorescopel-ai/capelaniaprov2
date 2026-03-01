@@ -113,17 +113,6 @@ export interface User {
   habaDays?: number[];
 }
 
-export interface MasterLists {
-  id?: string;
-  sectorsHAB: string[];
-  sectorsHABA: string[];
-  groupsHAB: string[];
-  groupsHABA: string[];
-  staffHAB: string[];
-  staffHABA: string[];
-  updatedAt?: number;
-}
-
 export interface BibleStudy {
   id: string;
   userId: string;

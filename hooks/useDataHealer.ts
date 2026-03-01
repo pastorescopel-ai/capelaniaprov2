@@ -2,18 +2,18 @@ import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import { normalizeString } from '../utils/formatters';
-import { ParticipantType, ProStaff } from '../types';
+import { ParticipantType, ProStaff, ProGroup } from '../types';
 import { supabase } from '../services/supabaseClient';
 
-export type HealerTab = 'people' | 'sectors' | 'attendees' | 'studies';
+export type HealerTab = 'people' | 'sectors' | 'attendees' | 'studies' | 'pgs';
 export type PersonType = 'Colaborador' | 'Ex-Colaborador' | 'Paciente' | 'Prestador';
 
 export const useDataHealer = () => {
   const { 
-    bibleClasses, bibleStudies, smallGroups, staffVisits, 
-    proStaff, proPatients, proProviders, proSectors, 
+    bibleClasses, bibleStudies, smallGroups, staffVisits, visitRequests,
+    proStaff, proPatients, proProviders, proSectors, proGroups,
     unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, 
-    linkStudySessionIdentity, saveRecord 
+    linkStudySessionIdentity, saveRecord, mergePGs
   } = useApp();
   const { showToast } = useToast();
   
@@ -140,11 +140,24 @@ export const useDataHealer = () => {
             checkAndAdd(v.staffName, v.sector, 'visit', v.participantType);
         }
     });
+
+    smallGroups.forEach(sg => {
+        checkAndAdd(sg.leader, sg.sector, 'visit', 'Colaborador');
+    });
+
+    visitRequests.forEach(vr => {
+        checkAndAdd(vr.leaderName, vr.sectorName, 'visit', 'Colaborador');
+    });
+
+    proGroups.forEach(pg => {
+        if (pg.currentLeader) checkAndAdd(pg.currentLeader, undefined, 'visit', 'Colaborador');
+        if (pg.leader) checkAndAdd(pg.leader, undefined, 'visit', 'Colaborador');
+    });
     
     return Array.from(orphanMap.entries())
         .map(([name, data]) => ({ name, sectors: Array.from(data.sectors).sort(), sources: data.sources }))
         .sort((a, b) => a.name.localeCompare(b.name));
-  }, [bibleClasses, bibleStudies, staffVisits, proStaff, proPatients, proProviders, showAllHistory, resolvedItems, searchQuery]);
+  }, [bibleClasses, bibleStudies, staffVisits, smallGroups, visitRequests, proGroups, proStaff, proPatients, proProviders, showAllHistory, resolvedItems, searchQuery]);
 
   const sectorOrphans = useMemo(() => {
       const historySet = new Set<string>();
@@ -166,9 +179,10 @@ export const useDataHealer = () => {
       staffVisits.forEach(v => checkSector(v.sector));
       smallGroups.forEach(g => checkSector(g.sector));
       bibleClasses.forEach(c => checkSector(c.sector));
+      visitRequests.forEach(vr => checkSector(vr.sectorName));
 
       return Array.from(historySet).sort();
-  }, [bibleStudies, staffVisits, smallGroups, bibleClasses, proSectors, resolvedItems]);
+  }, [bibleStudies, staffVisits, smallGroups, bibleClasses, visitRequests, proSectors, resolvedItems]);
 
   const officialStaffOptions = useMemo(() => {
       return proStaff.map(s => {
@@ -319,6 +333,53 @@ export const useDataHealer = () => {
              proProviders.some(p => normalizeString(p.name) === norm);
   };
 
+  const duplicatePGs = useMemo(() => {
+    const duplicates: { name: string, unit: string, groups: ProGroup[] }[] = [];
+
+    ['HAB', 'HABA'].forEach(unit => {
+      const unitGroups = proGroups.filter(g => g.unit === unit && g.active !== false);
+      const nameMap = new Map<string, ProGroup[]>();
+      
+      unitGroups.forEach(g => {
+        const norm = normalizeString(g.name);
+        if (!nameMap.has(norm)) nameMap.set(norm, []);
+        nameMap.get(norm)!.push(g);
+      });
+
+      nameMap.forEach((list) => {
+        if (list.length > 1) {
+          duplicates.push({ name: list[0].name, unit: unit, groups: list });
+        }
+      });
+    });
+
+    return duplicates;
+  }, [proGroups]);
+
+  const handleMergePGs = async (sourceId: string, targetId: string) => {
+    setIsProcessing(true);
+    try {
+      const result = await mergePGs(sourceId, targetId);
+      if (result.success) {
+        showToast(result.message, "success");
+      } else {
+        showToast(result.message, "warning");
+      }
+    } catch (e: any) {
+      showToast(e.message, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const healthScore = useMemo(() => {
+    const totalOrphans = peopleOrphans.length + studyOrphans.length + sectorOrphans.length + attendeeOrphans.length + duplicatePGs.length;
+    if (totalOrphans === 0) return 100;
+    // Cada anomalia reduz 2 pontos, mínimo 0.
+    const score = 100 - (totalOrphans * 2);
+    return Math.max(0, score);
+  }, [peopleOrphans, studyOrphans, sectorOrphans, attendeeOrphans, duplicatePGs]);
+
   return {
     activeTab, setActiveTab,
     activeStudyTab, setActiveStudyTab,
@@ -333,6 +394,9 @@ export const useDataHealer = () => {
     studyOrphans, peopleOrphans, sectorOrphans,
     officialStaffOptions, officialPatientOptions, officialProviderOptions, officialSectorOptions,
     filteredPeopleList,
-    handleProcessPerson, handleHealSector, handleLinkStudy, isHealthy
+    handleProcessPerson, handleHealSector, handleLinkStudy, isHealthy,
+    healthScore,
+    duplicatePGs,
+    handleMergePGs
   };
 };
