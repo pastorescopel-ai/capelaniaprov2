@@ -117,7 +117,7 @@ const HealerPeopleTab: React.FC<HealerPeopleTabProps> = ({
                   ) : currentType === 'Paciente' || currentType === 'Prestador' ? (
                     <div className="flex-1">
                       <Autocomplete 
-                        options={currentType === 'Paciente' ? officialPatientOptions : officialProviderOptions}
+                        options={currentType === 'Paciente' ? (officialPatientOptions || []) : (officialProviderOptions || [])}
                         value={targetMap[name] || ''}
                         onChange={(val) => setTargetMap(prev => ({...prev, [name]: val}))}
                         onSelectOption={(label) => setTargetMap(prev => ({...prev, [name]: label}))}
