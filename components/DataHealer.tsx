@@ -6,6 +6,7 @@ import HealerStudiesTab from './DataHealer/HealerStudiesTab';
 import HealerAttendeesTab from './DataHealer/HealerAttendeesTab';
 import HealerSectorsTab from './DataHealer/HealerSectorsTab';
 import HealerPGsTab from './DataHealer/HealerPGsTab';
+import HealerMergeTab from './DataHealer/HealerMergeTab';
 
 const DataHealer: React.FC = () => {
   const {
@@ -27,7 +28,12 @@ const DataHealer: React.FC = () => {
     duplicatePGs,
     handleMergePGs,
     getSourceRecords,
-    handleDeleteSourceRecord
+    handleDeleteSourceRecord,
+    mergeSourceType, setMergeSourceType,
+    mergeSourceId, setMergeSourceId,
+    mergeTargetType, setMergeTargetType,
+    mergeTargetId, setMergeTargetId,
+    handleUniversalMerge
   } = useDataHealer();
 
   // Tema dinâmico
@@ -36,6 +42,7 @@ const DataHealer: React.FC = () => {
       if (activeTab === 'people') return 'rose';
       if (activeTab === 'studies') return 'indigo';
       if (activeTab === 'pgs') return 'amber';
+      if (activeTab === 'merge') return 'slate';
       return 'blue';
   };
   const currentTheme = getTheme();
@@ -136,6 +143,12 @@ const DataHealer: React.FC = () => {
           >
               <i className="fas fa-building"></i> Setores
           </button>
+          <button 
+            onClick={() => { setActiveTab('merge'); setSearchQuery(''); }}
+            className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'merge' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+              <i className="fas fa-compress-arrows-alt"></i> Mesclar
+          </button>
       </div>
 
       {/* BUSCA MANUAL E FILTRO (ABA PESSOAS E ESTUDOS) */}
@@ -172,8 +185,25 @@ const DataHealer: React.FC = () => {
       )}
 
       {/* LISTA DE TRATAMENTO */}
-      {totalOrphans > 0 && (
+      {(totalOrphans > 0 || activeTab === 'merge') && (
           <div className="animate-in slide-in-from-bottom-4 duration-700">
+              {activeTab === 'merge' && (
+                  <HealerMergeTab 
+                      mergeSourceType={mergeSourceType}
+                      setMergeSourceType={setMergeSourceType}
+                      mergeSourceId={mergeSourceId}
+                      setMergeSourceId={setMergeSourceId}
+                      mergeTargetType={mergeTargetType}
+                      setMergeTargetType={setMergeTargetType}
+                      mergeTargetId={mergeTargetId}
+                      setMergeTargetId={setMergeTargetId}
+                      officialStaffOptions={officialStaffOptions}
+                      officialPatientOptions={officialPatientOptions}
+                      officialProviderOptions={officialProviderOptions}
+                      handleUniversalMerge={handleUniversalMerge}
+                      isProcessing={isProcessing}
+                  />
+              )}
               {activeTab === 'studies' && (
                 <HealerStudiesTab 
                   studyOrphans={studyOrphans}

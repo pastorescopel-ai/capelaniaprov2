@@ -16,6 +16,10 @@ export const useHealerState = () => {
   const [isLoadingAttendees, setIsLoadingAttendees] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [mergeSourceType, setMergeSourceType] = useState<PersonType>('Prestador');
+  const [mergeSourceId, setMergeSourceId] = useState<string>('');
+  const [mergeTargetType, setMergeTargetType] = useState<PersonType>('Colaborador');
+  const [mergeTargetId, setMergeTargetId] = useState<string>('');
 
   return {
     activeTab, setActiveTab,
@@ -31,5 +35,9 @@ export const useHealerState = () => {
     isLoadingAttendees, setIsLoadingAttendees,
     isProcessing, setIsProcessing,
     showAllHistory, setShowAllHistory,
+    mergeSourceType, setMergeSourceType,
+    mergeSourceId, setMergeSourceId,
+    mergeTargetType, setMergeTargetType,
+    mergeTargetId, setMergeTargetId,
   };
 };

@@ -245,12 +245,90 @@ export const useHealerActions = (
       }
   };
 
+  const handleUniversalMerge = async (sourceType: string, sourceId: string, targetType: string, targetId: string) => {
+      setIsProcessing(true);
+      try {
+          const sourceList = sourceType === 'Colaborador' ? proStaff : sourceType === 'Paciente' ? proPatients : proProviders;
+          const targetList = targetType === 'Colaborador' ? proStaff : targetType === 'Paciente' ? proPatients : proProviders;
+
+          const sourceRecord = sourceList.find((r: any) => String(r.id) === String(sourceId));
+          const targetRecord = targetList.find((r: any) => String(r.id) === String(targetId));
+
+          if (!sourceRecord) throw new Error("Cadastro de origem não encontrado.");
+          if (!targetRecord) throw new Error("Cadastro de destino não encontrado.");
+
+          const normSource = normalizeString(sourceRecord.name);
+          
+          // 1. Atualizar Estudos Bíblicos
+          const studiesToUpdate = bibleStudies.filter((s: any) => normalizeString(s.name) === normSource);
+          for (const s of studiesToUpdate) {
+              await saveRecord('bibleStudies', { 
+                  ...s, 
+                  name: targetRecord.name, 
+                  staffId: targetRecord.id, 
+                  participantType: targetType,
+                  sectorId: targetRecord.sectorId || s.sectorId 
+              });
+          }
+
+          // 2. Atualizar Visitas
+          const visitsToUpdate = staffVisits.filter((v: any) => normalizeString(v.staffName) === normSource);
+          for (const v of visitsToUpdate) {
+              await saveRecord('staffVisits', { 
+                  ...v, 
+                  staffName: targetRecord.name, 
+                  participantType: targetType 
+              });
+          }
+
+          // 3. Atualizar Aulas Bíblicas
+          const classesToUpdate = bibleClasses.filter((c: any) => c.students?.some((st: any) => normalizeString(st) === normSource));
+          for (const c of classesToUpdate) {
+              const updatedStudents = c.students.map((st: any) => normalizeString(st) === normSource ? targetRecord.name : st);
+              await saveRecord('bibleClasses', { ...c, students: updatedStudents });
+          }
+
+          // 4. Atualizar Histórico de PGs
+          const historyToUpdate = smallGroups.filter((sg: any) => normalizeString(sg.leader) === normSource);
+          for (const sg of historyToUpdate) {
+              await saveRecord('smallGroups', { ...sg, leader: targetRecord.name });
+          }
+
+          // 5. Atualizar PGs Ativos
+          const groupsToUpdate = proGroups.filter((g: any) => normalizeString(g.leader) === normSource || normalizeString(g.currentLeader) === normSource);
+          for (const g of groupsToUpdate) {
+              await saveRecord('proGroups', { 
+                  ...g, 
+                  leader: normalizeString(g.leader) === normSource ? targetRecord.name : g.leader,
+                  currentLeader: normalizeString(g.currentLeader) === normSource ? targetRecord.name : g.currentLeader,
+                  leaderPhone: targetRecord.whatsapp || g.leaderPhone
+              });
+          }
+
+          // 6. Apagar o registro de origem
+          const collectionMap: Record<string, string> = {
+              'Colaborador': 'proStaff',
+              'Paciente': 'proPatients',
+              'Prestador': 'proProviders'
+          };
+          await deleteRecord(collectionMap[sourceType], sourceId);
+
+          showToast("Mesclagem concluída com sucesso! Histórico transferido e cadastro incorreto removido.", "success");
+          await loadFromCloud(false);
+      } catch (e: any) {
+          showToast("Erro na mesclagem: " + e.message, "error");
+      } finally {
+          setIsProcessing(false);
+      }
+  };
+
   return {
     handleProcessPerson,
     handleHealSector,
     handleLinkStudy,
     handleMergePGs,
     getSourceRecords,
-    handleDeleteSourceRecord
+    handleDeleteSourceRecord,
+    handleUniversalMerge
   };
 };
