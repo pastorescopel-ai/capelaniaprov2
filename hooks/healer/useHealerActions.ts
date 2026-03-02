@@ -50,6 +50,17 @@ export const useHealerActions = (
                   for (const sg of historyToUpdate) {
                       await saveRecord('smallGroups', { ...sg, leader: targetStaff.name });
                   }
+
+                  // Correção retroativa do participantType para registros que foram salvos incorretamente como Prestador/Paciente
+                  const studiesToUpdate = bibleStudies.filter((s: any) => normalizeString(s.name) === normOrphan && s.participantType !== 'Colaborador');
+                  for (const s of studiesToUpdate) {
+                      await saveRecord('bibleStudies', { ...s, participantType: 'Colaborador' });
+                  }
+
+                  const visitsToUpdate = staffVisits.filter((v: any) => normalizeString(v.staffName) === normOrphan && v.participantType !== 'Colaborador');
+                  for (const v of visitsToUpdate) {
+                      await saveRecord('staffVisits', { ...v, participantType: 'Colaborador' });
+                  }
               }
 
               showToast(`Cura profunda concluída! ${result}`, "success");

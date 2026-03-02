@@ -4,6 +4,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../contexts/AppContext';
 import { normalizeString, formatWhatsApp } from '../utils/formatters';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
+import { useIdentityGuard } from './useIdentityGuard';
 
 interface UseBibleStudyFormProps {
   unit: Unit;
@@ -17,6 +18,7 @@ interface UseBibleStudyFormProps {
 export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit }: UseBibleStudyFormProps) => {
   const { proStaff, proPatients, proProviders, proSectors, syncMasterContact } = useApp();
   const { showToast } = useToast();
+  const { checkIdentityConflict } = useIdentityGuard();
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
@@ -186,6 +188,13 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     e.preventDefault();
     if (isSubmitting) return;
     if (!formData.name || !formData.guide || !formData.lesson) { showToast("Preencha Nome, Guia e Lição."); return; }
+    
+    const conflict = checkIdentityConflict(formData.name, formData.participantType, unit);
+    if (conflict.hasConflict) {
+        showToast(conflict.message, "warning");
+        return;
+    }
+
     const isStaff = formData.participantType === ParticipantType.STAFF;
 
     if (isStaff) {

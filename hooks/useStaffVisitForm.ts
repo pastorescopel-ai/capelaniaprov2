@@ -4,6 +4,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../contexts/AppContext';
 import { normalizeString, formatWhatsApp } from '../utils/formatters';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
+import { useIdentityGuard } from './useIdentityGuard';
 
 interface UseStaffVisitFormProps {
   unit: Unit;
@@ -17,6 +18,7 @@ interface UseStaffVisitFormProps {
 export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit }: UseStaffVisitFormProps) => {
   const { proStaff, proProviders, proSectors, syncMasterContact } = useApp();
   const { showToast } = useToast();
+  const { checkIdentityConflict } = useIdentityGuard();
 
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
@@ -141,6 +143,12 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     if (!formData.staffName) { showToast("Nome obrigatório."); return; }
     if (!formData.reason) { showToast("Motivo obrigatório."); return; }
     
+    const conflict = checkIdentityConflict(formData.staffName, formData.participantType, unit);
+    if (conflict.hasConflict) {
+        showToast(conflict.message, "warning");
+        return;
+    }
+
     const isStaff = formData.participantType === ParticipantType.STAFF;
 
     if (isStaff) {
