@@ -489,57 +489,78 @@ export const useDataHealer = () => {
         const records: any[] = [];
         const norm = normalizeString(orphanName);
 
-        // Helper para checar nome
         const check = (name: string | undefined) => name && normalizeString(name) === norm;
 
         bibleClasses.forEach(c => {
             if (c.students?.some(s => check(s))) {
-                records.push({ type: 'Aula Bíblica', date: c.date, sector: c.sector, id: c.id, collection: 'bible_classes' });
+                records.push({ type: 'Aula Bíblica', date: c.date, sector: c.sector, id: c.id, collection: 'bible_classes', actionType: 'remove_from_array', details: 'O nome está na lista de presença. A exclusão apenas removerá o aluno da aula.' });
             }
         });
 
         bibleStudies.forEach(s => {
             if (check(s.name)) {
-                records.push({ type: 'Estudo Bíblico', date: s.date, sector: s.sector, id: s.id, collection: 'bible_study_sessions' });
+                records.push({ type: 'Estudo Bíblico', date: s.date, sector: s.sector, id: s.id, collection: 'bible_study_sessions', actionType: 'delete_record', details: 'Registro completo de estudo bíblico.' });
             }
         });
 
         staffVisits.forEach(v => {
             if (check(v.staffName)) {
-                records.push({ type: 'Visita Colaborador', date: v.date, sector: v.sector, id: v.id, collection: 'staff_visits' });
+                records.push({ type: 'Visita Colaborador', date: v.date, sector: v.sector, id: v.id, collection: 'staff_visits', actionType: 'delete_record', details: 'Registro completo de visita.' });
             }
         });
         
         smallGroups.forEach(sg => {
             if (check(sg.leader)) {
-                records.push({ type: 'Pequeno Grupo (Histórico)', date: sg.date, sector: sg.sector, id: sg.id, collection: 'small_groups' });
+                records.push({ type: 'Pequeno Grupo (Histórico)', date: sg.date, sector: sg.sector, id: sg.id, collection: 'small_groups', actionType: 'delete_record', details: 'Registro histórico de PG.' });
             }
         });
 
         visitRequests.forEach(vr => {
             if (check(vr.leaderName)) {
-                records.push({ type: 'Solicitação Visita', date: vr.requestDate, sector: vr.sectorName, id: vr.id, collection: 'visit_requests' });
+                records.push({ type: 'Solicitação Visita', date: vr.requestDate, sector: vr.sectorName, id: vr.id, collection: 'visit_requests', actionType: 'delete_record', details: 'Solicitação de visita agendada.' });
             }
         });
 
         proGroups.forEach(pg => {
             if (check(pg.leader) || check(pg.currentLeader)) {
-                records.push({ type: 'Cadastro Mestre PG', sector: pg.unit, id: pg.id, collection: 'pro_groups' });
+                records.push({ type: 'Cadastro Mestre PG', sector: pg.unit, id: pg.id, collection: 'pro_groups', actionType: 'clear_field', details: 'O nome consta como líder do PG. A exclusão apenas limpará o campo de líder.' });
             }
         });
 
         return records;
     },
-    handleDeleteSourceRecord: async (collection: string, id: string) => {
-        if (!confirm("Tem certeza absoluta? Esta ação apagará o registro original do banco de dados.")) return;
+    handleDeleteSourceRecord: async (collection: string, id: string, actionType?: string, orphanName?: string) => {
+        const msg = actionType === 'delete_record' 
+            ? "Tem certeza absoluta? Esta ação APAGARÁ O REGISTRO COMPLETO do banco de dados." 
+            : "Tem certeza? Esta ação removerá apenas este nome do registro, mantendo o restante intacto.";
+            
+        if (!confirm(msg)) return;
+        
         setIsProcessing(true);
         try {
-            await deleteRecord(collection, id);
-            showToast("Registro excluído com sucesso.", "success");
-            // Força recarga dos dados para atualizar a lista
+            if (actionType === 'remove_from_array' && collection === 'bible_classes' && orphanName) {
+                const cls = bibleClasses.find(c => c.id === id);
+                if (cls) {
+                    const updatedStudents = (cls.students || []).filter(s => normalizeString(s) !== normalizeString(orphanName));
+                    await saveRecord('bibleClasses', { ...cls, students: updatedStudents });
+                    showToast("Nome removido da lista de presença da aula.", "success");
+                }
+            } else if (actionType === 'clear_field' && collection === 'pro_groups' && orphanName) {
+                const pg = proGroups.find(g => g.id === id);
+                if (pg) {
+                    const updates = { ...pg };
+                    if (normalizeString(pg.leader) === normalizeString(orphanName)) updates.leader = '';
+                    if (normalizeString(pg.currentLeader) === normalizeString(orphanName)) updates.currentLeader = '';
+                    await saveRecord('proGroups', updates);
+                    showToast("Nome removido da liderança do PG.", "success");
+                }
+            } else {
+                await deleteRecord(collection, id);
+                showToast("Registro excluído com sucesso do banco de dados.", "success");
+            }
             await loadFromCloud(false);
         } catch (e: any) {
-            showToast("Erro ao excluir: " + e.message, "error");
+            showToast("Erro ao processar: " + e.message, "error");
         } finally {
             setIsProcessing(false);
         }

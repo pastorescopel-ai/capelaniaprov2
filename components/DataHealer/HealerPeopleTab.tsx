@@ -16,6 +16,8 @@ interface HealerPeopleTabProps {
   officialProviderOptions: any[];
   officialSectorOptions: any[];
   handleProcessPerson: (name: string) => void;
+  handleDeleteSourceRecord: (collection: string, id: string, actionType?: string, orphanName?: string) => void;
+  getSourceRecords: (orphanName: string) => any[];
   isProcessing: boolean;
 }
 
@@ -98,24 +100,28 @@ const HealerPeopleTab: React.FC<HealerPeopleTabProps> = ({
 
                     {expandedPerson === name && (
                         <div className="mt-3 bg-slate-100 rounded-xl p-3 space-y-2 animate-in slide-in-from-top-2">
-                            <h4 className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2">Registros Encontrados:</h4>
+                            <h4 className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2">Registros Encontrados no Banco de Dados:</h4>
                             {getSourceRecords(name).map((rec: any, idx: number) => (
-                                <div key={idx} className="bg-white p-2 rounded-lg border border-slate-200 flex justify-between items-center gap-2">
-                                    <div className="text-[10px] text-slate-600">
-                                        <span className="font-bold block uppercase text-[9px] text-slate-400">{rec.type}</span>
-                                        {rec.date && <span className="mr-2">{new Date(rec.date).toLocaleDateString('pt-BR')}</span>}
-                                        {rec.sector && <span className="bg-slate-100 px-1 rounded text-[9px]">{rec.sector}</span>}
+                                <div key={idx} className="bg-white p-3 rounded-lg border border-slate-200 flex justify-between items-center gap-3 shadow-sm">
+                                    <div className="text-[10px] text-slate-600 flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-black uppercase text-[10px] text-slate-700">{rec.type}</span>
+                                            <span className="bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded text-[8px] font-mono border border-slate-200" title="ID do Registro">ID: {String(rec.id).split('-')[0]}</span>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2 text-[9px]">
+                                            <span className="font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100" title="Tabela no Banco de Dados"><i className="fas fa-database mr-1"></i>{rec.collection}</span>
+                                            {rec.date && <span><i className="far fa-calendar-alt mr-1"></i>{new Date(rec.date).toLocaleDateString('pt-BR')}</span>}
+                                            {rec.sector && <span><i className="fas fa-map-marker-alt mr-1"></i>{rec.sector}</span>}
+                                        </div>
+                                        {rec.details && <div className="mt-1.5 text-slate-500 italic text-[9px] bg-slate-50 p-1.5 rounded border border-slate-100"><i className="fas fa-info-circle mr-1 text-slate-400"></i>{rec.details}</div>}
                                     </div>
                                     <button 
-                                        onClick={() => {
-                                            if(confirm("Tem certeza que deseja EXCLUIR este registro original? Esta ação é irreversível.")) {
-                                                handleDeleteSourceRecord(rec.collection, rec.id);
-                                            }
-                                        }}
-                                        className="text-rose-400 hover:text-rose-600 p-1 hover:bg-rose-50 rounded transition-colors"
-                                        title="Excluir Registro Original"
+                                        onClick={() => handleDeleteSourceRecord(rec.collection, rec.id, rec.actionType, name)}
+                                        className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 p-2 rounded-lg transition-colors flex flex-col items-center gap-1 border border-transparent hover:border-rose-100 min-w-[60px]"
+                                        title={rec.actionType === 'delete_record' ? "Excluir Registro Completo" : "Remover Apenas o Nome"}
                                     >
-                                        <i className="fas fa-trash-alt"></i>
+                                        <i className={`fas ${rec.actionType === 'delete_record' ? 'fa-trash-alt' : 'fa-eraser'}`}></i>
+                                        <span className="text-[7px] font-bold uppercase">{rec.actionType === 'delete_record' ? 'Excluir' : 'Limpar'}</span>
                                     </button>
                                 </div>
                             ))}
