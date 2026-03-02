@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Autocomplete from '../Shared/Autocomplete';
 import { PersonType } from '../../hooks/useDataHealer';
 
@@ -26,6 +26,8 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
   officialStaffOptions, officialPatientOptions, officialProviderOptions,
   handleUniversalMerge, isProcessing
 }) => {
+  const [sourceInput, setSourceInput] = useState('');
+  const [targetInput, setTargetInput] = useState('');
 
   const getOptions = (type: PersonType) => {
     if (type === 'Colaborador' || type === 'Ex-Colaborador') return officialStaffOptions;
@@ -38,6 +40,17 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
     const opt = options.find(o => String(o.value) === String(id));
     return opt ? opt.label : '';
   };
+
+  // Sincroniza o input com o ID selecionado quando o tipo muda ou quando limpa
+  useEffect(() => {
+      if (!mergeSourceId) setSourceInput('');
+      else setSourceInput(getLabel(mergeSourceType, mergeSourceId));
+  }, [mergeSourceId, mergeSourceType, officialStaffOptions, officialPatientOptions, officialProviderOptions]);
+
+  useEffect(() => {
+      if (!mergeTargetId) setTargetInput('');
+      else setTargetInput(getLabel(mergeTargetType, mergeTargetId));
+  }, [mergeTargetId, mergeTargetType, officialStaffOptions, officialPatientOptions, officialProviderOptions]);
 
   const handleMerge = () => {
     if (!mergeSourceId || !mergeTargetId) return;
@@ -52,6 +65,8 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
         handleUniversalMerge(mergeSourceType, mergeSourceId, mergeTargetType, mergeTargetId);
         setMergeSourceId('');
         setMergeTargetId('');
+        setSourceInput('');
+        setTargetInput('');
     }
   };
 
@@ -81,7 +96,7 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
                             {(['Colaborador', 'Paciente', 'Prestador'] as PersonType[]).map(t => (
                                 <button 
                                     key={t} 
-                                    onClick={() => { setMergeSourceType(t); setMergeSourceId(''); }} 
+                                    onClick={() => { setMergeSourceType(t); setMergeSourceId(''); setSourceInput(''); }} 
                                     className={`flex-1 px-3 py-2 rounded-md text-[10px] font-bold uppercase transition-all whitespace-nowrap ${mergeSourceType === t ? 'bg-white shadow text-rose-600' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     {t}
@@ -90,9 +105,15 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
                         </div>
                         <Autocomplete 
                             options={getOptions(mergeSourceType)}
-                            value={getLabel(mergeSourceType, mergeSourceId)}
-                            onChange={() => {}}
-                            onSelectOption={(label, option) => setMergeSourceId(String(option.value))}
+                            value={sourceInput}
+                            onChange={(val) => setSourceInput(val)}
+                            onSelectOption={(label) => {
+                                const opt = getOptions(mergeSourceType).find(o => o.label === label);
+                                if (opt) {
+                                    setMergeSourceId(String(opt.value));
+                                    setSourceInput(label);
+                                }
+                            }}
                             placeholder={`Buscar ${mergeSourceType}...`}
                             className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl font-bold text-sm outline-none shadow-sm transition-all focus:border-rose-500"
                         />
@@ -115,7 +136,7 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
                             {(['Colaborador', 'Paciente', 'Prestador'] as PersonType[]).map(t => (
                                 <button 
                                     key={t} 
-                                    onClick={() => { setMergeTargetType(t); setMergeTargetId(''); }} 
+                                    onClick={() => { setMergeTargetType(t); setMergeTargetId(''); setTargetInput(''); }} 
                                     className={`flex-1 px-3 py-2 rounded-md text-[10px] font-bold uppercase transition-all whitespace-nowrap ${mergeTargetType === t ? 'bg-white shadow text-emerald-700' : 'text-emerald-600/70 hover:text-emerald-700'}`}
                                 >
                                     {t}
@@ -124,9 +145,15 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
                         </div>
                         <Autocomplete 
                             options={getOptions(mergeTargetType)}
-                            value={getLabel(mergeTargetType, mergeTargetId)}
-                            onChange={() => {}}
-                            onSelectOption={(label, option) => setMergeTargetId(String(option.value))}
+                            value={targetInput}
+                            onChange={(val) => setTargetInput(val)}
+                            onSelectOption={(label) => {
+                                const opt = getOptions(mergeTargetType).find(o => o.label === label);
+                                if (opt) {
+                                    setMergeTargetId(String(opt.value));
+                                    setTargetInput(label);
+                                }
+                            }}
                             placeholder={`Buscar ${mergeTargetType}...`}
                             className="w-full p-4 bg-white border-2 border-emerald-200 rounded-2xl font-bold text-sm outline-none shadow-sm transition-all focus:border-emerald-500"
                         />
