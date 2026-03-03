@@ -210,7 +210,15 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
                 nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
                 nextStatus = RecordStatus.CONTINUACAO;
             }
-            setFormData(prev => ({ ...prev, students: [], guide: nextGuide || prev.guide, lesson: nextLesson || prev.lesson, status: nextStatus }));
+            
+            setFormData(prev => {
+                const newGuide = nextGuide || prev.guide;
+                const newLesson = nextLesson || prev.lesson;
+                if (prev.students.length === 0 && prev.guide === newGuide && prev.lesson === newLesson && prev.status === nextStatus) {
+                    return prev;
+                }
+                return { ...prev, students: [], guide: newGuide, lesson: newLesson, status: nextStatus };
+            });
         } else if (lastClass) {
             // Se achou no histórico, puxa os dados (sem mudar a aba)
             let nextLesson = '';
@@ -222,13 +230,20 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
             nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
             nextStatus = RecordStatus.CONTINUACAO;
             
-            setFormData(prev => ({ 
-                ...prev, 
-                students: [], 
-                guide: nextGuide || prev.guide, 
-                lesson: nextLesson || prev.lesson, 
-                status: nextStatus
-            }));
+            setFormData(prev => {
+                const newGuide = nextGuide || prev.guide;
+                const newLesson = nextLesson || prev.lesson;
+                if (prev.students.length === 0 && prev.guide === newGuide && prev.lesson === newLesson && prev.status === nextStatus) {
+                    return prev;
+                }
+                return { 
+                    ...prev, 
+                    students: [], 
+                    guide: newGuide, 
+                    lesson: newLesson, 
+                    status: nextStatus
+                };
+            });
         }
     }
   }, [formData.sector, proSectors, proStaff, unit, allHistory, editingItem, formData.participantType, currentUser.id, currentUser.role, checkOwnershipConflict]);
