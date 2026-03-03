@@ -32,7 +32,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     isSubmitting,
     guideOptions, sectorOptions, studentOptions,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
-    groupedHistory
+    groupedHistory, ownershipConflict, setOwnershipConflict
   } = useBibleStudyForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
@@ -58,7 +58,32 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   );
 
   return (
-    <FormScaffold title="Estudo Bíblico" headerActions={headerActions} history={historySection}>
+    <>
+      {ownershipConflict.show && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-rose-500 p-6 text-center">
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i className="fas fa-lock text-3xl text-white"></i>
+              </div>
+              <h3 className="text-xl font-black text-white uppercase tracking-wider">Acesso Bloqueado</h3>
+            </div>
+            <div className="p-6 text-center space-y-6">
+              <p className="text-slate-600 font-medium leading-relaxed">
+                {ownershipConflict.message}
+              </p>
+              <button 
+                type="button"
+                onClick={() => setOwnershipConflict({ show: false, message: '' })}
+                className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl uppercase tracking-widest transition-colors"
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <FormScaffold title="Estudo Bíblico" headerActions={headerActions} history={historySection}>
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
@@ -106,6 +131,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         </button>
       </form>
     </FormScaffold>
+    </>
   );
 };
 

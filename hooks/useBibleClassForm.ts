@@ -1,21 +1,24 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Unit, RecordStatus, BibleClass, ParticipantType } from '../types';
+import { Unit, RecordStatus, BibleClass, ParticipantType, User } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../contexts/AppContext';
 import { normalizeString, formatWhatsApp } from '../utils/formatters';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
+import { useIdentityGuard } from './useIdentityGuard';
 
 interface UseBibleClassFormProps {
   unit: Unit;
   history: BibleClass[];
   allHistory?: BibleClass[];
   editingItem?: BibleClass;
+  currentUser: User;
   onSubmit: (data: any) => void;
 }
 
-export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem, onSubmit }: UseBibleClassFormProps) => {
+export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit }: UseBibleClassFormProps) => {
   const { proStaff, proSectors, syncMasterContact } = useApp();
   const { showToast } = useToast();
+  const { checkOwnershipConflict } = useIdentityGuard();
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
@@ -27,6 +30,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   const [formData, setFormData] = useState(defaultState);
   const [newStudent, setNewStudent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [ownershipConflict, setOwnershipConflict] = useState<{show: boolean, message: string}>({show: false, message: ''});
 
   const lastClassStudents = useMemo(() => {
     if (!formData.sector || !unit) return [];
@@ -102,6 +106,14 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     if (formData.sector && !editingItem && formData.participantType === ParticipantType.STAFF) {
         const sectorObj = proSectors.find(s => s.name === formData.sector && s.unit === unit);
         if (sectorObj) {
+            // STRICT OWNERSHIP CHECK: Verifica se a classe do setor pertence a outro
+            const ownership = checkOwnershipConflict(formData.sector, 'class', unit, currentUser.id, currentUser.role);
+            if (ownership.hasConflict) {
+                setOwnershipConflict({ show: true, message: ownership.message });
+                setFormData(prev => ({ ...prev, sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO }));
+                return;
+            }
+
             const lastClass = [...allHistory].filter(c => c.sector === formData.sector && c.unit === unit).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
             let nextLesson = '';
             let nextGuide = '';
@@ -141,6 +153,15 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
     if (finalString) { 
       if (formData.students.includes(finalString)) { showToast("Aluno já está na lista."); return; }
+
+      // Verifica se o aluno está em um estudo ativo com outro capelão
+      const ownership = checkOwnershipConflict(nameToAdd, 'study', unit, currentUser.id, currentUser.role);
+      if (ownership.hasConflict) {
+          setOwnershipConflict({ show: true, message: ownership.message });
+          setNewStudent('');
+          return;
+      }
+
       let peersToAdd: string[] = [];
       let nextGuide = formData.guide;
       let nextLesson = formData.lesson;
@@ -196,6 +217,14 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     if (isSubmitting) return;
     if (formData.students.length < 2) { showToast("É necessário pelo menos 2 alunos presentes para salvar a classe.", "warning"); return; }
     if (!formData.guide || !formData.lesson) { showToast("Preencha Guia e Lição."); return; }
+
+    // Verifica se a classe (guide) pertence a outro capelão
+    const classOwnership = checkOwnershipConflict(formData.guide, 'class', unit, currentUser.id, currentUser.role);
+    if (classOwnership.hasConflict) {
+        setOwnershipConflict({ show: true, message: classOwnership.message });
+        return;
+    }
+
     if (formData.participantType === ParticipantType.STAFF) {
         if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
         if (!proSectors.some(s => s.name === formData.sector && s.unit === unit)) { showToast("Selecione um setor oficial válido da lista.", "warning"); return; }
@@ -232,6 +261,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     lastClassStudents, callList,
     guideOptions, studentSearchOptions,
     addStudent, handleClear, handleFormSubmit,
-    defaultState
+    defaultState,
+    ownershipConflict, setOwnershipConflict
   };
 };

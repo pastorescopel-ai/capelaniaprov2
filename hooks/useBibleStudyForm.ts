@@ -18,7 +18,7 @@ interface UseBibleStudyFormProps {
 export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit }: UseBibleStudyFormProps) => {
   const { proStaff, proPatients, proProviders, proSectors, syncMasterContact } = useApp();
   const { showToast } = useToast();
-  const { checkIdentityConflict } = useIdentityGuard();
+  const { checkIdentityConflict, checkOwnershipConflict } = useIdentityGuard();
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
@@ -30,6 +30,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
   const [formData, setFormData] = useState(defaultState);
   const [isSectorLocked, setIsSectorLocked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [ownershipConflict, setOwnershipConflict] = useState<{show: boolean, message: string}>({show: false, message: ''});
 
   useEffect(() => {
     if (!editingItem) {
@@ -106,6 +107,16 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
   const handleSelectStudent = (selectedLabel: string) => {
     const targetName = selectedLabel.split(' (')[0].trim();
+
+    // STRICT OWNERSHIP CHECK: Aborta preenchimento se pertencer a outro
+    const ownership = checkOwnershipConflict(targetName, 'study', unit, currentUser.id, currentUser.role);
+    if (ownership.hasConflict) {
+        setOwnershipConflict({ show: true, message: ownership.message });
+        setFormData(prev => ({ ...prev, name: '', sector: '', sectorId: '', staffId: '', whatsapp: '', guide: '', lesson: '', status: RecordStatus.INICIO }));
+        setIsSectorLocked(false);
+        return;
+    }
+
     const match = selectedLabel.match(/\((.*?)\)$/);
     let targetSector = formData.sector;
     let targetSectorId = formData.sectorId;
@@ -195,6 +206,13 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         return;
     }
 
+    // Double check on submit
+    const ownership = checkOwnershipConflict(formData.name, 'study', unit, currentUser.id, currentUser.role);
+    if (ownership.hasConflict) {
+        setOwnershipConflict({ show: true, message: ownership.message });
+        return;
+    }
+
     const isStaff = formData.participantType === ParticipantType.STAFF;
 
     if (isStaff) {
@@ -242,6 +260,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     isSubmitting,
     guideOptions, sectorOptions, studentOptions,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
-    groupedHistory, defaultState
+    groupedHistory, defaultState,
+    ownershipConflict, setOwnershipConflict
   };
 };
