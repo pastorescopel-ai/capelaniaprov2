@@ -75,6 +75,32 @@ export interface ProGroupProviderMember {
   isError?: boolean;
 }
 
+export interface HeaderLine {
+  id: string;
+  text: string;
+  fontSize: number;
+  color: string;
+  x: number;
+  y: number;
+  width?: number;
+  fontWeight: 'normal' | 'bold' | '900';
+  fontStyle?: 'normal' | 'italic';
+  textDecoration?: 'none' | 'underline';
+  textTransform?: 'none' | 'uppercase' | 'lowercase';
+  fontFamily?: string;
+}
+
+export interface HeaderProfile {
+  id: string;
+  name: string;
+  logoWidth: number;
+  logoX: number;
+  logoY: number;
+  paddingTop: number;
+  textAlign: 'left' | 'center' | 'right';
+  lines: HeaderLine[];
+}
+
 export interface Config {
   id?: string;
   muralText: string;
@@ -100,6 +126,7 @@ export interface Config {
   reportLogoUrl?: string;
   lastModifiedBy?: string;
   lastModifiedAt?: number;
+  headerProfiles?: Record<string, HeaderProfile>;
 }
 
 export interface User {

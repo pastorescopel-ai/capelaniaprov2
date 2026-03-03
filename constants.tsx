@@ -45,5 +45,49 @@ export const INITIAL_CONFIG: Config = {
   headerLine3Y: 90,
   headerPaddingTop: 30,
   headerTextAlign: 'left',
-  primaryColor: '#005a9c'
+  primaryColor: '#005a9c',
+  headerProfiles: {
+    ambassadors: {
+      id: 'ambassadors',
+      name: 'Embaixadores da Esperança',
+      logoWidth: 100,
+      logoX: 40,
+      logoY: 20,
+      paddingTop: 0,
+      textAlign: 'left',
+      lines: [
+        { id: 'title', text: 'Embaixadores da Esperança', fontSize: 24, color: '#005a9c', x: 160, y: 30, fontWeight: '900', textTransform: 'uppercase' },
+        { id: 'line1', text: 'Hospital Adventista de Belém', fontSize: 18, color: '#475569', x: 160, y: 60, fontWeight: 'bold', textTransform: 'uppercase' },
+        { id: 'line2', text: 'Departamento de Capelania', fontSize: 12, color: '#94a3b8', x: 160, y: 90, fontWeight: 'normal', textTransform: 'uppercase' }
+      ]
+    },
+    chaplaincy: {
+      id: 'chaplaincy',
+      name: 'Relatório de Capelania',
+      logoWidth: 100,
+      logoX: 40,
+      logoY: 20,
+      paddingTop: 0,
+      textAlign: 'left',
+      lines: [
+        { id: 'title', text: 'Relatório de Capelania', fontSize: 24, color: '#005a9c', x: 160, y: 30, fontWeight: '900', textTransform: 'uppercase' },
+        { id: 'line1', text: 'Hospital Adventista de Belém', fontSize: 18, color: '#475569', x: 160, y: 60, fontWeight: 'bold', textTransform: 'uppercase' },
+        { id: 'line2', text: 'Departamento de Capelania', fontSize: 12, color: '#94a3b8', x: 160, y: 90, fontWeight: 'normal', textTransform: 'uppercase' }
+      ]
+    },
+    smallGroups: {
+      id: 'smallGroups',
+      name: 'Pequenos Grupos',
+      logoWidth: 100,
+      logoX: 40,
+      logoY: 20,
+      paddingTop: 0,
+      textAlign: 'left',
+      lines: [
+        { id: 'title', text: 'Pequenos Grupos', fontSize: 24, color: '#005a9c', x: 160, y: 30, fontWeight: '900', textTransform: 'uppercase' },
+        { id: 'line1', text: 'Hospital Adventista de Belém', fontSize: 18, color: '#475569', x: 160, y: 60, fontWeight: 'bold', textTransform: 'uppercase' },
+        { id: 'line2', text: 'Departamento de Capelania', fontSize: 12, color: '#94a3b8', x: 160, y: 90, fontWeight: 'normal', textTransform: 'uppercase' }
+      ]
+    }
+  }
 };

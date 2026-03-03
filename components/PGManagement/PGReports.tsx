@@ -5,7 +5,7 @@ import { useApp } from '../../contexts/AppContext';
 import { DEFAULT_APP_LOGO } from '../../assets';
 import { normalizeString } from '../../utils/formatters';
 import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
-import { getBrandedHeader, getBrandedFooter } from '../../utils/reportTemplates';
+import { getBrandedHeaderByProfile, getBrandedFooter } from '../../utils/reportTemplates';
 
 interface PGReportsProps {
   unit: Unit;
@@ -105,64 +105,66 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
 
   const generateSectorHtml = (data: any) => {
     return `
-      <div id="report-page-${data.sector.id}" class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 20mm 15mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; position: relative; display: flex; flex-direction: column;">
-          ${getBrandedHeader(config, reportHeaderInfo.title, reportHeaderInfo.periodLabel)}
+      <div id="report-page-${data.sector.id}" class="pdf-page" style="width: 210mm; min-height: 297mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; position: relative; display: flex; flex-direction: column; overflow: hidden;">
+          ${getBrandedHeaderByProfile(config, 'smallGroups', reportHeaderInfo.periodLabel)}
           
-          <div style="background: #f8fafc; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-radius: 0 15px 15px 0; border-left: 10px solid ${config.primaryColor};">
-              <span style="font-size: 24px; font-weight: 900; text-transform: uppercase;">${data.sector.name}</span>
-              <span style="font-size: 16px; font-weight: bold; padding: 8px 20px; border-radius: 12px; color: white; background: ${data.coverage >= 80 ? '#10b981' : data.coverage >= 50 ? '#f59e0b' : '#f43f5e'};">
-                  ${Math.round(data.coverage)}% Cobertura
-              </span>
+          <div style="padding: 0 15mm 15mm 15mm; flex: 1;">
+            <div style="background: #f8fafc; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-radius: 0 15px 15px 0; border-left: 10px solid ${config.primaryColor};">
+                <span style="font-size: 24px; font-weight: 900; text-transform: uppercase;">${data.sector.name}</span>
+                <span style="font-size: 16px; font-weight: bold; padding: 8px 20px; border-radius: 12px; color: white; background: ${data.coverage >= 80 ? '#10b981' : data.coverage >= 50 ? '#f59e0b' : '#f43f5e'};">
+                    ${Math.round(data.coverage)}% Cobertura
+                </span>
+            </div>
+            <div style="display: flex; gap: 20px; margin-bottom: 30px;">
+                <div style="flex: 1; background: #fff; border: 1px solid #e2e8f0; padding: 20px; border-radius: 20px; text-align: center;">
+                    <span style="font-size: 32px; font-weight: 900; display: block; color: #334155;">${data.totalStaff}</span>
+                    <span style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-top: 5px;">Total Colaboradores</span>
+                </div>
+                <div style="flex: 1; background: #fff; border: 1px solid #e2e8f0; padding: 20px; border-radius: 20px; text-align: center;">
+                    <span style="font-size: 32px; font-weight: 900; display: block; color: #334155;">${data.enrolledCount}</span>
+                    <span style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-top: 5px;">Matriculados</span>
+                </div>
+                <div style="flex: 1; background: #fff; border: 1px solid #e2e8f0; padding: 20px; border-radius: 20px; text-align: center;">
+                    <span style="font-size: 32px; font-weight: 900; display: block; color: #334155;">${data.pgs.length}</span>
+                    <span style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-top: 5px;">PGs Atuantes</span>
+                </div>
+            </div>
+            <div style="margin-bottom: 30px;">
+                <div style="font-size: 14px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px; color: #475569;">Pequenos Grupos do Setor</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    ${data.pgs.length > 0 ? data.pgs.map((pg:any) => `<span style="background: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; text-transform: uppercase;">${pg?.name}</span>`).join('') : '<span style="font-size: 11px; color: #94a3b8; font-style: italic;">Nenhum PG vinculado.</span>'}
+                </div>
+            </div>
+            <div style="display: flex; gap: 40px; margin-bottom: 40px;">
+                <div style="flex: 1;">
+                    <div style="font-size: 14px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #d1fae5; padding-bottom: 8px; margin-bottom: 12px; color: #10b981;">Matriculados (${data.enrolledList.length})</div>
+                    ${data.enrolledByPG.length > 0 ? data.enrolledByPG.map((group: any) => {
+                        const leaderInSector = group.members.find((m: any) => normalizeString(m.name) === normalizeString(group.leaderName || ''));
+                        const leaderInfo = !leaderInSector 
+                          ? (group.leaderName ? ` (Líder: ${group.leaderName})` : ' (Sem Líder)')
+                          : '';
+                        
+                        return `
+                        <div style="margin-top: 12px; margin-bottom: 6px;">
+                            <span style="font-size: 9px; font-weight: 900; color: #059669; background: #ecfdf5; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; border: 1px solid #d1fae5;">
+                              ${group.pgName}${leaderInfo}
+                            </span>
+                        </div>
+                        ${group.members.map((s: any) => {
+                            const isLeader = normalizeString(s.name) === normalizeString(group.leaderName || '');
+                            return `<div style="font-size: 11px; padding: 5px 0 5px 8px; border-bottom: 1px solid #f1f5f9; color: #334155; font-weight: 500;">
+                              ${s.name}${isLeader ? ' <span style="font-weight: 900; color: #059669;">(Líder)</span>' : ''}
+                            </div>`;
+                        }).join('')}
+                    `;}).join('') : `<div style="font-size: 11px; color: #94a3b8; font-style: italic; padding: 10px 0;">Nenhum colaborador matriculado.</div>`}
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-size: 14px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #ffe4e6; padding-bottom: 8px; margin-bottom: 12px; color: #f43f5e;">Não Alcançados (${data.notEnrolledList.length})</div>
+                    ${data.notEnrolledList.map((s:any) => `<div style="font-size: 11px; padding: 5px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-weight: 500;">${s.name}</div>`).join('')}
+                </div>
+            </div>
+            ${getBrandedFooter()}
           </div>
-          <div style="display: flex; gap: 20px; margin-bottom: 30px;">
-              <div style="flex: 1; background: #fff; border: 1px solid #e2e8f0; padding: 20px; border-radius: 20px; text-align: center;">
-                  <span style="font-size: 32px; font-weight: 900; display: block; color: #334155;">${data.totalStaff}</span>
-                  <span style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-top: 5px;">Total Colaboradores</span>
-              </div>
-              <div style="flex: 1; background: #fff; border: 1px solid #e2e8f0; padding: 20px; border-radius: 20px; text-align: center;">
-                  <span style="font-size: 32px; font-weight: 900; display: block; color: #334155;">${data.enrolledCount}</span>
-                  <span style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-top: 5px;">Matriculados</span>
-              </div>
-              <div style="flex: 1; background: #fff; border: 1px solid #e2e8f0; padding: 20px; border-radius: 20px; text-align: center;">
-                  <span style="font-size: 32px; font-weight: 900; display: block; color: #334155;">${data.pgs.length}</span>
-                  <span style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-top: 5px;">PGs Atuantes</span>
-              </div>
-          </div>
-          <div style="margin-bottom: 30px;">
-              <div style="font-size: 14px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px; color: #475569;">Pequenos Grupos do Setor</div>
-              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                  ${data.pgs.length > 0 ? data.pgs.map((pg:any) => `<span style="background: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; text-transform: uppercase;">${pg?.name}</span>`).join('') : '<span style="font-size: 11px; color: #94a3b8; font-style: italic;">Nenhum PG vinculado.</span>'}
-              </div>
-          </div>
-          <div style="display: flex; gap: 40px; margin-bottom: 40px;">
-              <div style="flex: 1;">
-                  <div style="font-size: 14px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #d1fae5; padding-bottom: 8px; margin-bottom: 12px; color: #10b981;">Matriculados (${data.enrolledList.length})</div>
-                  ${data.enrolledByPG.length > 0 ? data.enrolledByPG.map((group: any) => {
-                      const leaderInSector = group.members.find((m: any) => normalizeString(m.name) === normalizeString(group.leaderName || ''));
-                      const leaderInfo = !leaderInSector 
-                        ? (group.leaderName ? ` (Líder: ${group.leaderName})` : ' (Sem Líder)')
-                        : '';
-                      
-                      return `
-                      <div style="margin-top: 12px; margin-bottom: 6px;">
-                          <span style="font-size: 9px; font-weight: 900; color: #059669; background: #ecfdf5; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; border: 1px solid #d1fae5;">
-                            ${group.pgName}${leaderInfo}
-                          </span>
-                      </div>
-                      ${group.members.map((s: any) => {
-                          const isLeader = normalizeString(s.name) === normalizeString(group.leaderName || '');
-                          return `<div style="font-size: 11px; padding: 5px 0 5px 8px; border-bottom: 1px solid #f1f5f9; color: #334155; font-weight: 500;">
-                            ${s.name}${isLeader ? ' <span style="font-weight: 900; color: #059669;">(Líder)</span>' : ''}
-                          </div>`;
-                      }).join('')}
-                  `;}).join('') : `<div style="font-size: 11px; color: #94a3b8; font-style: italic; padding: 10px 0;">Nenhum colaborador matriculado.</div>`}
-              </div>
-              <div style="flex: 1;">
-                  <div style="font-size: 14px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #ffe4e6; padding-bottom: 8px; margin-bottom: 12px; color: #f43f5e;">Não Alcançados (${data.notEnrolledList.length})</div>
-                  ${data.notEnrolledList.map((s:any) => `<div style="font-size: 11px; padding: 5px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-weight: 500;">${s.name}</div>`).join('')}
-              </div>
-          </div>
-          ${getBrandedFooter()}
       </div>
     `;
   };

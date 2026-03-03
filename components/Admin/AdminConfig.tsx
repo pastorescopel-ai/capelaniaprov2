@@ -120,6 +120,17 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ config, setConfig, mode = 'ba
 
         {/* EDITOR VISUAL DE CABEÇALHO */}
         <AdminHeaderEditor config={config} setConfig={setConfig} />
+
+        <div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl flex items-start gap-4">
+          <i className="fas fa-exclamation-triangle text-amber-500 mt-1"></i>
+          <div className="space-y-1">
+            <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Nota sobre Salvamento</p>
+            <p className="text-[9px] text-amber-700 font-bold leading-relaxed">
+              Se as alterações não persistirem após clicar em "Aplicar Mudanças", seu banco de dados pode precisar de uma atualização. 
+              Vá na aba <span className="underline">Ferramentas</span> e use o botão "Correção de Banco (SQL)".
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

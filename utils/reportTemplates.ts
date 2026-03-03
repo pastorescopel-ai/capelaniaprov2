@@ -16,6 +16,56 @@ export const getBrandedHeader = (config: Config, title: string, periodLabel: str
   `;
 };
 
+export const getBrandedHeaderByProfile = (config: Config, profileId: string, periodLabel: string) => {
+  const profile = config.headerProfiles?.[profileId];
+  
+  if (!profile) {
+    return getBrandedHeader(config, 'Relatório', periodLabel);
+  }
+
+  return `
+    <div style="
+      width: 794px; 
+      height: 180px; 
+      border-bottom: 4px solid ${config.primaryColor}; 
+      position: relative; 
+      margin-bottom: 30px; 
+      background-color: white;
+      overflow: hidden;
+    ">
+        <img src="${config.reportLogoUrl || DEFAULT_APP_LOGO}" style="width: ${profile.logoWidth}px; position: absolute; left: ${profile.logoX}px; top: ${profile.logoY}px;" />
+        <div style="position: relative; width: 100%; height: 100%;">
+            ${profile.lines.map(line => `
+              <div style="
+                position: absolute; 
+                left: ${line.x}px; 
+                top: ${line.y}px; 
+                width: ${line.width ? `${line.width}px` : 'auto'};
+                font-size: ${line.fontSize}px; 
+                color: ${line.color}; 
+                text-transform: ${line.textTransform || 'none'}; 
+                font-weight: ${line.fontWeight}; 
+                font-style: ${line.fontStyle || 'normal'};
+                text-decoration: ${line.textDecoration || 'none'};
+                font-family: ${line.fontFamily || 'sans-serif'};
+                line-height: 1.1; 
+                white-space: nowrap; 
+                text-align: ${profile.textAlign};
+              ">
+                ${line.text}
+              </div>
+            `).join('')}
+            
+            <div style="position: absolute; bottom: 16px; width: 100%; text-align: ${profile.textAlign};">
+              <p style="font-size: 10px; color: #64748b; text-transform: uppercase; margin: 0; font-weight: bold; letter-spacing: 1px; padding: 0 15px;">
+                ${periodLabel}
+              </p>
+            </div>
+        </div>
+    </div>
+  `;
+};
+
 export const getBrandedFooter = () => {
   return `
     <div style="text-align: center; border-top: 2px solid #f1f5f9; padding-top: 25px; margin-top: auto;">

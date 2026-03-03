@@ -1,5 +1,5 @@
 import { Ambassador, Unit, Sector, Config } from '../types';
-import { getBrandedHeader, getBrandedFooter, getStandardTable } from './reportTemplates';
+import { getBrandedHeaderByProfile, getBrandedFooter, getStandardTable } from './reportTemplates';
 
 interface PDFOptions {
   mode: 'sector' | 'full';
@@ -63,27 +63,30 @@ export const generateAmbassadorReportHtml = (ambassadors: Ambassador[], options:
         ]);
 
       return `
-        <div class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 20mm 15mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; display: flex; flex-direction: column;">
-          ${getBrandedHeader(config, title, periodLabel)}
+        <div class="pdf-page" style="width: 210mm; min-height: 297mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; display: flex; flex-direction: column; overflow: hidden;">
+          ${getBrandedHeaderByProfile(config, 'ambassadors', periodLabel)}
           
-          <div style="background: #f8fafc; padding: 15px 20px; border-radius: 0 15px 15px 0; border-left: 10px solid ${config.primaryColor}; margin-bottom: 20px;">
-            <h2 style="font-size: 20px; font-weight: 900; text-transform: uppercase; margin: 0;">${sectorName}</h2>
-            <p style="font-size: 10px; font-weight: bold; color: #64748b; margin: 5px 0 0 0;">TOTAL: ${tableData.length} EMBAIXADORES CAPACITADOS</p>
-          </div>
+          <div style="padding: 0 15mm 15mm 15mm; flex: 1;">
+            <div style="background: #f8fafc; padding: 15px 20px; border-radius: 0 15px 15px 0; border-left: 10px solid ${config.primaryColor}; margin-bottom: 20px;">
+              <h2 style="font-size: 20px; font-weight: 900; text-transform: uppercase; margin: 0;">${sectorName}</h2>
+              <p style="font-size: 10px; font-weight: bold; color: #64748b; margin: 5px 0 0 0;">TOTAL: ${tableData.length} EMBAIXADORES CAPACITADOS</p>
+            </div>
 
-          <div style="flex: 1;">
-            ${getStandardTable(['Matrícula', 'Nome Completo', 'Data Capacitação'], tableData)}
-          </div>
+            <div style="flex: 1;">
+              ${getStandardTable(['Matrícula', 'Nome Completo', 'Data Capacitação'], tableData)}
+            </div>
 
-          ${getBrandedFooter()}
+            ${getBrandedFooter()}
+          </div>
         </div>
       `;
     }).join('');
   } else {
     // Retorna uma única string com todos os setores (contínuo)
     let combinedHtml = `
-      <div class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 20mm 15mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; display: flex; flex-direction: column;">
-        ${getBrandedHeader(config, title, periodLabel)}
+      <div class="pdf-page" style="width: 210mm; min-height: 297mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; display: flex; flex-direction: column; overflow: hidden;">
+        ${getBrandedHeaderByProfile(config, 'ambassadors', periodLabel)}
+        <div style="padding: 0 15mm 15mm 15mm; flex: 1;">
     `;
 
     sortedSectors.forEach(sectorName => {
@@ -104,10 +107,11 @@ export const generateAmbassadorReportHtml = (ambassadors: Ambassador[], options:
     });
 
     combinedHtml += `
-        <div style="margin-top: 30px; padding: 15px; background: #f8fafc; border-radius: 10px; text-align: right;">
-          <span style="font-size: 12px; font-weight: 900; text-transform: uppercase;">Total Geral: ${filtered.length} Embaixadores</span>
+          <div style="margin-top: 30px; padding: 15px; background: #f8fafc; border-radius: 10px; text-align: right;">
+            <span style="font-size: 12px; font-weight: 900; text-transform: uppercase;">Total Geral: ${filtered.length} Embaixadores</span>
+          </div>
+          ${getBrandedFooter()}
         </div>
-        ${getBrandedFooter()}
       </div>
     `;
     return combinedHtml;

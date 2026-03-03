@@ -55,8 +55,14 @@ const AmbassadorsManager: React.FC = () => {
   };
 
   // Filtros de Relatório
-  const [reportStartDate, setReportStartDate] = useState('');
-  const [reportEndDate, setReportEndDate] = useState('');
+  const [reportStartDate, setReportStartDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [reportEndDate, setReportEndDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
   const [reportSectorId, setReportSectorId] = useState<string>('all');
   const [reportSortOrder, setReportSortOrder] = useState<'alpha' | 'percent'>('alpha');
 

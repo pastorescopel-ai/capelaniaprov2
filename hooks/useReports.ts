@@ -5,6 +5,7 @@ import { resolveDynamicName, normalizeString } from '../utils/formatters';
 import { generateExecutiveHTML } from '../utils/pdfTemplates';
 import { useDocumentGenerator } from './useDocumentGenerator';
 import { useApp } from '../contexts/AppContext';
+import { getBrandedHeaderByProfile } from '../utils/reportTemplates';
 
 interface UseReportsProps {
   studies: BibleStudy[];
@@ -93,17 +94,6 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
 
     let html = `<div style="background: #f1f5f9; padding: 20px;">`;
 
-    const renderHeader = (title: string, subtitle: string) => `
-      <header style="border-bottom: 4px solid ${pColor}; padding-bottom: 10px; margin-bottom: 20px; display: flex; align-items: center;">
-        <img src="${config.reportLogoUrl || ''}" style="width: 80px; margin-right: 20px;" />
-        <div>
-          <h1 style="font-size: 16px; color: ${pColor}; margin: 0; text-transform: uppercase;">${config.headerLine1}</h1>
-          <h2 style="font-size: 10px; color: #475569; margin: 0;">${title}</h2>
-          <p style="font-size: 8px; color: #94a3b8; margin: 2px 0 0 0;">${subtitle}</p>
-        </div>
-      </header>
-    `;
-
     for (const pg of targetPGs) {
       const activeStaffMembers = proGroupMembers.filter(m => m.groupId === pg.id && !m.leftAt);
       const activeProviderMembers = proGroupProviderMembers.filter(m => m.groupId === pg.id && !m.leftAt);
@@ -140,7 +130,7 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
 
       html += `
         <div class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 15mm; background: white; box-sizing: border-box; font-family: sans-serif; position: relative; margin-bottom: 20px;">
-          ${renderHeader(`Relatório de Pequeno Grupo (PG)`, `Unidade: ${pg.unit || 'Todas'}`)}
+          ${getBrandedHeaderByProfile(config, 'smallGroups', `Unidade: ${pg.unit || 'Todas'}`)}
           
           <div style="background: #f8fafc; padding: 20px; border-left: 8px solid ${pColor}; border-radius: 0 12px 12px 0; margin-bottom: 25px;">
             <h2 style="font-size: 24px; font-weight: 900; color: #1e293b; margin: 0 0 5px 0; text-transform: uppercase;">${pg.name}</h2>
@@ -201,19 +191,9 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
     const totalPages = Math.ceil(data.length / ROWS_PER_PAGE) || 1;
     let html = `<div style="background: #f1f5f9; padding: 20px;">`;
     
-    const renderAuditHeader = () => `
-      <header style="border-bottom: 4px solid ${pColor}; padding-bottom: 10px; margin-bottom: 20px; display: flex; align-items: center;">
-        <img src="${config.reportLogoUrl || ''}" style="width: 80px; margin-right: 20px;" />
-        <div>
-          <h1 style="font-size: 16px; color: ${pColor}; margin: 0; text-transform: uppercase;">${config.headerLine1}</h1>
-          <h2 style="font-size: 10px; color: #475569; margin: 0;">Auditoria de ${type === 'students' ? 'Alunos' : 'Visitas'}</h2>
-        </div>
-      </header>
-    `;
-
     for (let p = 0; p < totalPages; p++) {
       html += `<div class="pdf-page" style="width: 210mm; height: 297mm; padding: 15mm; background: white; box-sizing: border-box; font-family: sans-serif; position: relative;">
-          ${renderAuditHeader()}
+          ${getBrandedHeaderByProfile(config, 'chaplaincy', `Página ${p + 1} de ${totalPages}`)}
           <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
             <thead><tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #64748b; text-transform: uppercase;"><th style="padding: 10px; text-align: left;">Data</th><th style="padding: 10px; text-align: left;">Setor / Unid</th><th style="padding: 10px; text-align: left;">Nome / Motivo</th><th style="padding: 10px; text-align: left;">Capelão</th><th style="padding: 10px; text-align: right;">Status</th></tr></thead>
             <tbody>
