@@ -32,7 +32,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     newStudent, setNewStudent,
     isSubmitting,
     lastClassStudents, callList,
-    guideOptions, studentSearchOptions,
+    guideOptions, studentSearchOptions, sectorOptions,
     addStudent, handleClear, handleFormSubmit,
     defaultState, ownershipConflict, setOwnershipConflict
   } = useBibleClassForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
@@ -89,7 +89,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           
           <div className="space-y-1">
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>Setor / Local {isStaff ? '(Obrigatório)' : '(Opcional)'}</label>
-              <Autocomplete options={sectors.map(s => ({value: s, label: s}))} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} placeholder={isStaff ? "Selecione o setor..." : "Leito, Quarto ou Área (Opcional)..."} isStrict={isStaff} />
+              <Autocomplete options={sectorOptions} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} placeholder={isStaff ? "Selecione o setor..." : "Leito, Quarto ou Área (Opcional)..."} isStrict={isStaff} />
           </div>
 
           <div className={`space-y-1 ${!isStaff ? 'order-first md:order-none col-span-2 md:col-span-2 animate-in slide-in-from-top-2' : ''}`}>
@@ -112,17 +112,17 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                     const isFromLastClass = lastClassStudents.includes(s);
                     
                     return (
-                      <div key={`${s}-${i}`} className={`flex items-center justify-between p-3 md:p-4 border-b border-slate-100 last:border-none transition-colors group ${isPresent ? 'bg-emerald-50/50' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
+                      <div key={`${s}-${i}`} className={`flex items-center justify-between p-3 md:p-4 border-b border-slate-100 last:border-none transition-colors group ${isPresent ? 'bg-emerald-50/50' : isFromLastClass ? 'bg-amber-50/80 border-l-4 border-l-amber-400' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
                           <div className="flex items-center gap-3 md:gap-4">
-                              <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${isPresent ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                              <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${isPresent ? 'bg-emerald-500 text-white' : isFromLastClass ? 'bg-amber-200 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>
                                 {isPresent ? <i className="fas fa-check"></i> : i + 1}
                               </div>
                               <div className="flex flex-col">
                                 <div className="flex items-center gap-2">
-                                  <span className={`text-[11px] md:text-xs font-black uppercase leading-tight ${isPresent ? 'text-emerald-700' : 'text-slate-700'}`}>{s.split(' (')[0]}</span>
-                                  {!isPresent && isFromLastClass && <span className="text-[8px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Frequente</span>}
+                                  <span className={`text-[11px] md:text-xs font-black uppercase leading-tight ${isPresent ? 'text-emerald-700' : isFromLastClass ? 'text-amber-900' : 'text-slate-700'}`}>{s.split(' (')[0]}</span>
+                                  {!isPresent && isFromLastClass && <span className="text-[8px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter"><i className="fas fa-star mr-1"></i>Frequente</span>}
                                 </div>
-                                {s.includes('(') && <span className={`text-[8px] md:text-[9px] font-bold ${isPresent ? 'text-emerald-400' : 'text-slate-400'}`}>{s.match(/\((.*?)\)/)?.[0]}</span>}
+                                {s.includes('(') && <span className={`text-[8px] md:text-[9px] font-bold ${isPresent ? 'text-emerald-400' : isFromLastClass ? 'text-amber-600' : 'text-slate-400'}`}>{s.match(/\((.*?)\)/)?.[0]}</span>}
                               </div>
                           </div>
                           <button 
@@ -134,7 +134,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                                 setFormData({...formData, students: [...formData.students, s]});
                               }
                             }} 
-                            className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl transition-all shadow-sm flex items-center gap-2 border ${isPresent ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-rose-500 hover:border-rose-500' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600'}`}
+                            className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl transition-all shadow-sm flex items-center gap-2 border ${isPresent ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-rose-500 hover:border-rose-500' : isFromLastClass ? 'bg-amber-500 border-amber-500 text-white hover:bg-amber-600' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600'}`}
                           >
                             <span className="text-[9px] font-black uppercase hidden sm:inline">{isPresent ? 'Presente' : 'Ausente'}</span>
                             <i className={`fas ${isPresent ? 'fa-user-check' : 'fa-user-plus'} text-xs`}></i>

@@ -34,20 +34,23 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
   const lastClassStudents = useMemo(() => {
     if (!formData.sector || !unit) return [];
+    
+    // Busca a última classe DESTE SETOR e DESTE TIPO DE PARTICIPANTE
     const lastClass = [...allHistory]
-      .filter(c => c.sector === formData.sector && c.unit === unit)
+      .filter(c => c.sector === formData.sector && c.unit === unit && (c.participantType || ParticipantType.STAFF) === formData.participantType)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      
     return lastClass?.students || [];
-  }, [formData.sector, allHistory, unit]);
+  }, [formData.sector, allHistory, unit, formData.participantType]);
 
   const sectorStaff = useMemo(() => {
-    if (!formData.sector || !unit) return [];
+    if (!formData.sector || !unit || formData.participantType !== ParticipantType.STAFF) return [];
     const sectorObj = proSectors.find(s => s.name === formData.sector && s.unit === unit);
     if (!sectorObj) return [];
     return proStaff
       .filter(s => s.sectorId === sectorObj.id && s.active)
       .map(s => `${s.name} (${String(s.id).split('-')[1] || s.id})`);
-  }, [formData.sector, proSectors, proStaff, unit]);
+  }, [formData.sector, proSectors, proStaff, unit, formData.participantType]);
 
   const callList = useMemo(() => {
     const present = formData.students;
@@ -77,18 +80,81 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     return Array.from(uniqueGuides).sort().map(g => ({ value: g, label: g }));
   }, [allHistory]);
 
+  const sectorOptions = useMemo(() => {
+    const options: AutocompleteOption[] = [];
+    const myClasses = new Set<string>();
+    
+    const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType);
+
+    // 1. Setores onde o capelão logado deu classe (Destaque Amarelo)
+    filteredHistory.filter(c => c.userId === currentUser.id && c.unit === unit).forEach(c => {
+      if (c.sector && !myClasses.has(c.sector)) {
+        myClasses.add(c.sector);
+        options.push({
+          value: c.sector,
+          label: c.sector,
+          subLabel: 'Minha Classe',
+          category: 'MyClasses',
+          highlight: true
+        });
+      }
+    });
+
+    // 2. Restante dos setores oficiais
+    proSectors.filter(s => s.unit === unit).forEach(s => {
+      if (!myClasses.has(s.name)) {
+        options.push({
+          value: s.name,
+          label: s.name,
+          category: 'RH'
+        });
+      }
+    });
+
+    return options;
+  }, [allHistory, currentUser.id, proSectors, unit, formData.participantType]);
+
   const studentSearchOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
     const officialSet = new Set<string>();
     
-    proStaff.filter(s => s.unit === unit).forEach(staff => {
-      const sector = proSectors.find(sec => sec.id === staff.sectorId);
-      options.push({ value: staff.name, label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, subLabel: sector ? sector.name : 'Setor não informado', category: 'RH' });
-      officialSet.add(normalizeString(staff.name));
-    });
+    if (formData.participantType === ParticipantType.STAFF) {
+        proStaff.filter(s => s.unit === unit).forEach(staff => {
+          const sector = proSectors.find(sec => sec.id === staff.sectorId);
+          options.push({ value: staff.name, label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, subLabel: sector ? sector.name : 'Setor não informado', category: 'RH' });
+          officialSet.add(normalizeString(staff.name));
+        });
+    } else if (formData.participantType === ParticipantType.PATIENT) {
+        // Se houver proPatients no AppContext, poderia usar aqui
+    } else {
+        // Se houver proProviders no AppContext, poderia usar aqui
+    }
 
     const uniqueHistoryNames = new Set<string>();
-    allHistory.forEach(c => {
+    const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType);
+    const otherHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) !== formData.participantType);
+    
+    // 1. Alunos das classes do capelão logado (Destaque Amarelo)
+    filteredHistory.filter(c => c.userId === currentUser.id).forEach(c => {
+       if (Array.isArray(c.students)) {
+         c.students.forEach(s => {
+           const norm = normalizeString(s);
+           if (!uniqueHistoryNames.has(norm)) {
+             uniqueHistoryNames.add(norm);
+             options.push({ 
+               value: s.trim(), 
+               label: s.trim(), 
+               subLabel: c.sector, 
+               category: 'MyStudents',
+               highlight: true 
+             });
+           }
+         });
+       }
+    });
+
+    // 2. Resto do histórico geral
+    filteredHistory.forEach(c => {
        if (Array.isArray(c.students)) {
          c.students.forEach(s => {
            const norm = normalizeString(s);
@@ -99,13 +165,33 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
          });
        }
     });
+
+    // 3. Alunos de outras abas (Migração)
+    otherHistory.forEach(c => {
+       if (Array.isArray(c.students)) {
+         c.students.forEach(s => {
+           const norm = normalizeString(s);
+           if (!uniqueHistoryNames.has(norm) && !officialSet.has(norm)) {
+             uniqueHistoryNames.add(norm);
+             options.push({ value: s.trim(), label: s.trim(), subLabel: `${c.sector || 'Sem setor'} (Migrar)`, category: 'Migration' });
+           }
+         });
+       }
+    });
+
     return options;
-  }, [proStaff, proSectors, unit, allHistory]);
+  }, [proStaff, proSectors, unit, allHistory, currentUser.id, formData.participantType]);
 
   useEffect(() => {
-    if (formData.sector && !editingItem && formData.participantType === ParticipantType.STAFF) {
+    if (formData.sector && !editingItem) {
         const sectorObj = proSectors.find(s => s.name === formData.sector && s.unit === unit);
-        if (sectorObj) {
+        
+        // Filtra o histórico para pegar a última classe deste setor e deste tipo de participante
+        const lastClass = [...allHistory]
+            .filter(c => c.sector === formData.sector && c.unit === unit && (c.participantType || ParticipantType.STAFF) === formData.participantType)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        
+        if (sectorObj && formData.participantType === ParticipantType.STAFF) {
             // STRICT OWNERSHIP CHECK: Verifica se a classe do setor pertence a outro
             const ownership = checkOwnershipConflict(formData.sector, 'class', unit, currentUser.id, currentUser.role);
             if (ownership.hasConflict) {
@@ -114,7 +200,6 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
                 return;
             }
 
-            const lastClass = [...allHistory].filter(c => c.sector === formData.sector && c.unit === unit).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
             let nextLesson = '';
             let nextGuide = '';
             let nextStatus = RecordStatus.INICIO; 
@@ -126,9 +211,27 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
                 nextStatus = RecordStatus.CONTINUACAO;
             }
             setFormData(prev => ({ ...prev, students: [], guide: nextGuide || prev.guide, lesson: nextLesson || prev.lesson, status: nextStatus }));
+        } else if (lastClass) {
+            // Se achou no histórico, puxa os dados (sem mudar a aba)
+            let nextLesson = '';
+            let nextGuide = '';
+            let nextStatus = RecordStatus.INICIO; 
+            
+            nextGuide = lastClass.guide;
+            const lastNum = parseInt(lastClass.lesson);
+            nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
+            nextStatus = RecordStatus.CONTINUACAO;
+            
+            setFormData(prev => ({ 
+                ...prev, 
+                students: [], 
+                guide: nextGuide || prev.guide, 
+                lesson: nextLesson || prev.lesson, 
+                status: nextStatus
+            }));
         }
     }
-  }, [formData.sector, proSectors, proStaff, unit, allHistory, editingItem, formData.participantType]);
+  }, [formData.sector, proSectors, proStaff, unit, allHistory, editingItem, formData.participantType, currentUser.id, currentUser.role, checkOwnershipConflict]);
 
   useEffect(() => {
     if (editingItem) {
@@ -181,7 +284,17 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       }
 
       if (formData.participantType !== ParticipantType.STAFF) {
-          const lastClassWithStudent = [...allHistory].filter(c => c.students && c.students.includes(finalString)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          let lastClassWithStudent = [...allHistory]
+              .filter(c => c.students && c.students.includes(finalString) && (c.participantType || ParticipantType.STAFF) === formData.participantType)
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          
+          if (!lastClassWithStudent) {
+              // Se não achou na aba atual, busca em qualquer aba (Migração)
+              lastClassWithStudent = [...allHistory]
+                  .filter(c => c.students && c.students.includes(finalString))
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          }
+
           if (lastClassWithStudent) {
               peersToAdd = lastClassWithStudent.students.filter(s => s !== finalString && !formData.students.includes(s));
               nextGuide = lastClassWithStudent.guide;
@@ -259,7 +372,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     newStudent, setNewStudent,
     isSubmitting,
     lastClassStudents, callList,
-    guideOptions, studentSearchOptions,
+    guideOptions, studentSearchOptions, sectorOptions,
     addStudent, handleClear, handleFormSubmit,
     defaultState,
     ownershipConflict, setOwnershipConflict

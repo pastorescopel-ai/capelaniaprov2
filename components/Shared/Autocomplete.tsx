@@ -7,7 +7,8 @@ export interface AutocompleteOption {
   value: string;      // O valor real que será salvo (ex: nome limpo ou formatado)
   label: string;      // Título principal (Nome + Matrícula)
   subLabel?: string;  // Informação secundária (Setor)
-  category?: 'RH' | 'History';
+  category?: 'RH' | 'History' | 'MyStudents' | 'MyClasses' | 'Migration';
+  highlight?: boolean; // Nova flag para destacar em amarelo
 }
 
 interface AutocompleteProps {
@@ -53,10 +54,14 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
       return searchTerms.every(term => fullText.includes(term));
     });
 
-    // Ordenação: 1. Oficiais (RH), 2. Histórico
+    // Ordenação: 1. Meus Alunos/Classes (Destaque), 2. Oficiais (RH), 3. Histórico Geral, 4. Migração
     return results.sort((a, b) => {
+      if (a.highlight && !b.highlight) return -1;
+      if (!a.highlight && b.highlight) return 1;
       if (a.category === 'RH' && b.category !== 'RH') return -1;
       if (a.category !== 'RH' && b.category === 'RH') return 1;
+      if (a.category === 'History' && b.category === 'Migration') return -1;
+      if (a.category === 'Migration' && b.category === 'History') return 1;
       return a.label.localeCompare(b.label);
     });
   }, [options, value, open]);
@@ -112,18 +117,24 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
                   {/* Header de Categoria */}
                   {showHeader && (
                     <div className={`px-4 py-2 text-[8px] font-black uppercase tracking-[0.2em] mb-1 mt-1 rounded-lg ${
-                      isOfficial ? 'text-blue-500 bg-blue-50/50' : 'text-slate-400 bg-slate-50'
+                      o.highlight ? 'text-amber-600 bg-amber-100' :
+                      isOfficial ? 'text-blue-500 bg-blue-50/50' : 
+                      o.category === 'Migration' ? 'text-purple-600 bg-purple-50' : 'text-slate-400 bg-slate-50'
                     }`}>
-                      <i className={`fas ${isOfficial ? 'fa-certificate' : 'fa-history'} mr-2`}></i>
-                      {isOfficial ? 'Colaboradores (RH)' : 'Seu Histórico'}
+                      <i className={`fas ${o.highlight ? 'fa-star' : isOfficial ? 'fa-certificate' : o.category === 'Migration' ? 'fa-exchange-alt' : 'fa-history'} mr-2`}></i>
+                      {o.highlight ? (o.category === 'MyClasses' ? 'Minhas Classes' : 'Meus Alunos') : isOfficial ? 'Colaboradores (RH)' : o.category === 'Migration' ? 'Migrar de Outra Aba' : 'Histórico Geral'}
                     </div>
                   )}
 
                   <button 
                     type="button" 
                     className={`w-full text-left p-3 transition-all rounded-xl flex items-center justify-between group mb-1 border-2 border-transparent
-                      ${isOfficial 
+                      ${o.highlight
+                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+                        : isOfficial 
                         ? 'hover:bg-blue-600 hover:text-white text-slate-800' 
+                        : o.category === 'Migration'
+                        ? 'hover:bg-purple-50 text-slate-700'
                         : 'hover:bg-slate-100 text-slate-700'
                       }`} 
                     onMouseDown={(e) => { 

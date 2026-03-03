@@ -81,15 +81,45 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         });
     }
     
-    const personalHistory = allHistory.filter(s => s.userId === currentUser.id);
+    const filteredHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) === formData.participantType);
+    const otherHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) !== formData.participantType);
+    
+    const personalHistory = filteredHistory.filter(s => s.userId === currentUser.id);
     const uniqueHistoryNames = new Set<string>();
+    
+    // 1. Primeiro, adiciona os alunos DO CAPELÃO LOGADO (Destaque Amarelo)
     personalHistory.forEach(s => {
+      const norm = normalizeString(s.name);
+      if (s.name && !uniqueHistoryNames.has(norm)) {
+        uniqueHistoryNames.add(norm);
+        options.push({ 
+          value: s.name, 
+          label: s.name, 
+          subLabel: s.sector, 
+          category: 'MyStudents' as const,
+          highlight: true 
+        });
+      }
+    });
+
+    // 2. Depois, adiciona o resto do histórico geral (sem destaque)
+    filteredHistory.forEach(s => {
       const norm = normalizeString(s.name);
       if (s.name && !uniqueHistoryNames.has(norm) && !officialSet.has(norm)) {
         uniqueHistoryNames.add(norm);
         options.push({ value: s.name, label: s.name, subLabel: s.sector, category: 'History' as const });
       }
     });
+
+    // 3. Por fim, adiciona alunos de outras abas (Migração)
+    otherHistory.forEach(s => {
+      const norm = normalizeString(s.name);
+      if (s.name && !uniqueHistoryNames.has(norm) && !officialSet.has(norm)) {
+        uniqueHistoryNames.add(norm);
+        options.push({ value: s.name, label: s.name, subLabel: `${s.sector || 'Sem setor'} (Migrar)`, category: 'Migration' as const });
+      }
+    });
+
     return options;
   }, [allHistory, currentUser.id, proStaff, proPatients, proProviders, proSectors, unit, formData.participantType]);
 
@@ -164,9 +194,13 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         lockSector = false;
     }
 
-    const lastRecord = [...allHistory].filter(h => normalizeString(h.name) === normName && h.unit === unit).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    const lastRecord = [...allHistory]
+        .filter(h => normalizeString(h.name) === normName && h.unit === unit)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    
     if (lastRecord) {
         targetGuide = lastRecord.guide;
+        
         const lastNum = parseInt(lastRecord.lesson);
         if (!isNaN(lastNum)) {
             targetLesson = (lastNum + 1).toString();
@@ -178,7 +212,15 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     }
 
     setFormData(prev => ({ 
-        ...prev, name: targetName, sector: targetSector, sectorId: targetSectorId, staffId: targetStaffId, whatsapp: targetWhatsApp, guide: targetGuide, lesson: targetLesson, status: targetStatus 
+        ...prev, 
+        name: targetName, 
+        sector: targetSector, 
+        sectorId: targetSectorId, 
+        staffId: targetStaffId, 
+        whatsapp: targetWhatsApp, 
+        guide: targetGuide, 
+        lesson: targetLesson, 
+        status: targetStatus
     }));
     setIsSectorLocked(lockSector);
     if (lockSector) showToast("Setor vinculado ao cadastro oficial.", "info");
