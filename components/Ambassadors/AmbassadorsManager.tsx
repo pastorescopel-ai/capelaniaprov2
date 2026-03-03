@@ -27,12 +27,32 @@ const AmbassadorsManager: React.FC = () => {
     isLoading, 
     importPreview, 
     setImportPreview, 
+    selectedMonth,
+    setSelectedMonth,
     deleteAmbassador, 
     processImport 
   } = useAmbassadors(proSectors);
 
   // Hook de Estatísticas
   const { stats, getChartData } = useAmbassadorStats(ambassadors, proSectors, proStaff);
+
+  // Funções de Navegação de Mês
+  const handlePrevMonth = () => {
+    const d = new Date(selectedMonth + 'T12:00:00');
+    d.setMonth(d.getMonth() - 1);
+    setSelectedMonth(d.toISOString().split('T')[0]);
+  };
+
+  const handleNextMonth = () => {
+    const d = new Date(selectedMonth + 'T12:00:00');
+    d.setMonth(d.getMonth() + 1);
+    setSelectedMonth(d.toISOString().split('T')[0]);
+  };
+
+  const formatMonthLabel = (iso: string) => {
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
 
   // Filtros de Relatório
   const [reportStartDate, setReportStartDate] = useState('');
@@ -55,7 +75,7 @@ const AmbassadorsManager: React.FC = () => {
     });
 
     if (html) {
-      await generatePdf(html, `Relatorio_Embaixadores_${currentUnit}_${mode}`);
+      await generatePdf(html, `Relatorio_Embaixadores_${currentUnit}_${mode}_${selectedMonth}`);
     } else {
       showToast('Nenhum dado encontrado para os filtros selecionados.', 'warning');
     }
@@ -77,9 +97,24 @@ const AmbassadorsManager: React.FC = () => {
                 <h1 className="text-lg md:text-2xl font-black text-slate-800 uppercase tracking-tighter leading-none">
                   Embaixadores da Esperança
                 </h1>
-                <p className="text-slate-500 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-1 hidden sm:block">
-                  Gestão do projeto de capacitação e engajamento
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-slate-500 text-[9px] md:text-[10px] font-bold uppercase tracking-widest hidden sm:block">
+                    Gestão do projeto de capacitação
+                  </p>
+                  <span className="w-1 h-1 bg-slate-300 rounded-full hidden sm:block"></span>
+                  {/* Seletor de Mês */}
+                  <div className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+                    <button onClick={handlePrevMonth} className="text-slate-400 hover:text-blue-600 transition-colors">
+                      <FileText size={12} className="rotate-180" />
+                    </button>
+                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-tight min-w-[100px] text-center">
+                      {formatMonthLabel(selectedMonth)}
+                    </span>
+                    <button onClick={handleNextMonth} className="text-slate-400 hover:text-blue-600 transition-colors">
+                      <FileText size={12} />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             
@@ -144,6 +179,7 @@ const AmbassadorsManager: React.FC = () => {
               processImport={processImport}
               isLoading={isLoading}
               onSuccess={() => setActiveTab('dashboard')}
+              selectedMonth={selectedMonth}
             />
           )}
 

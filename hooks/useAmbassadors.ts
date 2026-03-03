@@ -9,12 +9,19 @@ export const useAmbassadors = (proSectors: any[]) => {
   const [ambassadors, setAmbassadors] = useState<Ambassador[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [importPreview, setImportPreview] = useState<any[]>([]);
+  
+  // Estado do Ciclo Selecionado (Padrão: Primeiro dia do mês atual)
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
 
   const fetchAmbassadors = useCallback(async () => {
     setIsLoading(true);
     const { data, error } = await supabase
       .from('ambassadors')
-      .select('*');
+      .select('*')
+      .eq('cycle_month', selectedMonth);
     
     if (error) {
       showToast('Erro ao carregar embaixadores', 'error');
@@ -26,12 +33,14 @@ export const useAmbassadors = (proSectors: any[]) => {
         email: d.email,
         sectorId: d.sector_id ? String(d.sector_id) : null,
         unit: d.unit,
-        completionDate: d.completion_date
+        completionDate: d.completion_date,
+        cycleMonth: d.cycle_month,
+        createdAt: d.created_at
       }));
       setAmbassadors(formatted);
     }
     setIsLoading(false);
-  }, [showToast]);
+  }, [showToast, selectedMonth]);
 
   useEffect(() => {
     fetchAmbassadors();
@@ -47,13 +56,14 @@ export const useAmbassadors = (proSectors: any[]) => {
     }
   };
 
-  const processImport = async (onSuccess: () => void) => {
+  const processImport = async (onSuccess: () => void, cycleMonth: string) => {
     setIsLoading(true);
     try {
       if (importPreview.length === 0) throw new Error("A planilha está vazia.");
+      if (!cycleMonth) throw new Error("Selecione o mês de referência.");
 
       const headers = Object.keys(importPreview[0]).map(h => normalizeString(h));
-      const requiredFields = ['data', 'matricula', 'nome', 'id_setor', 'setor'];
+      const requiredFields = ['matricula', 'nome', 'id_setor', 'setor'];
       const forbiddenFields = ['pg', 'pequenos grupos', 'pequeno grupo'];
 
       if (headers.some(h => forbiddenFields.some(f => h.includes(f)))) {
@@ -67,6 +77,11 @@ export const useAmbassadors = (proSectors: any[]) => {
 
       const upsertMap = new Map<string, any>();
 
+      // Para o BI: Definimos o created_at como o primeiro dia do mês de competência
+      // Isso garante que o BI agrupe corretamente por mês.
+      const competenceDate = new Date(cycleMonth + 'T12:00:00Z');
+      const biCreatedAt = competenceDate.toISOString();
+
       for (const row of importPreview) {
         const rowKeys = Object.keys(row);
         const getVal = (keyPart: string) => {
@@ -74,7 +89,6 @@ export const useAmbassadors = (proSectors: any[]) => {
           return key ? row[key] : null;
         };
 
-        const rawDate = getVal('data');
         const matricula = getVal('matricula');
         const nome = getVal('nome');
         const idSetorExcel = getVal('id_setor');
@@ -82,17 +96,6 @@ export const useAmbassadors = (proSectors: any[]) => {
         if (!matricula || !nome) continue;
 
         const regId = String(matricula).trim();
-
-        let completionDate = new Date().toISOString();
-        if (rawDate) {
-            if (typeof rawDate === 'number') {
-                const date = new Date(Math.round((rawDate - 25569)*86400*1000));
-                completionDate = date.toISOString();
-            } else {
-                const parsed = new Date(rawDate);
-                if (!isNaN(parsed.getTime())) completionDate = parsed.toISOString();
-            }
-        }
 
         let unit = Unit.HAB;
         let sectorIdMatch = null;
@@ -109,7 +112,9 @@ export const useAmbassadors = (proSectors: any[]) => {
           name: String(nome).trim(),
           sector_id: sectorIdMatch, 
           unit: unit,
-          completion_date: completionDate,
+          completion_date: biCreatedAt, // Usamos a data de competência como data de conclusão também
+          cycle_month: cycleMonth,
+          created_at: biCreatedAt, // Crucial para o BI
           updated_at: new Date().toISOString()
         });
       }
@@ -117,10 +122,12 @@ export const useAmbassadors = (proSectors: any[]) => {
       const toUpsert = Array.from(upsertMap.values());
 
       if (toUpsert.length > 0) {
-        const { error } = await supabase.from('ambassadors').upsert(toUpsert, { onConflict: 'registration_id' });
+        // Agora o conflito é por (registration_id, cycle_month)
+        const { error } = await supabase.from('ambassadors').upsert(toUpsert, { onConflict: 'registration_id,cycle_month' });
         if (error) throw error;
-        showToast(`${toUpsert.length} registros processados!`, 'success');
+        showToast(`${toUpsert.length} registros processados para o ciclo ${cycleMonth}!`, 'success');
         setImportPreview([]);
+        setSelectedMonth(cycleMonth); // Muda a visão para o mês importado
         fetchAmbassadors();
         onSuccess();
       } else {
@@ -138,6 +145,8 @@ export const useAmbassadors = (proSectors: any[]) => {
     isLoading,
     importPreview,
     setImportPreview,
+    selectedMonth,
+    setSelectedMonth,
     fetchAmbassadors,
     deleteAmbassador,
     processImport

@@ -259,8 +259,19 @@ export const useHealerActions = (
 
           const normSource = normalizeString(sourceRecord.name);
           
+          // Helper function for more robust matching
+          const isMatch = (nameToTest: string) => {
+              if (!nameToTest) return false;
+              const normTest = normalizeString(nameToTest);
+              // Primeiro tenta match exato
+              if (normTest === normSource) return true;
+              // Se não for exato, verifica se o nome original está contido no nome testado (ou vice-versa)
+              // Isso ajuda a pegar casos onde o histórico tem "Simone Sawada" e o cadastro tinha "Simone Cristina Sawada"
+              return normTest.includes(normSource) || normSource.includes(normTest);
+          };
+
           // 1. Atualizar Estudos Bíblicos
-          const studiesToUpdate = bibleStudies.filter((s: any) => normalizeString(s.name) === normSource);
+          const studiesToUpdate = bibleStudies.filter((s: any) => isMatch(s.name));
           for (const s of studiesToUpdate) {
               await saveRecord('bibleStudies', { 
                   ...s, 
@@ -272,7 +283,7 @@ export const useHealerActions = (
           }
 
           // 2. Atualizar Visitas
-          const visitsToUpdate = staffVisits.filter((v: any) => normalizeString(v.staffName) === normSource);
+          const visitsToUpdate = staffVisits.filter((v: any) => isMatch(v.staffName));
           for (const v of visitsToUpdate) {
               await saveRecord('staffVisits', { 
                   ...v, 
@@ -282,25 +293,25 @@ export const useHealerActions = (
           }
 
           // 3. Atualizar Aulas Bíblicas
-          const classesToUpdate = bibleClasses.filter((c: any) => c.students?.some((st: any) => normalizeString(st) === normSource));
+          const classesToUpdate = bibleClasses.filter((c: any) => c.students?.some((st: any) => isMatch(st)));
           for (const c of classesToUpdate) {
-              const updatedStudents = c.students.map((st: any) => normalizeString(st) === normSource ? targetRecord.name : st);
+              const updatedStudents = c.students.map((st: any) => isMatch(st) ? targetRecord.name : st);
               await saveRecord('bibleClasses', { ...c, students: updatedStudents });
           }
 
           // 4. Atualizar Histórico de PGs
-          const historyToUpdate = smallGroups.filter((sg: any) => normalizeString(sg.leader) === normSource);
+          const historyToUpdate = smallGroups.filter((sg: any) => isMatch(sg.leader));
           for (const sg of historyToUpdate) {
               await saveRecord('smallGroups', { ...sg, leader: targetRecord.name });
           }
 
           // 5. Atualizar PGs Ativos
-          const groupsToUpdate = proGroups.filter((g: any) => normalizeString(g.leader) === normSource || normalizeString(g.currentLeader) === normSource);
+          const groupsToUpdate = proGroups.filter((g: any) => isMatch(g.leader) || isMatch(g.currentLeader));
           for (const g of groupsToUpdate) {
               await saveRecord('proGroups', { 
                   ...g, 
-                  leader: normalizeString(g.leader) === normSource ? targetRecord.name : g.leader,
-                  currentLeader: normalizeString(g.currentLeader) === normSource ? targetRecord.name : g.currentLeader,
+                  leader: isMatch(g.leader) ? targetRecord.name : g.leader,
+                  currentLeader: isMatch(g.currentLeader) ? targetRecord.name : g.currentLeader,
                   leaderPhone: targetRecord.whatsapp || g.leaderPhone
               });
           }

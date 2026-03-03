@@ -15,7 +15,7 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   pro_group_locations: ['id', 'group_id', 'sector_id', 'unit', 'created_at'],
   pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at', 'left_at', 'is_error'],
   pro_group_provider_members: ['id', 'group_id', 'provider_id', 'joined_at', 'left_at', 'is_error'],
-  ambassadors: ['id', 'registration_id', 'name', 'sector_id', 'unit', 'completion_date', 'updated_at']
+  ambassadors: ['id', 'registration_id', 'name', 'sector_id', 'unit', 'completion_date', 'cycle_month', 'created_at', 'updated_at']
 };
 
 export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at', 'joined_at', 'left_at', 'staff_id', 'provider_id', 'sector_id', 'group_id'];

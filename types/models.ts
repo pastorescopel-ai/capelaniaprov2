@@ -209,5 +209,6 @@ export interface Ambassador {
   sectorId?: string;
   unit: Unit;
   completionDate: string;
+  cycleMonth: string; // Mês de Referência (YYYY-MM-DD)
   createdAt?: string;
 }

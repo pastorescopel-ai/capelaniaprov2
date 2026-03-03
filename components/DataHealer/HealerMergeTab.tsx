@@ -29,28 +29,40 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
   const [sourceInput, setSourceInput] = useState('');
   const [targetInput, setTargetInput] = useState('');
 
-  const getOptions = (type: PersonType) => {
+  const getOptions = React.useCallback((type: PersonType) => {
     if (type === 'Colaborador' || type === 'Ex-Colaborador') return officialStaffOptions;
     if (type === 'Paciente') return officialPatientOptions;
     return officialProviderOptions;
-  };
+  }, [officialStaffOptions, officialPatientOptions, officialProviderOptions]);
 
-  const getLabel = (type: PersonType, id: string) => {
+  const getLabel = React.useCallback((type: PersonType, id: string) => {
     const options = getOptions(type);
     const opt = options.find(o => String(o.value) === String(id));
     return opt ? opt.label : '';
-  };
+  }, [getOptions]);
 
   // Sincroniza o input com o ID selecionado quando o tipo muda ou quando limpa
   useEffect(() => {
-      if (!mergeSourceId) setSourceInput('');
-      else setSourceInput(getLabel(mergeSourceType, mergeSourceId));
-  }, [mergeSourceId, mergeSourceType, officialStaffOptions, officialPatientOptions, officialProviderOptions]);
+      if (!mergeSourceId) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setSourceInput(prev => prev === '' ? prev : '');
+      } else {
+          const label = getLabel(mergeSourceType, mergeSourceId);
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setSourceInput(prev => prev === label ? prev : label);
+      }
+  }, [mergeSourceId, mergeSourceType, getLabel]);
 
   useEffect(() => {
-      if (!mergeTargetId) setTargetInput('');
-      else setTargetInput(getLabel(mergeTargetType, mergeTargetId));
-  }, [mergeTargetId, mergeTargetType, officialStaffOptions, officialPatientOptions, officialProviderOptions]);
+      if (!mergeTargetId) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setTargetInput(prev => prev === '' ? prev : '');
+      } else {
+          const label = getLabel(mergeTargetType, mergeTargetId);
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setTargetInput(prev => prev === label ? prev : label);
+      }
+  }, [mergeTargetId, mergeTargetType, getLabel]);
 
   const handleMerge = () => {
     if (!mergeSourceId || !mergeTargetId) return;
