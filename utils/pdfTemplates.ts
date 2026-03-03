@@ -15,7 +15,7 @@ const formatDate = (d: string) => d.split('T')[0].split('-').reverse().join('/')
 
 export const generateExecutiveHTML = (data: PDFTemplateData) => {
   const { config, filters, totalStats, chaplainStats, unitTotals, pColor } = data;
-  const title = 'Relatório da Capelania';
+  const title = 'Relatório de Capelania';
   const periodLabel = `Período: ${formatDate(filters.startDate)} a ${formatDate(filters.endDate)}`;
 
   const renderHeader = () => getBrandedHeader(config, title, periodLabel);

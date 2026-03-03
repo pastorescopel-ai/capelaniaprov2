@@ -10,10 +10,18 @@ export const useAmbassadors = (proSectors: any[]) => {
   const [isLoading, setIsLoading] = useState(false);
   const [importPreview, setImportPreview] = useState<any[]>([]);
   
-  // Estado do Ciclo Selecionado (Padrão: Primeiro dia do mês atual)
+  // Estado do Ciclo Selecionado (Lógica do Dia 5: Até dia 5 é mês anterior, dia 6 em diante é mês atual)
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    const now = new Date();
+    const day = now.getDate();
+    const d = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // Se for dia 1, 2, 3, 4 ou 5, retrocede um mês
+    if (day <= 5) {
+      d.setMonth(d.getMonth() - 1);
+    }
+    
+    return d.toISOString().split('T')[0];
   });
 
   const fetchAmbassadors = useCallback(async () => {

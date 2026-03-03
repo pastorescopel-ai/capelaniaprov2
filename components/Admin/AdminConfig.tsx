@@ -9,9 +9,10 @@ import AdminHeaderEditor from './AdminHeaderEditor';
 interface AdminConfigProps {
   config: Config;
   setConfig: (c: Config) => void;
+  mode?: 'basic' | 'identity';
 }
 
-const AdminConfig: React.FC<AdminConfigProps> = ({ config, setConfig }) => {
+const AdminConfig: React.FC<AdminConfigProps> = ({ config, setConfig, mode = 'basic' }) => {
   const [isUploading, setIsUploading] = useState<'app' | 'report' | null>(null);
   const { showToast } = useToast();
   
@@ -66,68 +67,65 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ config, setConfig }) => {
     }
   };
 
+  if (mode === 'identity') {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {/* SEÇÃO DE IMAGENS */}
+        <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+          <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight">
+            <i className="fas fa-images text-blue-600"></i> Logotipos do Sistema
+          </h2>
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* LOGO DO APP */}
+            <div className="space-y-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
+              <div className="flex justify-between items-center">
+                <h4 className="font-bold text-slate-700 uppercase text-xs tracking-widest">Logo do App (Login/Menu)</h4>
+                <button 
+                  onClick={() => appLogoInputRef.current?.click()} 
+                  disabled={isUploading === 'app'}
+                  className="px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2"
+                >
+                  {isUploading === 'app' ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-cloud-upload-alt"></i>}
+                  Trocar
+                </button>
+                <input ref={appLogoInputRef} type="file" accept="image/*" onChange={(e) => handleUpload(e, 'app')} className="hidden" />
+              </div>
+              <div className="h-24 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden relative">
+                <img src={config.appLogoUrl || DEFAULT_APP_LOGO} className="h-16 object-contain" alt="App Logo" />
+                {!config.appLogoUrl && <span className="absolute bottom-1 right-2 text-[8px] font-bold text-amber-500 uppercase">Padrão</span>}
+              </div>
+            </div>
+
+            {/* LOGO DO RELATÓRIO */}
+            <div className="space-y-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
+              <div className="flex justify-between items-center">
+                <h4 className="font-bold text-slate-700 uppercase text-xs tracking-widest">Logo do Relatório (PDF)</h4>
+                <button 
+                  onClick={() => reportLogoInputRef.current?.click()} 
+                  disabled={isUploading === 'report'}
+                  className="px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2"
+                >
+                  {isUploading === 'report' ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-cloud-upload-alt"></i>}
+                  Trocar
+                </button>
+                <input ref={reportLogoInputRef} type="file" accept="image/*" onChange={(e) => handleUpload(e, 'report')} className="hidden" />
+              </div>
+              <div className="h-24 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden relative">
+                <img src={config.reportLogoUrl || DEFAULT_APP_LOGO} className="h-16 object-contain" alt="Report Logo" />
+                {!config.reportLogoUrl && <span className="absolute bottom-1 right-2 text-[8px] font-bold text-amber-500 uppercase">Padrão</span>}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* EDITOR VISUAL DE CABEÇALHO */}
+        <AdminHeaderEditor config={config} setConfig={setConfig} />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8">
-      
-      {/* SEÇÃO DE IMAGENS */}
-      <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
-        <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight">
-          <i className="fas fa-images text-blue-600"></i> Identidade Visual
-        </h2>
-        <div className="grid md:grid-cols-2 gap-8">
-          
-          {/* LOGO DO APP */}
-          <div className="space-y-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
-            <div className="flex justify-between items-center">
-              <h4 className="font-bold text-slate-700 uppercase text-xs tracking-widest">Logo do App (Login/Menu)</h4>
-              <button 
-                onClick={() => appLogoInputRef.current?.click()} 
-                disabled={isUploading === 'app'}
-                className="px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2"
-              >
-                {isUploading === 'app' ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-cloud-upload-alt"></i>}
-                Trocar
-              </button>
-              <input ref={appLogoInputRef} type="file" accept="image/*" onChange={(e) => handleUpload(e, 'app')} className="hidden" />
-            </div>
-            <div className="h-24 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden relative">
-              <img src={config.appLogoUrl || DEFAULT_APP_LOGO} className="h-16 object-contain" alt="App Logo" />
-              {!config.appLogoUrl && <span className="absolute bottom-1 right-2 text-[8px] font-bold text-amber-500 uppercase">Padrão</span>}
-            </div>
-            <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
-              Exibido na tela de login e na barra lateral. Recomenda-se formato PNG transparente.
-            </p>
-          </div>
-
-          {/* LOGO DO RELATÓRIO */}
-          <div className="space-y-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
-            <div className="flex justify-between items-center">
-              <h4 className="font-bold text-slate-700 uppercase text-xs tracking-widest">Logo do Relatório (PDF)</h4>
-              <button 
-                onClick={() => reportLogoInputRef.current?.click()} 
-                disabled={isUploading === 'report'}
-                className="px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2"
-              >
-                {isUploading === 'report' ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-cloud-upload-alt"></i>}
-                Trocar
-              </button>
-              <input ref={reportLogoInputRef} type="file" accept="image/*" onChange={(e) => handleUpload(e, 'report')} className="hidden" />
-            </div>
-            <div className="h-24 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden relative">
-              <img src={config.reportLogoUrl || DEFAULT_APP_LOGO} className="h-16 object-contain" alt="Report Logo" />
-              {!config.reportLogoUrl && <span className="absolute bottom-1 right-2 text-[8px] font-bold text-amber-500 uppercase">Padrão</span>}
-            </div>
-             <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
-              Exibido no cabeçalho dos relatórios impressos.
-            </p>
-          </div>
-
-        </div>
-      </section>
-
-      {/* EDITOR VISUAL DE CABEÇALHO (Componente Extraído) */}
-      <AdminHeaderEditor config={config} setConfig={setConfig} />
-
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid lg:grid-cols-3 gap-8">
         <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight">Formatação</h2>

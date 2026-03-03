@@ -89,18 +89,13 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const [activeTab, setActiveTab] = useState<'config' | 'identity' | 'lists' | 'tools'>('config');
+
   if (!currentUser) return null;
 
   return (
-    <div className="space-y-12 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700">
+    <div className="space-y-8 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700">
       
-      <AdminDataTools 
-        currentUser={currentUser} 
-        onRefreshData={() => loadFromCloud(true)} 
-        onRestoreFullDNA={importFromDNA} 
-        isRefreshing={isRefreshing} 
-      />
-
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-4xl font-black text-slate-800 tracking-tight uppercase">Administração</h1>
@@ -111,7 +106,7 @@ const AdminPanel: React.FC = () => {
             <i className={`fas fa-sync-alt ${isRefreshing ? 'animate-spin' : ''}`}></i> Sincronizar Agora
           </button>
           <button onClick={handleExportFullDNA} className="px-5 py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-black transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-lg">
-            <i className="fas fa-download text-amber-400"></i> Baixar Backup JSON
+            <i className="fas fa-download text-amber-400"></i> Backup JSON
           </button>
           <button onClick={handleSaveAll} className="px-10 py-5 text-white font-black rounded-[1.5rem] shadow-2xl hover:brightness-110 transition-all flex items-center gap-3 uppercase text-[10px] tracking-widest active:scale-95" style={{ backgroundColor: localConfig.primaryColor || '#005a9c' }}>
             <i className={`fas ${isSaving ? 'fa-circle-notch fa-spin' : 'fa-save'}`}></i> {isSaving ? 'Gravando...' : 'Aplicar Mudanças'}
@@ -119,12 +114,54 @@ const AdminPanel: React.FC = () => {
         </div>
       </header>
 
-      <AdminConfig config={localConfig} setConfig={setLocalConfig} />
-      
-      <AdminLists 
-        proData={{ staff: proStaff, sectors: proSectors, groups: proGroups }}
-        onSavePro={handleSaveProData}
-      />
+      {/* Navegação de Abas Admin */}
+      <nav className="flex overflow-x-auto no-scrollbar gap-2 bg-slate-100 p-2 rounded-[2rem] border border-slate-200">
+        {[
+          { id: 'config', label: 'Configurações', icon: 'fa-cog' },
+          { id: 'identity', label: 'Identidade Visual', icon: 'fa-palette' },
+          { id: 'lists', label: 'Listas & PGs', icon: 'fa-list-ul' },
+          { id: 'tools', label: 'Ferramentas', icon: 'fa-tools' },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`flex items-center gap-3 px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${
+              activeTab === tab.id 
+                ? 'bg-white text-slate-800 shadow-sm scale-105' 
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <i className={`fas ${tab.icon}`}></i>
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      <main className="animate-in fade-in slide-in-from-top-4 duration-500">
+        {activeTab === 'config' && (
+          <AdminConfig config={localConfig} setConfig={setLocalConfig} mode="basic" />
+        )}
+
+        {activeTab === 'identity' && (
+          <AdminConfig config={localConfig} setConfig={setLocalConfig} mode="identity" />
+        )}
+
+        {activeTab === 'lists' && (
+          <AdminLists 
+            proData={{ staff: proStaff, sectors: proSectors, groups: proGroups }}
+            onSavePro={handleSaveProData}
+          />
+        )}
+
+        {activeTab === 'tools' && (
+          <AdminDataTools 
+            currentUser={currentUser} 
+            onRefreshData={() => loadFromCloud(true)} 
+            onRestoreFullDNA={importFromDNA} 
+            isRefreshing={isRefreshing} 
+          />
+        )}
+      </main>
     </div>
   );
 };
