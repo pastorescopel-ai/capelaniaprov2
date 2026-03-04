@@ -20,9 +20,10 @@ interface LayoutProps {
   isLabMode?: boolean;
   config: Config;
   onLogout: () => void;
+  onGoToReturnHistory?: (visit?: any) => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, currentUser, isSyncing, isConnected, isLabMode, config, onLogout }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, currentUser, isSyncing, isConnected, isLabMode, config, onLogout, onGoToReturnHistory }) => {
   // Normalização da role para garantir match com NAV_ITEMS
   const normalizedRole = String(currentUser?.role || '').toUpperCase().trim();
   
@@ -87,7 +88,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
             )}
 
             {/* CENTRAL DE NOTIFICAÇÕES (Sininho) */}
-            <NotificationCenter />
+            <NotificationCenter onGoToReturnHistory={onGoToReturnHistory} />
 
             {/* AVATAR MOBILE (OPÇÃO 2 - MORPHED) */}
             <AnimatePresence>

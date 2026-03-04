@@ -6,7 +6,11 @@ import { UserRole, VisitRequest } from '../types';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { usePGInference } from '../hooks/usePGInference';
 
-const NotificationCenter: React.FC = () => {
+interface NotificationCenterProps {
+  onGoToReturnHistory?: (visit?: any) => void;
+}
+
+const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHistory }) => {
   const { visitRequests, saveRecord, proGroups, proGroupLocations, proSectors, smallGroups, bibleStudies, bibleClasses, staffVisits, proStaff } = useApp();
   const { currentUser } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -22,11 +26,13 @@ const NotificationCenter: React.FC = () => {
   );
 
   // Calcula metas para o lembrete
-  const { goals } = useDashboardStats(bibleStudies, bibleClasses, smallGroups, staffVisits, currentUser!);
+  const { goals, pendingReturns, todaysReturns } = useDashboardStats(bibleStudies, bibleClasses, smallGroups, staffVisits, currentUser!);
 
   const goalReminders = useMemo(() => {
     return goals.filter(g => g.current < g.target);
   }, [goals]);
+
+  const returnCount = pendingReturns.length;
 
   const filteredRequests = useMemo(() => {
     if (!currentUser) return [];
@@ -73,8 +79,8 @@ const NotificationCenter: React.FC = () => {
   }, [proGroups, proSectors, proGroupLocations]);
 
   const unreadCount = useMemo(() => {
-    return filteredRequests.filter(req => !req.isRead).length + goalReminders.length;
-  }, [filteredRequests, goalReminders]);
+    return filteredRequests.filter(req => !req.isRead).length + goalReminders.length + returnCount;
+  }, [filteredRequests, goalReminders, returnCount]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -123,6 +129,26 @@ const NotificationCenter: React.FC = () => {
           </div>
 
           <div className="max-h-[400px] overflow-y-auto no-scrollbar py-2">
+            {/* RETORNOS PENDENTES */}
+            {returnCount > 0 && (
+              <div onClick={() => { setIsOpen(false); onGoToReturnHistory?.(); }} className={`p-5 border-b border-slate-50 flex gap-4 cursor-pointer transition-all ${todaysReturns.length > 0 ? 'bg-amber-50/50 hover:bg-amber-100' : 'bg-slate-50/50 hover:bg-slate-100'}`}>
+                <div className={`w-10 h-10 rounded-xl text-white flex items-center justify-center flex-shrink-0 shadow-md ${todaysReturns.length > 0 ? 'bg-amber-500 shadow-amber-200 animate-pulse' : 'bg-slate-500 shadow-slate-200'}`}>
+                  <i className={todaysReturns.length > 0 ? "fas fa-calendar-check" : "fas fa-calendar-alt"}></i>
+                </div>
+                <div className="flex-1">
+                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${todaysReturns.length > 0 ? 'text-amber-600' : 'text-slate-600'}`}>
+                    {todaysReturns.length > 0 ? 'Retornos para Hoje' : 'Retornos Agendados'}
+                  </p>
+                  <p className="text-xs text-slate-800 font-bold leading-tight mb-1">
+                    {todaysReturns.length > 0 
+                      ? `Você tem ${todaysReturns.length} retorno(s) para hoje.` 
+                      : `Você tem ${returnCount} retorno(s) pendente(s).`}
+                  </p>
+                  <p className="text-[9px] text-slate-500 font-medium italic">Clique para ver a lista no histórico.</p>
+                </div>
+              </div>
+            )}
+
             {/* LEMBRETES DE METAS */}
             {goalReminders.map((goal, idx) => (
               <div key={`goal-${idx}`} className="p-5 border-b border-slate-50 bg-indigo-50/20 flex gap-4 animate-in slide-in-from-right duration-300">

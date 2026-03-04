@@ -18,13 +18,13 @@ interface DashboardProps {
   config: Config;
   onGoToTab: (tab: string) => void;
   onRegisterMission: (visit: any) => void;
-  onRegisterReturnVisit: (visit: any) => void;
+  onGoToReturnHistory: (visit?: any) => void;
   onUpdateConfig: (newConfig: Config) => any;
   onUpdateUser: (updatedUser: User) => any;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
-  studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onRegisterReturnVisit, onUpdateConfig 
+  studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onGoToReturnHistory, onUpdateConfig 
 }) => {
   const { visitRequests, users } = useApp(); 
   
@@ -57,39 +57,33 @@ const Dashboard: React.FC<DashboardProps> = ({
       <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
 
       {/* Notificações de Retorno (Movido para baixo do Mural) */}
-      {(todaysReturns.length > 0 || pendingReturns.length > 0) && (
-        <div className="space-y-3">
-          <h3 className="text-base md:text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-            <i className="fas fa-flag text-rose-500"></i> Retornos Pendentes
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {todaysReturns.map(visit => (
-              <div key={visit.id} onClick={() => onRegisterReturnVisit(visit)} className="bg-amber-50 border border-amber-200 p-4 rounded-3xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-amber-100 transition-all">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-amber-200 animate-pulse"><i className="fas fa-calendar-check"></i></div>
-                  <div>
-                    <h4 className="font-black text-amber-900 text-sm uppercase tracking-tight">{visit.staffName}</h4>
-                    <p className="text-amber-700 font-bold text-[10px] uppercase">{visit.sector} • Hoje</p>
-                  </div>
-                </div>
-                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-amber-500 shadow-sm group-hover:translate-x-1 transition-transform border border-amber-100"><i className="fas fa-chevron-right"></i></div>
-              </div>
-            ))}
-            {pendingReturns.filter(v => !todaysReturns.includes(v)).slice(0, 4).map(visit => (
-              <div key={visit.id} onClick={() => onRegisterReturnVisit(visit)} className="bg-white p-4 rounded-3xl border border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-all shadow-sm group">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center text-lg"><i className="fas fa-flag"></i></div>
-                  <div>
-                    <h4 className="font-black text-slate-700 text-sm uppercase tracking-tight">{visit.staffName}</h4>
-                    <p className="text-slate-400 font-bold text-[10px] uppercase">{visit.sector} • {new Date(visit.returnDate + 'T12:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</p>
-                  </div>
-                </div>
-                <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-rose-500 shadow-sm group-hover:translate-x-1 transition-transform border border-slate-100"><i className="fas fa-chevron-right"></i></div>
-              </div>
-            ))}
+      {todaysReturns.length > 0 ? (
+        <div onClick={() => onGoToReturnHistory()} className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-amber-100 transition-all animate-bounce-subtle">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-amber-200"><i className="fas fa-calendar-check"></i></div>
+            <div>
+              <h4 className="font-black text-amber-900 text-sm uppercase tracking-tight">Retornos para Hoje!</h4>
+              <p className="text-amber-700 font-bold text-[10px] uppercase">Você tem {todaysReturns.length} retorno(s) agendado(s) para hoje.</p>
+            </div>
           </div>
+          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-amber-500 shadow-sm group-hover:translate-x-1 transition-transform border border-amber-100"><i className="fas fa-chevron-right"></i></div>
         </div>
-      )}
+      ) : pendingReturns.length > 0 ? (
+        <div onClick={() => onGoToReturnHistory()} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-slate-100 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-slate-500 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-slate-200"><i className="fas fa-calendar-alt"></i></div>
+            <div>
+              <h4 className="font-black text-slate-900 text-sm uppercase tracking-tight">Retornos Agendados</h4>
+              <p className="text-slate-600 font-bold text-[10px] uppercase">
+                Você tem {pendingReturns.length} retorno(s) pendente(s). Próximo: {
+                  new Date(Math.min(...pendingReturns.map(v => new Date(v.returnDate + 'T12:00:00').getTime()))).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})
+                }
+              </p>
+            </div>
+          </div>
+          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-slate-500 shadow-sm group-hover:translate-x-1 transition-transform border border-slate-100"><i className="fas fa-chevron-right"></i></div>
+        </div>
+      ) : null}
 
       <VisitRequestsWidget requests={visitRequests} currentUser={currentUser} users={users} onRegisterMission={onRegisterMission} />
 

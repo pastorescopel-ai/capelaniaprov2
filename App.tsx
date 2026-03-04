@@ -59,18 +59,24 @@ const App: React.FC = () => {
     handleTabChange('smallGroup');
   };
 
-  const handleRegisterReturnVisit = (visit: any) => {
-    skipClearRef.current = true;
-    setEditingItem({
-      ...visit,
-      isReturn: true
-    });
-    
-    if (visit.unit !== currentUnit) {
+  const handleGoToReturnHistory = (visit?: any) => {
+    if (visit && visit.unit && visit.unit !== currentUnit) {
       setCurrentUnit(visit.unit);
     }
     
     handleTabChange('staffVisit');
+    
+    setTimeout(() => {
+      const historyHeader = document.getElementById('return-history-header');
+      if (historyHeader) {
+        historyHeader.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        const historySection = document.getElementById('history-section');
+        if (historySection) {
+            historySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    }, 300);
   };
 
   useEffect(() => {
@@ -92,7 +98,16 @@ const App: React.FC = () => {
   }
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={handleTabChange} currentUser={currentUser} isSyncing={isSyncing} isConnected={isConnected} config={config} onLogout={logout}>
+    <Layout 
+      activeTab={activeTab} 
+      setActiveTab={handleTabChange} 
+      currentUser={currentUser} 
+      isSyncing={isSyncing} 
+      isConnected={isConnected} 
+      config={config} 
+      onLogout={logout}
+      onGoToReturnHistory={handleGoToReturnHistory}
+    >
       <div className="max-w-7xl mx-auto px-2 md:px-0 relative">
         
         {/* Loader de Transição Suave */}
@@ -150,7 +165,7 @@ const App: React.FC = () => {
           updateCurrentUser={updateCurrentUser}
           handleSaveItem={handleSaveItem}
           onRegisterMission={handleRegisterMission}
-          onRegisterReturnVisit={handleRegisterReturnVisit}
+          onGoToReturnHistory={handleGoToReturnHistory}
           getVisibleHistory={getVisibleHistory}
           loadFromCloud={loadFromCloud}
         />

@@ -77,7 +77,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         let sectionHeader = null;
         if (index === 0 && isPriority) {
           sectionHeader = (
-            <div className="flex items-center gap-2 mb-2 mt-4 px-2">
+            <div id="return-history-header" className="flex items-center gap-2 mb-2 mt-4 px-2">
               <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></div>
               <span className="text-[10px] font-black text-rose-600 uppercase tracking-[0.2em]">Retornos Pendentes</span>
               <div className="flex-1 h-[1px] bg-rose-100"></div>
@@ -85,7 +85,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           );
         } else if ((index === 0 && !isPriority) || (isPrevPriority && !isPriority)) {
           sectionHeader = (
-            <div className="flex items-center gap-2 mb-2 mt-8 px-2">
+            <div id="history-section" className="flex items-center gap-2 mb-2 mt-8 px-2">
               <div className="w-2 h-2 rounded-full bg-slate-300"></div>
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Histórico Geral</span>
               <div className="flex-1 h-[1px] bg-slate-100"></div>

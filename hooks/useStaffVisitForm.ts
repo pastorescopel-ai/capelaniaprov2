@@ -211,7 +211,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       whatsapp: item.whatsapp || '',
       reason: VisitReason.RETORNO,
       requiresReturn: false,
-      returnDate: getToday()
+      returnDate: item.returnDate ? item.returnDate.split('T')[0] : getToday()
     });
     if ((item as any).participantType === ParticipantType.STAFF || !(item as any).participantType) {
       const match = proStaff.find(s => normalizeString(s.name) === normalizeString(item.staffName));
