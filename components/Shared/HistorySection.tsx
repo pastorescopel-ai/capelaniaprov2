@@ -15,6 +15,7 @@ interface HistorySectionProps<T> {
   searchFields: (keyof T)[];
   renderItem: (item: T, index: number, allItems: T[]) => React.ReactNode;
   disableSort?: boolean;
+  bypassFilter?: (item: T) => boolean;
 }
 
 const PAGE_SIZE = 10;
@@ -27,7 +28,8 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
   isLoading,
   searchFields,
   renderItem,
-  disableSort = false
+  disableSort = false,
+  bypassFilter
 }: HistorySectionProps<T>) => {
   const [filterChaplain, setFilterChaplain] = useState('all');
   
@@ -61,6 +63,10 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
 
     const filtered = source.filter(item => {
       if (!item.date) return false;
+      
+      const isBypassed = bypassFilter?.(item);
+      if (isBypassed) return true;
+
       const itemDate = item.date.split('T')[0];
       const dateMatch = itemDate >= filterStart && itemDate <= filterEnd;
       const matchChaplain = filterChaplain === 'all' || item.userId === filterChaplain;
@@ -86,7 +92,7 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
 
     if (disableSort) return filtered;
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [data, stableData, filterChaplain, filterStart, filterEnd, searchQuery, searchFields, disableSort]);
+  }, [data, stableData, filterChaplain, filterStart, filterEnd, searchQuery, searchFields, disableSort, bypassFilter]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

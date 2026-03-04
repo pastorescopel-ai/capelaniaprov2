@@ -131,7 +131,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
           <div className="max-h-[400px] overflow-y-auto no-scrollbar py-2">
             {/* RETORNOS PENDENTES */}
             {returnCount > 0 && (
-              <div onClick={() => { setIsOpen(false); onGoToReturnHistory?.(); }} className={`p-5 border-b border-slate-50 flex gap-4 cursor-pointer transition-all ${todaysReturns.length > 0 ? 'bg-amber-50/50 hover:bg-amber-100' : 'bg-slate-50/50 hover:bg-slate-100'}`}>
+              <div onClick={() => { setIsOpen(false); onGoToReturnHistory?.(pendingReturns[0]); }} className={`p-5 border-b border-slate-50 flex gap-4 cursor-pointer transition-all ${todaysReturns.length > 0 ? 'bg-amber-50/50 hover:bg-amber-100' : 'bg-slate-50/50 hover:bg-slate-100'}`}>
                 <div className={`w-10 h-10 rounded-xl text-white flex items-center justify-center flex-shrink-0 shadow-md ${todaysReturns.length > 0 ? 'bg-amber-500 shadow-amber-200 animate-pulse' : 'bg-slate-500 shadow-slate-200'}`}>
                   <i className={todaysReturns.length > 0 ? "fas fa-calendar-check" : "fas fa-calendar-alt"}></i>
                 </div>

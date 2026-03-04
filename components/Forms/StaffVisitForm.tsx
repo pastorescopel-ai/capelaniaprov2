@@ -54,6 +54,20 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       isLoading={isLoading} 
       searchFields={['staffName']} 
       disableSort={true}
+      bypassFilter={(item) => {
+        if (!item.requiresReturn) return false;
+        const isAdmin = currentUser.role === 'ADMIN';
+        if (!isAdmin && item.userId !== currentUser.id) return false;
+        
+        const normalize = (s: string) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
+        const vDate = new Date(item.date).getTime();
+        const isFulfilled = (allHistory.length > 0 ? allHistory : history).some(v => 
+          v.id !== item.id &&
+          normalize(v.staffName) === normalize(item.staffName) && 
+          new Date(v.date).getTime() >= vDate
+        );
+        return !isFulfilled;
+      }}
       renderItem={(item, index, allItems) => {
         const isAdmin = currentUser.role === 'ADMIN';
         const normalize = (s: string) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';

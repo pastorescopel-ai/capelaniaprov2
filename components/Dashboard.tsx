@@ -58,7 +58,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Notificações de Retorno (Movido para baixo do Mural) */}
       {todaysReturns.length > 0 ? (
-        <div onClick={() => onGoToReturnHistory()} className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-amber-100 transition-all animate-bounce-subtle">
+        <div onClick={() => onGoToReturnHistory(todaysReturns[0])} className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-amber-100 transition-all animate-bounce-subtle">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-amber-200"><i className="fas fa-calendar-check"></i></div>
             <div>
@@ -69,7 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-amber-500 shadow-sm group-hover:translate-x-1 transition-transform border border-amber-100"><i className="fas fa-chevron-right"></i></div>
         </div>
       ) : pendingReturns.length > 0 ? (
-        <div onClick={() => onGoToReturnHistory()} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-slate-100 transition-all">
+        <div onClick={() => onGoToReturnHistory(pendingReturns[0])} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-slate-100 transition-all">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-slate-500 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-slate-200"><i className="fas fa-calendar-alt"></i></div>
             <div>
