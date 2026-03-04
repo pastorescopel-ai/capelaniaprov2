@@ -106,7 +106,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
       />
       
       {open && filtered.length > 0 && (
-        <div className="absolute z-[100] w-full mt-2 bg-white rounded-3xl shadow-2xl border border-slate-100 max-h-80 overflow-y-auto no-scrollbar animate-in slide-in-from-top-2 duration-200">
+        <div className="absolute z-[9999] min-w-full w-max max-w-[85vw] md:max-w-[450px] mt-2 bg-white rounded-3xl shadow-2xl border border-slate-100 max-h-80 overflow-y-auto no-scrollbar animate-in slide-in-from-top-2 duration-200">
           <div className="p-2">
             {filtered.map((o, idx) => {
               const isOfficial = o.category === 'RH';
@@ -144,18 +144,19 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
                       setOpen(false); 
                     }}
                   >
-                    <div className="min-w-0">
-                      <span className={`block text-sm uppercase tracking-tight whitespace-normal leading-tight ${isOfficial ? 'font-black' : 'font-bold'}`}>
+                    <div className="min-w-0 flex-1 pr-2">
+                      <span className={`block text-sm uppercase tracking-tight whitespace-normal break-words leading-tight ${isOfficial ? 'font-black' : 'font-bold'}`}>
                         {o.label}
                       </span>
                       {o.subLabel && (
-                        <span className={`block text-[9px] uppercase font-bold tracking-wider mt-0.5 opacity-60 flex items-center gap-1`}>
-                          <i className="fas fa-building text-[8px]"></i> {o.subLabel}
+                        <span className={`block text-[9px] uppercase font-bold tracking-wider mt-0.5 opacity-60 flex items-start gap-1 whitespace-normal break-words`}>
+                          <i className="fas fa-building text-[8px] mt-0.5 flex-shrink-0"></i> 
+                          <span className="flex-1">{o.subLabel}</span>
                         </span>
                       )}
                     </div>
                     {isOfficial && (
-                      <i className="fas fa-magic text-[10px] text-blue-500 group-hover:text-white transition-transform group-hover:scale-125 ml-2"></i>
+                      <i className="fas fa-magic text-[10px] text-blue-500 group-hover:text-white transition-transform group-hover:scale-125 ml-2 flex-shrink-0"></i>
                     )}
                   </button>
                 </React.Fragment>

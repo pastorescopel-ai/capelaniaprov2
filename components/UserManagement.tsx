@@ -214,23 +214,34 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
         <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Equipe Ativa</h2>
         <div className="grid gap-4">
           {users.map(u => (
-            <div key={u.id} className="flex items-center justify-between p-6 bg-slate-50 rounded-[2.5rem] border border-slate-100 group hover:border-blue-200 transition-all">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-blue-600 font-black shadow-sm group-hover:scale-105 transition-transform">
+            <div key={u.id} className="flex items-center justify-between p-6 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-blue-600 font-black shadow-inner border border-slate-100 group-hover:bg-blue-50 transition-colors">
                   {u.name[0]}
                 </div>
                 <div>
-                  <h4 className="font-black text-slate-800 uppercase text-sm leading-tight">{u.name}</h4>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                    {u.email} • {u.role === UserRole.INTERN ? 'Estagiário' : u.role === UserRole.ADMIN ? 'Admin' : 'Capelão'}
-                    {u.attendsHaba && ' • 📍 HABA'}
-                  </p>
+                  <h4 className="font-black text-slate-800 uppercase text-sm leading-tight mb-1">{u.name}</h4>
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest">
+                    <span className="text-slate-500">{u.email}</span>
+                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                    <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                      {u.role === UserRole.INTERN ? 'Estagiário' : u.role === UserRole.ADMIN ? 'Admin' : 'Capelão'}
+                    </span>
+                    {u.attendsHaba && (
+                      <>
+                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                        <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <i className="fas fa-map-marker-alt"></i> HABA
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => setEditingUser(u)} className="w-10 h-10 bg-white text-blue-600 rounded-lg shadow-sm flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all"><i className="fas fa-edit text-xs"></i></button>
+              <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                <button onClick={() => setEditingUser(u)} className="w-10 h-10 bg-slate-50 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all border border-slate-100 hover:border-blue-600"><i className="fas fa-edit text-xs"></i></button>
                 {u.id !== currentUser.id && (
-                  <button onClick={() => setUserToDelete(u)} className="w-10 h-10 bg-white text-rose-500 rounded-lg shadow-sm flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all"><i className="fas fa-trash text-xs"></i></button>
+                  <button onClick={() => setUserToDelete(u)} className="w-10 h-10 bg-slate-50 text-rose-500 rounded-xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all border border-slate-100 hover:border-rose-500"><i className="fas fa-trash text-xs"></i></button>
                 )}
               </div>
             </div>

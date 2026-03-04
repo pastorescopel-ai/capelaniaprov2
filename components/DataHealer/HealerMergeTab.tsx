@@ -85,8 +85,8 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
-        <div className="p-8 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+    <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100">
+        <div className="p-8 bg-slate-50 border-b border-slate-100 flex justify-between items-center rounded-t-[3rem]">
             <h3 className="font-black text-slate-700 uppercase text-sm tracking-widest">Mesclagem Universal</h3>
             <span className="text-[10px] font-bold text-slate-400 uppercase"><i className="fas fa-compress-arrows-alt mr-1"></i> Unificar Cadastros</span>
         </div>

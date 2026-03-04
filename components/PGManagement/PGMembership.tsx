@@ -40,22 +40,22 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         onConfirm={confirmRemoval}
       />
 
-      <div className="bg-slate-900 p-8 rounded-[3rem] shadow-xl grid md:grid-cols-2 gap-8 text-white relative">
+      <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 grid md:grid-cols-2 gap-8 text-slate-800 relative">
         <div className="absolute inset-0 rounded-[3rem] overflow-hidden pointer-events-none">
-           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
         </div>
         
-        <div className="space-y-4 z-10 relative">
-          <div className="flex bg-white/10 p-1 rounded-xl w-fit">
+        <div className="space-y-4 z-20 relative">
+          <div className="flex bg-slate-50 p-1 rounded-xl w-fit border border-slate-100">
             <button 
               onClick={() => setActiveTab('staff')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'staff' ? 'bg-blue-500 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'staff' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
             >
               Colaboradores (CLT)
             </button>
             <button 
               onClick={() => setActiveTab('providers')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'providers' ? 'bg-blue-500 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'providers' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
             >
               Prestadores
             </button>
@@ -64,53 +64,53 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
           {activeTab === 'staff' ? (
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-blue-400">1. Selecione o Setor (Origem)</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-blue-600">1. Selecione o Setor (Origem)</label>
                 <Autocomplete 
                   options={proSectors.filter(s => s.unit === unit).map(s => ({ value: s.name, label: s.name }))}
                   value={selectedSectorName}
                   onChange={(v) => { setSelectedSectorName(v); setStaffSearch(''); }}
                   placeholder="Buscar Setor..."
-                  className="w-full p-4 bg-white/10 border border-white/20 rounded-2xl text-white font-bold placeholder:text-white/30 focus:bg-white/20 outline-none"
+                  className="w-full p-4 bg-slate-50 border-none rounded-2xl text-slate-800 font-bold placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Ou Busque por Nome/Matrícula</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Ou Busque por Nome/Matrícula</label>
                 <div className="relative">
                   <input 
                     type="text"
                     value={staffSearch}
                     onChange={e => { setStaffSearch(e.target.value); setSelectedSectorName(''); }}
                     placeholder="Nome ou Matrícula..."
-                    className="w-full p-4 bg-white/10 border border-white/20 rounded-2xl text-white font-bold placeholder:text-white/30 focus:bg-white/20 outline-none"
+                    className="w-full p-4 bg-slate-50 border-none rounded-2xl text-slate-800 font-bold placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                   />
                   {staffSearch && (
-                    <button onClick={() => setStaffSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"><i className="fas fa-times"></i></button>
+                    <button onClick={() => setStaffSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><i className="fas fa-times"></i></button>
                   )}
                 </div>
               </div>
             </div>
           ) : (
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-blue-400">1. Buscar ou Cadastrar Prestador</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-blue-600">1. Buscar ou Cadastrar Prestador</label>
               <input 
                 type="text"
                 value={providerSearch}
                 onChange={e => setProviderSearch(e.target.value)}
                 placeholder="Digite o nome do prestador..."
-                className="w-full p-4 bg-white/10 border border-white/20 rounded-2xl text-white font-bold placeholder:text-white/30 focus:bg-white/20 outline-none"
+                className="w-full p-4 bg-slate-50 border-none rounded-2xl text-slate-800 font-bold placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
               />
             </div>
           )}
         </div>
 
         <div className="space-y-2 z-10 relative mt-auto">
-          <label className="text-[10px] font-black uppercase tracking-widest text-emerald-400">2. Selecione o PG (Destino)</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600">2. Selecione o PG (Destino)</label>
           <Autocomplete 
             options={proGroups.filter(g => g.unit === unit).map(g => ({ value: g.name, label: g.name }))}
             value={selectedPGName}
             onChange={setSelectedPGName}
             placeholder="Buscar Pequeno Grupo..."
-            className="w-full p-4 bg-white/10 border border-white/20 rounded-2xl text-white font-bold placeholder:text-white/30 focus:bg-white/20 outline-none"
+            className="w-full p-4 bg-slate-50 border-none rounded-2xl text-slate-800 font-bold placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
           />
         </div>
       </div>
