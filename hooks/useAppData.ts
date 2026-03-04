@@ -5,6 +5,7 @@ import { DataRepository } from '../services/dataRepository';
 import { INITIAL_CONFIG } from '../constants';
 import { supabase } from '../services/supabaseClient';
 import { normalizeString } from '../utils/formatters';
+import { toCamel } from '../utils/transformers';
 
 export const useAppData = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -69,15 +70,138 @@ export const useAppData = () => {
 
   useEffect(() => {
     if (!supabase) return;
-    const channel = supabase.channel('realtime-db').on('postgres_changes', { event: '*', schema: 'public' }, () => loadFromCloud(false)).subscribe();
+
+    const handleRealtimeChange = (payload: any) => {
+      const { eventType, table, new: newRecord, old: oldRecord } = payload;
+      
+      const tableToCollection: Record<string, string> = {
+        'bible_study_sessions': 'bibleStudies',
+        'bible_classes': 'bibleClasses',
+        'small_groups': 'smallGroups',
+        'staff_visits': 'staffVisits',
+        'visit_requests': 'visitRequests',
+        'pro_sectors': 'proSectors',
+        'pro_staff': 'proStaff',
+        'pro_patients': 'proPatients',
+        'pro_providers': 'proProviders',
+        'pro_groups': 'proGroups',
+        'pro_group_locations': 'proGroupLocations',
+        'pro_group_members': 'proGroupMembers',
+        'pro_group_provider_members': 'proGroupProviderMembers',
+        'users': 'users',
+        'app_config': 'config'
+      };
+
+      const collection = tableToCollection[table];
+      if (!collection) return;
+
+      if (eventType === 'INSERT' || eventType === 'UPDATE') {
+        const camelRecord = toCamel(newRecord);
+        
+        const updateState = (setter: any) => {
+          setter((prev: any[]) => {
+            const index = prev.findIndex(i => i.id === camelRecord.id);
+            if (index !== -1) {
+              const newState = [...prev];
+              newState[index] = { ...newState[index], ...camelRecord };
+              return newState;
+            }
+            return [...prev, camelRecord];
+          });
+        };
+
+        if (collection === 'bibleStudies') updateState(setBibleStudies);
+        else if (collection === 'bibleClasses') {
+          // Note: bibleClasses might need a full reload if students are updated 
+          // because they are in a separate table not covered by this listener directly
+          // but for now let's do incremental
+          updateState(setBibleClasses);
+        }
+        else if (collection === 'smallGroups') updateState(setSmallGroups);
+        else if (collection === 'staffVisits') updateState(setStaffVisits);
+        else if (collection === 'visitRequests') updateState(setVisitRequests);
+        else if (collection === 'proStaff') updateState(setProStaff);
+        else if (collection === 'proPatients') updateState(setProPatients);
+        else if (collection === 'proProviders') updateState(setProProviders);
+        else if (collection === 'proSectors') updateState(setProSectors);
+        else if (collection === 'proGroups') updateState(setProGroups);
+        else if (collection === 'proGroupLocations') updateState(setProGroupLocations);
+        else if (collection === 'proGroupMembers') updateState(setProGroupMembers);
+        else if (collection === 'proGroupProviderMembers') updateState(setProGroupProviderMembers);
+        else if (collection === 'users') updateState(setUsers);
+        else if (collection === 'config') setConfig(camelRecord);
+      } else if (eventType === 'DELETE') {
+        const id = oldRecord.id;
+        const removeState = (setter: any) => {
+          setter((prev: any[]) => prev.filter(i => i.id !== id));
+        };
+
+        if (collection === 'bibleStudies') removeState(setBibleStudies);
+        else if (collection === 'bibleClasses') removeState(setBibleClasses);
+        else if (collection === 'smallGroups') removeState(setSmallGroups);
+        else if (collection === 'staffVisits') removeState(setStaffVisits);
+        else if (collection === 'visitRequests') removeState(setVisitRequests);
+        else if (collection === 'proStaff') removeState(setProStaff);
+        else if (collection === 'proPatients') removeState(setProPatients);
+        else if (collection === 'proProviders') removeState(setProProviders);
+        else if (collection === 'proSectors') removeState(setProSectors);
+        else if (collection === 'proGroups') removeState(setProGroups);
+        else if (collection === 'proGroupLocations') removeState(setProGroupLocations);
+        else if (collection === 'proGroupMembers') removeState(setProGroupMembers);
+        else if (collection === 'proGroupProviderMembers') removeState(setProGroupProviderMembers);
+        else if (collection === 'users') removeState(setUsers);
+      }
+    };
+
+    const channel = supabase
+      .channel('realtime-db')
+      .on('postgres_changes', { event: '*', schema: 'public' }, handleRealtimeChange)
+      .subscribe();
+
     return () => { supabase.removeChannel(channel); };
-  }, [loadFromCloud]);
+  }, []);
 
   const saveRecord = useCallback(async (collection: string, item: any) => {
-    const success = await DataRepository.upsertRecord(collection, item);
-    if (success) await loadFromCloud(false);
-    return success;
-  }, [loadFromCloud]);
+    const result = await DataRepository.upsertRecord(collection, item);
+    if (result.success && result.data) {
+      // Atualização Incremental do Estado Local
+      const updatedItems = result.data;
+      
+      const updateState = (setter: any) => {
+        setter((prev: any[]) => {
+          const newState = [...prev];
+          updatedItems.forEach(newItem => {
+            const index = newState.findIndex(i => i.id === newItem.id);
+            if (index !== -1) {
+              newState[index] = { ...newState[index], ...newItem };
+            } else {
+              newState.push(newItem);
+            }
+          });
+          return newState;
+        });
+      };
+
+      if (collection === 'bibleStudies') updateState(setBibleStudies);
+      else if (collection === 'bibleClasses') updateState(setBibleClasses);
+      else if (collection === 'smallGroups') updateState(setSmallGroups);
+      else if (collection === 'staffVisits') updateState(setStaffVisits);
+      else if (collection === 'visitRequests') updateState(setVisitRequests);
+      else if (collection === 'proStaff') updateState(setProStaff);
+      else if (collection === 'proPatients') updateState(setProPatients);
+      else if (collection === 'proProviders') updateState(setProProviders);
+      else if (collection === 'proSectors') updateState(setProSectors);
+      else if (collection === 'proGroups') updateState(setProGroups);
+      else if (collection === 'proGroupLocations') updateState(setProGroupLocations);
+      else if (collection === 'proGroupMembers') updateState(setProGroupMembers);
+      else if (collection === 'proGroupProviderMembers') updateState(setProGroupProviderMembers);
+      else if (collection === 'users') updateState(setUsers);
+      else if (collection === 'config' && updatedItems[0]) setConfig(updatedItems[0]);
+
+      return true;
+    }
+    return false;
+  }, []);
 
   /**
    * ULTIMATE_ENTITY_SYNC_ENGINE (V4.1 - Enhanced Sector Healing)
@@ -157,7 +281,27 @@ export const useAppData = () => {
 
   const deleteRecord = async (collection: string, id: string) => {
     const success = await DataRepository.deleteRecord(collection, id);
-    if (success) await loadFromCloud(false);
+    if (success) {
+      // Remoção Incremental do Estado Local
+      const removeState = (setter: any) => {
+        setter((prev: any[]) => prev.filter(i => i.id !== id));
+      };
+
+      if (collection === 'bibleStudies') removeState(setBibleStudies);
+      else if (collection === 'bibleClasses') removeState(setBibleClasses);
+      else if (collection === 'smallGroups') removeState(setSmallGroups);
+      else if (collection === 'staffVisits') removeState(setStaffVisits);
+      else if (collection === 'visitRequests') removeState(setVisitRequests);
+      else if (collection === 'proStaff') removeState(setProStaff);
+      else if (collection === 'proPatients') removeState(setProPatients);
+      else if (collection === 'proProviders') removeState(setProProviders);
+      else if (collection === 'proSectors') removeState(setProSectors);
+      else if (collection === 'proGroups') removeState(setProGroups);
+      else if (collection === 'proGroupLocations') removeState(setProGroupLocations);
+      else if (collection === 'proGroupMembers') removeState(setProGroupMembers);
+      else if (collection === 'proGroupProviderMembers') removeState(setProGroupProviderMembers);
+      else if (collection === 'users') removeState(setUsers);
+    }
     return success;
   };
 

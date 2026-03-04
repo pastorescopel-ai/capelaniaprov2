@@ -23,7 +23,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
     id: '', date: getToday(), sector: '', reason: VisitReason.ROTINA, 
-    staffName: '', whatsapp: '', participantType: ParticipantType.STAFF, 
+    staffName: '', staffId: '', providerId: '', whatsapp: '', participantType: ParticipantType.STAFF, 
     providerRole: '', requiresReturn: false, returnDate: getToday(), 
     returnCompleted: false, observations: '' 
   }), [getToday]);
@@ -122,6 +122,8 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       const match = label.match(/\((.*?)\)$/);
       let foundSector = formData.sector;
       let foundWhatsapp = formData.whatsapp;
+      let foundStaffId = '';
+      let foundProviderId = '';
       let lockSector = false;
 
       if (formData.participantType === ParticipantType.STAFF) {
@@ -133,17 +135,26 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
               const sector = proSectors.find(s => s.id === staff.sectorId);
               if (sector) { foundSector = sector.name; lockSector = true; } else { lockSector = false; }
               if (staff.whatsapp) foundWhatsapp = formatWhatsApp(staff.whatsapp);
+              foundStaffId = staff.id;
           } else { lockSector = false; }
       } else {
           const provider = proProviders.find(p => normalizeString(p.name) === normalizeString(nameOnly) && p.unit === unit);
           if (provider) {
               if (provider.sector) foundSector = provider.sector;
               if (provider.whatsapp) foundWhatsapp = formatWhatsApp(provider.whatsapp);
+              foundProviderId = provider.id;
           }
           lockSector = false;
       }
 
-      setFormData(prev => ({ ...prev, staffName: nameOnly, whatsapp: foundWhatsapp, sector: foundSector }));
+      setFormData(prev => ({ 
+        ...prev, 
+        staffName: nameOnly, 
+        staffId: foundStaffId, 
+        providerId: foundProviderId, 
+        whatsapp: foundWhatsapp, 
+        sector: foundSector 
+      }));
       setIsSectorLocked(lockSector);
       if (lockSector) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
   };
@@ -155,7 +166,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
   };
 
   const handleChangeName = (v: string) => {
-      setFormData({...formData, staffName: v});
+      setFormData({...formData, staffName: v, staffId: '', providerId: ''});
       if (!v) setIsSectorLocked(false);
   };
 
@@ -205,6 +216,8 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       ...defaultState,
       date: getToday(),
       staffName: item.staffName,
+      staffId: item.staffId || '',
+      providerId: item.providerId || '',
       sector: item.sector,
       participantType: (item as any).participantType || ParticipantType.STAFF,
       providerRole: (item as any).providerRole || '',

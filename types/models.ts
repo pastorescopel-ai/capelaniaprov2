@@ -199,6 +199,8 @@ export interface StaffVisit {
   sector: string;
   reason: VisitReason;
   staffName: string;
+  staffId?: string;
+  providerId?: string;
   participantType?: ParticipantType;
   providerRole?: string;
   requiresReturn: boolean;

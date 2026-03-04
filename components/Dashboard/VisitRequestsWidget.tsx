@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { User, VisitRequest, UserRole } from '../../types';
+import Button from '../Shared/Button';
 import { useVisitRequestsWidget } from '../../hooks/useVisitRequestsWidget';
 
 interface VisitRequestsWidgetProps {
@@ -116,13 +117,13 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
               
               {onRegisterMission && req.assignedChaplainId === currentUser.id && (
                 <div className="flex gap-2 mt-auto">
-                  <button 
+                  <Button 
                     onClick={() => onRegisterMission(req)} 
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    className="flex-1 py-2 text-[10px]"
                   >
                     <span>Registrar Visita</span>
                     <i className="fas fa-arrow-right"></i>
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -140,7 +141,13 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
                 <option value="">Selecione um Capelão...</option>
                 {users.map(u => (<option key={u.id} value={u.id}>{u.name}</option>))}
               </select>
-              <button onClick={() => selectedChaplainId && handleUpdateStatus(selectedRequest, 'assigned', undefined, selectedChaplainId)} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase">Salvar Alteração</button>
+              <Button 
+                onClick={() => selectedChaplainId && handleUpdateStatus(selectedRequest, 'assigned', undefined, selectedChaplainId)} 
+                isLoading={isProcessing}
+                className="w-full py-4 text-[10px]"
+              >
+                Salvar Alteração
+              </Button>
             </div>
           </div>
         </div>
@@ -152,10 +159,21 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
             <h4 className="text-lg font-black text-slate-800 mb-4 uppercase tracking-tight">Excluir Agendamento?</h4>
             <p className="text-sm text-slate-500 font-medium mb-6">Esta ação removerá permanentemente a missão de {selectedRequest.pgName} da escala.</p>
             <div className="flex gap-3">
-              <button onClick={() => { setSelectedRequest(null); setActionType(null); }} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-xl font-black text-[10px] uppercase">Cancelar</button>
-              <button onClick={() => handleDeleteRequest(selectedRequest.id)} disabled={isProcessing} className="flex-1 py-4 bg-rose-600 text-white rounded-xl font-black text-[10px] uppercase shadow-lg shadow-rose-200">
-                {isProcessing ? 'Excluindo...' : 'Confirmar Exclusão'}
-              </button>
+              <Button 
+                variant="ghost"
+                onClick={() => { setSelectedRequest(null); setActionType(null); }} 
+                className="flex-1 py-4 text-[10px]"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="danger"
+                onClick={() => handleDeleteRequest(selectedRequest.id)} 
+                isLoading={isProcessing} 
+                className="flex-1 py-4 text-[10px]"
+              >
+                Confirmar Exclusão
+              </Button>
             </div>
           </div>
         </div>

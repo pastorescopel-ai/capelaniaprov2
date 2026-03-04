@@ -5,6 +5,7 @@ import Autocomplete from '../Shared/Autocomplete';
 import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import FormScaffold from '../Shared/FormScaffold';
+import Button from '../Shared/Button';
 import { isRecordLocked } from '../../utils/validators';
 import { formatWhatsApp } from '../../utils/formatters';
 import { useStaffVisitForm } from '../../hooks/useStaffVisitForm';
@@ -61,11 +62,20 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         
         const normalize = (s: string) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
         const vDate = new Date(item.date).getTime();
-        const isFulfilled = (allHistory.length > 0 ? allHistory : history).some(v => 
-          v.id !== item.id &&
-          normalize(v.staffName) === normalize(item.staffName) && 
-          new Date(v.date).getTime() >= vDate
-        );
+        const isFulfilled = (allHistory.length > 0 ? allHistory : history).some(v => {
+          if (v.id === item.id) return false;
+          
+          // ID-BASED LINKING
+          if (item.staffId && v.staffId) {
+            return v.staffId === item.staffId && new Date(v.date).getTime() >= vDate;
+          }
+          if (item.providerId && v.providerId) {
+            return v.providerId === item.providerId && new Date(v.date).getTime() >= vDate;
+          }
+
+          // Fallback to name
+          return normalize(v.staffName) === normalize(item.staffName) && new Date(v.date).getTime() >= vDate;
+        });
         return !isFulfilled;
       }}
       renderItem={(item, index, allItems) => {
@@ -75,11 +85,20 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         const isFulfilled = (visit: StaffVisit) => {
           if (!visit.requiresReturn) return true;
           const vDate = new Date(visit.date).getTime();
-          return (allHistory.length > 0 ? allHistory : history).some(v => 
-            v.id !== visit.id &&
-            normalize(v.staffName) === normalize(visit.staffName) && 
-            new Date(v.date).getTime() >= vDate
-          );
+          return (allHistory.length > 0 ? allHistory : history).some(v => {
+            if (v.id === visit.id) return false;
+
+            // ID-BASED LINKING
+            if (visit.staffId && v.staffId) {
+              return v.staffId === visit.staffId && new Date(v.date).getTime() >= vDate;
+            }
+            if (visit.providerId && v.providerId) {
+              return v.providerId === visit.providerId && new Date(v.date).getTime() >= vDate;
+            }
+
+            // Fallback to name
+            return normalize(v.staffName) === normalize(visit.staffName) && new Date(v.date).getTime() >= vDate;
+          });
         };
 
         const isPending = item.requiresReturn && !isFulfilled(item);
@@ -197,19 +216,14 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           {formData.requiresReturn && (<div className="space-y-1 md:col-span-2 animate-in slide-in-from-left duration-300"><label className="text-[10px] font-black text-rose-500 ml-2 uppercase tracking-widest">Agendar Retorno para *</label><input type="date" value={formData.returnDate} onChange={e => setFormData({...formData, returnDate: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl border-2 border-rose-100 text-rose-700 font-black text-lg focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>)}
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Observações da Visita</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>
         </div>
-        <button 
+        <Button 
           type="submit" 
-          disabled={isSubmitting}
-          className={`w-full py-4 md:py-6 text-white font-black rounded-2xl shadow-xl uppercase text-xs transition-all flex items-center justify-center gap-2
-            ${isSubmitting ? 'bg-slate-400 cursor-not-allowed' : 'bg-rose-600 shadow-rose-600/20 hover:bg-rose-700 hover:-translate-y-1 active:scale-95'}`}
+          variant="danger"
+          isLoading={isSubmitting}
+          className="w-full py-4 md:py-6 text-xs"
         >
-          {isSubmitting ? (
-            <>
-              <i className="fas fa-circle-notch fa-spin"></i>
-              Gravando...
-            </>
-          ) : 'Registrar Visita Pastoral'}
-        </button>
+          Registrar Visita Pastoral
+        </Button>
       </form>
     </FormScaffold>
   );

@@ -30,10 +30,21 @@ export const useDashboardStats = (
     const pending = userVisits.filter(v => {
       if (!v.requiresReturn) return false;
       const vDate = new Date(v.date).getTime();
-      const hasSubsequent = visits.some(allV => 
-        normalizeString(allV.staffName) === normalizeString(v.staffName) && 
-        new Date(allV.date).getTime() > vDate
-      );
+      const hasSubsequent = visits.some(allV => {
+        if (allV.id === v.id) return false;
+        
+        // ID-BASED LINKING
+        if (v.staffId && allV.staffId) {
+          return allV.staffId === v.staffId && new Date(allV.date).getTime() > vDate;
+        }
+        if (v.providerId && allV.providerId) {
+          return allV.providerId === v.providerId && new Date(allV.date).getTime() > vDate;
+        }
+
+        // Fallback to name
+        return normalizeString(allV.staffName) === normalizeString(v.staffName) && 
+               new Date(allV.date).getTime() > vDate;
+      });
       return !hasSubsequent;
     });
 

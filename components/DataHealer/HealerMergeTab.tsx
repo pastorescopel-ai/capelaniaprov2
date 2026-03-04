@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Autocomplete from '../Shared/Autocomplete';
 import { PersonType } from '../../hooks/useDataHealer';
+import { useToast } from '../../contexts/ToastContext';
 
 interface HealerMergeTabProps {
   mergeSourceType: PersonType;
@@ -26,6 +27,7 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
   officialStaffOptions, officialPatientOptions, officialProviderOptions,
   handleUniversalMerge, isProcessing
 }) => {
+  const { showToast } = useToast();
   const [sourceInput, setSourceInput] = useState('');
   const [targetInput, setTargetInput] = useState('');
 
@@ -67,7 +69,7 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
   const handleMerge = () => {
     if (!mergeSourceId || !mergeTargetId) return;
     if (mergeSourceId === mergeTargetId && mergeSourceType === mergeTargetType) {
-        alert("Não é possível mesclar um cadastro com ele mesmo.");
+        showToast("Não é possível mesclar um cadastro com ele mesmo.", "error");
         return;
     }
     const sourceLabel = getLabel(mergeSourceType, mergeSourceId);

@@ -99,39 +99,74 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
     setVisibleCount(PAGE_SIZE);
   }, [filterChaplain, filterStart, filterEnd, searchQuery]);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && visibleCount < filteredHistory.length && !isLoadingMore) {
-        setIsLoadingMore(true);
-        setTimeout(() => {
-          setVisibleCount(prev => prev + PAGE_SIZE);
-          setIsLoadingMore(false);
-        }, 400);
-      }
-    }, { threshold: 0.1 });
-    if (loaderRef.current) observer.observe(loaderRef.current);
-    return () => observer.disconnect();
-  }, [filteredHistory.length, visibleCount, isLoadingMore]);
-
   const visibleHistory = filteredHistory.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredHistory.length;
+
+  const handleClearFilters = () => {
+    setFilterChaplain('all');
+    setFilterStart(getStartOfMonth());
+    setFilterEnd(new Date().toISOString().split('T')[0]);
+    setSearchQuery('');
+  };
+
+  const hasActiveFilters = filterChaplain !== 'all' || 
+    filterStart !== getStartOfMonth() || 
+    filterEnd !== new Date().toISOString().split('T')[0] || 
+    searchQuery !== '';
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg md:text-xl font-black text-slate-800 px-2 uppercase tracking-tight">{title}</h3>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-2">
+        <h3 className="text-lg md:text-xl font-black text-slate-800 uppercase tracking-tight">{title}</h3>
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
+          {filteredHistory.length} registros encontrados
+        </span>
+      </div>
+
       <HistoryFilterBar 
         users={users} isAdmin={currentUser.role === UserRole.ADMIN} 
         selectedChaplain={filterChaplain} onChaplainChange={setFilterChaplain} 
         startDate={filterStart} onStartChange={setFilterStart} 
         endDate={filterEnd} onEndChange={setFilterEnd} 
         searchQuery={searchQuery} onSearchChange={setSearchQuery}
+        onClearFilters={handleClearFilters}
+        hasActiveFilters={hasActiveFilters}
       />
+
       <div className="grid gap-3 md:gap-4">
         {isLoading && visibleHistory.length === 0 ? (
           <SkeletonCard />
         ) : visibleHistory.length > 0 ? (
           <>
             {visibleHistory.map((item, index) => renderItem(item, index, visibleHistory))}
-            <div ref={loaderRef} className="h-10"></div>
+            
+            {hasMore && (
+              <div className="pt-4 pb-8 flex flex-col items-center gap-4">
+                <button 
+                  onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}
+                  disabled={isLoadingMore}
+                  className="px-8 py-4 bg-white border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 hover:border-slate-200 active:scale-95 transition-all shadow-sm flex items-center gap-3 disabled:opacity-50"
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <i className="fas fa-circle-notch fa-spin"></i>
+                      Carregando...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-plus-circle"></i>
+                      Carregar mais 10 registros
+                    </>
+                  )}
+                </button>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                  Exibindo {visibleHistory.length} de {filteredHistory.length}
+                </p>
+              </div>
+            )}
+            
+            {/* Elemento para trigger de scroll infinito opcional ou apenas margem */}
+            <div ref={loaderRef} className="h-4"></div>
           </>
         ) : (
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">

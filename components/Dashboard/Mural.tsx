@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
 import { Config, UserRole } from '../../types';
+import Button from '../Shared/Button';
+import { useToast } from '../../contexts/ToastContext';
 
 interface MuralProps {
   config: Config;
@@ -9,12 +11,22 @@ interface MuralProps {
 }
 
 const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig }) => {
+  const { showToast } = useToast();
   const [isEditingMural, setIsEditingMural] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [muralDraft, setMuralDraft] = useState(config?.muralText || "");
 
-  const handleSaveMural = () => {
-    onUpdateConfig({ ...config, muralText: muralDraft });
-    setIsEditingMural(false);
+  const handleSaveMural = async () => {
+    setIsSaving(true);
+    try {
+      await onUpdateConfig({ ...config, muralText: muralDraft });
+      setIsEditingMural(false);
+      showToast("Mural atualizado com sucesso!", "success");
+    } catch (e) {
+      showToast("Erro ao atualizar mural.", "error");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -30,12 +42,20 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig }) => {
               placeholder="Escreva um comunicado..."
             />
             <div className="flex gap-2">
-              <button onClick={handleSaveMural} className="px-5 py-2 bg-amber-400 text-slate-900 font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-amber-300 active:scale-95 transition-all shadow-lg shadow-amber-400/20">
+              <Button 
+                onClick={handleSaveMural} 
+                isLoading={isSaving}
+                className="px-5 py-2 bg-amber-400 text-slate-900 shadow-amber-400/20"
+              >
                 Publicar
-              </button>
-              <button onClick={() => setIsEditingMural(false)} className="px-5 py-2 bg-white/20 text-white font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-white/30 active:scale-95 transition-all">
+              </Button>
+              <Button 
+                variant="ghost"
+                onClick={() => setIsEditingMural(false)} 
+                className="px-5 py-2 bg-white/20 text-white hover:bg-white/30"
+              >
                 Cancelar
-              </button>
+              </Button>
             </div>
           </div>
         ) : (

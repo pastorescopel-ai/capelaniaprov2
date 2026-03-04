@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { TABLE_SCHEMAS, toCamel, cleanAndConvertToSnake, isValidUUID } from '../utils/transformers';
+import { TABLE_SCHEMAS, toCamel, cleanAndConvertToSnake, isValidUUID, COLLECTION_TO_TABLE } from '../utils/transformers';
 
 const GLOBAL_ID_CACHE: Record<string, string> = {};
 
@@ -62,24 +62,13 @@ export const DataRepository = {
     }
   },
 
-  async upsertRecord(collection: string, item: any) {
-    if (!supabase) return false;
+  async upsertRecord(collection: string, item: any): Promise<{ success: boolean; data?: any[] }> {
+    if (!supabase) return { success: false };
     const items = Array.isArray(item) ? item : [item];
-    if (items.length === 0) return true;
+    if (items.length === 0) return { success: true, data: [] };
 
-    const tableMap: Record<string, string> = {
-      bibleStudies: 'bible_study_sessions', bibleClasses: 'bible_classes',
-      smallGroups: 'small_groups', staffVisits: 'staff_visits',
-      users: 'users', config: 'app_config',
-      visitRequests: 'visit_requests',
-      proSectors: 'pro_sectors', proStaff: 'pro_staff', 
-      proPatients: 'pro_patients', proProviders: 'pro_providers',
-      proGroups: 'pro_groups', proGroupLocations: 'pro_group_locations',
-      proGroupMembers: 'pro_group_members', proGroupProviderMembers: 'pro_group_provider_members'
-    };
-    
-    const tableName = tableMap[collection];
-    if (!tableName) return false;
+    const tableName = COLLECTION_TO_TABLE[collection];
+    if (!tableName) return { success: false };
 
     const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName], tableName));
 
@@ -97,6 +86,7 @@ export const DataRepository = {
       }
     }
 
+    const allUpsertedData: any[] = [];
     const CHUNK_SIZE = 100;
     for (let i = 0; i < payloads.length; i += CHUNK_SIZE) {
       const chunk = payloads.slice(i, i + CHUNK_SIZE);
@@ -112,30 +102,38 @@ export const DataRepository = {
           code: error.code,
           payloadSent: chunk
         });
-        return false;
+        return { success: false };
+      }
+      if (data) {
+        allUpsertedData.push(...toCamel(data));
       }
       console.log(`[DataRepo] Sucesso no UPSERT em ${tableName}. Resposta:`, data);
     }
 
     if (collection === 'bibleClasses') {
-        for (const cls of items) {
-            if (cls.id && cls.students && Array.isArray(cls.students)) {
+        // For bibleClasses, we need to ensure the students are attached to the returned objects
+        // since they are stored in a separate table.
+        for (const cls of allUpsertedData) {
+            const originalItem = items.find(i => i.id === cls.id);
+            if (originalItem && originalItem.students) {
+                cls.students = originalItem.students;
+            }
+            
+            if (cls.id && originalItem && originalItem.students && Array.isArray(originalItem.students)) {
                 const { error: delError } = await supabase.from('bible_class_attendees').delete().eq('class_id', cls.id);
                 if (delError) console.error("Erro ao limpar participantes antigos:", delError);
 
-                const attendeesPayload = cls.students.map((name: string) => {
-                    // Extrai ID numérico do padrão "Nome (123)"
+                const attendeesPayload = originalItem.students.map((name: string) => {
                     const match = name.match(/\((\d+)\)$/);
                     const staffId = match ? match[1] : null;
                     return {
                         class_id: cls.id,
                         student_name: name,
-                        staff_id: staffId // Envia como string numérica ou null, cleanAndConvertToSnake tratará
+                        staff_id: staffId
                     };
                 });
 
                 if (attendeesPayload.length > 0) {
-                    // Processa payload para garantir que staff_id seja limpo/numérico
                     const cleanPayload = attendeesPayload.map(p => cleanAndConvertToSnake(p, TABLE_SCHEMAS['bible_class_attendees'], 'bible_class_attendees'));
                     const { error: insError } = await supabase.from('bible_class_attendees').insert(cleanPayload);
                     if (insError) console.error("Erro ao inserir novos participantes:", insError);
@@ -144,21 +142,12 @@ export const DataRepository = {
         }
     }
 
-    return true;
+    return { success: true, data: allUpsertedData };
   },
 
   async deleteRecord(collection: string, id: string) {
     if (!supabase) return false;
-    const tableMap: Record<string, string> = {
-      bibleStudies: 'bible_study_sessions', bibleClasses: 'bible_classes', smallGroups: 'small_groups', 
-      staffVisits: 'staff_visits', users: 'users',
-      visitRequests: 'visit_requests',
-      proSectors: 'pro_sectors', proStaff: 'pro_staff', 
-      proPatients: 'pro_patients', proProviders: 'pro_providers',
-      proGroups: 'pro_groups', proGroupLocations: 'pro_group_locations',
-      proGroupMembers: 'pro_group_members', proGroupProviderMembers: 'pro_group_provider_members'
-    };
-    const tableName = tableMap[collection];
+    const tableName = COLLECTION_TO_TABLE[collection];
     if (!tableName) return false;
     
     // IDs numéricos (nas tabelas PRO) podem ser passados como string, o Postgres faz o cast na query

@@ -2,6 +2,7 @@
 import React from 'react';
 import Cropper from 'react-easy-crop';
 import { User } from '../types';
+import Button from './Shared/Button';
 import { useProfile } from '../hooks/useProfile';
 
 interface ProfileProps {
@@ -93,18 +94,19 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
               </div>
 
               <div className="flex gap-4">
-                <button
+                <Button
+                  variant="ghost"
                   onClick={handleCancelCrop}
-                  className="flex-1 py-4 bg-slate-50 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-100 transition-all"
+                  className="flex-1 py-4 text-[10px]"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={handleConfirmCrop}
-                  className="flex-1 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-200 uppercase text-[10px] tracking-widest hover:bg-blue-700 active:scale-95 transition-all"
+                  className="flex-1 py-4 text-[10px]"
                 >
                   Confirmar Ajuste
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -197,9 +199,14 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
           </div>
         </div>
 
-        <button type="submit" className="w-full py-5 bg-slate-900 text-white font-black rounded-2xl shadow-xl hover:bg-black transition-all uppercase text-xs tracking-[0.2em]">
+        <Button 
+          type="submit" 
+          variant="dark"
+          isLoading={isSyncing}
+          className="w-full py-5 text-xs tracking-[0.2em]"
+        >
           Confirmar e Salvar Perfil
-        </button>
+        </Button>
       </form>
     </div>
   );

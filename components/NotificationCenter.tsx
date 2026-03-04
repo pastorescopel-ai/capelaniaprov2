@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { UserRole, VisitRequest } from '../types';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { usePGInference } from '../hooks/usePGInference';
@@ -13,6 +14,7 @@ interface NotificationCenterProps {
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHistory }) => {
   const { visitRequests, saveRecord, proGroups, proGroupLocations, proSectors, smallGroups, bibleStudies, bibleClasses, staffVisits, proStaff } = useApp();
   const { currentUser } = useAuth();
+  const { showToast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -98,8 +100,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
     try {
       const updates = unread.map(req => ({ ...req, isRead: true }));
       await saveRecord('visitRequests', updates);
+      showToast("Notificações marcadas como lidas.", "success");
     } catch (e) {
       console.error("Erro ao marcar como lido:", e);
+      showToast("Erro ao limpar notificações.", "error");
     }
   };
 

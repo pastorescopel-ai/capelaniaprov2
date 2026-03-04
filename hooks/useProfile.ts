@@ -64,7 +64,7 @@ export const useProfile = ({ user, onUpdateUser }: UseProfileProps) => {
     if (confirm("Deseja realmente remover sua foto de perfil?")) {
       setProfilePic('');
       onUpdateUser({ ...user, profilePic: '' });
-      showToast("Foto removida.", "warning");
+      showToast("Foto removida com sucesso.", "info");
     }
   };
 
@@ -79,12 +79,12 @@ export const useProfile = ({ user, onUpdateUser }: UseProfileProps) => {
     
     if (passData.new || passData.confirm) {
       if (passData.new !== passData.confirm) {
-        showToast('As novas senhas digitadas não coincidem!', "warning");
+        showToast('As novas senhas digitadas não coincidem!', "error");
         return;
       }
       
       if (passData.new.length < 4) {
-        showToast('A nova senha deve ter pelo menos 4 caracteres.', "warning");
+        showToast('A nova senha deve ter pelo menos 4 caracteres.', "error");
         return;
       }
 

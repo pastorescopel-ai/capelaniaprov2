@@ -59,7 +59,7 @@ export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementPro
       setNewUser({ name: '', email: '', password: '', role: UserRole.CHAPLAIN, attendsHaba: false, habaDays: [] });
       showToast('Usuário cadastrado com sucesso!', 'success');
     } catch (e) {
-      showToast('Erro ao cadastrar.', 'warning');
+      showToast('Erro ao cadastrar usuário.', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -119,9 +119,9 @@ export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementPro
 
       await onUpdateUsers(updatedUsers);
       setEditingUser(null);
-      showToast('Dados atualizados!', 'success');
+      showToast('Dados do usuário atualizados!', 'success');
     } catch (e) {
-      showToast('Erro ao atualizar.', 'warning');
+      showToast('Erro ao atualizar usuário.', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -136,11 +136,11 @@ export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementPro
       if (success) {
         showToast('Usuário removido com sucesso!', 'success');
       } else {
-        showToast('Falha ao excluir registro no banco.', 'warning');
+        showToast('Falha ao excluir registro no banco.', 'error');
       }
       setUserToDelete(null);
     } catch (e) {
-      showToast('Erro técnico ao processar remoção.', 'warning');
+      showToast('Erro técnico ao processar remoção.', 'error');
     } finally {
       setIsProcessing(false);
     }

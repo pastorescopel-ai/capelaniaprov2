@@ -87,8 +87,12 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
     if (itemToDelete.type === 'visit') collectionName = 'staffVisits';
     
     if (collectionName) {
-      await deleteRecord(collectionName, itemToDelete.id);
-      showToast("Registro removido.", "success");
+      const success = await deleteRecord(collectionName, itemToDelete.id);
+      if (success) {
+        showToast("Registro removido com sucesso.", "success");
+      } else {
+        showToast("Erro ao remover registro.", "error");
+      }
       setItemToDelete(null);
     }
   };

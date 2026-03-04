@@ -2,6 +2,7 @@
 import React from 'react';
 import { User, UserRole } from '../types';
 import Autocomplete from './Shared/Autocomplete';
+import Button from './Shared/Button';
 import { useUserManagement } from '../hooks/useUserManagement';
 
 interface UserManagementProps {
@@ -51,8 +52,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
             <h3 className="text-2xl font-black text-slate-800 uppercase">Remover {userToDelete.name}?</h3>
             <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest px-4">Esta ação é irreversível e apagará o cadastro permanentemente do servidor.</p>
             <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => setUserToDelete(null)} className="py-4 rounded-2xl bg-slate-100 font-black uppercase text-xs hover:bg-slate-200 transition-colors">Cancelar</button>
-              <button onClick={confirmDelete} className="py-4 rounded-2xl bg-rose-500 text-white font-black uppercase text-xs hover:bg-rose-600 transition-colors shadow-lg shadow-rose-200">Sim, Remover</button>
+              <Button variant="ghost" onClick={() => setUserToDelete(null)} className="py-4 text-xs">Cancelar</Button>
+              <Button variant="danger" onClick={confirmDelete} className="py-4 text-xs">Sim, Remover</Button>
             </div>
           </div>
         </div>
@@ -125,8 +126,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 pt-4">
-              <button onClick={() => setEditingUser(null)} className="py-4 rounded-2xl bg-slate-100 font-black uppercase text-xs hover:bg-slate-200 transition-colors">Cancelar</button>
-              <button onClick={handleSaveEdit} className="py-4 rounded-2xl bg-blue-600 text-white font-black uppercase text-xs hover:bg-blue-700 transition-colors">Salvar</button>
+              <Button variant="ghost" onClick={() => setEditingUser(null)} className="py-4 text-xs">Cancelar</Button>
+              <Button onClick={handleSaveEdit} className="py-4 text-xs">Salvar</Button>
             </div>
           </div>
         </div>
@@ -199,7 +200,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
             )}
           </div>
           
-          <button onClick={handleAddUser} className="lg:col-span-4 py-5 bg-emerald-600 text-white font-black uppercase text-xs rounded-2xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all">Cadastrar Membro da Equipe</button>
+          <Button 
+            onClick={handleAddUser} 
+            variant="success"
+            className="lg:col-span-4 py-5 text-xs"
+          >
+            Cadastrar Membro da Equipe
+          </Button>
         </div>
       </section>
 

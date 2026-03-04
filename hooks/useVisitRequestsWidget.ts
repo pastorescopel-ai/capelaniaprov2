@@ -71,7 +71,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       setSelectedRequest(null);
       setActionType(null);
     } catch (e) {
-      showToast('Erro ao atualizar.', 'warning');
+      showToast('Erro ao atualizar escala.', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -81,11 +81,11 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     setIsProcessing(true);
     try {
       await deleteRecord('visitRequests', id);
-      showToast('Agendamento removido.', 'success');
+      showToast('Agendamento removido com sucesso.', 'success');
       setSelectedRequest(null);
       setActionType(null);
     } catch (e) {
-      showToast('Erro ao remover.', 'warning');
+      showToast('Erro ao remover agendamento.', 'error');
     } finally {
       setIsProcessing(false);
     }

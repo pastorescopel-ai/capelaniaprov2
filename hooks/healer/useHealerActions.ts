@@ -67,7 +67,7 @@ export const useHealerActions = (
               setResolvedItems((prev: any) => new Set(prev).add(orphanName));
               setResolvedItems((prev: any) => new Set(prev).add(normalizeString(orphanName)));
               setTargetMap((prev: any) => { const n = {...prev}; delete n[orphanName]; return n; });
-          } catch (e: any) { showToast("Erro: " + e.message, "warning"); } 
+          } catch (e: any) { showToast("Erro: " + e.message, "error"); } 
           finally { setIsProcessing(false); }
 
       } else if (selectedType === 'Paciente' || selectedType === 'Prestador') {
@@ -91,7 +91,7 @@ export const useHealerActions = (
                   showToast(result, "success");
               }
               setResolvedItems((prev: any) => new Set(prev).add(orphanName));
-          } catch (e: any) { showToast("Erro: " + e.message, "warning"); }
+          } catch (e: any) { showToast("Erro: " + e.message, "error"); }
           finally { setIsProcessing(false); }
       }
   };
@@ -107,7 +107,7 @@ export const useHealerActions = (
           showToast(result, "success");
           setResolvedItems((prev: any) => new Set(prev).add(badName));
           setTargetMap((prev: any) => { const n = {...prev}; delete n[badName]; return n; });
-      } catch (e: any) { showToast("Erro: " + e.message, "warning"); }
+      } catch (e: any) { showToast("Erro: " + e.message, "error"); }
       finally { setIsProcessing(false); }
   };
 
@@ -150,7 +150,7 @@ export const useHealerActions = (
       if (result.success) {
         showToast(result.message, "success");
       } else {
-        showToast(result.message, "warning");
+        showToast(result.message, "error");
       }
     } catch (e: any) {
       showToast(e.message, "error");

@@ -6,6 +6,7 @@ import Autocomplete from '../Shared/Autocomplete';
 import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import FormScaffold from '../Shared/FormScaffold';
+import Button from '../Shared/Button';
 import { formatWhatsApp } from '../../utils/formatters';
 import { isRecordLocked } from '../../utils/validators';
 import { useBibleStudyForm } from '../../hooks/useBibleStudyForm';
@@ -116,19 +117,13 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           }} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-3 md:py-3.5 rounded-2xl font-black text-[10px] uppercase border-2 transition-all active:scale-95 ${formData.status === opt ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm' : 'border-slate-100 text-slate-400 bg-slate-50 hover:bg-slate-100'}`}>{opt}</button>))}</div></div>
         </div>
-        <button 
+        <Button 
           type="submit" 
-          disabled={isSubmitting}
-          className={`w-full py-4 md:py-5 text-white font-black rounded-2xl shadow-lg uppercase text-xs transition-all flex items-center justify-center gap-2
-            ${isSubmitting ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 shadow-blue-600/20 hover:bg-blue-700 hover:-translate-y-0.5 active:scale-95'}`}
+          isLoading={isSubmitting}
+          className="w-full py-4 md:py-5 text-xs"
         >
-          {isSubmitting ? (
-            <>
-              <i className="fas fa-circle-notch fa-spin"></i>
-              Gravando...
-            </>
-          ) : 'Gravar Registro'}
-        </button>
+          Gravar Registro
+        </Button>
       </form>
     </FormScaffold>
     </>

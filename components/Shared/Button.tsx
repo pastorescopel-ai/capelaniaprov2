@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { hapticFeedback } from '../../utils/haptics';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'ghost' | 'dark';
@@ -13,8 +14,14 @@ const Button: React.FC<ButtonProps> = ({
   icon, 
   isLoading, 
   className = '', 
+  onClick,
   ...props 
 }) => {
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    hapticFeedback.light();
+    if (onClick) onClick(e);
+  };
+
   const baseStyles = "px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100";
   
   const variants = {
@@ -27,7 +34,12 @@ const Button: React.FC<ButtonProps> = ({
   };
 
   return (
-    <button className={`${baseStyles} ${variants[variant]} ${className}`} disabled={isLoading || props.disabled} {...props}>
+    <button 
+      className={`${baseStyles} ${variants[variant]} ${className}`} 
+      disabled={isLoading || props.disabled} 
+      onClick={handleClick}
+      {...props}
+    >
       {isLoading ? (
         <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
       ) : (

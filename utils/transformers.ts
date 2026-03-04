@@ -1,10 +1,29 @@
+export const COLLECTION_TO_TABLE: Record<string, string> = {
+  bibleStudies: 'bible_study_sessions',
+  bibleClasses: 'bible_classes',
+  smallGroups: 'small_groups',
+  staffVisits: 'staff_visits',
+  users: 'users',
+  config: 'app_config',
+  visitRequests: 'visit_requests',
+  proSectors: 'pro_sectors',
+  proStaff: 'pro_staff',
+  proPatients: 'pro_patients',
+  proProviders: 'pro_providers',
+  proGroups: 'pro_groups',
+  proGroupLocations: 'pro_group_locations',
+  proGroupMembers: 'pro_group_members',
+  proGroupProviderMembers: 'pro_group_provider_members',
+  ambassadors: 'ambassadors'
+};
+
 export const TABLE_SCHEMAS: Record<string, string[]> = {
   users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'attends_haba', 'haba_days', 'updated_at'],
   bible_study_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'name', 'staff_id', 'whatsapp', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
   bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
   bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'created_at'],
   small_groups: ['id', 'user_id', 'date', 'unit', 'sector', 'group_name', 'leader', 'leader_phone', 'shift', 'participants_count', 'observations', 'created_at', 'updated_at'],
-  staff_visits: ['id', 'user_id', 'date', 'unit', 'sector', 'reason', 'staff_name', 'participant_type', 'provider_role', 'requires_return', 'return_date', 'return_completed', 'observations', 'created_at', 'updated_at'],
+  staff_visits: ['id', 'user_id', 'date', 'unit', 'sector', 'reason', 'staff_name', 'staff_id', 'provider_id', 'participant_type', 'provider_role', 'requires_return', 'return_date', 'return_completed', 'observations', 'created_at', 'updated_at'],
   visit_requests: ['id', 'pg_name', 'leader_name', 'leader_phone', 'unit', 'date', 'status', 'request_notes', 'preferred_chaplain_id', 'assigned_chaplain_id', 'chaplain_response', 'sector_id', 'sector_name', 'scheduled_time', 'is_read', 'created_at', 'updated_at'],
   app_config: ['id', 'mural_text', 'header_line1', 'header_line2', 'header_line3', 'font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'header_text_align', 'primary_color', 'app_logo_url', 'report_logo_url', 'last_modified_by', 'last_modified_at', 'header_profiles', 'updated_at'],
   pro_sectors: ['id', 'name', 'unit', 'active'],
@@ -40,13 +59,14 @@ export const toCamel = (obj: any): any => {
     
     if (!keyCache[key]) {
       let camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+      
+      // Business Rule: HABA and HAB must be uppercase
       if (camelKey === 'attendsHaba') {
-        // Mantém como attendsHaba
-      } else if (camelKey.endsWith('Haba')) {
-        camelKey = camelKey.replace('Haba', 'HABA');
-      } else if (camelKey.endsWith('Hab')) {
-        camelKey = camelKey.replace('Hab', 'HAB');
+        camelKey = 'attendsHaba'; // Special case for users table
+      } else {
+        camelKey = camelKey.replace(/Haba/g, 'HABA').replace(/Hab/g, 'HAB');
       }
+      
       keyCache[key] = camelKey;
     }
     
@@ -65,14 +85,18 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
   if (!obj || typeof obj !== 'object') return obj;
   const newObj: any = {};
   for (const key in obj) {
+    // Convert camelCase to snake_case
     let snakeKey = key.includes('_') ? key : key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-    if (snakeKey.endsWith('_h_a_b_a')) snakeKey = snakeKey.replace('_h_a_b_a', '_haba');
-    else if (snakeKey.endsWith('_h_a_b')) snakeKey = snakeKey.replace('_h_a_b', '_hab');
+    
+    // Fix HABA/HAB conversion artifacts
+    snakeKey = snakeKey.replace(/_h_a_b_a/g, '_haba').replace(/_h_a_b/g, '_hab');
+    
     if (snakeKey.toLowerCase() === 'id') snakeKey = 'id';
 
     if (allowedFields.includes(snakeKey)) {
       let val = obj[key];
       
+      // PRO Tables specific logic
       const isProTable = tableName.startsWith('pro_') && tableName !== 'pro_patients' && tableName !== 'pro_providers';
       const isProIdField = (snakeKey === 'id' || snakeKey === 'sector_id' || snakeKey === 'group_id' || snakeKey === 'staff_id' || snakeKey === 'provider_id');
       

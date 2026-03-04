@@ -5,6 +5,7 @@ import Autocomplete from '../Shared/Autocomplete';
 import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import FormScaffold from '../Shared/FormScaffold';
+import Button from '../Shared/Button';
 import { isRecordLocked } from '../../utils/validators';
 import { formatWhatsApp } from '../../utils/formatters';
 import { useSmallGroupForm } from '../../hooks/useSmallGroupForm';
@@ -74,19 +75,14 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Turno *</label><select value={formData.shift || 'Manhã'} onChange={e => setFormData({...formData, shift: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-500/20 transition-all"><option>Manhã</option><option>Tarde</option><option>Noite</option></select></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Relato / Observações</label><textarea value={formData.observations || ''} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium focus:ring-2 focus:ring-emerald-500/20 transition-all" /></div>
         </div>
-        <button 
+        <Button 
           type="submit" 
-          disabled={isSubmitting}
-          className={`w-full py-4 md:py-6 text-white font-black rounded-2xl shadow-xl uppercase text-xs transition-all flex items-center justify-center gap-2
-            ${isSubmitting ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-700 hover:-translate-y-1 active:scale-95'}`}
+          variant="success"
+          isLoading={isSubmitting}
+          className="w-full py-4 md:py-6 text-xs"
         >
-          {isSubmitting ? (
-            <>
-              <i className="fas fa-circle-notch fa-spin"></i>
-              Gravando...
-            </>
-          ) : 'Salvar Registro de PG'}
-        </button>
+          Salvar Registro de PG
+        </Button>
       </form>
     </FormScaffold>
   );

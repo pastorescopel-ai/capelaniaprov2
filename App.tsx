@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import Layout from './components/Layout';
 import Login from './components/Login';
 import ConfirmationModal from './components/Shared/ConfirmationModal';
@@ -110,10 +111,25 @@ const App: React.FC = () => {
     >
       <div className="max-w-7xl mx-auto px-2 md:px-0 relative">
         
-        {/* Loader de Transição Suave */}
+        {/* Loader de Transição Suave (Top Progress Bar) */}
+        <AnimatePresence>
+          {isPending && (
+            <motion.div 
+              initial={{ opacity: 0, scaleX: 0 }}
+              animate={{ opacity: 1, scaleX: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="fixed top-0 left-0 right-0 h-1 bg-blue-500 z-[200] origin-left"
+            />
+          )}
+        </AnimatePresence>
+        
         {isPending && (
-          <div className="fixed top-0 right-0 p-8 z-[200] animate-pulse">
-            <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+          <div className="fixed top-4 right-4 md:top-8 md:right-8 z-[200] animate-in fade-in zoom-in duration-300">
+            <div className="bg-white/80 backdrop-blur-md p-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-3">
+              <div className="w-8 h-8 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+              <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest pr-2">Sincronizando</span>
+            </div>
           </div>
         )}
 
