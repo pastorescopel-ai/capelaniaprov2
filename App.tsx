@@ -59,6 +59,20 @@ const App: React.FC = () => {
     handleTabChange('smallGroup');
   };
 
+  const handleRegisterReturnVisit = (visit: any) => {
+    skipClearRef.current = true;
+    setEditingItem({
+      ...visit,
+      isReturn: true
+    });
+    
+    if (visit.unit !== currentUnit) {
+      setCurrentUnit(visit.unit);
+    }
+    
+    handleTabChange('staffVisit');
+  };
+
   useEffect(() => {
     if (['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit', 'ambassadors'].includes(activeTab)) {
         if (skipClearRef.current) {
@@ -136,6 +150,7 @@ const App: React.FC = () => {
           updateCurrentUser={updateCurrentUser}
           handleSaveItem={handleSaveItem}
           onRegisterMission={handleRegisterMission}
+          onRegisterReturnVisit={handleRegisterReturnVisit}
           getVisibleHistory={getVisibleHistory}
           loadFromCloud={loadFromCloud}
         />

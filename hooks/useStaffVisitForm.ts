@@ -76,23 +76,46 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
 
   useEffect(() => {
     if (editingItem) {
-      setFormData({ 
-        ...editingItem, 
-        whatsapp: (editingItem as any).whatsapp || '', 
-        participantType: (editingItem as any).participantType || ParticipantType.STAFF, 
-        providerRole: (editingItem as any).providerRole || '', 
-        date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), 
-        returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : getToday(), 
-        observations: editingItem.observations || '' 
-      });
-      if (editingItem.participantType === ParticipantType.STAFF || !editingItem.participantType) {
+      if ((editingItem as any).isReturn) {
+        // É um agendamento de retorno vindo do Dashboard
+        setFormData({
+          ...defaultState,
+          date: getToday(),
+          staffName: editingItem.staffName,
+          sector: editingItem.sector,
+          participantType: (editingItem as any).participantType || ParticipantType.STAFF,
+          providerRole: (editingItem as any).providerRole || '',
+          whatsapp: (editingItem as any).whatsapp || '',
+          reason: VisitReason.RETORNO,
+          requiresReturn: false,
+          returnDate: getToday()
+        });
+        if ((editingItem as any).participantType === ParticipantType.STAFF || !(editingItem as any).participantType) {
           const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(editingItem.staffName) && s.unit === unit);
           setIsSectorLocked(!!staff);
-      } else {
+        } else {
           setIsSectorLocked(false);
+        }
+      } else {
+        // Edição normal de um registro existente
+        setFormData({ 
+          ...editingItem, 
+          whatsapp: (editingItem as any).whatsapp || '', 
+          participantType: (editingItem as any).participantType || ParticipantType.STAFF, 
+          providerRole: (editingItem as any).providerRole || '', 
+          date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), 
+          returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : getToday(), 
+          observations: editingItem.observations || '' 
+        });
+        if (editingItem.participantType === ParticipantType.STAFF || !editingItem.participantType) {
+            const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(editingItem.staffName) && s.unit === unit);
+            setIsSectorLocked(!!staff);
+        } else {
+            setIsSectorLocked(false);
+        }
       }
     }
-  }, [editingItem, unit, proStaff, getToday]);
+  }, [editingItem, unit, proStaff, getToday, defaultState]);
 
   const handleSelectName = (label: string) => {
       const nameOnly = label.split(' (')[0].trim();

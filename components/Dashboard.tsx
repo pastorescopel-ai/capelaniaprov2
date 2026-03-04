@@ -18,12 +18,13 @@ interface DashboardProps {
   config: Config;
   onGoToTab: (tab: string) => void;
   onRegisterMission: (visit: any) => void;
+  onRegisterReturnVisit: (visit: any) => void;
   onUpdateConfig: (newConfig: Config) => any;
   onUpdateUser: (updatedUser: User) => any;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
-  studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onUpdateConfig 
+  studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onRegisterReturnVisit, onUpdateConfig 
 }) => {
   const { visitRequests, users } = useApp(); 
   
@@ -55,35 +56,44 @@ const Dashboard: React.FC<DashboardProps> = ({
     <div className="space-y-6 animate-in fade-in duration-500 pb-24">
       <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
 
+      {/* Notificações de Retorno (Movido para baixo do Mural) */}
+      {(todaysReturns.length > 0 || pendingReturns.length > 0) && (
+        <div className="space-y-3">
+          <h3 className="text-base md:text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+            <i className="fas fa-flag text-rose-500"></i> Retornos Pendentes
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {todaysReturns.map(visit => (
+              <div key={visit.id} onClick={() => onRegisterReturnVisit(visit)} className="bg-amber-50 border border-amber-200 p-4 rounded-3xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-amber-100 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-amber-200 animate-pulse"><i className="fas fa-calendar-check"></i></div>
+                  <div>
+                    <h4 className="font-black text-amber-900 text-sm uppercase tracking-tight">{visit.staffName}</h4>
+                    <p className="text-amber-700 font-bold text-[10px] uppercase">{visit.sector} • Hoje</p>
+                  </div>
+                </div>
+                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-amber-500 shadow-sm group-hover:translate-x-1 transition-transform border border-amber-100"><i className="fas fa-chevron-right"></i></div>
+              </div>
+            ))}
+            {pendingReturns.filter(v => !todaysReturns.includes(v)).slice(0, 4).map(visit => (
+              <div key={visit.id} onClick={() => onRegisterReturnVisit(visit)} className="bg-white p-4 rounded-3xl border border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-all shadow-sm group">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center text-lg"><i className="fas fa-flag"></i></div>
+                  <div>
+                    <h4 className="font-black text-slate-700 text-sm uppercase tracking-tight">{visit.staffName}</h4>
+                    <p className="text-slate-400 font-bold text-[10px] uppercase">{visit.sector} • {new Date(visit.returnDate + 'T12:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}</p>
+                  </div>
+                </div>
+                <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-rose-500 shadow-sm group-hover:translate-x-1 transition-transform border border-slate-100"><i className="fas fa-chevron-right"></i></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <VisitRequestsWidget requests={visitRequests} currentUser={currentUser} users={users} onRegisterMission={onRegisterMission} />
 
       <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
-
-      {todaysReturns.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 p-5 rounded-3xl flex items-center justify-between shadow-sm group animate-bounce">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-amber-500 text-white rounded-xl flex items-center justify-center text-xl shadow-md shadow-amber-200"><i className="fas fa-calendar-check"></i></div>
-            <div>
-              <h4 className="font-black text-amber-900 text-base uppercase tracking-tight">Seus Retornos para Hoje!</h4>
-              <p className="text-amber-700 font-bold text-xs">Você tem {todaysReturns.length} retorno(s) agendado(s).</p>
-            </div>
-          </div>
-          <button onClick={() => onGoToTab('staffVisit')} className="px-5 py-2.5 bg-white text-amber-600 rounded-xl font-black text-[10px] uppercase shadow-sm border border-amber-100 hover:bg-amber-50 active:scale-95 transition-all">Ver Agora</button>
-        </div>
-      )}
-
-      {pendingReturns.length > 0 && todaysReturns.length === 0 && (
-        <div onClick={() => onGoToTab('staffVisit')} className="bg-white p-5 rounded-3xl border border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-all shadow-sm group">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-rose-500 text-white rounded-xl flex items-center justify-center text-xl shadow-md shadow-rose-200 animate-pulse"><i className="fas fa-flag"></i></div>
-            <div>
-              <h4 className="font-black text-rose-900 text-base uppercase tracking-tight">Retornos Pendentes!</h4>
-              <p className="text-rose-600 font-bold text-xs">Há {pendingReturns.length} atendimentos aguardando retorno.</p>
-            </div>
-          </div>
-          <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-rose-500 shadow-sm group-hover:translate-x-1 transition-transform border border-slate-100"><i className="fas fa-chevron-right"></i></div>
-        </div>
-      )}
 
       <StatCards stats={stats} />
       <ImpactCharts individualData={[
