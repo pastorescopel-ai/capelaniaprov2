@@ -20,7 +20,6 @@ interface FormProps {
   allHistory?: BibleClass[];
   editingItem?: BibleClass;
   isLoading?: boolean;
-  onCancelEdit?: () => void;
   onDelete: (id: string) => void;
   onEdit?: (item: BibleClass) => void;
   onSubmit: (data: any) => void;
@@ -40,7 +39,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
 
-  const headerActions = (
+  const headerActions = React.useMemo(() => (
     <>
       <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start">
           {[ParticipantType.STAFF, ParticipantType.PATIENT, ParticipantType.PROVIDER].map(type => (
@@ -49,13 +48,13 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
       </div>
       <button type="button" onClick={handleClear} className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 hover:text-pink-700 transition-all flex items-center justify-center text-lg shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>
     </>
-  );
+  ), [formData, handleClear, setFormData]);
 
-  const historySection = (
+  const historySection = React.useMemo(() => (
     <HistorySection<BibleClass> title="Histórico de Classes" data={history} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['guide', 'students']} renderItem={(item) => (
       <HistoryCard key={item.id} icon="👥" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-indigo-600"} title={item.guide || 'Classe Bíblica'} subtitle={`${item.sector} • ${item.students.length} alunos`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role)} isAdmin={currentUser.role === UserRole.ADMIN} users={users} onTransfer={(newUid) => onTransfer?.('class', item.id, newUid)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} />
     )} />
-  );
+  ), [history, users, currentUser, isLoading, onTransfer, onEdit, onDelete]);
 
   return (
     <>

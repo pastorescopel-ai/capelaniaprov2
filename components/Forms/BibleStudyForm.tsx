@@ -19,7 +19,6 @@ interface FormProps {
   allHistory?: BibleStudy[];
   editingItem?: BibleStudy;
   isLoading?: boolean;
-  onCancelEdit?: () => void;
   onDelete: (id: string) => void;
   onEdit?: (item: BibleStudy) => void;
   onSubmit: (data: any) => void;
@@ -38,7 +37,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
 
-  const headerActions = (
+  const headerActions = React.useMemo(() => (
     <>
       <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 self-start">
           {[ParticipantType.STAFF, ParticipantType.PATIENT, ParticipantType.PROVIDER].map(type => (
@@ -50,13 +49,13 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       </div>
       <button type="button" onClick={handleClear} className="w-9 h-9 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 active:scale-95 transition-all flex items-center justify-center text-base shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>
     </>
-  );
+  ), [formData, handleClear, setFormData, setIsSectorLocked]);
 
-  const historySection = (
+  const historySection = React.useMemo(() => (
     <HistorySection<BibleStudy> data={groupedHistory} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['name']} renderItem={(item) => (
       <HistoryCard key={item.id} icon="📖" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-blue-600"} title={item.name} subtitle={`${item.sector} • ${item.status}`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role)} isAdmin={currentUser.role === UserRole.ADMIN} users={users} onTransfer={(newUid) => onTransfer?.('study', item.id, newUid)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} middle={item.participantType && item.participantType !== ParticipantType.STAFF && (<span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${item.participantType === ParticipantType.PATIENT ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{item.participantType}</span>)}/>
     )} />
-  );
+  ), [groupedHistory, users, currentUser, isLoading, onTransfer, onEdit, onDelete]);
 
   return (
     <>

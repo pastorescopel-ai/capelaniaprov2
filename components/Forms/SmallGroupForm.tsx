@@ -18,7 +18,6 @@ interface FormProps {
   history: SmallGroup[];
   editingItem?: SmallGroup;
   isLoading?: boolean;
-  onCancelEdit?: () => void;
   onDelete: (id: string) => void;
   onEdit?: (item: SmallGroup) => void;
   onSubmit: (data: any) => void;
@@ -49,15 +48,15 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
     }
   }, [editingItem, formData.leaderPhone]);
 
-  const headerActions = (
+  const headerActions = React.useMemo(() => (
     <button type="button" onClick={handleClear} className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 hover:text-pink-700 transition-all flex items-center justify-center text-lg shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>
-  );
+  ), [handleClear]);
 
-  const historySection = (
+  const historySection = React.useMemo(() => (
     <HistorySection<SmallGroup> data={history} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['groupName', 'leader']} renderItem={(item) => (
       <HistoryCard key={item.id} icon="🏠" color="text-emerald-600" title={item.groupName} subtitle={`${item.sector} • ${item.participantsCount} participantes • Líder: ${item.leader}`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} />
     )} />
-  );
+  ), [history, users, currentUser, isLoading, onEdit, onDelete]);
 
   return (
     <FormScaffold title="Pequeno Grupo" subtitle={`Unidade ${unit}`} headerActions={headerActions} history={historySection}>

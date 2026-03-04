@@ -18,11 +18,9 @@ interface FormProps {
   allHistory?: StaffVisit[];
   editingItem?: StaffVisit;
   isLoading?: boolean;
-  onCancelEdit?: () => void;
   onDelete: (id: string) => void;
   onEdit?: (item: StaffVisit) => void;
   onSubmit: (data: any) => void;
-  onToggleReturn?: (id: string) => void;
 }
 
 const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
@@ -37,7 +35,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
 
-  const headerActions = (
+  const headerActions = React.useMemo(() => (
     <>
       <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start">
         <button type="button" onClick={() => { setFormData({...defaultState, date: formData.date, participantType: ParticipantType.STAFF}); setIsSectorLocked(false); }} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === ParticipantType.STAFF ? 'bg-white shadow-lg text-rose-600' : 'text-slate-400 hover:text-slate-600'}`}>Colaborador</button>
@@ -45,9 +43,9 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       </div>
       <button type="button" onClick={handleClear} className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 hover:text-pink-700 transition-all flex items-center justify-center text-lg shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>
     </>
-  );
+  ), [formData.date, formData.participantType, defaultState, handleClear, setFormData, setIsSectorLocked]);
 
-  const historySection = (
+  const historySection = React.useMemo(() => (
     <HistorySection<StaffVisit> 
       data={sortedHistory} 
       users={users} 
@@ -185,7 +183,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         );
       }} 
     />
-  );
+  ), [sortedHistory, users, currentUser, isLoading, allHistory, history, handlePerformReturn, onDelete, onEdit]);
 
   return (
     <FormScaffold title="Visita Pastoral" subtitle={`Unidade ${unit}`} headerActions={headerActions} history={historySection}>

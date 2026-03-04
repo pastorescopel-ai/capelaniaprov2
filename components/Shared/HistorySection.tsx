@@ -45,35 +45,28 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const loaderRef = useRef<HTMLDivElement>(null);
-  
-  // Backup state para evitar tela branca durante sincronização
-  const [stableData, setStableData] = useState<T[]>(data);
-
-  useEffect(() => {
-    if (data && data.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setStableData(data);
-    }
-  }, [data]);
 
   const filteredHistory = useMemo(() => {
-    const source = stableData.length > 0 ? stableData : data;
     const normQuery = normalizeString(searchQuery);
     const searchTerms = normQuery.split(' ').filter(t => t.trim() !== '');
 
-    const filtered = source.filter(item => {
+    const filtered = data.filter(item => {
       if (!item.date) return false;
       
+      const matchChaplain = filterChaplain === 'all' || item.userId === filterChaplain;
+      
+      // Se o filtro de capelão estiver ativo e o item não for do capelão,
+      // ele DEVE ser ignorado, mesmo que seja um retorno pendente (bypassFilter).
+      if (!matchChaplain) return false;
+
       const isBypassed = bypassFilter?.(item);
       if (isBypassed) return true;
 
       const itemDate = item.date.split('T')[0];
       const dateMatch = itemDate >= filterStart && itemDate <= filterEnd;
-      const matchChaplain = filterChaplain === 'all' || item.userId === filterChaplain;
       const isSearching = searchTerms.length > 0;
       
       if (!isSearching && !dateMatch) return false;
-      if (!matchChaplain) return false;
 
       if (!isSearching) return true;
 
@@ -92,7 +85,7 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
 
     if (disableSort) return filtered;
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [data, stableData, filterChaplain, filterStart, filterEnd, searchQuery, searchFields, disableSort, bypassFilter]);
+  }, [data, filterChaplain, filterStart, filterEnd, searchQuery, searchFields, disableSort, bypassFilter]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
