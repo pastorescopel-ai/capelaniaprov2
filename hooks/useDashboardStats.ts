@@ -35,15 +35,15 @@ export const useDashboardStats = (
         
         // ID-BASED LINKING
         if (v.staffId && allV.staffId) {
-          return allV.staffId === v.staffId && new Date(allV.date).getTime() > vDate;
+          return allV.staffId === v.staffId && new Date(allV.date).getTime() >= vDate;
         }
         if (v.providerId && allV.providerId) {
-          return allV.providerId === v.providerId && new Date(allV.date).getTime() > vDate;
+          return allV.providerId === v.providerId && new Date(allV.date).getTime() >= vDate;
         }
 
         // Fallback to name
         return normalizeString(allV.staffName) === normalizeString(v.staffName) && 
-               new Date(allV.date).getTime() > vDate;
+               new Date(allV.date).getTime() >= vDate;
       });
       return !hasSubsequent;
     });

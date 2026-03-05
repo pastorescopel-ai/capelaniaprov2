@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Unit, RecordStatus, BibleClass, ParticipantType, User } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../contexts/AppContext';
@@ -31,6 +31,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   const [newStudent, setNewStudent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ownershipConflict, setOwnershipConflict] = useState<{show: boolean, message: string}>({show: false, message: ''});
+  const lastSectorRef = useRef<string>('');
 
   const lastClassStudents = useMemo(() => {
     if (!formData.sector || !unit) return [];
@@ -184,6 +185,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
   useEffect(() => {
     if (formData.sector && !editingItem) {
+        const sectorChanged = formData.sector !== lastSectorRef.current;
         const sectorObj = proSectors.find(s => s.name === formData.sector && s.unit === unit);
         
         // Filtra o histórico para pegar a última classe deste setor e deste tipo de participante
@@ -197,6 +199,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
             if (ownership.hasConflict) {
                 setOwnershipConflict({ show: true, message: ownership.message });
                 setFormData(prev => ({ ...prev, sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO }));
+                lastSectorRef.current = '';
                 return;
             }
 
@@ -214,8 +217,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
             setFormData(prev => {
                 const newGuide = nextGuide || prev.guide;
                 const newLesson = nextLesson || prev.lesson;
-                if (prev.students.length === 0 && prev.guide === newGuide && prev.lesson === newLesson && prev.status === nextStatus) {
-                    return prev;
+                // Só limpa os alunos se o setor MUDOU. Se for apenas um update do histórico, mantém os alunos atuais.
+                if (!sectorChanged) {
+                    if (prev.guide === newGuide && prev.lesson === newLesson && prev.status === nextStatus) return prev;
+                    return { ...prev, guide: newGuide, lesson: newLesson, status: nextStatus };
                 }
                 return { ...prev, students: [], guide: newGuide, lesson: newLesson, status: nextStatus };
             });
@@ -233,8 +238,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
             setFormData(prev => {
                 const newGuide = nextGuide || prev.guide;
                 const newLesson = nextLesson || prev.lesson;
-                if (prev.students.length === 0 && prev.guide === newGuide && prev.lesson === newLesson && prev.status === nextStatus) {
-                    return prev;
+                // Só limpa os alunos se o setor MUDOU.
+                if (!sectorChanged) {
+                    if (prev.guide === newGuide && prev.lesson === newLesson && prev.status === nextStatus) return prev;
+                    return { ...prev, guide: newGuide, lesson: newLesson, status: nextStatus };
                 }
                 return { 
                     ...prev, 
@@ -245,6 +252,9 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
                 };
             });
         }
+        lastSectorRef.current = formData.sector;
+    } else if (!formData.sector) {
+        lastSectorRef.current = '';
     }
   }, [formData.sector, proSectors, proStaff, unit, allHistory, editingItem, formData.participantType, currentUser.id, currentUser.role, checkOwnershipConflict]);
 

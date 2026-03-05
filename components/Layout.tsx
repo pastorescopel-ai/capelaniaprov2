@@ -51,7 +51,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
 
   return (
     <div className="flex flex-col h-screen bg-slate-100 overflow-hidden relative">
-      <header className="h-14 md:h-20 solid-nav flex items-center justify-between px-4 md:px-8 z-[100] flex-shrink-0 shadow-sm">
+      <header className="h-[calc(3.5rem+env(safe-area-inset-top))] md:h-20 pt-[env(safe-area-inset-top)] solid-nav flex items-center justify-between px-4 md:px-8 z-[100] flex-shrink-0 shadow-sm">
         <div className="flex items-center space-x-3 md:space-x-4">
           <div className="flex items-center justify-center overflow-hidden h-8 md:h-12 min-w-[32px] md:min-w-[40px]">
             {logoSrc ? (
