@@ -8,6 +8,7 @@ export interface ProcessedRow {
   id: string;
   name: string;
   unit: Unit;
+  cycleMonth?: string;
   sectorIdRaw?: string;
   sectorNameRaw?: string;
   sectorIdLinked?: string | null;

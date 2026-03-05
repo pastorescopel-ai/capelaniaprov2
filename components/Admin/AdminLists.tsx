@@ -18,6 +18,10 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
   
   const [activeTab, setActiveTab] = useState<'staff' | 'sectors' | 'pgs'>('staff');
   const [activeUnit, setActiveUnit] = useState<Unit>(Unit.HAB);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  });
   const [syncState, setSyncState] = useState<{isOpen: boolean; status: SyncStatus; title: string; message: string; error?: string;}>({ isOpen: false, status: 'idle', title: '', message: '' });
   
   const [previewData, setPreviewData] = useState<ProcessedRow[]>([]);
@@ -58,13 +62,26 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
                 const existing = map.get(key);
                 if (existing) {
                     if (existing.unit === activeUnit) {
-                        const updated = { ...existing, name: incoming.name, active: true, updatedAt: Date.now() };
+                        const updated = { 
+                            ...existing, 
+                            name: incoming.name, 
+                            active: true, 
+                            cycleMonth: selectedMonth,
+                            updatedAt: Date.now() 
+                        };
                         if (type === 'staff') updated.sectorId = incoming.sectorIdLinked || existing.sectorId || "";
                         map.set(key, updated);
                         stats.updated++;
                     } 
                 } else {
-                    const newItem: any = { id: key, name: incoming.name, unit: activeUnit, active: true, updatedAt: Date.now() };
+                    const newItem: any = { 
+                        id: key, 
+                        name: incoming.name, 
+                        unit: activeUnit, 
+                        active: true, 
+                        cycleMonth: selectedMonth,
+                        updatedAt: Date.now() 
+                    };
                     if (type === 'staff') newItem.sectorId = incoming.sectorIdLinked || "";
                     map.set(key, newItem);
                     stats.new++;
@@ -149,6 +166,11 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
   };
   const currentInst = instructions[activeTab];
 
+  const formatMonthLabel = (iso: string) => {
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
+
   return (
     <div className="space-y-12">
       <SyncModal isOpen={syncState.isOpen} status={syncState.status} title={syncState.title} message={syncState.message} errorDetails={syncState.error} onClose={() => setSyncState(prev => ({ ...prev, isOpen: false }))} />
@@ -175,9 +197,25 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
         </div>
 
         <div className="bg-slate-50 p-6 rounded-[2rem] flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
                 <input type="file" ref={fileInputRef} accept=".xlsx,.csv" className="hidden" onChange={(e) => e.target.files?.[0] && handleProcessFile(e.target.files[0])} />
                 <button onClick={() => fileInputRef.current?.click()} disabled={isReadingFile} className="px-6 py-3 bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 shadow-lg hover:bg-black transition-all"><i className={`fas ${isReadingFile ? 'fa-spinner fa-spin' : 'fa-file-excel'}`}></i> {isReadingFile ? 'Lendo...' : 'Carregar Planilha'}</button>
+                
+                {previewData.length > 0 && (
+                  <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                    <label className="text-[9px] font-black text-slate-400 uppercase px-2">Mês de Referência:</label>
+                    <input 
+                      type="month" 
+                      value={selectedMonth.substring(0, 7)} 
+                      onChange={(e) => setSelectedMonth(e.target.value + '-01')}
+                      className="bg-slate-50 border-none rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-700 focus:ring-0"
+                    />
+                    <span className="text-[9px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
+                      {formatMonthLabel(selectedMonth)}
+                    </span>
+                  </div>
+                )}
+
                 <div className="text-xs font-bold text-slate-400">{previewData.length > 0 ? <span className="text-blue-600">{previewData.length} registros lidos.</span> : <span>Banco Atual: {displayData.length} ativos</span>}</div>
             </div>
             {previewData.length > 0 && (<button onClick={handleConfirmImport} className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase shadow-lg shadow-emerald-200 hover:bg-emerald-600 transition-all flex items-center gap-2"><i className="fas fa-sync"></i> Sincronizar Banco</button>)}
@@ -185,11 +223,16 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
         
         <div className="overflow-x-auto">
             <table className="w-full text-left">
-                <thead><tr className="text-[9px] font-black uppercase text-slate-400 border-b"><th className="p-4">ID (Limpo)</th><th className="p-4">Nome</th>{activeTab === 'staff' && <th className="p-4">Vínculo de Setor</th>}{activeTab !== 'staff' && <th className="p-4">Unidade</th>}</tr></thead>
+                <thead><tr className="text-[9px] font-black uppercase text-slate-400 border-b"><th className="p-4">ID (Limpo)</th><th className="p-4">Nome</th>{activeTab === 'staff' && <th className="p-4">Vínculo de Setor</th>}<th className="p-4">Mês Ref.</th>{activeTab !== 'staff' && <th className="p-4">Unidade</th>}</tr></thead>
                 <tbody className="divide-y">{currentItems.map((item, i) => (
                     <tr key={i} className={`hover:bg-slate-50 transition-colors ${item.sectorStatus === 'error' ? 'bg-amber-50' : ''}`}>
                         <td className="p-4 text-xs font-mono font-bold text-blue-600">{item.id}</td><td className="p-4 text-sm font-bold text-slate-700">{item.name}</td>
                         {activeTab === 'staff' && (<td className="p-4">{previewData.length > 0 ? (item.sectorStatus === 'ok' ? (<div className="flex items-center justify-between group"><div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]"><i className="fas fa-check"></i></div><div><span className="text-[10px] font-black text-slate-700 uppercase block">{item.linkedSectorName}</span>{item.sectorNameRaw && item.sectorNameRaw !== item.linkedSectorName && (<span className="text-[8px] text-slate-400 block strike">Excel: {item.sectorNameRaw}</span>)}</div></div><button onClick={() => handleManualSectorChange(i, '')} className="w-6 h-6 rounded-lg bg-slate-50 text-slate-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"><i className="fas fa-pencil-alt text-[10px]"></i></button></div>) : (<div className="space-y-1"><Autocomplete options={sectorOptions} value={item.sectorNameRaw || ''} onChange={(val) => handleManualSectorChange(i, val)} placeholder="⚠️ Vincular Setor..." required={false} className="w-full p-2 text-xs font-bold rounded-xl border-2 border-amber-300 bg-white" /><span className="text-[8px] font-bold text-rose-400">ID Excel: {item.sectorIdRaw || 'N/A'}</span></div>)) : (<span className="text-[10px] font-bold uppercase text-slate-500">{getSectorNameFromDB(item.sectorId)}</span>)}</td>)}
+                        <td className="p-4">
+                          <span className="text-[10px] font-black text-slate-400 uppercase">
+                            {item.cycleMonth ? formatMonthLabel(item.cycleMonth) : (previewData.length > 0 ? formatMonthLabel(selectedMonth) : 'N/A')}
+                          </span>
+                        </td>
                         {activeTab !== 'staff' && <td className="p-4 text-xs font-bold text-slate-400">{item.unit}</td>}
                     </tr>
                 ))}</tbody>

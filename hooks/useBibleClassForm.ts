@@ -16,7 +16,7 @@ interface UseBibleClassFormProps {
 }
 
 export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit }: UseBibleClassFormProps) => {
-  const { proStaff, proSectors, syncMasterContact } = useApp();
+  const { proStaff, proPatients, proProviders, proSectors, syncMasterContact } = useApp();
   const { showToast } = useToast();
   const { checkOwnershipConflict } = useIdentityGuard();
   
@@ -355,6 +355,37 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     if (isSubmitting) return;
     if (formData.students.length < 2) { showToast("É necessário pelo menos 2 alunos presentes para salvar a classe.", "warning"); return; }
     if (!formData.guide || !formData.lesson) { showToast("Preencha Guia e Lição."); return; }
+
+    // Validação de Tipo de Participante (Evitar misturar Colaboradores/Prestadores/Pacientes)
+    const currentType = formData.participantType;
+    const conflicts: string[] = [];
+
+    formData.students.forEach(studentStr => {
+        const nameOnly = studentStr.split(' (')[0].trim();
+        const normName = normalizeString(nameOnly);
+
+        if (currentType === ParticipantType.STAFF) {
+            const isProvider = proProviders.some(p => normalizeString(p.name) === normName && p.unit === unit);
+            if (isProvider) conflicts.push(`${nameOnly} (é Prestador)`);
+            const isPatient = proPatients.some(p => normalizeString(p.name) === normName && p.unit === unit);
+            if (isPatient) conflicts.push(`${nameOnly} (é Paciente)`);
+        } else if (currentType === ParticipantType.PROVIDER) {
+            const isStaff = proStaff.some(s => normalizeString(s.name) === normName && s.unit === unit);
+            if (isStaff) conflicts.push(`${nameOnly} (é Colaborador)`);
+            const isPatient = proPatients.some(p => normalizeString(p.name) === normName && p.unit === unit);
+            if (isPatient) conflicts.push(`${nameOnly} (é Paciente)`);
+        } else if (currentType === ParticipantType.PATIENT) {
+            const isStaff = proStaff.some(s => normalizeString(s.name) === normName && s.unit === unit);
+            if (isStaff) conflicts.push(`${nameOnly} (é Colaborador)`);
+            const isProvider = proProviders.some(p => normalizeString(p.name) === normName && p.unit === unit);
+            if (isProvider) conflicts.push(`${nameOnly} (é Prestador)`);
+        }
+    });
+
+    if (conflicts.length > 0) {
+        showToast(`Não é possível salvar: ${conflicts.join(', ')}. Remova-os ou altere o tipo do grupo.`, "error");
+        return;
+    }
 
     // Verifica se a classe (guide) pertence a outro capelão
     const classOwnership = checkOwnershipConflict(formData.guide, 'class', unit, currentUser.id, currentUser.role);

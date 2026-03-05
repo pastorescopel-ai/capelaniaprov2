@@ -6,6 +6,7 @@ export interface ProSector {
   name: string;
   unit: Unit;
   active?: boolean;
+  cycleMonth?: string; // Mês de Referência (YYYY-MM-DD)
   updatedAt?: number;
 }
 
@@ -16,6 +17,7 @@ export interface ProStaff {
   unit: Unit;
   whatsapp?: string;
   active?: boolean;
+  cycleMonth?: string; // Mês de Referência (YYYY-MM-DD)
   updatedAt?: number;
 }
 
@@ -46,6 +48,7 @@ export interface ProGroup {
   sectorId?: string;
   unit: Unit;
   active?: boolean;
+  cycleMonth?: string; // Mês de Referência (YYYY-MM-DD)
   updatedAt?: number;
 }
 
