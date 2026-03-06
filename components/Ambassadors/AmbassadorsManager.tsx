@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../contexts/AppContext';
 import { Unit } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
@@ -67,6 +67,17 @@ const AmbassadorsManager: React.FC = () => {
   const [reportSortOrder, setReportSortOrder] = useState<'alpha' | 'percent'>('alpha');
   const [reportFilterCritical, setReportFilterCritical] = useState(false);
 
+  // Sincronizar datas do relatório com o mês selecionado no cabeçalho
+  useEffect(() => {
+    const d = new Date(selectedMonth + 'T12:00:00');
+    const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReportStartDate(start);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReportEndDate(end);
+  }, [selectedMonth]);
+
   // --- GERAÇÃO DE PDF ---
   const handleGeneratePDF = async (mode: 'sector' | 'full') => {
     const html = generateAmbassadorReportHtml(ambassadors, {
@@ -110,31 +121,27 @@ const AmbassadorsManager: React.FC = () => {
                     Gestão do projeto de capacitação
                   </p>
                   
-                  {activeTab !== 'reports' && (
-                    <>
-                      <span className="w-1 h-1 bg-slate-300 rounded-full hidden sm:block"></span>
-                      {/* Seletor de Mês - Design Azul Elétrico */}
-                      <div className="flex items-center gap-3 bg-blue-600 px-4 py-2 rounded-2xl shadow-lg shadow-blue-500/40 border border-blue-400/30 transition-all hover:shadow-blue-500/60">
-                        <button 
-                          onClick={handlePrevMonth} 
-                          className="text-lg hover:scale-125 active:scale-90 transition-transform filter drop-shadow-sm"
-                          title="Mês Anterior"
-                        >
-                          ⬅️
-                        </button>
-                        <span className="text-[11px] font-black text-white uppercase tracking-tighter min-w-[120px] text-center drop-shadow-md">
-                          {formatMonthLabel(selectedMonth)}
-                        </span>
-                        <button 
-                          onClick={handleNextMonth} 
-                          className="text-lg hover:scale-125 active:scale-90 transition-transform filter drop-shadow-sm"
-                          title="Próximo Mês"
-                        >
-                          ➡️
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  <span className="w-1 h-1 bg-slate-300 rounded-full hidden sm:block"></span>
+                  {/* Seletor de Mês - Design Azul Elétrico */}
+                  <div className="flex items-center gap-3 bg-blue-600 px-4 py-2 rounded-2xl shadow-lg shadow-blue-500/40 border border-blue-400/30 transition-all hover:shadow-blue-500/60">
+                    <button 
+                      onClick={handlePrevMonth} 
+                      className="text-lg hover:scale-125 active:scale-90 transition-transform filter drop-shadow-sm"
+                      title="Mês Anterior"
+                    >
+                      ⬅️
+                    </button>
+                    <span className="text-[11px] font-black text-white uppercase tracking-tighter min-w-[120px] text-center drop-shadow-md">
+                      {formatMonthLabel(selectedMonth)}
+                    </span>
+                    <button 
+                      onClick={handleNextMonth} 
+                      className="text-lg hover:scale-125 active:scale-90 transition-transform filter drop-shadow-sm"
+                      title="Próximo Mês"
+                    >
+                      ➡️
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
