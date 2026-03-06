@@ -8,13 +8,14 @@ interface PDFOptions {
   endDate?: string;
   sectorId?: string;
   sortOrder: 'alpha' | 'percent';
+  filterCritical?: boolean;
   sectors: Sector[];
   stats: any;
   config: Config;
 }
 
 export const generateAmbassadorReportHtml = (ambassadors: Ambassador[], options: PDFOptions) => {
-  const { mode, unit, startDate, endDate, sectorId, sortOrder, sectors, stats, config } = options;
+  const { mode, unit, startDate, endDate, sectorId, sortOrder, filterCritical, sectors, stats, config } = options;
   const title = `Embaixadores da Esperança - ${unit}`;
   const periodLabel = `Período: ${startDate ? new Date(startDate).toLocaleDateString() : 'Início'} até ${endDate ? new Date(endDate).toLocaleDateString() : 'Hoje'}`;
 
@@ -40,7 +41,7 @@ export const generateAmbassadorReportHtml = (ambassadors: Ambassador[], options:
   });
 
   // Ordenar setores
-  const sortedSectors = Object.keys(sectorsMap).sort((a, b) => {
+  let sortedSectors = Object.keys(sectorsMap).sort((a, b) => {
     if (sortOrder === 'alpha') return a.localeCompare(b);
     const sA = sectors.find(s => s.name === a);
     const sB = sectors.find(s => s.name === b);
@@ -48,6 +49,15 @@ export const generateAmbassadorReportHtml = (ambassadors: Ambassador[], options:
     const percentB = sB ? stats[unit].sectors[sB.id]?.percent || 0 : 0;
     return percentB - percentA;
   });
+
+  // Aplicar filtro de gargalo (< 5%)
+  if (filterCritical) {
+    sortedSectors = sortedSectors.filter(sectorName => {
+      const s = sectors.find(sec => sec.name === sectorName);
+      const percent = s ? stats[unit].sectors[s.id]?.percent || 0 : 0;
+      return percent < 5;
+    });
+  }
 
   if (sortedSectors.length === 0) return null;
 

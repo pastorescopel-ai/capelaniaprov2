@@ -65,6 +65,7 @@ const AmbassadorsManager: React.FC = () => {
   });
   const [reportSectorId, setReportSectorId] = useState<string>('all');
   const [reportSortOrder, setReportSortOrder] = useState<'alpha' | 'percent'>('alpha');
+  const [reportFilterCritical, setReportFilterCritical] = useState(false);
 
   // --- GERAÇÃO DE PDF ---
   const handleGeneratePDF = async (mode: 'sector' | 'full') => {
@@ -75,6 +76,7 @@ const AmbassadorsManager: React.FC = () => {
       endDate: reportEndDate,
       sectorId: reportSectorId,
       sortOrder: reportSortOrder,
+      filterCritical: reportFilterCritical,
       sectors: proSectors,
       stats,
       config
@@ -225,6 +227,8 @@ const AmbassadorsManager: React.FC = () => {
               setReportSectorId={setReportSectorId}
               reportSortOrder={reportSortOrder}
               setReportSortOrder={setReportSortOrder}
+              reportFilterCritical={reportFilterCritical}
+              setReportFilterCritical={setReportFilterCritical}
               handleGeneratePDF={handleGeneratePDF}
               isGenerating={isGenerating}
             />

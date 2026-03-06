@@ -20,6 +20,7 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
   const [filterType, setFilterType] = useState<'sector' | 'pg'>('sector');
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [filterCritical, setFilterCritical] = useState(false);
 
   const cleanId = (id: any) => String(id || '').trim();
 
@@ -92,6 +93,10 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
 
     return data.filter(d => {
         if (d.totalStaff === 0) return false;
+        
+        // Filtro de Gargalo (< 80%)
+        if (filterCritical && d.coverage >= 80) return false;
+
         if (searchTerms.length === 0) return true;
         
         const targetText = filterType === 'sector' 
@@ -101,7 +106,7 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
         const normTarget = normalizeString(targetText);
         return searchTerms.every(term => normTarget.includes(term));
     });
-  }, [proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, unit, searchTerm, filterType, endDate]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, unit, searchTerm, filterType, endDate, filterCritical]);
 
   const generateSectorHtml = (data: any) => {
     return `
@@ -235,6 +240,24 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
                       className="flex-1 p-4 rounded-xl bg-white border-none font-bold text-xs shadow-sm outline-none focus:ring-2 focus:ring-blue-500" 
                   />
                 </div>
+            </div>
+
+            <div className="md:col-span-2 lg:col-span-4 flex justify-end">
+                <label className="flex items-center gap-3 cursor-pointer bg-white px-6 py-3 rounded-2xl shadow-sm border border-slate-100 hover:bg-slate-50 transition-all select-none group">
+                    <div className={`w-10 h-6 rounded-full relative transition-colors ${filterCritical ? 'bg-rose-500' : 'bg-slate-200'}`}>
+                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${filterCritical ? 'left-5' : 'left-1'}`}></div>
+                    </div>
+                    <input 
+                        type="checkbox" 
+                        checked={filterCritical} 
+                        onChange={e => setFilterCritical(e.target.checked)} 
+                        className="hidden" 
+                    />
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black uppercase text-slate-700 group-hover:text-rose-600 transition-colors">Apenas Gargalos de Cobertura</span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Setores com menos de 80% de adesão</span>
+                    </div>
+                </label>
             </div>
         </div>
       </div>

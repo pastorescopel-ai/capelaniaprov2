@@ -15,6 +15,8 @@ interface ReportsTabProps {
   setReportSectorId: (val: string) => void;
   reportSortOrder: 'alpha' | 'percent';
   setReportSortOrder: (val: 'alpha' | 'percent') => void;
+  reportFilterCritical: boolean;
+  setReportFilterCritical: (val: boolean) => void;
   handleGeneratePDF: (mode: 'sector' | 'full') => void;
   isGenerating: string | false;
 }
@@ -32,6 +34,8 @@ const ReportsTab: React.FC<ReportsTabProps> = ({
   setReportSectorId,
   reportSortOrder,
   setReportSortOrder,
+  reportFilterCritical,
+  setReportFilterCritical,
   handleGeneratePDF,
   isGenerating
 }) => {
@@ -120,6 +124,24 @@ const ReportsTab: React.FC<ReportsTabProps> = ({
             </select>
           </div>
         </div>
+
+        <div className="mt-6 flex justify-end">
+          <label className="flex items-center gap-3 cursor-pointer bg-white px-6 py-3 rounded-2xl shadow-sm border border-slate-200 hover:bg-slate-100 transition-all select-none group">
+            <div className={`w-10 h-6 rounded-full relative transition-colors ${reportFilterCritical ? 'bg-rose-500' : 'bg-slate-200'}`}>
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${reportFilterCritical ? 'left-5' : 'left-1'}`}></div>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={reportFilterCritical} 
+              onChange={e => setReportFilterCritical(e.target.checked)} 
+              className="hidden" 
+            />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase text-slate-700 group-hover:text-rose-600 transition-colors">Apenas Gargalos (&lt; 5%)</span>
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Setores abaixo da meta de 5% de embaixadores</span>
+            </div>
+          </label>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -133,6 +155,7 @@ const ReportsTab: React.FC<ReportsTabProps> = ({
         <div className="grid gap-4">
           {Object.values(stats[currentUnit].sectors)
             .filter((s: any) => reportSectorId === 'all' || String(s.id) === String(reportSectorId))
+            .filter((s: any) => !reportFilterCritical || s.percent < 5)
             .sort((a: any, b: any) => {
               if (reportSortOrder === 'alpha') return a.name.localeCompare(b.name);
               return b.percent - a.percent;
