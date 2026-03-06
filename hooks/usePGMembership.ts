@@ -92,11 +92,26 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
         await saveRecord(collection, closeUpdates);
       }
 
-      // Cria nova matrícula
+      // Cria nova matrícula com inteligência temporal (Regra do dia 10)
+      const today = new Date();
+      const currentDay = today.getDate();
+      let cycleDate: Date;
+      
+      if (currentDay <= 10) {
+        // Até dia 10, carimba como o mês anterior
+        cycleDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      } else {
+        // Após dia 10, carimba como o mês atual
+        cycleDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      }
+      
+      const cycleMonth = cycleDate.toISOString().split('T')[0];
+
       const newMember: any = {
         groupId: currentPG.id,
         [idField]: personId,
-        joinedAt: Date.now()
+        joinedAt: Date.now(),
+        cycleMonth
       };
       
       const success = await saveRecord(collection, newMember);

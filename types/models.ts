@@ -67,6 +67,7 @@ export interface ProGroupMember {
   joinedAt?: number;
   leftAt?: number; // Data de saída para histórico (Soft Delete)
   isError?: boolean;
+  cycleMonth?: string; // Mês de Competência (YYYY-MM-DD)
 }
 
 export interface ProGroupProviderMember {
@@ -76,6 +77,7 @@ export interface ProGroupProviderMember {
   joinedAt?: number;
   leftAt?: number;
   isError?: boolean;
+  cycleMonth?: string; // Mês de Competência (YYYY-MM-DD)
 }
 
 export interface HeaderLine {

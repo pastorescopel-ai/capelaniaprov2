@@ -33,7 +33,8 @@ const DataHealer: React.FC = () => {
     mergeSourceId, setMergeSourceId,
     mergeTargetType, setMergeTargetType,
     mergeTargetId, setMergeTargetId,
-    handleUniversalMerge
+    handleUniversalMerge,
+    handleSyncTemporalCycle
   } = useDataHealer();
 
   // Tema dinâmico
@@ -93,6 +94,20 @@ const DataHealer: React.FC = () => {
                 </span>
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Anomalias</span>
             </div>
+            
+            <div className="w-px h-12 bg-slate-200"></div>
+            
+            <button 
+                onClick={handleSyncTemporalCycle}
+                disabled={isProcessing}
+                className="flex flex-col items-center gap-1 group"
+                title="Sincronizar Competência Fevereiro"
+            >
+                <div className={`w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm ${isProcessing ? 'opacity-50' : ''}`}>
+                    <i className={`fas ${isProcessing ? 'fa-spinner fa-spin' : 'fa-history'}`}></i>
+                </div>
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Sinc. Fev</span>
+            </button>
         </div>
       </div>
 

@@ -9,7 +9,8 @@ export const useHealerActions = (
     bibleClasses, bibleStudies, smallGroups, staffVisits, visitRequests,
     proStaff, proPatients, proProviders, proSectors, proGroups,
     unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, 
-    linkStudySessionIdentity, saveRecord, mergePGs, deleteRecord, loadFromCloud
+    linkStudySessionIdentity, saveRecord, mergePGs, deleteRecord, loadFromCloud,
+    syncPGMembershipCycle
   } = appData;
 
   const {
@@ -333,6 +334,24 @@ export const useHealerActions = (
       }
   };
 
+  const handleSyncTemporalCycle = async () => {
+    if (!confirm("Isso carimbará todos os membros de PG sem competência como 'Fevereiro/2026'. Confirma?")) return;
+    
+    setIsProcessing(true);
+    try {
+      const result = await syncPGMembershipCycle();
+      if (result.success) {
+        showToast(result.message, "success");
+      } else {
+        showToast(result.message, "error");
+      }
+    } catch (e: any) {
+      showToast(e.message, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return {
     handleProcessPerson,
     handleHealSector,
@@ -340,6 +359,7 @@ export const useHealerActions = (
     handleMergePGs,
     getSourceRecords,
     handleDeleteSourceRecord,
-    handleUniversalMerge
+    handleUniversalMerge,
+    handleSyncTemporalCycle
   };
 };

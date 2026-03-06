@@ -171,6 +171,35 @@ export const useDataMaintenance = (
     }
   };
 
+  const syncPGMembershipCycle = async (): Promise<{ success: boolean; message: string }> => {
+    if (!supabase) return { success: false, message: "Offline mode." };
+    setIsMaintenanceRunning(true);
+    try {
+      // 1. Atualiza Staff Members sem competência para Fevereiro
+      const { error: err1 } = await supabase
+        .from('pro_group_members')
+        .update({ cycle_month: '2026-02-01' })
+        .is('cycle_month', null);
+        
+      if (err1) throw err1;
+
+      // 2. Atualiza Provider Members sem competência para Fevereiro
+      const { error: err2 } = await supabase
+        .from('pro_group_provider_members')
+        .update({ cycle_month: '2026-02-01' })
+        .is('cycle_month', null);
+
+      if (err2) throw err2;
+
+      await reloadCallback(true);
+      return { success: true, message: "Competência Fevereiro sincronizada com sucesso!" };
+    } catch (e: any) {
+      return { success: false, message: e.message };
+    } finally {
+      setIsMaintenanceRunning(false);
+    }
+  };
+
   return {
     unifyNumericIdsAndCleanPrefixes,
     mergePGs,
@@ -182,6 +211,7 @@ export const useDataMaintenance = (
     healSectorConnection,
     linkStudySessionIdentity,
     bulkHealAttendees,
+    syncPGMembershipCycle,
     isMaintenanceRunning
   };
 };

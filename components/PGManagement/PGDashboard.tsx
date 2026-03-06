@@ -12,11 +12,20 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
   const { proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'sector' | 'pg'>('sector');
+  
+  // Estado para o mês de competência selecionado (Padrão: Mês Atual)
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  });
 
   // Helper para normalização de IDs
   const cleanId = (id: any) => String(id || '').trim();
 
   const metrics = useMemo(() => {
+    const targetDate = new Date(selectedMonth);
+    const nextMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
+
     // 1. Filtrar setores e staff da unidade (Apenas Ativos)
     const unitSectors = proSectors.filter(s => s.unit === unit && s.active !== false);
     const unitStaff = proStaff.filter(s => s.unit === unit && s.active !== false);
@@ -28,9 +37,14 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
       const staffInSector = unitStaff.filter(s => cleanId(s.sectorId) === sectorIdClean);
       const countTotal = staffInSector.length;
       
-      // Staff neste setor que está em ALGUM PG
+      // Staff neste setor que está em ALGUM PG na competência selecionada
+      // Regra: Entrou até o fim do mês alvo E (não saiu OU saiu após o início do mês alvo)
       const staffEnrolled = staffInSector.filter(s => 
-        proGroupMembers.some(m => cleanId(m.staffId) === cleanId(s.id))
+        proGroupMembers.some(m => 
+          cleanId(m.staffId) === cleanId(s.id) && 
+          (!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && // Entrou na competência ou antes
+          (!m.leftAt || m.leftAt >= targetDate.getTime()) // Ainda não tinha saído no início do mês
+        )
       ).length;
 
       // --- LÓGICA DE DETECÇÃO DE PGS ATIVOS NO SETOR ---
@@ -43,10 +57,12 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
       );
 
       // 2. PGs via Membros (Dinâmicos)
-      // Se um colaborador deste setor está no PG "X", o PG "X" atua aqui.
       const memberGroupIds = new Set(
         proGroupMembers
-          .filter(m => staffInSector.some(s => cleanId(s.id) === cleanId(m.staffId)))
+          .filter(m => 
+            staffInSector.some(s => cleanId(s.id) === cleanId(m.staffId)) &&
+            (!m.leftAt || m.leftAt >= targetDate.getTime())
+          )
           .map(m => cleanId(m.groupId))
       );
 
@@ -100,11 +116,41 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
         enrolledStaff, 
         displaySectors: filteredData.sort((a, b) => a.percentage - b.percentage) 
     };
-  }, [proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, unit, searchTerm, filterType]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, unit, searchTerm, filterType, selectedMonth]);
+
+  // Gerar opções de meses (Últimos 6 meses)
+  const monthOptions = useMemo(() => {
+    const options = [];
+    const now = new Date();
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      options.push({
+        value: d.toISOString().split('T')[0],
+        label: new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(d)
+      });
+    }
+    return options;
+  }, []);
 
   return (
     <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
       
+      {/* Filtro de Competência */}
+      <div className="flex justify-center md:justify-end">
+        <div className="bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-2">
+          <i className="fas fa-calendar-alt text-slate-400 ml-3 text-xs"></i>
+          <select 
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="bg-transparent border-none font-black text-[10px] uppercase tracking-widest text-slate-600 focus:ring-0 cursor-pointer pr-8"
+          >
+            {monthOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* KPI Global */}
       <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-2 h-full bg-[#005a9c]"></div>
