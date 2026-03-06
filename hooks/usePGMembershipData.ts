@@ -39,12 +39,12 @@ export const usePGMembershipData = ({
   const cleanId = (id: any) => String(id || '').replace(/\D/g, '');
 
   const currentSector = useMemo(() => 
-    proSectors.find(s => s.name === selectedSectorName && s.unit === unit), 
+    proSectors.find(s => s.name === selectedSectorName && s.unit === unit && s.active !== false), 
     [proSectors, selectedSectorName, unit]
   );
   
   const currentPG = useMemo(() => 
-    proGroups.find(g => g.name === selectedPGName && g.unit === unit), 
+    proGroups.find(g => g.name === selectedPGName && g.unit === unit && g.active !== false), 
     [proGroups, selectedPGName, unit]
   );
 
@@ -85,8 +85,8 @@ export const usePGMembershipData = ({
   }, [proProviders, unit, providerSearch, proGroupProviderMembers, proGroups, currentPG, pendingRemovals, pendingTransfers]);
 
   const coverageGaps = useMemo(() => {
-    const sectors = proSectors.filter(s => s.unit === unit);
-    const staff = proStaff.filter(s => s.unit === unit);
+    const sectors = proSectors.filter(s => s.unit === unit && s.active !== false);
+    const staff = proStaff.filter(s => s.unit === unit && s.active !== false);
 
     return sectors.map(s => {
       const sectorStaff = staff.filter(st => cleanId(st.sectorId) === cleanId(s.id));
@@ -113,13 +113,13 @@ export const usePGMembershipData = ({
 
   const emptyPGs = useMemo(() => {
     return proGroups
-      .filter(g => g.unit === unit)
+      .filter(g => g.unit === unit && g.active !== false)
       .filter(g => !proGroupMembers.some(m => m.groupId === g.id && !m.leftAt))
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
   }, [proGroups, proGroupMembers, unit]);
 
   const availableStaff = useMemo(() => {
-    let filtered = proStaff.filter(s => s.unit === unit);
+    let filtered = proStaff.filter(s => s.unit === unit && s.active !== false);
     
     if (staffSearch) {
         filtered = filtered.filter(s => 

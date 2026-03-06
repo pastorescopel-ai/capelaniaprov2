@@ -17,9 +17,9 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
   const cleanId = (id: any) => String(id || '').trim();
 
   const metrics = useMemo(() => {
-    // 1. Filtrar setores e staff da unidade
-    const unitSectors = proSectors.filter(s => s.unit === unit);
-    const unitStaff = proStaff.filter(s => s.unit === unit);
+    // 1. Filtrar setores e staff da unidade (Apenas Ativos)
+    const unitSectors = proSectors.filter(s => s.unit === unit && s.active !== false);
+    const unitStaff = proStaff.filter(s => s.unit === unit && s.active !== false);
 
     const sectorData = unitSectors.map(sector => {
       const sectorIdClean = cleanId(sector.id);

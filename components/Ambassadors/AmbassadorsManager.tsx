@@ -34,7 +34,7 @@ const AmbassadorsManager: React.FC = () => {
   } = useAmbassadors(proSectors);
 
   // Hook de Estatísticas
-  const { stats, getChartData } = useAmbassadorStats(ambassadors, proSectors, proStaff);
+  const { stats, getChartData } = useAmbassadorStats(ambassadors, proSectors, proStaff, selectedMonth);
 
   // Funções de Navegação de Mês
   const handlePrevMonth = () => {

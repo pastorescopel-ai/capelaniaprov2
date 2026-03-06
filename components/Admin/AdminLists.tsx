@@ -18,6 +18,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
   
   const [activeTab, setActiveTab] = useState<'staff' | 'sectors' | 'pgs'>('staff');
   const [activeUnit, setActiveUnit] = useState<Unit>(Unit.HAB);
+  const [importMode, setImportMode] = useState<'sync' | 'incremental'>('sync');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -93,7 +94,13 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
             map.forEach((value, key) => {
                 if (value.unit === activeUnit) {
                     if (!incomingKeys.has(key)) {
-                        if (value.active !== false) { value.active = false; value.updatedAt = Date.now(); stats.deactivated++; }
+                        // No modo 'sync', desativamos quem não está na planilha
+                        // No modo 'incremental', mantemos como está
+                        if (importMode === 'sync' && value.active !== false) { 
+                            value.active = false; 
+                            value.updatedAt = Date.now(); 
+                            stats.deactivated++; 
+                        }
                     }
                 }
                 resultList.push(value);
@@ -185,6 +192,33 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
             {[ {id:'sectors', l:'1. Setores', i:'fa-map-marker-alt'}, {id:'staff', l:'2. Colaboradores', i:'fa-user-md'}, {id:'pgs', l:'3. PGs', i:'fa-users'} ].map(tab => (
                 <button key={tab.id} onClick={() => { setActiveTab(tab.id as any); setPreviewData([]); setCurrentPage(1); }} className={`pb-4 px-4 text-xs font-black uppercase flex items-center gap-2 border-b-4 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-300'}`}><i className={`fas ${tab.i}`}></i> {tab.l}</button>
             ))}
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-100">
+            <div className="flex items-center gap-3">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Modo de Sincronia:</div>
+                <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                    <button 
+                        onClick={() => setImportMode('sync')}
+                        className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${importMode === 'sync' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                        title="Desativa quem não estiver na planilha (Padrão RH)"
+                    >
+                        Sincronização Total
+                    </button>
+                    <button 
+                        onClick={() => setImportMode('incremental')}
+                        className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${importMode === 'incremental' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                        title="Apenas adiciona/atualiza, mantém os atuais ativos"
+                    >
+                        Apenas Atualização
+                    </button>
+                </div>
+            </div>
+            <div className="text-[9px] font-bold text-slate-400 italic max-w-md text-right">
+                {importMode === 'sync' 
+                    ? "* Recomendado para atualizações mensais do RH. Quem não estiver no Excel será marcado como Inativo." 
+                    : "* Recomendado para ajustes pontuais. Mantém todos os colaboradores atuais e apenas atualiza os que estão no Excel."}
+            </div>
         </div>
 
         <div className={`p-6 rounded-2xl border-l-4 flex gap-4 items-start ${activeTab === 'pgs' ? 'bg-amber-50 border-amber-400 text-amber-900' : 'bg-blue-50 border-blue-400 text-blue-900'}`}>

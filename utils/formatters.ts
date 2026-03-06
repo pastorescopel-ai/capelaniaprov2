@@ -10,9 +10,20 @@
  */
 export const cleanID = (val: any): string => {
   if (val === undefined || val === null) return "";
-  const str = String(val).trim().toUpperCase();
-  // Remove prefixos conhecidos e qualquer caractere que não seja número
-  return str.replace(/^(HAB|HABA|A)[-\s]*/i, '').replace(/\D/g, '').trim();
+  let str = String(val).trim().toUpperCase();
+  
+  // 1. Remove prefixos conhecidos (HAB-, HABA-, A-)
+  str = str.replace(/^(HAB|HABA|A)[-\s]*/i, '');
+  
+  // 2. Se for puramente numérico, remove zeros à esquerda para unificar "0123" e "123"
+  // Mas mantém pelo menos um dígito se for "0"
+  if (/^\d+$/.test(str)) {
+    return str.replace(/^0+(?!$)/, '');
+  }
+  
+  // 3. Se for alfanumérico, remove apenas caracteres especiais (espaços, barras, traços)
+  // Mantendo letras e números para evitar colisões indevidas (ex: M123 vs F123)
+  return str.replace(/[^A-Z0-9]/g, '');
 };
 
 /**
