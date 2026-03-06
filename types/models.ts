@@ -204,6 +204,7 @@ export interface StaffVisit {
   staffName: string;
   staffId?: string;
   providerId?: string;
+  whatsapp?: string;
   participantType?: ParticipantType;
   providerRole?: string;
   requiresReturn: boolean;
