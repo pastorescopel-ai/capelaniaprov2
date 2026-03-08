@@ -15,6 +15,8 @@ export const useVisitManagement = (
   // Form State
   const [selectedPG, setSelectedPG] = useState('');
   const [selectedChaplainId, setSelectedChaplainId] = useState('');
+  const [leaderPhone, setLeaderPhone] = useState('');
+  const [meetingLocation, setMeetingLocation] = useState('');
   const [visitDate, setVisitDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [visitTime, setVisitTime] = useState('19:00');
   const [notes, setNotes] = useState('');
@@ -24,6 +26,8 @@ export const useVisitManagement = (
     setNotes('');
     setSelectedPG('');
     setSelectedChaplainId('');
+    setLeaderPhone('');
+    setMeetingLocation('');
     setVisitDate(new Date().toLocaleDateString('en-CA'));
     setVisitTime('19:00');
   }, []);
@@ -32,6 +36,8 @@ export const useVisitManagement = (
     setEditingRequestId(req.id);
     setSelectedPG(req.pgName);
     setSelectedChaplainId(req.assignedChaplainId || '');
+    setLeaderPhone(req.leaderPhone || '');
+    setMeetingLocation(req.meetingLocation || '');
     setVisitDate(req.date.split('T')[0]);
     setVisitTime(req.scheduledTime || '19:00');
     setNotes(req.requestNotes || '');
@@ -40,20 +46,29 @@ export const useVisitManagement = (
 
   const handleSaveVisit = useCallback(async (
     unit: Unit,
-    pgDetails: { leaderName: string; leaderPhone: string; sectorId: string | null }
+    pgDetails: { leaderName: string; leaderPhone: string; sectorId: string | null; staffId: string | null },
+    proStaff: any[]
   ) => {
-    if (!selectedPG || !selectedChaplainId || !visitDate || !visitTime) {
-      showToast("Preencha todos os campos, incluindo data e hora.", "warning");
+    if (!selectedPG || !selectedChaplainId || !visitDate || !visitTime || !leaderPhone) {
+      showToast("Preencha todos os campos, incluindo WhatsApp do Líder.", "warning");
       return false;
     }
 
     setIsProcessing(true);
     try {
+      // 1. Atualizar WhatsApp do Colaborador se houver staffId
+      if (pgDetails.staffId) {
+        const staff = proStaff.find(s => s.id === pgDetails.staffId);
+        if (staff && staff.whatsapp !== leaderPhone) {
+          await saveRecord('proStaff', { ...staff, whatsapp: leaderPhone, updatedAt: Date.now() });
+        }
+      }
+
       const requestData: VisitRequest = {
         id: editingRequestId || crypto.randomUUID(),
         pgName: selectedPG,
         leaderName: pgDetails.leaderName || 'Líder não registrado',
-        leaderPhone: pgDetails.leaderPhone || null,
+        leaderPhone: leaderPhone,
         unit: unit,
         date: `${visitDate}T00:00:00Z`,
         scheduledTime: visitTime,
@@ -61,6 +76,7 @@ export const useVisitManagement = (
         assignedChaplainId: selectedChaplainId,
         requestNotes: notes || "Visita de acompanhamento designada pela gestão.",
         sectorId: pgDetails.sectorId,
+        meetingLocation: meetingLocation || '',
         isRead: false
       };
 
@@ -78,7 +94,7 @@ export const useVisitManagement = (
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedPG, selectedChaplainId, visitDate, visitTime, notes, editingRequestId, saveRecord, showToast, handleCancelEdit]);
+  }, [selectedPG, selectedChaplainId, leaderPhone, meetingLocation, visitDate, visitTime, notes, editingRequestId, saveRecord, showToast, handleCancelEdit]);
 
   const handleDeleteVisit = useCallback(async (id: string) => {
     setIsProcessing(true);
@@ -108,6 +124,8 @@ export const useVisitManagement = (
     form: {
       selectedPG, setSelectedPG,
       selectedChaplainId, setSelectedChaplainId,
+      leaderPhone, setLeaderPhone,
+      meetingLocation, setMeetingLocation,
       visitDate, setVisitDate,
       visitTime, setVisitTime,
       notes, setNotes

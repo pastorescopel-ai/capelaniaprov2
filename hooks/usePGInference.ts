@@ -8,6 +8,7 @@ interface PGInferenceResult {
   sectorName: string;
   sectorId: string | null;
   leaderPhone: string;
+  staffId: string | null;
 }
 
 export const usePGInference = (
@@ -33,17 +34,21 @@ export const usePGInference = (
     
     let sectorName = 'Setor não informado';
     let sectorId = pg.sectorId || null;
+    let staffId: string | null = null;
     
-    // 1. Check proGroupLocations
+    // 1. Check Leader's Registration (ProStaff)
+    if (pg.currentLeader) {
+        const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(pg.currentLeader) && s.unit === unit);
+        if (staff) {
+            staffId = staff.id;
+            if (!sectorId) sectorId = staff.sectorId;
+        }
+    }
+
+    // 2. Check proGroupLocations
     if (!sectorId) {
         const loc = proGroupLocations.find(l => l.groupId === pg.id);
         if (loc) sectorId = loc.sectorId;
-    }
-
-    // 2. Check Leader's Registration (ProStaff)
-    if (!sectorId && pg.currentLeader) {
-        const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(pg.currentLeader) && s.unit === unit);
-        if (staff) sectorId = staff.sectorId;
     }
     
     if (sectorId) {
@@ -55,7 +60,8 @@ export const usePGInference = (
       leaderName, 
       sectorName, 
       sectorId: sectorId || null, 
-      leaderPhone 
+      leaderPhone,
+      staffId
     };
   }, [proGroups, unit, proGroupLocations, proSectors, proStaff]);
 

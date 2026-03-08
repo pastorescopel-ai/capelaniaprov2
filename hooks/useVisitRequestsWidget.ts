@@ -45,7 +45,13 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
   }, [requests, currentUser]);
 
   const getMeetingSector = (req: VisitRequest) => {
-      if (req.sectorName) return req.sectorName;
+      if (req.meetingLocation) return req.meetingLocation;
+      
+      if (req.sectorId) {
+        const sector = proSectors.find(s => s.id === req.sectorId);
+        if (sector) return sector.name;
+      }
+
       const details = inferPGDetails(req.pgName);
       return details.sectorName;
   };

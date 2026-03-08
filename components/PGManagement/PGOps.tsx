@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Unit, UserRole } from '../../types';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -40,13 +40,25 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
 
   const leaderInfo = useMemo(() => inferPGDetails(form.selectedPG), [inferPGDetails, form.selectedPG]);
 
+  const { setLeaderPhone, setMeetingLocation } = form;
+
+  // Sincronizar WhatsApp e Local quando o PG é selecionado
+  useEffect(() => {
+    if (leaderInfo && form.selectedPG && !editingRequestId) {
+        setLeaderPhone(leaderInfo.leaderPhone || '');
+        setMeetingLocation(leaderInfo.sectorName || '');
+    }
+  }, [leaderInfo, form.selectedPG, editingRequestId, setLeaderPhone, setMeetingLocation]);
+
   const onSave = () => {
     const details = inferPGDetails(form.selectedPG);
     handleSaveVisit(unit, {
       leaderName: details.leaderName,
-      leaderPhone: details.leaderPhone,
-      sectorId: details.sectorId
-    });
+      leaderPhone: form.leaderPhone,
+      sectorId: details.sectorId,
+      sectorName: details.sectorName,
+      staffId: details.staffId
+    }, proStaff);
   };
 
   return (
@@ -91,12 +103,42 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
                         <div className="mx-2 mt-2 p-3 bg-blue-50 rounded-xl border border-blue-100 flex justify-between items-center">
                             <span className="text-[10px] font-black text-blue-800 uppercase block">Responsável: {leaderInfo.leaderName}</span>
                             <span className="text-[10px] font-bold text-blue-600 uppercase block bg-white px-2 py-1 rounded-lg border border-blue-100">
-                                <i className="fas fa-map-marker-alt mr-1"></i>
-                                {leaderInfo.sectorName}
+                                <i className="fas fa-briefcase mr-1"></i>
+                                Lotação: {leaderInfo.sectorName}
                             </span>
                         </div>
                     )}
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">WhatsApp do Líder (Fixo)</label>
+                        <div className="relative">
+                            <i className="fab fa-whatsapp absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 text-lg"></i>
+                            <input 
+                                type="text" 
+                                value={form.leaderPhone} 
+                                onChange={e => form.setLeaderPhone(e.target.value)} 
+                                placeholder="(00) 00000-0000"
+                                className="w-full pl-12 p-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Local da Reunião (Texto Livre)</label>
+                        <div className="relative">
+                            <i className="fas fa-map-marker-alt absolute left-4 top-1/2 -translate-y-1/2 text-blue-500"></i>
+                            <input 
+                                type="text" 
+                                value={form.meetingLocation} 
+                                onChange={e => form.setMeetingLocation(e.target.value)} 
+                                placeholder="Ex: Refeitório, Sala 3, Auditório..."
+                                className="w-full pl-12 p-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            />
+                        </div>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Data da Visita</label>

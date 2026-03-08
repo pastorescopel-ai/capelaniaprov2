@@ -47,7 +47,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
 
   const getEnhancedInfo = useCallback((req: VisitRequest) => {
     // 1. Tenta usar os dados já presentes na escala
-    let sectorName = req.sectorName || null;
+    let sectorName = req.meetingLocation || null;
     let phone = req.leaderPhone || "";
 
     // 2. Se faltar algo, usa a inteligência centralizada

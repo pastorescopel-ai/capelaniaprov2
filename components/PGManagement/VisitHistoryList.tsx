@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { VisitRequest, User, UserRole } from '../../types';
+import { useApp } from '../../contexts/AppContext';
 
 interface VisitHistoryListProps {
   requests: VisitRequest[];
@@ -19,6 +20,7 @@ const VisitHistoryList: React.FC<VisitHistoryListProps> = ({
   onEdit, 
   onDelete 
 }) => {
+  const { proSectors } = useApp();
   if (requests.length === 0) {
     return (
       <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-[2rem]">
@@ -40,6 +42,12 @@ const VisitHistoryList: React.FC<VisitHistoryListProps> = ({
               <div className="flex items-center gap-2 mb-1">
                 <span className={`w-2 h-2 rounded-full ${req.status === 'assigned' ? 'bg-blue-500' : 'bg-amber-500'}`}></span>
                 <h4 className="font-bold text-slate-800 text-sm uppercase truncate">{req.pgName}</h4>
+                {req.meetingLocation && (
+                  <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                    <i className="fas fa-map-marker-alt mr-1"></i>
+                    {req.meetingLocation}
+                  </span>
+                )}
               </div>
               <p className="text-[10px] text-slate-500 font-bold uppercase truncate">Designado: {chaplain?.name || 'Aguardando'}</p>
             </div>

@@ -229,7 +229,7 @@ export interface VisitRequest {
   assignedChaplainId?: string;
   chaplainResponse?: string;
   sectorId?: string;
-  sectorName?: string;
+  meetingLocation?: string;
   scheduledTime?: string;
   isRead: boolean;
   createdAt?: string;
