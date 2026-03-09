@@ -24,13 +24,63 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     availableProviders, coverageGaps, emptyPGs, availableStaff, pgMembers,
     isNewProvider,
     handleEnroll, handleCreateAndEnrollProvider, confirmRemoval, handleSetLeader,
+    handleBulkUpdateCycleMonth,
+    selectedMonth, setSelectedMonth,
     proSectors, proGroups
   } = usePGMembership({ unit });
 
   const cleanId = (id: any) => String(id || '').replace(/\D/g, '');
 
+  const handlePrevMonth = () => {
+    const d = new Date(selectedMonth + 'T12:00:00');
+    d.setMonth(d.getMonth() - 1);
+    setSelectedMonth(d.toISOString().split('T')[0]);
+  };
+
+  const handleNextMonth = () => {
+    const d = new Date(selectedMonth + 'T12:00:00');
+    d.setMonth(d.getMonth() + 1);
+    setSelectedMonth(d.toISOString().split('T')[0]);
+  };
+
+  const formatMonthLabel = (iso: string) => {
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
+
   return (
     <div className="space-y-8 animate-in slide-in-from-right duration-500">
+      
+      {/* Seletor de Ciclo de Competência - Design Azul Elétrico */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+            <i className="fas fa-calendar-alt"></i>
+          </div>
+          <div>
+            <h2 className="text-sm font-black text-slate-800 uppercase tracking-tighter">Ciclo de Competência</h2>
+            <p className="text-[10px] text-slate-400 font-bold uppercase">Define o mês de entrada/saída no BI</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 bg-blue-600 px-6 py-3 rounded-2xl shadow-lg shadow-blue-500/40 border border-blue-400/30 transition-all hover:shadow-blue-500/60">
+          <button 
+            onClick={handlePrevMonth} 
+            className="text-lg hover:scale-125 active:scale-90 transition-transform filter drop-shadow-sm"
+          >
+            ⬅️
+          </button>
+          <span className="text-xs font-black text-white uppercase tracking-tighter min-w-[140px] text-center drop-shadow-md">
+            {formatMonthLabel(selectedMonth)}
+          </span>
+          <button 
+            onClick={handleNextMonth} 
+            className="text-lg hover:scale-125 active:scale-90 transition-transform filter drop-shadow-sm"
+          >
+            ➡️
+          </button>
+        </div>
+      </div>
       
       <RemovalModal 
         memberToRemove={memberToRemove}
@@ -193,11 +243,25 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         </div>
 
         <div className="bg-emerald-50 p-6 rounded-[2.5rem] border border-emerald-100 flex flex-col min-h-[400px]">
-          <div className="mb-4 pb-4 border-b border-emerald-100/50">
-            <h3 className="font-black text-emerald-900 uppercase tracking-tight flex items-center gap-2">
-              <i className="fas fa-house-user text-emerald-500"></i> Membros do PG
-            </h3>
-            <p className="text-[10px] text-emerald-700/60 font-bold uppercase mt-1">{currentPG ? `${pgMembers.length} Matriculados` : 'Selecione um PG'}</p>
+          <div className="mb-4 pb-4 border-b border-emerald-100/50 flex items-center justify-between">
+            <div>
+              <h3 className="font-black text-emerald-900 uppercase tracking-tight flex items-center gap-2">
+                <i className="fas fa-house-user text-emerald-500"></i> Membros do PG
+              </h3>
+              <p className="text-[10px] text-emerald-700/60 font-bold uppercase mt-1">{currentPG ? `${pgMembers.length} Matriculados` : 'Selecione um PG'}</p>
+            </div>
+            
+            {currentPG && pgMembers.length > 0 && (
+              <button 
+                onClick={handleBulkUpdateCycleMonth}
+                disabled={isProcessing}
+                className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white text-[9px] font-black uppercase rounded-lg shadow-sm hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
+                title="Sincronizar todos os membros com o ciclo selecionado"
+              >
+                <i className="fas fa-sync-alt"></i>
+                Ajustar Ciclo
+              </button>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 max-h-[500px]">
             {pgMembers.map(member => (

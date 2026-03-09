@@ -18,6 +18,12 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   const [selectedPGName, setSelectedPGName] = useState('');
   const [providerSearch, setProviderSearch] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // --- CICLO DE COMPETÊNCIA ---
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  });
   
   // --- ESTADOS OTIMISTAS (UI Instantânea) ---
   const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());
@@ -92,20 +98,8 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
         await saveRecord(collection, closeUpdates);
       }
 
-      // Cria nova matrícula com inteligência temporal (Regra do dia 10)
-      const today = new Date();
-      const currentDay = today.getDate();
-      let cycleDate: Date;
-      
-      if (currentDay <= 10) {
-        // Até dia 10, carimba como o mês anterior
-        cycleDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      } else {
-        // Após dia 10, carimba como o mês atual
-        cycleDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      }
-      
-      const cycleMonth = cycleDate.toISOString().split('T')[0];
+      // Cria nova matrícula com base no seletor de mês
+      const cycleMonth = selectedMonth;
 
       const newMember: any = {
         groupId: currentPG.id,
@@ -193,11 +187,14 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     
     try {
       if (activeMemberships.length > 0) {
-          // ENCERRAMENTO DE CICLO (SOFT DELETE): Para saídas normais ou erros
-          // A diferença é apenas a flag isError para o BI
+          // ENCERRAMENTO DE CICLO (SOFT DELETE): Baseado no mês selecionado
+          // Define a data de saída como o último momento do mês selecionado
+          const cycleDate = new Date(selectedMonth + 'T12:00:00');
+          const lastDayOfMonth = new Date(cycleDate.getFullYear(), cycleDate.getMonth() + 1, 0, 23, 59, 59);
+          
           const updates = activeMemberships.map(m => ({ 
             ...m, 
-            leftAt: Date.now(),
+            leftAt: lastDayOfMonth.getTime(),
             isError: removalType === 'error'
           }));
           
@@ -234,12 +231,49 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       finally { setIsProcessing(false); }
   };
 
+  const handleBulkUpdateCycleMonth = async () => {
+    if (!currentPG || pgMembers.length === 0) return;
+    
+    const confirm = window.confirm(`Deseja ajustar o Ciclo de Competência de TODOS os ${pgMembers.length} membros deste PG para ${selectedMonth}?`);
+    if (!confirm) return;
+
+    setIsProcessing(true);
+    try {
+      // Separar membros por tipo (staff vs provider)
+      const staffUpdates: any[] = [];
+      const providerUpdates: any[] = [];
+
+      pgMembers.forEach(member => {
+        const isProvider = (member as any).type === 'provider';
+        const originalMember = isProvider 
+          ? proGroupProviderMembers.find(m => m.id === member.id)
+          : proGroupMembers.find(m => m.id === member.id);
+
+        if (originalMember) {
+          const updated = { ...originalMember, cycleMonth: selectedMonth };
+          if (isProvider) providerUpdates.push(updated);
+          else staffUpdates.push(updated);
+        }
+      });
+
+      if (staffUpdates.length > 0) await saveRecord('proGroupMembers', staffUpdates);
+      if (providerUpdates.length > 0) await saveRecord('proGroupProviderMembers', providerUpdates);
+
+      showToast("Ciclo de competência atualizado para todos!", "success");
+    } catch (e) {
+      showToast("Erro ao atualizar ciclo em massa.", "warning");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return {
     activeTab, setActiveTab,
     selectedSectorName, setSelectedSectorName,
     staffSearch, setStaffSearch,
     selectedPGName, setSelectedPGName,
     providerSearch, setProviderSearch,
+    selectedMonth, setSelectedMonth,
     isProcessing,
     removalType, setRemovalType,
     memberToRemove, setMemberToRemove,
@@ -247,6 +281,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     availableProviders, coverageGaps, emptyPGs, availableStaff, pgMembers,
     isNewProvider,
     handleEnroll, handleCreateAndEnrollProvider, confirmRemoval, handleSetLeader,
+    handleBulkUpdateCycleMonth,
     proSectors, proGroups
   };
 };
