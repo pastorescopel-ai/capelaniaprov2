@@ -12,7 +12,7 @@ interface PGReportsProps {
 }
 
 const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
-  const { config, proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups } = useApp();
+  const { config, proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups } = useApp();
   const { generatePdf, generateZipOfPdfs, isGenerating, progress } = useDocumentGenerator();
   
   // Filtros
@@ -48,25 +48,40 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
 
   const reportData = useMemo(() => {
     const sectors = proSectors.filter(s => s.unit === unit).sort((a,b) => a.name.localeCompare(b.name));
+    const startTimestamp = new Date(startDate + 'T00:00:00').getTime();
     const endTimestamp = new Date(endDate + 'T23:59:59').getTime();
 
     const data = sectors.map(sector => {
         const sectorIdClean = cleanId(sector.id);
-        const staff = proStaff.filter(s => cleanId(s.sectorId) === sectorIdClean);
         
-        // Filtro de membros ativos no período (ou que ainda não saíram na data final)
-        const activeMemberships = proGroupMembers.filter(m => 
-            (m.joinedAt || 0) <= endTimestamp && 
-            (!m.leftAt || m.leftAt > endTimestamp)
+        // Filtra colaboradores que já estavam na unidade no período
+        const staff = proStaff.filter(s => 
+          cleanId(s.sectorId) === sectorIdClean &&
+          (!s.cycleMonth || s.cycleMonth <= endDate)
+        );
+        
+        // Filtro de membros ativos no período (Competência)
+        const activeStaffMemberships = proGroupMembers.filter(m => 
+            !m.isError &&
+            (m.cycleMonth ? m.cycleMonth <= endDate : (m.joinedAt || 0) <= endTimestamp) &&
+            (!m.leftAt || m.leftAt >= startTimestamp)
         );
 
-        const enrolled = staff.filter(s => activeMemberships.some(m => cleanId(m.staffId) === cleanId(s.id)));
-        const notEnrolled = staff.filter(s => !activeMemberships.some(m => cleanId(m.staffId) === cleanId(s.id)));
+        const activeProviderMemberships = proGroupProviderMembers.filter(m => 
+            !m.isError &&
+            (m.cycleMonth ? m.cycleMonth <= endDate : (m.joinedAt || 0) <= endTimestamp) &&
+            (!m.leftAt || m.leftAt >= startTimestamp)
+        );
+
+        const enrolledStaff = staff.filter(s => activeStaffMemberships.some(m => cleanId(m.staffId) === cleanId(s.id)));
+        const notEnrolled = staff.filter(s => !activeStaffMemberships.some(m => cleanId(m.staffId) === cleanId(s.id)));
         
-        // Agrupamento por PG para o relatório
+        // Agrupamento por PG para o relatório (Incluindo Prestadores)
         const enrolledByPGMap = new Map<string, { pgName: string, members: any[], leaderName: string | null }>();
-        enrolled.forEach(s => {
-            const m = activeMemberships.find(mem => cleanId(mem.staffId) === cleanId(s.id));
+        
+        // Adiciona Staff
+        enrolledStaff.forEach(s => {
+            const m = activeStaffMemberships.find(mem => cleanId(mem.staffId) === cleanId(s.id));
             const pg = m ? proGroups.find(g => cleanId(g.id) === cleanId(m.groupId)) : null;
             const pgName = pg?.name || 'Sem PG Definido';
             const leaderName = pg?.currentLeader || null;
@@ -74,18 +89,43 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
             if (!enrolledByPGMap.has(pgName)) {
                 enrolledByPGMap.set(pgName, { pgName, members: [], leaderName });
             }
-            enrolledByPGMap.get(pgName)!.members.push(s);
+            enrolledByPGMap.get(pgName)!.members.push({ ...s, type: 'staff' });
         });
+
+        // Adiciona Prestadores (Apenas se pertencerem a este setor via PG ou se quisermos mostrar no relatório)
+        // Nota: Prestadores não têm setor fixo, mas se estão em um PG que atua neste setor, eles aparecem.
+        activeProviderMemberships.forEach(m => {
+            const pg = proGroups.find(g => cleanId(g.id) === cleanId(m.groupId));
+            // Verifica se o PG deste prestador atua neste setor
+            const pgInSector = proGroupLocations.some(loc => cleanId(loc.groupId) === cleanId(m.groupId) && cleanId(loc.sectorId) === sectorIdClean);
+            
+            if (pgInSector) {
+                const provider = proProviders.find(p => cleanId(p.id) === cleanId(m.providerId));
+                if (provider) {
+                    const pgName = pg?.name || 'Sem PG Definido';
+                    const leaderName = pg?.currentLeader || null;
+                    
+                    if (!enrolledByPGMap.has(pgName)) {
+                        enrolledByPGMap.set(pgName, { pgName, members: [], leaderName });
+                    }
+                    // Evita duplicatas se o prestador já estiver na lista (embora improvável por ID)
+                    if (!enrolledByPGMap.get(pgName)!.members.some(mem => mem.id === provider.id)) {
+                        enrolledByPGMap.get(pgName)!.members.push({ ...provider, type: 'provider' });
+                    }
+                }
+            }
+        });
+
         const enrolledByPG = Array.from(enrolledByPGMap.values())
             .sort((a, b) => a.pgName.localeCompare(b.pgName));
 
         const geoGroupIds = new Set(proGroupLocations.filter(loc => cleanId(loc.sectorId) === sectorIdClean).map(loc => cleanId(loc.groupId)));
-        const memberGroupIds = new Set(activeMemberships.filter(m => staff.some(s => cleanId(s.id) === cleanId(m.staffId))).map(m => cleanId(m.groupId)));
+        const memberGroupIds = new Set(activeStaffMemberships.filter(m => staff.some(s => cleanId(s.id) === cleanId(m.staffId))).map(m => cleanId(m.groupId)));
         const allGroupIdsInSector = new Set([...Array.from(geoGroupIds), ...Array.from(memberGroupIds)]);
         const pgs = Array.from(allGroupIdsInSector).map(gid => proGroups.find(g => cleanId(g.id) === gid)).filter(g => !!g);
-        const coverage = staff.length > 0 ? (enrolled.length / staff.length) * 100 : 0;
+        const coverage = staff.length > 0 ? (enrolledStaff.length / staff.length) * 100 : 0;
 
-        return { sector, totalStaff: staff.length, enrolledCount: enrolled.length, coverage, pgs, notEnrolledList: notEnrolled, enrolledList: enrolled, enrolledByPG };
+        return { sector, totalStaff: staff.length, enrolledCount: enrolledStaff.length, coverage, pgs, notEnrolledList: notEnrolled, enrolledList: enrolledStaff, enrolledByPG };
     });
 
     const normSearch = normalizeString(searchTerm);
@@ -106,7 +146,7 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
         const normTarget = normalizeString(targetText);
         return searchTerms.every(term => normTarget.includes(term));
     });
-  }, [proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, unit, searchTerm, filterType, endDate, filterCritical]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, unit, searchTerm, filterType, startDate, endDate, filterCritical]);
 
   const generateSectorHtml = (data: any) => {
     return `
@@ -157,8 +197,9 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
                         </div>
                         ${group.members.map((s: any) => {
                             const isLeader = normalizeString(s.name) === normalizeString(group.leaderName || '');
+                            const isProvider = s.type === 'provider';
                             return `<div style="font-size: 11px; padding: 5px 0 5px 8px; border-bottom: 1px solid #f1f5f9; color: #334155; font-weight: 500;">
-                              ${s.name}${isLeader ? ' <span style="font-weight: 900; color: #059669;">(Líder)</span>' : ''}
+                              ${s.name}${isLeader ? ' <span style="font-weight: 900; color: #059669;">(Líder)</span>' : ''}${isProvider ? ' <span style="font-size: 8px; background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 900; margin-left: 5px;">PRESTADOR</span>' : ''}
                             </div>`;
                         }).join('')}
                     `;}).join('') : `<div style="font-size: 11px; color: #94a3b8; font-style: italic; padding: 10px 0;">Nenhum colaborador matriculado.</div>`}
