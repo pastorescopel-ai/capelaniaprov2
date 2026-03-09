@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ParticipantType, Unit } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ParticipantType, Unit, ActivitySchedule, DailyActivityReport } from '../types';
 import { DataRepository } from '../services/dataRepository';
 import { INITIAL_CONFIG } from '../constants';
 import { supabase } from '../services/supabaseClient';
@@ -23,6 +23,8 @@ export const useAppData = () => {
   const [proGroupLocations, setProGroupLocations] = useState<ProGroupLocation[]>([]);
   const [proGroupMembers, setProGroupMembers] = useState<ProGroupMember[]>([]);
   const [proGroupProviderMembers, setProGroupProviderMembers] = useState<ProGroupProviderMember[]>([]);
+  const [activitySchedules, setActivitySchedules] = useState<ActivitySchedule[]>([]);
+  const [dailyActivityReports, setDailyActivityReports] = useState<DailyActivityReport[]>([]);
   
   const [config, setConfig] = useState<Config>(INITIAL_CONFIG);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -55,6 +57,8 @@ export const useAppData = () => {
         setProGroupLocations(data.proGroupLocations || []);
         setProGroupMembers(data.proGroupMembers || []);
         setProGroupProviderMembers(data.proGroupProviderMembers || []);
+        setActivitySchedules(data.activitySchedules || []);
+        setDailyActivityReports(data.dailyActivityReports || []);
         if (data.config) {
           setConfig(data.config);
           applySystemOverrides(data.config);
@@ -88,6 +92,8 @@ export const useAppData = () => {
         'pro_group_locations': 'proGroupLocations',
         'pro_group_members': 'proGroupMembers',
         'pro_group_provider_members': 'proGroupProviderMembers',
+        'activity_schedules': 'activitySchedules',
+        'daily_activity_reports': 'dailyActivityReports',
         'users': 'users',
         'app_config': 'config'
       };
@@ -128,6 +134,8 @@ export const useAppData = () => {
         else if (collection === 'proGroupLocations') updateState(setProGroupLocations);
         else if (collection === 'proGroupMembers') updateState(setProGroupMembers);
         else if (collection === 'proGroupProviderMembers') updateState(setProGroupProviderMembers);
+        else if (collection === 'activitySchedules') updateState(setActivitySchedules);
+        else if (collection === 'dailyActivityReports') updateState(setDailyActivityReports);
         else if (collection === 'users') updateState(setUsers);
         else if (collection === 'config') setConfig(camelRecord);
       } else if (eventType === 'DELETE') {
@@ -149,6 +157,8 @@ export const useAppData = () => {
         else if (collection === 'proGroupLocations') removeState(setProGroupLocations);
         else if (collection === 'proGroupMembers') removeState(setProGroupMembers);
         else if (collection === 'proGroupProviderMembers') removeState(setProGroupProviderMembers);
+        else if (collection === 'activitySchedules') removeState(setActivitySchedules);
+        else if (collection === 'dailyActivityReports') removeState(setDailyActivityReports);
         else if (collection === 'users') removeState(setUsers);
       }
     };
@@ -195,6 +205,8 @@ export const useAppData = () => {
       else if (collection === 'proGroupLocations') updateState(setProGroupLocations);
       else if (collection === 'proGroupMembers') updateState(setProGroupMembers);
       else if (collection === 'proGroupProviderMembers') updateState(setProGroupProviderMembers);
+      else if (collection === 'activitySchedules') updateState(setActivitySchedules);
+      else if (collection === 'dailyActivityReports') updateState(setDailyActivityReports);
       else if (collection === 'users') updateState(setUsers);
       else if (collection === 'config' && updatedItems[0]) setConfig(updatedItems[0]);
 
@@ -330,7 +342,9 @@ export const useAppData = () => {
 
   return {
     users, bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests,
-    proStaff, proPatients, proProviders, proSectors, proGroups, proGroupLocations, proGroupMembers, proGroupProviderMembers, config, isSyncing, isConnected, 
+    proStaff, proPatients, proProviders, proSectors, proGroups, proGroupLocations, proGroupMembers, proGroupProviderMembers, 
+    activitySchedules, dailyActivityReports,
+    config, isSyncing, isConnected, 
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, syncMasterContact
   };
 };

@@ -22,8 +22,24 @@ export const NAV_ITEMS = [
   { id: 'reports', label: 'Relatórios', icon: '📈', roles: [UserRole.ADMIN] },
   { id: 'users', label: 'Equipe', icon: '👥', roles: [UserRole.ADMIN] },
   { id: 'dataHealing', label: 'Auditoria de Qualidade', icon: '🛡️', roles: [UserRole.ADMIN] }, // RENOMEADO
+  { id: 'activities', label: 'Atividades', icon: '📋', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
   { id: 'profile', label: 'Perfil', icon: '👤', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
   { id: 'admin', label: 'Painel Admin', icon: '⚙️', roles: [UserRole.ADMIN] },
+];
+
+export const BLUEPRINT_LOCATIONS = [
+  "Recepção Diagnóstico",
+  "Endoscopia",
+  "Sala de Espera Raio X",
+  "Sala de Espera Diagnóstico",
+  "Recepção Consultórios (Microfone)",
+  "Recepção Oncologia",
+  "Oncologia",
+  "Recepção Laboratório",
+  "Internamento",
+  "Microfone Internamento",
+  "Microfone Centro Cirúrgico",
+  "Sala de Espera do Centro Cirúrgico"
 ];
 
 export const INITIAL_CONFIG: Config = {

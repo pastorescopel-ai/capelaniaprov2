@@ -1,0 +1,86 @@
+
+import React, { useState } from 'react';
+import { useApp } from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { UserRole } from '../../types';
+import ActivityScheduler from './ActivityScheduler';
+import ActivityChecklist from './ActivityChecklist';
+import ActivityReports from './ActivityReports';
+import { Calendar, CheckCircle, BarChart3 } from 'lucide-react';
+
+const ActivityManager: React.FC = () => {
+  const { currentUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<'checklist' | 'scheduler' | 'reports'>(
+    currentUser?.role === UserRole.ADMIN ? 'scheduler' : 'checklist'
+  );
+
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <header className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-900/20">
+            <Calendar />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tighter leading-none">
+              Atividades Diárias
+            </h1>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">
+              Blueprint, Cultos e Visitas
+            </p>
+          </div>
+        </div>
+
+        <nav className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+          <button
+            onClick={() => setActiveTab('checklist')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all ${
+              activeTab === 'checklist'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <CheckCircle size={14} />
+            <span>Checklist</span>
+          </button>
+          
+          {isAdmin && (
+            <button
+              onClick={() => setActiveTab('scheduler')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all ${
+                activeTab === 'scheduler'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <Calendar size={14} />
+              <span>Escala Mensal</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all ${
+              activeTab === 'reports'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <BarChart3 size={14} />
+            <span>Relatórios</span>
+          </button>
+        </nav>
+      </header>
+
+      <main className="min-h-[500px]">
+        {activeTab === 'checklist' && <ActivityChecklist />}
+        {activeTab === 'scheduler' && isAdmin && <ActivityScheduler />}
+        {activeTab === 'reports' && <ActivityReports />}
+      </main>
+    </div>
+  );
+};
+
+export default ActivityManager;

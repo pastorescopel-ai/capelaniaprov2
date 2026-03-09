@@ -13,7 +13,8 @@ import { useAppFlow } from './hooks/useAppFlow';
 const App: React.FC = () => {
   const {
     users, bibleStudies, bibleClasses, smallGroups, staffVisits,
-    proSectors, config, isSyncing, isConnected, loadFromCloud, saveToCloud, saveRecord, deleteRecord
+    proSectors, config, isSyncing, isConnected, loadFromCloud, saveToCloud, saveRecord, deleteRecord,
+    activitySchedules, dailyActivityReports
   } = useApp();
 
   const { isAuthenticated, currentUser, login, logout, updateCurrentUser, loginError } = useAuth();

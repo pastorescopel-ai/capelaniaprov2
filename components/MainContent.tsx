@@ -16,6 +16,7 @@ const AdminPanel = lazy(() => import('./AdminPanel'));
 const PGManager = lazy(() => import('./PGManagement/PGManagerLayout'));
 const AmbassadorsManager = lazy(() => import('./Ambassadors/AmbassadorsManager'));
 const DataHealer = lazy(() => import('./DataHealer'));
+const ActivityManager = lazy(() => import('./Activities/ActivityManager'));
 
 interface MainContentProps {
   activeTab: string;
@@ -209,6 +210,15 @@ const MainContent: React.FC<MainContentProps> = ({
         <div className={getTabClass('dataHealing')}>
           <Suspense fallback={<TabLoading />}>
             <DataHealer />
+          </Suspense>
+        </div>
+      )}
+
+      {/* Rota para Atividades (NOVO) */}
+      {visitedTabs.has('activities') && (
+        <div className={getTabClass('activities')}>
+          <Suspense fallback={<TabLoading />}>
+            <ActivityManager />
           </Suspense>
         </div>
       )}

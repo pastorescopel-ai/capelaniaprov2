@@ -9,7 +9,7 @@ export const DataRepository = {
     try {
       const MAX_ROWS = 9999;
 
-      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca] = await Promise.all([
+      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar] = await Promise.all([
         supabase.from('users').select('*').range(0, MAX_ROWS),
         supabase.from('bible_study_sessions').select('*').range(0, MAX_ROWS),
         supabase.from('bible_classes').select('*').range(0, MAX_ROWS),
@@ -25,7 +25,9 @@ export const DataRepository = {
         supabase.from('pro_group_locations').select('*').range(0, MAX_ROWS),
         supabase.from('pro_group_members').select('*').range(0, MAX_ROWS),
         supabase.from('pro_group_provider_members').select('*').range(0, MAX_ROWS),
-        supabase.from('bible_class_attendees').select('*').range(0, MAX_ROWS)
+        supabase.from('bible_class_attendees').select('*').range(0, MAX_ROWS),
+        supabase.from('activity_schedules').select('*').range(0, MAX_ROWS),
+        supabase.from('daily_activity_reports').select('*').range(0, MAX_ROWS)
       ]);
 
       if (c.data?.[0]?.id) GLOBAL_ID_CACHE['app_config'] = c.data[0].id;
@@ -54,7 +56,9 @@ export const DataRepository = {
         proGroups: toCamel(pg.data || []),
         proGroupLocations: toCamel(pgl.data || []),
         proGroupMembers: toCamel(pgm.data || []),
-        proGroupProviderMembers: toCamel(pgpm.data || [])
+        proGroupProviderMembers: toCamel(pgpm.data || []),
+        activitySchedules: toCamel(asch.data || []),
+        dailyActivityReports: toCamel(dar.data || [])
       };
     } catch (error) {
       console.error("Erro ao sincronizar com Supabase:", error);

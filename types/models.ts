@@ -247,3 +247,33 @@ export interface Ambassador {
   cycleMonth: string; // Mês de Referência (YYYY-MM-DD)
   createdAt?: string;
 }
+
+export interface ActivitySchedule {
+  id: string;
+  userId: string; // Capelão
+  unit: Unit;
+  month: string; // YYYY-MM-DD (primeiro dia do mês)
+  dayOfWeek: number; // 0-6
+  activityType: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando';
+  location: string; // Nome do local (Blueprint) ou ID do Setor (Culto)
+  time?: string; // Horário da atividade (HH:mm)
+  createdAt?: number;
+}
+
+export interface DailyActivityReport {
+  id: string;
+  userId: string;
+  date: string; // YYYY-MM-DD
+  unit: Unit;
+  completedBlueprints: string[];
+  completedCults: string[];
+  completedEncontro?: boolean;
+  completedVisiteCantando?: boolean;
+  palliativeCount: number;
+  surgicalCount: number;
+  pediatricCount: number;
+  utiCount: number;
+  observations?: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
