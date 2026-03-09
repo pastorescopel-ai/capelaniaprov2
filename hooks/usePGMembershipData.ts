@@ -181,6 +181,7 @@ export const usePGMembershipData = ({
             staffId: m.staffId,
             sectorName: sector?.name || 'Sem Setor',
             joinedDate: m.joinedAt ? new Date(m.joinedAt).toLocaleDateString('pt-BR') : '',
+            cycleMonth: m.cycleMonth,
             isOptimistic: false,
             isLeader: currentPG.currentLeader === staff?.name,
             type: 'staff'
@@ -196,6 +197,7 @@ export const usePGMembershipData = ({
             staffName: provider?.name || `Desconhecido (ID: ${m.providerId})`,
             staffId: m.providerId,
             joinedDate: m.joinedAt ? new Date(m.joinedAt).toLocaleDateString('pt-BR') : '',
+            cycleMonth: m.cycleMonth,
             isOptimistic: false,
             isLeader: currentPG.currentLeader === provider?.name,
             type: 'provider'

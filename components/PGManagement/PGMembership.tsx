@@ -275,7 +275,14 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
                             <span className={`ml-2 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-tighter ${member.isLeader ? 'bg-amber-200 text-amber-900' : 'bg-emerald-100 text-emerald-700'}`}>{(member as any).sectorName}</span>
                             {(member as any).type === 'provider' && <span className="ml-2 text-[8px] bg-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded-full font-black">PRESTADOR</span>}
                         </p>
-                        {member.joinedDate && <p className="text-[8px] font-bold text-emerald-600/60 uppercase">Desde: {member.joinedDate}</p>}
+                        <div className="flex items-center gap-2">
+                            {(member as any).cycleMonth && (
+                                <p className="text-[8px] font-black text-blue-600 bg-blue-50 px-1.5 rounded uppercase">
+                                    Ciclo: {formatMonthLabel((member as any).cycleMonth)}
+                                </p>
+                            )}
+                            {member.joinedDate && <p className="text-[8px] font-bold text-emerald-600/60 uppercase">Desde: {member.joinedDate}</p>}
+                        </div>
                     </div>
                 </div>
                 {!member.isOptimistic && (
