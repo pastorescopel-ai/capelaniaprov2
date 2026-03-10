@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
+  console.log("DEBUG: NODE_ENV =", process.env.NODE_ENV);
   const app = express();
   const PORT = 3000;
 
