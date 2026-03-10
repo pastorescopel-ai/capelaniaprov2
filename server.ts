@@ -81,7 +81,7 @@ async function startServer() {
       try {
         const indexPath = path.join(__dirname, "dist", "index.html");
         if (fs.existsSync(indexPath)) {
-          let html = fs.readFileSync(indexPath, "utf-8");
+          const html = fs.readFileSync(indexPath, "utf-8");
           const config = getConfig();
           const injection = `<script>
             window.__SUPABASE_CONFIG__ = ${JSON.stringify(config)};

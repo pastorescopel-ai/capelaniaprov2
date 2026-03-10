@@ -10,14 +10,8 @@ declare global {
   }
 }
 
-const config = window.__SUPABASE_CONFIG__ || {};
-const env = (import.meta as any).env || {};
-
-export const SUPABASE_URL = config.supabaseUrl || env.VITE_SUPABASE_URL || "";
-export const SUPABASE_KEY = config.supabaseKey || env.VITE_SUPABASE_KEY || "";
-
-console.log("DEBUG: SUPABASE_URL =", SUPABASE_URL);
-console.log("DEBUG: SUPABASE_KEY =", SUPABASE_KEY);
+export const SUPABASE_URL = window.__SUPABASE_CONFIG__?.supabaseUrl || (import.meta as any).env?.VITE_SUPABASE_URL || "";
+export const SUPABASE_KEY = window.__SUPABASE_CONFIG__?.supabaseKey || (import.meta as any).env?.VITE_SUPABASE_KEY || "";
 
 /**
  * DEFAULT_APP_LOGO movido para importação direta de assets.ts
