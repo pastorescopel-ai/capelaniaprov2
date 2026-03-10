@@ -45,7 +45,7 @@ async function startServer() {
           
           const config = getConfig();
           const injection = `<script>window.__SUPABASE_CONFIG__ = ${JSON.stringify(config)}</script>`;
-          html = html.replace("<!-- CONFIG_INJECTION -->", injection);
+          html = html.replace(/<!--\s*CONFIG_INJECTION\s*-->/, injection);
           
           return res.status(200).set({ "Content-Type": "text/html" }).end(html);
         } catch (e) {
@@ -67,8 +67,11 @@ async function startServer() {
           let html = fs.readFileSync(indexPath, "utf-8");
           const config = getConfig();
           const injection = `<script>window.__SUPABASE_CONFIG__ = ${JSON.stringify(config)}</script>`;
-          html = html.replace("<!-- CONFIG_INJECTION -->", injection);
-          res.status(200).set({ "Content-Type": "text/html" }).end(html);
+          const replaced = html.replace(/<!--\s*CONFIG_INJECTION\s*-->/, injection);
+          if (replaced === html) {
+            console.warn("⚠️ CONFIG_INJECTION placeholder not found in production index.html");
+          }
+          res.status(200).set({ "Content-Type": "text/html" }).end(replaced);
         } else {
           res.status(404).send("Index not found");
         }
