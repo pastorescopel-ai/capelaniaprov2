@@ -1,6 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Unit, UserRole, ActivitySchedule } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import { BLUEPRINT_LOCATIONS } from '../../constants';
@@ -8,14 +9,17 @@ import { Calendar as CalendarIcon, Plus, Trash2, ChevronLeft, ChevronRight, User
 
 const ActivityScheduler: React.FC = () => {
   const { users, proSectors, activitySchedules, saveRecord, deleteRecord } = useApp();
+  const { currentUser } = useAuth();
   const { showToast } = useToast();
   
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+
   const [selectedUnit, setSelectedUnit] = useState<Unit>(Unit.HAB);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   });
-  const [selectedUser, setSelectedUser] = useState<string>('');
+  const [selectedUser, setSelectedUser] = useState<string>(isAdmin ? '' : (currentUser?.id || ''));
   const [isSaving, setIsSaving] = useState(false);
   const [showReplicateModal, setShowReplicateModal] = useState(false);
   const [targetMonth, setTargetMonth] = useState('');
@@ -23,15 +27,23 @@ const ActivityScheduler: React.FC = () => {
   const [addingActivity, setAddingActivity] = useState<{ dayOfWeek: number, type: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando' } | null>(null);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [newActivityTime, setNewActivityTime] = useState('');
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
   
   const [sectorSelections, setSectorSelections] = useState<{location: string, time: string}[]>([]);
   const [currentSector, setCurrentSector] = useState('');
   const [currentSectorTime, setCurrentSectorTime] = useState('');
 
-  const chaplains = useMemo(() => 
-    users.filter(u => u.role === UserRole.CHAPLAIN || u.role === UserRole.INTERN),
-    [users]
-  );
+  const chaplains = useMemo(() => {
+    const all = users.filter(u => u.role === UserRole.CHAPLAIN || u.role === UserRole.INTERN || u.role === UserRole.ADMIN);
+    if (isAdmin) return all;
+    return all.filter(u => u.id === currentUser?.id);
+  }, [users, isAdmin, currentUser?.id]);
+
+  useEffect(() => {
+    if (!isAdmin && currentUser?.id && selectedUser !== currentUser.id) {
+      setSelectedUser(currentUser.id);
+    }
+  }, [isAdmin, currentUser?.id, selectedUser]);
 
   const sectors = useMemo(() => 
     proSectors.filter(s => s.unit === selectedUnit && s.active !== false),
@@ -49,6 +61,7 @@ const ActivityScheduler: React.FC = () => {
       return;
     }
     setAddingActivity({ dayOfWeek, type });
+    setSelectedDays([dayOfWeek]);
     setNewActivityTime('');
     
     if (type === 'encontro') setSelectedLocations(['Encontro HAB']);
@@ -69,38 +82,44 @@ const ActivityScheduler: React.FC = () => {
   };
 
   const handleConfirmAddSchedule = async () => {
-    if (!addingActivity || !selectedUser) return;
+    if (!addingActivity || !selectedUser || selectedDays.length === 0) return;
 
     if (addingActivity.type !== 'cult' && selectedLocations.length === 0) return;
     if (addingActivity.type === 'cult' && sectorSelections.length === 0) return;
 
     setIsSaving(true);
     try {
-      let newSchedules: any[] = [];
+      const newSchedules: any[] = [];
 
-      if (addingActivity.type === 'cult') {
-        newSchedules = sectorSelections.map(sel => ({
-          userId: selectedUser,
-          unit: selectedUnit,
-          month: selectedMonth,
-          dayOfWeek: addingActivity.dayOfWeek,
-          activityType: addingActivity.type,
-          location: sel.location,
-          time: sel.time || undefined,
-          createdAt: Date.now()
-        }));
-      } else {
-        newSchedules = selectedLocations.map(loc => ({
-          userId: selectedUser,
-          unit: selectedUnit,
-          month: selectedMonth,
-          dayOfWeek: addingActivity.dayOfWeek,
-          activityType: addingActivity.type,
-          location: loc,
-          time: newActivityTime || undefined,
-          createdAt: Date.now()
-        }));
-      }
+      selectedDays.forEach(day => {
+        if (addingActivity.type === 'cult') {
+          sectorSelections.forEach(sel => {
+            newSchedules.push({
+              userId: selectedUser,
+              unit: selectedUnit,
+              month: selectedMonth,
+              dayOfWeek: day,
+              activityType: addingActivity.type,
+              location: sel.location,
+              time: sel.time || undefined,
+              createdAt: Date.now()
+            });
+          });
+        } else {
+          selectedLocations.forEach(loc => {
+            newSchedules.push({
+              userId: selectedUser,
+              unit: selectedUnit,
+              month: selectedMonth,
+              dayOfWeek: day,
+              activityType: addingActivity.type,
+              location: loc,
+              time: newActivityTime || undefined,
+              createdAt: Date.now()
+            });
+          });
+        }
+      });
 
       const toSave = newSchedules.filter(ns => !filteredSchedules.some(s => 
         s.userId === ns.userId && 
@@ -237,9 +256,10 @@ const ActivityScheduler: React.FC = () => {
             <select
               value={selectedUser}
               onChange={e => setSelectedUser(e.target.value)}
-              className="flex-1 p-3 bg-slate-100 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+              disabled={!isAdmin}
+              className="flex-1 p-3 bg-slate-100 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none disabled:opacity-50"
             >
-              <option value="">Todos os Capelães</option>
+              {isAdmin && <option value="">Todos os Capelães</option>}
               {chaplains.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -463,6 +483,23 @@ const ActivityScheduler: React.FC = () => {
             </div>
 
             <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Repetir nos dias</label>
+                <div className="flex gap-1">
+                  {daysOfWeek.map(d => (
+                    <button
+                      key={d.id}
+                      onClick={() => setSelectedDays(prev => prev.includes(d.id) ? prev.filter(id => id !== d.id) : [...prev, d.id])}
+                      className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase transition-all ${
+                        selectedDays.includes(d.id) ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                      }`}
+                    >
+                      {d.label.substring(0, 3)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {addingActivity.type === 'blueprint' && (
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Locais (Selecione um ou mais)</label>

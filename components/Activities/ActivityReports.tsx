@@ -5,7 +5,7 @@ import { Unit, DailyActivityReport, UserRole } from '../../types';
 import { BLUEPRINT_LOCATIONS } from '../../constants';
 import { BarChart3, Calendar, Users, MapPin, HeartPulse, ChevronLeft, ChevronRight, Download, User } from 'lucide-react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const ActivityReports: React.FC = () => {
   const { dailyActivityReports, users, proSectors, config } = useApp();
@@ -124,7 +124,7 @@ const ActivityReports: React.FC = () => {
     doc.text(`Total de Visitas: ${stats.totalVisits}`, 15, 64);
 
     // Stats Table
-    (doc as any).autoTable({
+    autoTable(doc, {
       startY: 75,
       head: [['Categoria', 'Quantidade']],
       body: [
@@ -144,7 +144,7 @@ const ActivityReports: React.FC = () => {
     });
 
     // Blueprint Ranking
-    (doc as any).autoTable({
+    autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 15,
       head: [['Ranking Blueprint', 'Frequência']],
       body: blueprintStats.filter(s => s[1] > 0).slice(0, 10),
@@ -154,7 +154,7 @@ const ActivityReports: React.FC = () => {
     });
 
     // Cult Ranking
-    (doc as any).autoTable({
+    autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 15,
       head: [['Ranking Setores', 'Frequência']],
       body: cultStats.filter(s => s[1] > 0).slice(0, 10),

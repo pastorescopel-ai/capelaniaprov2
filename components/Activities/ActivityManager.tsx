@@ -4,21 +4,20 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import ActivityScheduler from './ActivityScheduler';
+import ActivityWeeklyAnalysis from './ActivityWeeklyAnalysis';
 import ActivityChecklist from './ActivityChecklist';
 import ActivityReports from './ActivityReports';
-import { Calendar, CheckCircle, BarChart3 } from 'lucide-react';
+import { Calendar, CheckCircle, BarChart3, TrendingUp, CheckSquare } from 'lucide-react';
 
 const ActivityManager: React.FC = () => {
   const { currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'checklist' | 'scheduler' | 'reports'>(
-    currentUser?.role === UserRole.ADMIN ? 'scheduler' : 'checklist'
-  );
+  const [activeTab, setActiveTab] = useState<'analysis' | 'checklist' | 'scheduler' | 'reports'>('checklist');
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <header className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <header className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col gap-6">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-900/20">
             <Calendar />
@@ -28,12 +27,25 @@ const ActivityManager: React.FC = () => {
               Atividades Diárias
             </h1>
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">
-              Blueprint, Cultos e Visitas
+              Blueprint, Setores e Visitas
             </p>
           </div>
         </div>
 
-        <nav className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+        <div className="overflow-x-auto pb-2 -mb-2 custom-scrollbar">
+          <nav className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 min-w-max">
+          <button
+            onClick={() => setActiveTab('analysis')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all ${
+              activeTab === 'analysis'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <TrendingUp size={14} />
+            <span>Análise Semanal</span>
+          </button>
+          
           <button
             onClick={() => setActiveTab('checklist')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all ${
@@ -42,23 +54,21 @@ const ActivityManager: React.FC = () => {
                 : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <CheckCircle size={14} />
-            <span>Checklist</span>
+            <CheckSquare size={14} />
+            <span>Lançar Atividades</span>
           </button>
-          
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('scheduler')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all ${
-                activeTab === 'scheduler'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              <Calendar size={14} />
-              <span>Escala Mensal</span>
-            </button>
-          )}
+
+          <button
+            onClick={() => setActiveTab('scheduler')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all ${
+              activeTab === 'scheduler'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <Calendar size={14} />
+            <span>Atividades Agendadas</span>
+          </button>
 
           <button
             onClick={() => setActiveTab('reports')}
@@ -72,11 +82,13 @@ const ActivityManager: React.FC = () => {
             <span>Relatórios</span>
           </button>
         </nav>
+        </div>
       </header>
 
       <main className="min-h-[500px]">
+        {activeTab === 'analysis' && <ActivityWeeklyAnalysis />}
         {activeTab === 'checklist' && <ActivityChecklist />}
-        {activeTab === 'scheduler' && isAdmin && <ActivityScheduler />}
+        {activeTab === 'scheduler' && <ActivityScheduler />}
         {activeTab === 'reports' && <ActivityReports />}
       </main>
     </div>

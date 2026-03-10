@@ -38,18 +38,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     s.dayOfWeek === dayOfWeek
   );
   
-  const reportToday = dailyActivityReports.find(r => r.userId === currentUser.id && r.date === today);
-  
-  const completedCount = todaysSchedules.filter(s => {
-    if (s.activityType === 'blueprint') return reportToday?.completedBlueprints?.includes(s.location);
-    if (s.activityType === 'cult') return reportToday?.completedCults?.includes(s.location);
-    if (s.activityType === 'encontro') return reportToday?.completedEncontro;
-    if (s.activityType === 'visiteCantando') return reportToday?.completedVisiteCantando;
-    return false;
-  }).length;
-  
-  const activityProgress = todaysSchedules.length > 0 ? Math.round((completedCount / todaysSchedules.length) * 100) : 0;
-  
   const {
     pendingReturns,
     todaysReturns,
@@ -80,35 +68,15 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Missão de Atividades Diárias */}
       {todaysSchedules.length > 0 && (
-        <div onClick={() => onGoToTab('activities')} className="bg-indigo-50 border border-indigo-200 p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between shadow-sm group cursor-pointer hover:bg-indigo-100 transition-all">
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <div className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-indigo-200">
-              <i className="fas fa-tasks"></i>
-            </div>
+        <div onClick={() => onGoToTab('activities')} className="bg-indigo-50 border border-indigo-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-indigo-100 transition-all animate-bounce-subtle">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-indigo-200"><i className="fas fa-tasks"></i></div>
             <div>
-              <h4 className="font-black text-indigo-900 text-base uppercase tracking-tight">Missão de Hoje</h4>
-              <p className="text-indigo-700 font-bold text-[10px] uppercase tracking-widest">
-                {completedCount} de {todaysSchedules.length} atividades concluídas
-              </p>
+              <h4 className="font-black text-indigo-900 text-sm uppercase tracking-tight">Atividades Agendadas</h4>
+              <p className="text-indigo-700 font-bold text-[10px] uppercase">Você tem atividades para lançar hoje.</p>
             </div>
           </div>
-          
-          <div className="flex-1 max-w-xs w-full mt-4 md:mt-0 md:mx-8 space-y-2">
-            <div className="flex justify-between items-end">
-              <span className="text-[9px] font-black text-indigo-400 uppercase">Progresso</span>
-              <span className="text-sm font-black text-indigo-600">{activityProgress}%</span>
-            </div>
-            <div className="h-2 bg-white rounded-full overflow-hidden border border-indigo-100 p-0.5">
-              <div 
-                className="h-full bg-indigo-600 rounded-full transition-all duration-1000"
-                style={{ width: `${activityProgress}%` }}
-              ></div>
-            </div>
-          </div>
-
-          <div className="hidden md:flex w-10 h-10 bg-white rounded-full items-center justify-center text-indigo-600 shadow-sm group-hover:translate-x-1 transition-transform border border-indigo-100">
-            <i className="fas fa-chevron-right"></i>
-          </div>
+          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-indigo-600 shadow-sm group-hover:translate-x-1 transition-transform border border-indigo-100"><i className="fas fa-chevron-right"></i></div>
         </div>
       )}
 
