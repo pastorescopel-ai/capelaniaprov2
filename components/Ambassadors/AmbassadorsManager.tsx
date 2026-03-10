@@ -55,16 +55,27 @@ const AmbassadorsManager: React.FC = () => {
   };
 
   // Filtros de Relatório
-  const { reportStartDate, reportEndDate } = useMemo(() => {
-    const d = new Date(selectedMonth + 'T12:00:00');
-    const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
-    return { reportStartDate: start, reportEndDate: end };
-  }, [selectedMonth]);
-
+  const [reportStartDate, setReportStartDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [reportEndDate, setReportEndDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
   const [reportSectorId, setReportSectorId] = useState<string>('all');
   const [reportSortOrder, setReportSortOrder] = useState<'alpha' | 'percent'>('alpha');
   const [reportFilterCritical, setReportFilterCritical] = useState(false);
+
+  // Sincronizar datas do relatório com o mês selecionado no cabeçalho
+  useEffect(() => {
+    const d = new Date(selectedMonth + 'T12:00:00');
+    const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+    
+    setReportStartDate(prev => prev === start ? prev : start);
+    setReportEndDate(prev => prev === end ? prev : end);
+  }, [selectedMonth]);
 
   // --- GERAÇÃO DE PDF ---
   const handleGeneratePDF = async (mode: 'sector' | 'full') => {
