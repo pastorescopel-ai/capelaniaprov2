@@ -1,8 +1,8 @@
 
 import { UserRole, Config, Unit, RecordStatus } from './types';
 
-export const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || "https://qksbywkshuznbuyzwljx.supabase.co";
-export const SUPABASE_KEY = (import.meta as any).env?.VITE_SUPABASE_KEY || "sb_publishable_44GfukXRPHT92-DXRpEmSg_0CTgXA09";
+export const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || "";
+export const SUPABASE_KEY = (import.meta as any).env?.VITE_SUPABASE_KEY || "";
 
 /**
  * DEFAULT_APP_LOGO movido para importação direta de assets.ts

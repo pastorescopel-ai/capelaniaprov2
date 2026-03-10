@@ -9,7 +9,8 @@ export const DataRepository = {
     try {
       const MAX_ROWS = 9999;
 
-      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar] = await Promise.all([
+      // Executa as queries em paralelo, mas trata erros individualmente para não quebrar o app todo
+      const results = await Promise.all([
         supabase.from('users').select('*').range(0, MAX_ROWS),
         supabase.from('bible_study_sessions').select('*').range(0, MAX_ROWS),
         supabase.from('bible_classes').select('*').range(0, MAX_ROWS),
@@ -29,6 +30,15 @@ export const DataRepository = {
         supabase.from('activity_schedules').select('*').range(0, MAX_ROWS),
         supabase.from('daily_activity_reports').select('*').range(0, MAX_ROWS)
       ]);
+
+      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar] = results;
+
+      // Log de erros para debug (invisível ao usuário)
+      results.forEach((res, idx) => {
+        if (res.error) {
+          console.warn(`Query ${idx} falhou:`, res.error.message);
+        }
+      });
 
       if (c.data?.[0]?.id) GLOBAL_ID_CACHE['app_config'] = c.data[0].id;
 
@@ -58,10 +68,11 @@ export const DataRepository = {
         proGroupMembers: toCamel(pgm.data || []),
         proGroupProviderMembers: toCamel(pgpm.data || []),
         activitySchedules: toCamel(asch.data || []),
-        dailyActivityReports: toCamel(dar.data || [])
+        dailyActivityReports: toCamel(dar.data || []),
+        bibleClassAttendees: attendees
       };
     } catch (error) {
-      console.error("Erro ao sincronizar com Supabase:", error);
+      console.error("Erro fatal ao sincronizar com Supabase:", error);
       return null;
     }
   },
@@ -147,6 +158,18 @@ export const DataRepository = {
     }
 
     return { success: true, data: allUpsertedData };
+  },
+
+  async getUserByEmail(email: string) {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle();
+    
+    if (error || !data) return null;
+    return toCamel(data);
   },
 
   async deleteRecord(collection: string, id: string) {

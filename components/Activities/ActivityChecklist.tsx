@@ -3,12 +3,15 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Unit, DailyActivityReport, UserRole } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
-import { CheckCircle, Circle, Plus, Minus, Save, MapPin, Users, HeartPulse, Calendar } from 'lucide-react';
+import { CheckCircle, Circle, Plus, Minus, Save, MapPin, Users, HeartPulse, Calendar, Download } from 'lucide-react';
+import { generateDailyChecklistHTML } from '../../utils/activityTemplates';
+import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
 
 const ActivityChecklist: React.FC = () => {
-  const { users, proSectors, activitySchedules, dailyActivityReports, saveRecord } = useApp();
+  const { users, proSectors, activitySchedules, dailyActivityReports, saveRecord, config } = useApp();
   const { currentUser } = useAuth();
   const { showToast } = useToast();
+  const { generatePdf, isGenerating: isGeneratingPdf } = useDocumentGenerator();
   
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
@@ -144,6 +147,30 @@ const ActivityChecklist: React.FC = () => {
     }
   };
 
+  const handleExportPDF = async () => {
+    if (!selectedUser) {
+      showToast("Selecione um capelão para exportar o checklist.", "warning");
+      return;
+    }
+
+    const chaplain = users.find(u => u.id === selectedUser);
+    if (!chaplain) return;
+
+    try {
+      const html = generateDailyChecklistHTML(
+        config,
+        selectedDate,
+        chaplain,
+        scheduledActivities,
+        proSectors
+      );
+      await generatePdf(html);
+      showToast("Checklist exportado com sucesso!", "success");
+    } catch (error) {
+      showToast("Erro ao gerar PDF do checklist.", "warning");
+    }
+  };
+
   const progress = useMemo(() => {
     const totalScheduled = scheduledActivities.length;
     if (totalScheduled === 0) return 0;
@@ -182,16 +209,26 @@ const ActivityChecklist: React.FC = () => {
 
         <div className="space-y-2">
           <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Capelão</label>
-          <select
-            value={selectedUser}
-            onChange={e => setSelectedUser(e.target.value)}
-            disabled={!isAdmin}
-            className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none disabled:opacity-50"
-          >
-            {chaplains.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <div className="flex gap-2">
+            <select
+              value={selectedUser}
+              onChange={e => setSelectedUser(e.target.value)}
+              disabled={!isAdmin}
+              className="flex-1 p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none disabled:opacity-50"
+            >
+              {chaplains.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleExportPDF}
+              disabled={isGeneratingPdf}
+              className="px-4 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all flex items-center justify-center disabled:opacity-50"
+              title="Exportar PDF do Checklist"
+            >
+              <Download size={16} />
+            </button>
+          </div>
         </div>
       </div>
 

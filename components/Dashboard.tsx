@@ -8,6 +8,7 @@ import StatCards from './Dashboard/StatCards';
 import ImpactCharts from './Dashboard/ImpactCharts';
 import VisitGoalWidget from './Dashboard/VisitGoalWidget';
 import VisitRequestsWidget from './Dashboard/VisitRequestsWidget';
+import ActivityProgressWidget from './Dashboard/ActivityProgressWidget';
 
 interface DashboardProps {
   studies: BibleStudy[];
@@ -67,18 +68,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
 
       {/* Missão de Atividades Diárias */}
-      {todaysSchedules.length > 0 && (
-        <div onClick={() => onGoToTab('activities')} className="bg-indigo-50 border border-indigo-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-indigo-100 transition-all animate-bounce-subtle">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-indigo-200"><i className="fas fa-tasks"></i></div>
-            <div>
-              <h4 className="font-black text-indigo-900 text-sm uppercase tracking-tight">Atividades Agendadas</h4>
-              <p className="text-indigo-700 font-bold text-[10px] uppercase">Você tem atividades para lançar hoje.</p>
-            </div>
-          </div>
-          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-indigo-600 shadow-sm group-hover:translate-x-1 transition-transform border border-indigo-100"><i className="fas fa-chevron-right"></i></div>
-        </div>
-      )}
+      <ActivityProgressWidget 
+        schedules={activitySchedules} 
+        reports={dailyActivityReports} 
+        currentUser={currentUser} 
+        onGoToActivities={() => onGoToTab('activities')} 
+      />
 
       {/* Notificações de Retorno (Movido para baixo do Mural) */}
       {todaysReturns.length > 0 ? (

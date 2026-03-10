@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS activity_schedules (
     day_of_week INTEGER NOT NULL, -- 0 (Domingo) a 6 (Sábado)
     activity_type TEXT NOT NULL, -- 'blueprint' ou 'cult'
     location TEXT NOT NULL, -- Nome do local (Blueprint) ou ID do Setor (Culto)
+    time TEXT, -- Horário da atividade (HH:mm)
     created_at BIGINT DEFAULT (extract(epoch from now()) * 1000)
 );
 
@@ -19,6 +20,8 @@ CREATE TABLE IF NOT EXISTS daily_activity_reports (
     unit TEXT NOT NULL,
     completed_blueprints TEXT[] DEFAULT '{}',
     completed_cults TEXT[] DEFAULT '{}',
+    completed_encontro BOOLEAN DEFAULT FALSE,
+    completed_visite_cantando BOOLEAN DEFAULT FALSE,
     palliative_count INTEGER DEFAULT 0,
     surgical_count INTEGER DEFAULT 0,
     pediatric_count INTEGER DEFAULT 0,

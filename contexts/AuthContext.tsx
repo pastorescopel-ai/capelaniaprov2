@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState } from 'react';
 import { User } from '../types';
 import { useApp } from './AppContext';
 import { hashPassword } from '../utils/crypto';
+import { DataRepository } from '../services/dataRepository';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -34,7 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Busca o usuário exclusivamente pelo e-mail (Âncora de Identidade)
     // Isso garante que funcione independente do ID ser antigo ou novo
-    const dbUser = users.find(u => u.email && u.email.toLowerCase().trim() === cleanEmail);
+    const dbUser = await DataRepository.getUserByEmail(cleanEmail);
     
     if (!dbUser) {
       setLoginError('Usuário não localizado.');

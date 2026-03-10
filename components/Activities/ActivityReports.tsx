@@ -1,179 +1,120 @@
-
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../contexts/AppContext';
-import { Unit, DailyActivityReport, UserRole } from '../../types';
-import { BLUEPRINT_LOCATIONS } from '../../constants';
-import { BarChart3, Calendar, Users, MapPin, HeartPulse, ChevronLeft, ChevronRight, Download, User } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { useAuth } from '../../contexts/AuthContext';
+import { Unit, UserRole } from '../../types';
+import { useToast } from '../../contexts/ToastContext';
+import { Calendar as CalendarIcon, Download, FileText, TrendingUp, Users, MapPin, Search } from 'lucide-react';
+import { generateActivityReportHTML } from '../../utils/activityTemplates';
+import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
 
 const ActivityReports: React.FC = () => {
-  const { dailyActivityReports, users, proSectors, config } = useApp();
+  const { users, dailyActivityReports, config } = useApp();
+  const { currentUser } = useAuth();
+  const { showToast } = useToast();
+  const { generatePdf, isGenerating: isGeneratingPdf } = useDocumentGenerator();
   
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+
   const [selectedUnit, setSelectedUnit] = useState<Unit>(Unit.HAB);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
+  const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const offset = firstDay.getTimezoneOffset() * 60000;
-    return new Date(firstDay.getTime() - offset).toISOString().split('T')[0];
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().split('T')[0];
   });
-  const [selectedUser, setSelectedUser] = useState<string>('all');
+  const [selectedUser, setSelectedUser] = useState<string>(isAdmin ? '' : (currentUser?.id || ''));
 
   const chaplains = useMemo(() => 
-    users.filter(u => u.role === UserRole.CHAPLAIN || u.role === UserRole.INTERN),
+    users.filter(u => u.role === UserRole.CHAPLAIN || u.role === UserRole.INTERN || u.role === UserRole.ADMIN),
     [users]
   );
 
-  const filteredReports = useMemo(() => {
-    const start = new Date(selectedMonth + 'T00:00:00').getTime();
-    const end = new Date(new Date(selectedMonth + 'T00:00:00').getFullYear(), new Date(selectedMonth + 'T00:00:00').getMonth() + 1, 0, 23, 59, 59).getTime();
-    
-    return dailyActivityReports.filter(r => 
+  const filteredReports = useMemo(() => 
+    dailyActivityReports.filter(r => 
       r.unit === selectedUnit && 
-      new Date(r.date + 'T12:00:00').getTime() >= start && 
-      new Date(r.date + 'T12:00:00').getTime() <= end &&
-      (selectedUser === 'all' ? true : r.userId === selectedUser)
-    );
-  }, [dailyActivityReports, selectedUnit, selectedMonth, selectedUser]);
+      r.date === selectedDate && 
+      (selectedUser ? r.userId === selectedUser : true)
+    ),
+    [dailyActivityReports, selectedUnit, selectedDate, selectedUser]
+  );
 
   const stats = useMemo(() => {
-    const totals = {
-      blueprints: 0,
-      cults: 0,
-      encontros: 0,
-      visiteCantando: 0,
-      palliative: 0,
-      surgical: 0,
-      pediatric: 0,
-      uti: 0,
-      totalVisits: 0
+    const initial = {
+      totalActivities: 0,
+      totalVisits: 0,
+      blueprintCount: 0,
+      cultCount: 0,
+      encontroCount: 0,
+      visiteCantandoCount: 0,
+      palliativeCount: 0,
+      surgicalCount: 0,
+      pediatricCount: 0,
+      utiCount: 0,
+      observations: ''
     };
 
-    filteredReports.forEach(r => {
-      totals.blueprints += (r.completedBlueprints?.length || 0);
-      totals.cults += (r.completedCults?.length || 0);
-      totals.encontros += r.completedEncontro ? 1 : 0;
-      totals.visiteCantando += r.completedVisiteCantando ? 1 : 0;
-      totals.palliative += (r.palliativeCount || 0);
-      totals.surgical += (r.surgicalCount || 0);
-      totals.pediatric += (r.pediatricCount || 0);
-      totals.uti += (r.utiCount || 0);
-    });
+    return filteredReports.reduce((acc, report) => {
+      const blueprintLen = report.completedBlueprints?.length || 0;
+      const cultLen = report.completedCults?.length || 0;
+      const encontroVal = report.completedEncontro ? 1 : 0;
+      const visiteCantandoVal = report.completedVisiteCantando ? 1 : 0;
 
-    totals.totalVisits = totals.palliative + totals.surgical + totals.pediatric + totals.uti;
-    return totals;
+      acc.totalActivities += blueprintLen + cultLen + encontroVal + visiteCantandoVal;
+      acc.totalVisits += (report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0);
+      
+      acc.blueprintCount += blueprintLen;
+      acc.cultCount += cultLen;
+      acc.encontroCount += encontroVal;
+      acc.visiteCantandoCount += visiteCantandoVal;
+
+      acc.palliativeCount += (report.palliativeCount || 0);
+      acc.surgicalCount += (report.surgicalCount || 0);
+      acc.pediatricCount += (report.pediatricCount || 0);
+      acc.utiCount += (report.utiCount || 0);
+      
+      if (report.observations) {
+        acc.observations += (acc.observations ? ' | ' : '') + report.observations;
+      }
+
+      return acc;
+    }, initial);
   }, [filteredReports]);
 
-  const blueprintStats = useMemo(() => {
-    const counts: Record<string, number> = {};
-    BLUEPRINT_LOCATIONS.forEach(loc => counts[loc] = 0);
-    
-    filteredReports.forEach(r => {
-      r.completedBlueprints?.forEach(loc => {
-        if (counts[loc] !== undefined) counts[loc]++;
-      });
-    });
+  const handleExportPDF = async () => {
+    if (filteredReports.length === 0) {
+      showToast("Não há dados para exportar nesta data.", "warning");
+      return;
+    }
 
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  }, [filteredReports]);
+    const chaplain = selectedUser ? users.find(u => u.id === selectedUser) : { name: 'Relatório Consolidado' } as any;
 
-  const cultStats = useMemo(() => {
-    const counts: Record<string, number> = {};
-    proSectors.filter(s => s.unit === selectedUnit).forEach(s => counts[s.name] = 0);
-    
-    filteredReports.forEach(r => {
-      r.completedCults?.forEach(id => {
-        const sector = proSectors.find(s => s.id === id);
-        if (sector && counts[sector.name] !== undefined) counts[sector.name]++;
-      });
-    });
+    const visitDetails = [
+      { label: 'Paliativos', value: stats.palliativeCount },
+      { label: 'Cirúrgicos', value: stats.surgicalCount },
+      { label: 'Pediátricos', value: stats.pediatricCount },
+      { label: 'UTI', value: stats.utiCount }
+    ];
 
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  }, [filteredReports, proSectors, selectedUnit]);
-
-  const formatMonthLabel = (iso: string) => {
-    const d = new Date(iso + 'T12:00:00');
-    return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  };
-
-  const changeMonth = (offset: number) => {
-    const d = new Date(selectedMonth + 'T12:00:00');
-    d.setMonth(d.getMonth() + offset);
-    setSelectedMonth(d.toISOString().split('T')[0]);
-  };
-
-  const handleExportPDF = () => {
-    const doc = new jsPDF();
-    const pColor = config.primaryColor || '#005a9c';
-    const monthLabel = formatMonthLabel(selectedMonth);
-    const chaplainName = selectedUser === 'all' ? 'Todos os Capelães' : chaplains.find(c => c.id === selectedUser)?.name || 'N/A';
-
-    // Header
-    doc.setFillColor(pColor);
-    doc.rect(0, 0, 210, 40, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RELATÓRIO DE ATIVIDADES DIÁRIAS', 105, 20, { align: 'center' });
-    doc.setFontSize(10);
-    doc.text(`${config.headerLine1} | ${monthLabel}`, 105, 30, { align: 'center' });
-
-    // Info
-    doc.setTextColor(60, 60, 60);
-    doc.setFontSize(12);
-    doc.text(`Unidade: ${selectedUnit}`, 15, 50);
-    doc.text(`Capelão: ${chaplainName}`, 15, 57);
-    doc.text(`Total de Visitas: ${stats.totalVisits}`, 15, 64);
-
-    // Stats Table
-    autoTable(doc, {
-      startY: 75,
-      head: [['Categoria', 'Quantidade']],
-      body: [
-        ['Blueprints Realizados', stats.blueprints],
-        ['Setores Visitados', stats.cults],
-        ['Encontros HAB', stats.encontros],
-        ['Visite Cantando', stats.visiteCantando],
-        ['Visitas Paliativas', stats.palliative],
-        ['Visitas Cirúrgicas', stats.surgical],
-        ['Visitas Pediátricas', stats.pediatric],
-        ['Visitas UTI', stats.uti],
-        ['TOTAL DE VISITAS', stats.totalVisits],
-      ],
-      theme: 'striped',
-      headStyles: { fillColor: pColor },
-      styles: { fontSize: 10 }
-    });
-
-    // Blueprint Ranking
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 15,
-      head: [['Ranking Blueprint', 'Frequência']],
-      body: blueprintStats.filter(s => s[1] > 0).slice(0, 10),
-      theme: 'grid',
-      headStyles: { fillColor: pColor },
-      styles: { fontSize: 9 }
-    });
-
-    // Cult Ranking
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 15,
-      head: [['Ranking Setores', 'Frequência']],
-      body: cultStats.filter(s => s[1] > 0).slice(0, 10),
-      theme: 'grid',
-      headStyles: { fillColor: pColor },
-      styles: { fontSize: 9 }
-    });
-
-    doc.save(`Relatorio_Atividades_${selectedUnit}_${monthLabel.replace(' ', '_')}.pdf`);
+    try {
+      const html = generateActivityReportHTML(
+        config,
+        selectedDate,
+        chaplain,
+        stats,
+        visitDetails
+      );
+      await generatePdf(html);
+      showToast("Relatório exportado com sucesso!", "success");
+    } catch (error) {
+      showToast("Erro ao gerar PDF do relatório.", "warning");
+    }
   };
 
   return (
-    <div className="space-y-8">
-      {/* Filtros */}
-      <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 grid md:grid-cols-3 gap-6">
+    <div className="space-y-6">
+      {/* Header / Filters */}
+      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 grid md:grid-cols-3 gap-6">
         <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Unidade</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">1. Unidade</label>
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
             {[Unit.HAB, Unit.HABA].map(u => (
               <button
@@ -190,30 +131,36 @@ const ActivityReports: React.FC = () => {
         </div>
 
         <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Mês de Referência</label>
-          <div className="flex items-center justify-between bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-lg transition-all"><ChevronLeft size={16} /></button>
-            <span className="text-[10px] font-black uppercase tracking-tighter">{formatMonthLabel(selectedMonth)}</span>
-            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-lg transition-all"><ChevronRight size={16} /></button>
+          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">2. Data do Relatório</label>
+          <div className="relative">
+            <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 bg-slate-100 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+            />
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Capelão</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">3. Capelão</label>
           <div className="flex gap-2">
             <select
               value={selectedUser}
               onChange={e => setSelectedUser(e.target.value)}
-              className="flex-1 p-3 bg-slate-100 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+              disabled={!isAdmin}
+              className="flex-1 p-3 bg-slate-100 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none disabled:opacity-50"
             >
-              <option value="all">Todos os Capelães</option>
+              {isAdmin && <option value="">Todos os Capelães</option>}
               {chaplains.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
             <button
               onClick={handleExportPDF}
-              className="px-4 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all flex items-center justify-center"
+              disabled={isGeneratingPdf}
+              className="px-4 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center disabled:opacity-50"
               title="Exportar PDF"
             >
               <Download size={16} />
@@ -222,115 +169,213 @@ const ActivityReports: React.FC = () => {
         </div>
       </div>
 
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm text-center">
-          <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-3"><MapPin size={20} /></div>
-          <span className="text-2xl font-black text-slate-800 block">{stats.blueprints}</span>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Blueprints</span>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+            <TrendingUp size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Atividades</p>
+            <p className="text-2xl font-black text-slate-800">{stats.totalActivities}</p>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm text-center">
-          <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3"><Users size={20} /></div>
-          <span className="text-2xl font-black text-slate-800 block">{stats.cults}</span>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Setores</span>
+
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+            <Users size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Visitas</p>
+            <p className="text-2xl font-black text-slate-800">{stats.totalVisits}</p>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm text-center">
-          <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center mx-auto mb-3"><HeartPulse size={20} /></div>
-          <span className="text-2xl font-black text-slate-800 block">{stats.encontros}</span>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Encontros HAB</span>
+
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
+            <FileText size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Blueprint</p>
+            <p className="text-2xl font-black text-slate-800">{stats.blueprintCount}</p>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm text-center">
-          <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center mx-auto mb-3"><HeartPulse size={20} /></div>
-          <span className="text-2xl font-black text-slate-800 block">{stats.visiteCantando}</span>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Visite Cantando</span>
-        </div>
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm text-center">
-          <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center mx-auto mb-3"><HeartPulse size={20} /></div>
-          <span className="text-2xl font-black text-slate-800 block">{stats.totalVisits}</span>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Visitas Totais</span>
-        </div>
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm text-center">
-          <div className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center mx-auto mb-3"><Calendar size={20} /></div>
-          <span className="text-2xl font-black text-slate-800 block">{filteredReports.length}</span>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Dias com Relatório</span>
+
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center">
+            <MapPin size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Setores</p>
+            <p className="text-2xl font-black text-slate-800">{stats.cultCount}</p>
+          </div>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-8">
-        {/* Ranking Blueprint */}
-        <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-          <h3 className="text-sm font-black text-slate-800 uppercase tracking-tighter mb-6 flex items-center gap-2">
-            <MapPin className="text-indigo-500" size={18} /> Ranking Blueprint
+      {/* Details Section */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+          <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
+            <Users size={18} className="text-indigo-600" />
+            Distribuição de Visitas
           </h3>
-          <div className="space-y-3">
-            {blueprintStats.map(([loc, count], idx) => (
-              <div key={loc} className="flex items-center gap-4">
-                <span className="text-[10px] font-black text-slate-300 w-4">{idx + 1}</span>
-                <div className="flex-1 space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold uppercase">
-                    <span className="text-slate-600 truncate max-w-[200px]">{loc}</span>
-                    <span className="text-indigo-600">{count}</span>
-                  </div>
-                  <div className="h-1.5 bg-slate-50 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-indigo-500 rounded-full"
-                      style={{ width: `${(count / (stats.blueprints || 1)) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Ranking Cultos */}
-        <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-          <h3 className="text-sm font-black text-slate-800 uppercase tracking-tighter mb-6 flex items-center gap-2">
-            <Users className="text-emerald-500" size={18} /> Ranking Setores
-          </h3>
-          <div className="space-y-3">
-            {cultStats.map(([name, count], idx) => (
-              <div key={name} className="flex items-center gap-4">
-                <span className="text-[10px] font-black text-slate-300 w-4">{idx + 1}</span>
-                <div className="flex-1 space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold uppercase">
-                    <span className="text-slate-600 truncate max-w-[200px]">{name}</span>
-                    <span className="text-emerald-600">{count}</span>
-                  </div>
-                  <div className="h-1.5 bg-slate-50 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-emerald-500 rounded-full"
-                      style={{ width: `${(count / (stats.cults || 1)) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Detalhamento de Visitas */}
-        <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm lg:col-span-2">
-          <h3 className="text-sm font-black text-slate-800 uppercase tracking-tighter mb-6 flex items-center gap-2">
-            <HeartPulse className="text-rose-500" size={18} /> Detalhamento de Visitas
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="space-y-4">
             {[
-              { label: 'Paliativos', count: stats.palliative, color: 'rose' },
-              { label: 'Cirúrgicos', count: stats.surgical, color: 'amber' },
-              { label: 'Pediátrico', count: stats.pediatric, color: 'indigo' },
-              { label: 'UTI', count: stats.uti, color: 'emerald' },
+              { label: 'Paliativos', value: stats.palliativeCount, color: 'bg-indigo-500' },
+              { label: 'Cirúrgicos', value: stats.surgicalCount, color: 'bg-emerald-500' },
+              { label: 'Pediátricos', value: stats.pediatricCount, color: 'bg-amber-500' },
+              { label: 'UTI', value: stats.utiCount, color: 'bg-rose-500' },
             ].map(item => (
-              <div key={item.label} className="text-center space-y-2">
-                <div className={`text-3xl font-black text-${item.color}-600`}>{item.count}</div>
-                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.label}</div>
-                <div className="h-1 bg-slate-50 rounded-full overflow-hidden">
-                  <div className={`h-full bg-${item.color}-500`} style={{ width: `${(item.count / (stats.totalVisits || 1)) * 100}%` }}></div>
+              <div key={item.label} className="space-y-2">
+                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                  <span className="text-slate-500">{item.label}</span>
+                  <span className="text-slate-800">{item.value}</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full ${item.color} transition-all duration-500`} 
+                    style={{ width: `${stats.totalVisits > 0 ? (item.value / stats.totalVisits) * 100 : 0}%` }}
+                  />
                 </div>
               </div>
             ))}
           </div>
-        </section>
+        </div>
+
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+          <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
+            <FileText size={18} className="text-indigo-600" />
+            Observações Consolidadas
+          </h3>
+          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 min-h-[200px]">
+            {stats.observations ? (
+              <p className="text-xs font-medium text-slate-600 leading-relaxed italic">
+                "{stats.observations}"
+              </p>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-2">
+                <Search size={32} strokeWidth={1} />
+                <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma observação registrada</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Individual Reports Section */}
+      <div className="space-y-6">
+        <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2 ml-2">
+          <Users size={18} className="text-indigo-600" />
+          Relatórios Individuais ({filteredReports.length})
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {filteredReports.map(report => {
+            const chaplain = users.find(u => u.id === report.userId);
+            const totalVisits = (report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0);
+            
+            return (
+              <div key={report.id} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-black text-sm uppercase">
+                      {chaplain?.name?.substring(0, 2) || '??'}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">{chaplain?.name || 'Capelão Desconhecido'}</h4>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Relatório Enviado</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-widest">
+                      {totalVisits} Visitas
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-6 flex-1">
+                  {/* Visitas Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+                      <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Paliativos</p>
+                      <p className="text-sm font-black text-indigo-900">{report.palliativeCount || 0}</p>
+                    </div>
+                    <div className="p-3 bg-emerald-50/50 rounded-2xl border border-emerald-100/50">
+                      <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Cirúrgicos</p>
+                      <p className="text-sm font-black text-emerald-900">{report.surgicalCount || 0}</p>
+                    </div>
+                    <div className="p-3 bg-amber-50/50 rounded-2xl border border-amber-100/50">
+                      <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest mb-1">Pediátricos</p>
+                      <p className="text-sm font-black text-amber-900">{report.pediatricCount || 0}</p>
+                    </div>
+                    <div className="p-3 bg-rose-50/50 rounded-2xl border border-rose-100/50">
+                      <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest mb-1">UTI</p>
+                      <p className="text-sm font-black text-rose-900">{report.utiCount || 0}</p>
+                    </div>
+                  </div>
+
+                  {/* Atividades */}
+                  <div className="space-y-3">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Atividades Concluídas</p>
+                    <div className="flex flex-wrap gap-2">
+                      {report.completedBlueprints?.map((loc, idx) => (
+                        <span 
+                          key={`bp-${idx}`}
+                          className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tight border bg-indigo-50 text-indigo-600 border-indigo-100"
+                        >
+                          {loc}
+                        </span>
+                      ))}
+                      {report.completedCults?.map((sectorId, idx) => {
+                        const sectorName = proSectors.find(s => s.id === sectorId)?.name || 'Setor';
+                        return (
+                          <span 
+                            key={`cult-${idx}`}
+                            className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tight border bg-emerald-50 text-emerald-600 border-emerald-100"
+                          >
+                            {sectorName}
+                          </span>
+                        );
+                      })}
+                      {report.completedEncontro && (
+                        <span className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tight border bg-amber-50 text-amber-600 border-amber-100">
+                          Encontro HAB
+                        </span>
+                      )}
+                      {report.completedVisiteCantando && (
+                        <span className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tight border bg-rose-50 text-rose-600 border-rose-100">
+                          Visite Cantando
+                        </span>
+                      )}
+                      {(!report.completedBlueprints?.length && !report.completedCults?.length && !report.completedEncontro && !report.completedVisiteCantando) && (
+                        <span className="text-[9px] font-bold text-slate-400 italic">Nenhuma atividade registrada</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Observações */}
+                  {report.observations && (
+                    <div className="space-y-2">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações</p>
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <p className="text-[10px] font-medium text-slate-600 leading-relaxed italic">
+                          "{report.observations}"
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {filteredReports.length === 0 && (
+            <div className="col-span-full py-12 bg-white rounded-[2.5rem] border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 space-y-3">
+              <Search size={48} strokeWidth={1} />
+              <p className="text-xs font-black uppercase tracking-widest">Nenhum relatório individual encontrado</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -25,6 +25,7 @@ export const useAppData = () => {
   const [proGroupProviderMembers, setProGroupProviderMembers] = useState<ProGroupProviderMember[]>([]);
   const [activitySchedules, setActivitySchedules] = useState<ActivitySchedule[]>([]);
   const [dailyActivityReports, setDailyActivityReports] = useState<DailyActivityReport[]>([]);
+  const [bibleClassAttendees, setBibleClassAttendees] = useState<any[]>([]);
   
   const [config, setConfig] = useState<Config>(INITIAL_CONFIG);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -59,6 +60,7 @@ export const useAppData = () => {
         setProGroupProviderMembers(data.proGroupProviderMembers || []);
         setActivitySchedules(data.activitySchedules || []);
         setDailyActivityReports(data.dailyActivityReports || []);
+        setBibleClassAttendees(data.bibleClassAttendees || []);
         if (data.config) {
           setConfig(data.config);
           applySystemOverrides(data.config);
@@ -94,6 +96,7 @@ export const useAppData = () => {
         'pro_group_provider_members': 'proGroupProviderMembers',
         'activity_schedules': 'activitySchedules',
         'daily_activity_reports': 'dailyActivityReports',
+        'bible_class_attendees': 'bibleClassAttendees',
         'users': 'users',
         'app_config': 'config'
       };
@@ -136,6 +139,7 @@ export const useAppData = () => {
         else if (collection === 'proGroupProviderMembers') updateState(setProGroupProviderMembers);
         else if (collection === 'activitySchedules') updateState(setActivitySchedules);
         else if (collection === 'dailyActivityReports') updateState(setDailyActivityReports);
+        else if (collection === 'bibleClassAttendees') updateState(setBibleClassAttendees);
         else if (collection === 'users') updateState(setUsers);
         else if (collection === 'config') setConfig(camelRecord);
       } else if (eventType === 'DELETE') {
@@ -159,6 +163,7 @@ export const useAppData = () => {
         else if (collection === 'proGroupProviderMembers') removeState(setProGroupProviderMembers);
         else if (collection === 'activitySchedules') removeState(setActivitySchedules);
         else if (collection === 'dailyActivityReports') removeState(setDailyActivityReports);
+        else if (collection === 'bibleClassAttendees') removeState(setBibleClassAttendees);
         else if (collection === 'users') removeState(setUsers);
       }
     };
@@ -207,6 +212,7 @@ export const useAppData = () => {
       else if (collection === 'proGroupProviderMembers') updateState(setProGroupProviderMembers);
       else if (collection === 'activitySchedules') updateState(setActivitySchedules);
       else if (collection === 'dailyActivityReports') updateState(setDailyActivityReports);
+      else if (collection === 'bibleClassAttendees') updateState(setBibleClassAttendees);
       else if (collection === 'users') updateState(setUsers);
       else if (collection === 'config' && updatedItems[0]) setConfig(updatedItems[0]);
 
@@ -315,6 +321,7 @@ export const useAppData = () => {
       else if (collection === 'users') removeState(setUsers);
       else if (collection === 'activitySchedules') removeState(setActivitySchedules);
       else if (collection === 'dailyActivityReports') removeState(setDailyActivityReports);
+      else if (collection === 'bibleClassAttendees') removeState(setBibleClassAttendees);
     }
     return success;
   };
@@ -342,10 +349,31 @@ export const useAppData = () => {
     if (!isInitialized) { loadFromCloud(true); setIsInitialized(true); }
   }, [loadFromCloud, isInitialized]);
 
+  // Sincronização automática de estudantes nas classes bíblicas quando os participantes mudam
+  useEffect(() => {
+    setBibleClasses(prevClasses => {
+      let hasChanges = false;
+      const nextClasses = prevClasses.map(cls => {
+        const students = bibleClassAttendees
+          .filter(a => a.classId === cls.id)
+          .map(a => a.studentName);
+        
+        // Compara se a lista de estudantes mudou
+        const currentStudents = cls.students || [];
+        if (students.length !== currentStudents.length || !students.every(s => currentStudents.includes(s))) {
+          hasChanges = true;
+          return { ...cls, students };
+        }
+        return cls;
+      });
+      return hasChanges ? nextClasses : prevClasses;
+    });
+  }, [bibleClassAttendees]);
+
   return {
     users, bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests,
     proStaff, proPatients, proProviders, proSectors, proGroups, proGroupLocations, proGroupMembers, proGroupProviderMembers, 
-    activitySchedules, dailyActivityReports,
+    activitySchedules, dailyActivityReports, bibleClassAttendees,
     config, isSyncing, isConnected, 
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, syncMasterContact
   };

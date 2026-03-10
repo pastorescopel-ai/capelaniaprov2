@@ -183,8 +183,12 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tighter">
             <i className="fas fa-shield-alt text-blue-600"></i> Segurança da Conta
           </h3>
-          <p className="text-[10px] font-bold text-slate-400 uppercase leading-relaxed">Deixe os campos abaixo em branco para manter sua senha atual.</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase leading-relaxed">Deixe os campos de nova senha em branco para manter sua senha atual.</p>
           <div className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Senha Atual (Obrigatória para mudanças)</label>
+              <input type="password" value={passData.current} onChange={e => setPassData({...passData, current: e.target.value})} className="w-full p-4 rounded-2xl bg-white border-none focus:ring-2 focus:ring-blue-500 font-bold" placeholder="Digite sua senha atual para confirmar" />
+            </div>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nova Senha</label>

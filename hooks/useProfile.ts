@@ -78,6 +78,17 @@ export const useProfile = ({ user, onUpdateUser }: UseProfileProps) => {
     const updatedUser = { ...user, name, profilePic };
     
     if (passData.new || passData.confirm) {
+      if (!passData.current) {
+        showToast('Você deve informar sua senha atual para definir uma nova!', "error");
+        return;
+      }
+
+      const currentHash = await hashPassword(passData.current.trim());
+      if (currentHash !== user.password) {
+        showToast('A senha atual informada está incorreta.', "error");
+        return;
+      }
+
       if (passData.new !== passData.confirm) {
         showToast('As novas senhas digitadas não coincidem!', "error");
         return;
