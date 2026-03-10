@@ -28,9 +28,6 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
   handleUniversalMerge, isProcessing
 }) => {
   const { showToast } = useToast();
-  const [sourceInput, setSourceInput] = useState('');
-  const [targetInput, setTargetInput] = useState('');
-
   const getOptions = React.useCallback((type: PersonType) => {
     if (type === 'Colaborador' || type === 'Ex-Colaborador') return officialStaffOptions;
     if (type === 'Paciente') return officialPatientOptions;
@@ -43,27 +40,14 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
     return opt ? opt.label : '';
   }, [getOptions]);
 
-  // Sincroniza o input com o ID selecionado quando o tipo muda ou quando limpa
-  useEffect(() => {
-      if (!mergeSourceId) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setSourceInput(prev => prev === '' ? prev : '');
-      } else {
-          const label = getLabel(mergeSourceType, mergeSourceId);
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setSourceInput(prev => prev === label ? prev : label);
-      }
+  const sourceInput = useMemo(() => {
+    if (!mergeSourceId) return '';
+    return getLabel(mergeSourceType, mergeSourceId);
   }, [mergeSourceId, mergeSourceType, getLabel]);
 
-  useEffect(() => {
-      if (!mergeTargetId) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setTargetInput(prev => prev === '' ? prev : '');
-      } else {
-          const label = getLabel(mergeTargetType, mergeTargetId);
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setTargetInput(prev => prev === label ? prev : label);
-      }
+  const targetInput = useMemo(() => {
+    if (!mergeTargetId) return '';
+    return getLabel(mergeTargetType, mergeTargetId);
   }, [mergeTargetId, mergeTargetType, getLabel]);
 
   const handleMerge = () => {

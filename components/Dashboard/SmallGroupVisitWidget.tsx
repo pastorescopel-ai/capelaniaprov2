@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { User, VisitRequest, SmallGroup, UserRole } from '../../types';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../hooks/useApp';
 import { useToast } from '../../contexts/ToastContext';
 
 interface SmallGroupVisitWidgetProps {

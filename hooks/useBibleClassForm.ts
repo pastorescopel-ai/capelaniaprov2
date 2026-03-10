@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Unit, RecordStatus, BibleClass, ParticipantType, User } from '../types';
 import { useToast } from '../contexts/ToastContext';
-import { useApp } from '../contexts/AppContext';
+import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp } from '../utils/formatters';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';

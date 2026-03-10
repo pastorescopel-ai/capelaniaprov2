@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { User, VisitRequest, UserRole } from '../types';
-import { useApp } from '../contexts/AppContext';
+import { useApp } from '../hooks/useApp';
 import { useToast } from '../contexts/ToastContext';
 import { usePGInference } from './usePGInference';
 

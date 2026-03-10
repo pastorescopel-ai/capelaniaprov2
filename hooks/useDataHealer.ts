@@ -1,4 +1,4 @@
-import { useApp } from '../contexts/AppContext';
+import { useApp } from '../hooks/useApp';
 import { useHealerState } from './healer/useHealerState';
 import { useHealerCalculations } from './healer/useHealerCalculations';
 import { useHealerActions } from './healer/useHealerActions';

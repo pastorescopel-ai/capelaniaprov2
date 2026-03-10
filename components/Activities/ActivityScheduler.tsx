@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { Unit, UserRole, ActivitySchedule } from '../../types';
 import { useToast } from '../../contexts/ToastContext';

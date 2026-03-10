@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState } from 'react';
 import { User } from '../types';
-import { useApp } from './AppContext';
+import { useApp } from '../hooks/useApp';
 import { hashPassword } from '../utils/crypto';
 import { DataRepository } from '../services/dataRepository';
 

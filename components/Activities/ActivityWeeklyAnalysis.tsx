@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { Unit } from '../../types';
 import { Calendar, MapPin, Users, HeartPulse, TrendingUp } from 'lucide-react';

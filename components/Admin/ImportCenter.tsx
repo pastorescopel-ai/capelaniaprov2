@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../hooks/useApp';
 import { useToast } from '../../contexts/ToastContext';
 import AdminLists from './AdminLists';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';

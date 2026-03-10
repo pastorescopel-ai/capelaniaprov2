@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Unit, ProGroup } from '../types';
-import { useApp } from '../contexts/AppContext';
+import { useApp } from '../hooks/useApp';
 import { useToast } from '../contexts/ToastContext';
 import { usePGMembershipData } from './usePGMembershipData';
 

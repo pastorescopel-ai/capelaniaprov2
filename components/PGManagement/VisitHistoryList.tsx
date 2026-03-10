@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { VisitRequest, User, UserRole } from '../../types';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../hooks/useApp';
 
 interface VisitHistoryListProps {
   requests: VisitRequest[];

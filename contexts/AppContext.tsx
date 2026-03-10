@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, ReactNode } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { useDataMaintenance } from '../hooks/useDataMaintenance';
 import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ParticipantType, Unit, ActivitySchedule, DailyActivityReport } from '../types';
@@ -48,7 +48,7 @@ interface AppContextType {
   bulkHealAttendees: () => Promise<string>;
 }
 
-const AppContext = createContext<AppContextType | undefined>(undefined);
+export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const appData = useAppData();
@@ -68,10 +68,4 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       {children}
     </AppContext.Provider>
   );
-};
-
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (!context) throw new Error('useApp deve ser usado dentro de um AppProvider');
-  return context;
 };

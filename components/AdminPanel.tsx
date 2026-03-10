@@ -5,7 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import AdminConfig from './Admin/AdminConfig';
 import AdminLists from './Admin/AdminLists';
 import AdminDataTools from './Admin/AdminDataTools';
-import { useApp } from '../contexts/AppContext';
+import { useApp } from '../hooks/useApp';
 import { useAuth } from '../contexts/AuthContext';
 
 const AdminPanel: React.FC = () => {

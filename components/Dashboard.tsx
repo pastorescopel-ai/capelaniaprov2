@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole, Config } from '../types';
-import { useApp } from '../contexts/AppContext';
+import { useApp } from '../hooks/useApp';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import Mural from './Dashboard/Mural';
 import StatCards from './Dashboard/StatCards';

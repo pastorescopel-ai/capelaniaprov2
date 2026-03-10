@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../hooks/useApp';
 import { Unit } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import { Upload, Users, FileText, Printer } from 'lucide-react';
@@ -55,28 +55,16 @@ const AmbassadorsManager: React.FC = () => {
   };
 
   // Filtros de Relatório
-  const [reportStartDate, setReportStartDate] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  });
-  const [reportEndDate, setReportEndDate] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-  });
-  const [reportSectorId, setReportSectorId] = useState<string>('all');
-  const [reportSortOrder, setReportSortOrder] = useState<'alpha' | 'percent'>('alpha');
-  const [reportFilterCritical, setReportFilterCritical] = useState(false);
-
-  // Sincronizar datas do relatório com o mês selecionado no cabeçalho
-  useEffect(() => {
+  const { reportStartDate, reportEndDate } = useMemo(() => {
     const d = new Date(selectedMonth + 'T12:00:00');
     const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
     const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setReportStartDate(start);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setReportEndDate(end);
+    return { reportStartDate: start, reportEndDate: end };
   }, [selectedMonth]);
+
+  const [reportSectorId, setReportSectorId] = useState<string>('all');
+  const [reportSortOrder, setReportSortOrder] = useState<'alpha' | 'percent'>('alpha');
+  const [reportFilterCritical, setReportFilterCritical] = useState(false);
 
   // --- GERAÇÃO DE PDF ---
   const handleGeneratePDF = async (mode: 'sector' | 'full') => {

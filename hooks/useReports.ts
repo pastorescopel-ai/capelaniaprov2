@@ -4,7 +4,7 @@ import { useReportLogic } from './useReportLogic';
 import { resolveDynamicName, normalizeString } from '../utils/formatters';
 import { generateExecutiveHTML } from '../utils/pdfTemplates';
 import { useDocumentGenerator } from './useDocumentGenerator';
-import { useApp } from '../contexts/AppContext';
+import { useApp } from '../hooks/useApp';
 import { getBrandedHeaderByProfile } from '../utils/reportTemplates';
 
 interface UseReportsProps {

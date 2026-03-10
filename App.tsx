@@ -6,7 +6,7 @@ import Login from './components/Login';
 import ConfirmationModal from './components/Shared/ConfirmationModal';
 import MainContent from './components/MainContent';
 import { Unit } from './types/enums';
-import { useApp } from './contexts/AppContext';
+import { useApp } from './hooks/useApp';
 import { useAuth } from './contexts/AuthContext';
 import { useAppFlow } from './hooks/useAppFlow';
 
@@ -163,12 +163,6 @@ const App: React.FC = () => {
           activeTab={activeTab}
           visitedTabs={visitedTabs}
           currentUser={currentUser}
-          users={users}
-          bibleStudies={bibleStudies}
-          bibleClasses={bibleClasses}
-          smallGroups={smallGroups}
-          staffVisits={staffVisits}
-          config={config}
           currentUnit={currentUnit}
           unitSectors={unitSectors}
           editingItem={editingItem}
@@ -177,14 +171,11 @@ const App: React.FC = () => {
           setCurrentUnit={setCurrentUnit}
           setEditingItem={setEditingItem}
           setItemToDelete={setItemToDelete}
-          saveToCloud={saveToCloud}
-          saveRecord={saveRecord}
           updateCurrentUser={updateCurrentUser}
           handleSaveItem={handleSaveItem}
           onRegisterMission={handleRegisterMission}
           onGoToReturnHistory={handleGoToReturnHistory}
           getVisibleHistory={getVisibleHistory}
-          loadFromCloud={loadFromCloud}
         />
 
       </div>

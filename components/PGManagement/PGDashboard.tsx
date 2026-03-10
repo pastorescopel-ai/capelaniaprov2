@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Unit } from '../../types';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../hooks/useApp';
 import { normalizeString } from '../../utils/formatters';
 
 interface PGDashboardProps {

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import ActivityScheduler from './ActivityScheduler';

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { useApp } from '../contexts/AppContext';
+import { useApp } from '../hooks/useApp';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { UserRole, VisitRequest } from '../types';

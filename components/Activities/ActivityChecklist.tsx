@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { Unit, DailyActivityReport, UserRole } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
