@@ -47,6 +47,8 @@ async function startServer() {
           const injection = `<script>window.__SUPABASE_CONFIG__ = ${JSON.stringify(config)}</script>`;
           html = html.replace(/<!--\s*CONFIG_INJECTION\s*-->/, injection);
           
+          console.log("DEBUG: HTML being sent to browser (first 500 chars):", html.substring(0, 500));
+          
           return res.status(200).set({ "Content-Type": "text/html" }).end(html);
         } catch (e) {
           vite.ssrFixStacktrace(e as Error);
