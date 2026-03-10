@@ -187,13 +187,46 @@ const ActivityScheduler: React.FC = () => {
     }
   };
 
-  const handleDeleteSchedule = async (id: string) => {
-    if (!window.confirm("Deseja remover este agendamento?")) return;
+  const handleDeleteSchedule = async (schedule: ActivitySchedule) => {
+    const isRecurring = filteredSchedules.filter(s => 
+      s.userId === schedule.userId && 
+      s.activityType === schedule.activityType && 
+      s.location === schedule.location
+    ).length > 1;
+
+    let toDeleteIds = [schedule.id];
+
+    if (isRecurring) {
+      const deleteType = window.prompt(
+        "Este agendamento se repete em outros dias neste mês.\n\n" +
+        "Digite '1' para apagar SOMENTE DESTE DIA.\n" +
+        "Digite '2' para apagar DE TODOS OS DIAS deste mês.\n" +
+        "Deixe em branco ou cancele para não apagar nada."
+      );
+
+      if (deleteType === '2') {
+        toDeleteIds = filteredSchedules
+          .filter(s => 
+            s.userId === schedule.userId && 
+            s.activityType === schedule.activityType && 
+            s.location === schedule.location
+          )
+          .map(s => s.id);
+      } else if (deleteType !== '1') {
+        return; // Cancelled or invalid input
+      }
+    } else {
+      if (!window.confirm("Deseja remover este agendamento?")) return;
+    }
     
     setIsSaving(true);
     try {
-      await deleteRecord('activitySchedules', id);
-      showToast("Agendamento removido.", "success");
+      // Delete sequentially or implement a batch delete if available.
+      // Assuming deleteRecord takes one ID at a time based on current usage.
+      for (const id of toDeleteIds) {
+        await deleteRecord('activitySchedules', id);
+      }
+      showToast(toDeleteIds.length > 1 ? "Agendamentos removidos." : "Agendamento removido.", "success");
     } catch (error) {
       showToast("Erro ao remover agendamento.", "warning");
     } finally {
@@ -349,7 +382,7 @@ const ActivityScheduler: React.FC = () => {
                               )}
                             </div>
                           </div>
-                          <button onClick={() => handleDeleteSchedule(s.id)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
+                          <button onClick={() => handleDeleteSchedule(s)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
                             <Trash2 size={10} />
                           </button>
                         </div>
@@ -384,7 +417,7 @@ const ActivityScheduler: React.FC = () => {
                               )}
                             </div>
                           </div>
-                          <button onClick={() => handleDeleteSchedule(s.id)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
+                          <button onClick={() => handleDeleteSchedule(s)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
                             <Trash2 size={10} />
                           </button>
                         </div>
@@ -420,7 +453,7 @@ const ActivityScheduler: React.FC = () => {
                               )}
                             </div>
                           </div>
-                          <button onClick={() => handleDeleteSchedule(s.id)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
+                          <button onClick={() => handleDeleteSchedule(s)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
                             <Trash2 size={10} />
                           </button>
                         </div>
@@ -453,7 +486,7 @@ const ActivityScheduler: React.FC = () => {
                               )}
                             </div>
                           </div>
-                          <button onClick={() => handleDeleteSchedule(s.id)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
+                          <button onClick={() => handleDeleteSchedule(s)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
                             <Trash2 size={10} />
                           </button>
                         </div>
