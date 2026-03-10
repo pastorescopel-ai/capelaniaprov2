@@ -83,7 +83,13 @@ async function startServer() {
         if (fs.existsSync(indexPath)) {
           let html = fs.readFileSync(indexPath, "utf-8");
           const config = getConfig();
-          const injection = `<script>window.__SUPABASE_CONFIG__ = ${JSON.stringify(config)}</script>`;
+          const injection = `<script>
+            window.__SUPABASE_CONFIG__ = ${JSON.stringify(config)};
+            console.log("DEBUG PROD: Injected Supabase Config:", {
+              hasUrl: !!config.supabaseUrl,
+              hasKey: !!config.supabaseKey
+            });
+          </script>`;
           const replaced = html.replace(/<!--\s*CONFIG_INJECTION\s*-->/, injection);
           if (replaced === html) {
             console.warn("⚠️ CONFIG_INJECTION placeholder not found in production index.html");
