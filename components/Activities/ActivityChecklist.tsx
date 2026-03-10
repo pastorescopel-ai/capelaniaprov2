@@ -105,6 +105,17 @@ const ActivityChecklist: React.FC = () => {
     setReport({ ...report, [field]: newVal });
   };
 
+  const handleCountChange = (field: keyof DailyActivityReport, value: string) => {
+    if (value === '') {
+      setReport({ ...report, [field]: 0 });
+      return;
+    }
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num >= 0) {
+      setReport({ ...report, [field]: num });
+    }
+  };
+
   const handleSave = async () => {
     if (!selectedUser) {
       showToast("Selecione um usuário.", "warning");
@@ -331,37 +342,57 @@ const ActivityChecklist: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Paliativos</span>
-                  <div className="flex items-center justify-between bg-white rounded-xl p-1 border border-slate-200">
-                    <button onClick={() => updateCount('palliativeCount', -1)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 transition-all"><Minus size={14} /></button>
-                    <span className="font-black text-slate-700">{report.palliativeCount || 0}</span>
-                    <button onClick={() => updateCount('palliativeCount', 1)} className="p-2 hover:bg-slate-100 rounded-lg text-indigo-600 transition-all"><Plus size={14} /></button>
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <input 
+                      type="number" 
+                      min="0"
+                      value={report.palliativeCount || 0} 
+                      onChange={(e) => handleCountChange('palliativeCount', e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
+                    />
                   </div>
                 </div>
 
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Cirúrgicos</span>
-                  <div className="flex items-center justify-between bg-white rounded-xl p-1 border border-slate-200">
-                    <button onClick={() => updateCount('surgicalCount', -1)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 transition-all"><Minus size={14} /></button>
-                    <span className="font-black text-slate-700">{report.surgicalCount || 0}</span>
-                    <button onClick={() => updateCount('surgicalCount', 1)} className="p-2 hover:bg-slate-100 rounded-lg text-emerald-600 transition-all"><Plus size={14} /></button>
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <input 
+                      type="number" 
+                      min="0"
+                      value={report.surgicalCount || 0} 
+                      onChange={(e) => handleCountChange('surgicalCount', e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
+                    />
                   </div>
                 </div>
 
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Pediátrico</span>
-                  <div className="flex items-center justify-between bg-white rounded-xl p-1 border border-slate-200">
-                    <button onClick={() => updateCount('pediatricCount', -1)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 transition-all"><Minus size={14} /></button>
-                    <span className="font-black text-slate-700">{report.pediatricCount || 0}</span>
-                    <button onClick={() => updateCount('pediatricCount', 1)} className="p-2 hover:bg-slate-100 rounded-lg text-amber-600 transition-all"><Plus size={14} /></button>
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <input 
+                      type="number" 
+                      min="0"
+                      value={report.pediatricCount || 0} 
+                      onChange={(e) => handleCountChange('pediatricCount', e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
+                    />
                   </div>
                 </div>
 
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">UTI</span>
-                  <div className="flex items-center justify-between bg-white rounded-xl p-1 border border-slate-200">
-                    <button onClick={() => updateCount('utiCount', -1)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 transition-all"><Minus size={14} /></button>
-                    <span className="font-black text-slate-700">{report.utiCount || 0}</span>
-                    <button onClick={() => updateCount('utiCount', 1)} className="p-2 hover:bg-slate-100 rounded-lg text-rose-600 transition-all"><Plus size={14} /></button>
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <input 
+                      type="number" 
+                      min="0"
+                      value={report.utiCount || 0} 
+                      onChange={(e) => handleCountChange('utiCount', e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
+                    />
                   </div>
                 </div>
               </div>
