@@ -1,8 +1,17 @@
 
 import { UserRole, Config, Unit, RecordStatus } from './types';
 
-export const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || "";
-export const SUPABASE_KEY = (import.meta as any).env?.VITE_SUPABASE_KEY || "";
+declare global {
+  interface Window {
+    __SUPABASE_CONFIG__?: {
+      supabaseUrl: string;
+      supabaseKey: string;
+    };
+  }
+}
+
+export const SUPABASE_URL = window.__SUPABASE_CONFIG__?.supabaseUrl || (import.meta as any).env?.VITE_SUPABASE_URL || "";
+export const SUPABASE_KEY = window.__SUPABASE_CONFIG__?.supabaseKey || (import.meta as any).env?.VITE_SUPABASE_KEY || "";
 
 /**
  * DEFAULT_APP_LOGO movido para importação direta de assets.ts

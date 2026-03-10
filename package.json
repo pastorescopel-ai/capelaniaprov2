@@ -3,7 +3,7 @@
   "version": "4.2.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint ."
@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.1",
+    "@types/express": "^5.0.6",
+    "express": "^5.2.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^5.0.7",
@@ -23,6 +25,7 @@
     "react-dom": "^18.3.1",
     "react-easy-crop": "^5.5.6",
     "recharts": "^2.12.7",
+    "tsx": "^4.21.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
