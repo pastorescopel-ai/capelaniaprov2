@@ -29,7 +29,8 @@ const ActivityWeeklyAnalysis: React.FC = () => {
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek);
       d.setDate(startOfWeek.getDate() + i);
-      dates.push(d.toISOString().split('T')[0]);
+      const offset = d.getTimezoneOffset() * 60000;
+      dates.push(new Date(d.getTime() - offset).toISOString().split('T')[0]);
     }
     return dates;
   }, [startOfWeek]);
@@ -42,7 +43,9 @@ const ActivityWeeklyAnalysis: React.FC = () => {
   }, [dailyActivityReports, currentUser?.id, weekDates]);
 
   const weekSchedules = useMemo(() => {
-    const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const offset = firstDay.getTimezoneOffset() * 60000;
+    const currentMonth = new Date(firstDay.getTime() - offset).toISOString().split('T')[0];
     return activitySchedules.filter(s => 
       s.userId === currentUser?.id && 
       s.month === currentMonth

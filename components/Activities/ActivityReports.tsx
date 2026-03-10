@@ -13,7 +13,9 @@ const ActivityReports: React.FC = () => {
   const [selectedUnit, setSelectedUnit] = useState<Unit>(Unit.HAB);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const offset = firstDay.getTimezoneOffset() * 60000;
+    return new Date(firstDay.getTime() - offset).toISOString().split('T')[0];
   });
   const [selectedUser, setSelectedUser] = useState<string>('all');
 

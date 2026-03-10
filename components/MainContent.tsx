@@ -218,7 +218,7 @@ const MainContent: React.FC<MainContentProps> = ({
       {visitedTabs.has('activities') && (
         <div className={getTabClass('activities')}>
           <Suspense fallback={<TabLoading />}>
-            <ActivityManager />
+            <ActivityManager isActive={activeTab === 'activities'} />
           </Suspense>
         </div>
       )}

@@ -12,7 +12,11 @@ const ActivityChecklist: React.FC = () => {
   
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().split('T')[0];
+  });
   const [selectedUser, setSelectedUser] = useState<string>(isAdmin ? (currentUser?.id || '') : (currentUser?.id || ''));
   const [isSaving, setIsSaving] = useState(false);
 
@@ -57,8 +61,7 @@ const ActivityChecklist: React.FC = () => {
   const currentDayOfWeek = useMemo(() => new Date(selectedDate + 'T12:00:00').getDay(), [selectedDate]);
   
   const currentMonth = useMemo(() => {
-    const d = new Date(selectedDate + 'T12:00:00');
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    return selectedDate.substring(0, 7) + '-01';
   }, [selectedDate]);
 
   const scheduledActivities = useMemo(() => 

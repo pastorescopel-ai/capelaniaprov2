@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
@@ -9,9 +9,20 @@ import ActivityChecklist from './ActivityChecklist';
 import ActivityReports from './ActivityReports';
 import { Calendar, CheckCircle, BarChart3, TrendingUp, CheckSquare } from 'lucide-react';
 
-const ActivityManager: React.FC = () => {
+interface ActivityManagerProps {
+  isActive?: boolean;
+}
+
+const ActivityManager: React.FC<ActivityManagerProps> = ({ isActive }) => {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'analysis' | 'checklist' | 'scheduler' | 'reports'>('checklist');
+
+  useEffect(() => {
+    if (isActive) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTab('checklist');
+    }
+  }, [isActive]);
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
