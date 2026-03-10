@@ -51,7 +51,15 @@ async function startServer() {
           html = await vite.transformIndexHtml(req.url, html);
           
           const config = getConfig();
-          const injection = `<script>window.__SUPABASE_CONFIG__ = ${JSON.stringify(config)}</script>`;
+          const injection = `<script>
+            window.__SUPABASE_CONFIG__ = ${JSON.stringify(config)};
+            console.log("DEBUG: Injected Supabase Config:", {
+              hasUrl: !!config.supabaseUrl,
+              hasKey: !!config.supabaseKey,
+              urlLength: config.supabaseUrl?.length,
+              keyLength: config.supabaseKey?.length
+            });
+          </script>`;
           html = html.replace(/<!--\s*CONFIG_INJECTION\s*-->/, injection);
           
           console.log("DEBUG: HTML being sent to browser (first 500 chars):", html.substring(0, 500));
