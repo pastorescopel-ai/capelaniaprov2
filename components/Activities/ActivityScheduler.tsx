@@ -58,6 +58,11 @@ const ActivityScheduler: React.FC = () => {
     [activitySchedules, selectedUnit, selectedMonth, selectedUser]
   );
 
+  const globalSchedulesForMonth = useMemo(() => 
+    activitySchedules.filter(s => s.unit === selectedUnit && s.month === selectedMonth),
+    [activitySchedules, selectedUnit, selectedMonth]
+  );
+
   const handleOpenAddModal = (dayOfWeek: number, type: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando') => {
     if (!selectedUser) {
       showToast("Selecione um capelão primeiro.", "warning");
@@ -73,7 +78,7 @@ const ActivityScheduler: React.FC = () => {
 
     if (type === 'cult') {
       setSectorSelections([]);
-      setCurrentSector(sectors.length > 0 ? sectors[0].id : '');
+      setCurrentSector('');
       setCurrentSectorTime('');
     }
   };
@@ -124,17 +129,33 @@ const ActivityScheduler: React.FC = () => {
         }
       });
 
-      const toSave = newSchedules.filter(ns => !filteredSchedules.some(s => 
-        s.userId === ns.userId && 
-        s.dayOfWeek === ns.dayOfWeek && 
-        s.activityType === ns.activityType && 
-        s.location === ns.location
-      ));
+      const toSave = newSchedules.filter(ns => {
+        if (ns.activityType === 'blueprint' || ns.activityType === 'cult') {
+          const conflict = globalSchedulesForMonth.find(s => 
+            s.dayOfWeek === ns.dayOfWeek && 
+            s.activityType === ns.activityType && 
+            s.location === ns.location
+          );
+          return !conflict;
+        } else {
+          const conflict = filteredSchedules.find(s => 
+            s.userId === ns.userId && 
+            s.dayOfWeek === ns.dayOfWeek && 
+            s.activityType === ns.activityType && 
+            s.location === ns.location
+          );
+          return !conflict;
+        }
+      });
 
       if (toSave.length === 0) {
-        showToast("Todas as atividades selecionadas já estão agendadas.", "warning");
+        showToast("Todas as atividades selecionadas já estão agendadas por você ou outro capelão.", "warning");
         setIsSaving(false);
         return;
+      }
+
+      if (toSave.length < newSchedules.length) {
+        showToast("Algumas atividades foram ignoradas pois já estavam agendadas por outro capelão.", "warning");
       }
 
       await saveRecord('activitySchedules', toSave.length === 1 ? toSave[0] : toSave);
@@ -525,19 +546,37 @@ const ActivityScheduler: React.FC = () => {
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Locais (Selecione um ou mais)</label>
                   <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1 no-scrollbar">
-                    {BLUEPRINT_LOCATIONS.map(loc => (
-                      <button
-                        key={loc}
-                        onClick={() => toggleLocation(loc)}
-                        className={`p-3 rounded-xl text-[10px] font-bold uppercase text-left transition-all border-2 ${
-                          selectedLocations.includes(loc)
-                            ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
-                            : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'
-                        }`}
-                      >
-                        {loc}
-                      </button>
-                    ))}
+                    {BLUEPRINT_LOCATIONS.map(loc => {
+                      const conflictingSchedule = globalSchedulesForMonth.find(s => 
+                        s.activityType === 'blueprint' && 
+                        s.location === loc && 
+                        selectedDays.includes(s.dayOfWeek)
+                      );
+                      const isBlocked = !!conflictingSchedule;
+                      const blockedBy = conflictingSchedule ? chaplains.find(c => c.id === conflictingSchedule.userId)?.name : null;
+
+                      return (
+                        <button
+                          key={loc}
+                          onClick={() => !isBlocked && toggleLocation(loc)}
+                          disabled={isBlocked}
+                          className={`p-3 rounded-xl text-[10px] font-bold uppercase text-left transition-all border-2 flex flex-col gap-1 ${
+                            isBlocked
+                              ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                              : selectedLocations.includes(loc)
+                                ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                                : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'
+                          }`}
+                        >
+                          <span>{loc}</span>
+                          {isBlocked && (
+                            <span className="text-[8px] text-rose-500 font-black tracking-tighter">
+                              Bloqueado: {blockedBy || 'Outro Capelão'}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -552,9 +591,22 @@ const ActivityScheduler: React.FC = () => {
                         onChange={e => setCurrentSector(e.target.value)}
                         className="w-full p-3 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500/20 outline-none"
                       >
-                        {sectors.map(sec => (
-                          <option key={sec.id} value={sec.id}>{sec.name}</option>
-                        ))}
+                        <option value="">Selecione um setor...</option>
+                        {sectors.map(sec => {
+                          const conflictingSchedule = globalSchedulesForMonth.find(s => 
+                            s.activityType === 'cult' && 
+                            s.location === sec.id && 
+                            selectedDays.includes(s.dayOfWeek)
+                          );
+                          const isBlocked = !!conflictingSchedule;
+                          const blockedBy = conflictingSchedule ? chaplains.find(c => c.id === conflictingSchedule.userId)?.name : null;
+
+                          return (
+                            <option key={sec.id} value={sec.id} disabled={isBlocked}>
+                              {sec.name} {isBlocked ? `(Bloqueado: ${blockedBy || 'Outro Capelão'})` : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                     <div className="w-24 space-y-2">
@@ -570,6 +622,7 @@ const ActivityScheduler: React.FC = () => {
                       onClick={() => {
                         if (currentSector) {
                           setSectorSelections(prev => [...prev, { location: currentSector, time: currentSectorTime }]);
+                          setCurrentSector('');
                           setCurrentSectorTime('');
                         }
                       }}
