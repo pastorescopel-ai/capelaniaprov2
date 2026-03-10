@@ -32,6 +32,7 @@ const ActivityScheduler: React.FC = () => {
   const [sectorSelections, setSectorSelections] = useState<{location: string, time: string}[]>([]);
   const [currentSector, setCurrentSector] = useState('');
   const [currentSectorTime, setCurrentSectorTime] = useState('');
+  const [deletingSchedule, setDeletingSchedule] = useState<ActivitySchedule | null>(null);
 
   const chaplains = useMemo(() => {
     const all = users.filter(u => u.role === UserRole.CHAPLAIN || u.role === UserRole.INTERN || u.role === UserRole.ADMIN);
@@ -187,50 +188,35 @@ const ActivityScheduler: React.FC = () => {
     }
   };
 
-  const handleDeleteSchedule = async (schedule: ActivitySchedule) => {
-    const isRecurring = filteredSchedules.filter(s => 
-      s.userId === schedule.userId && 
-      s.activityType === schedule.activityType && 
-      s.location === schedule.location
-    ).length > 1;
+  const handleDeleteSchedule = (schedule: ActivitySchedule) => {
+    setDeletingSchedule(schedule);
+  };
 
+  const confirmDeleteSchedule = async (deleteType: 'single' | 'all') => {
+    if (!deletingSchedule) return;
+
+    const schedule = deletingSchedule;
     let toDeleteIds = [schedule.id];
 
-    if (isRecurring) {
-      const deleteType = window.prompt(
-        "Este agendamento se repete em outros dias neste mês.\n\n" +
-        "Digite '1' para apagar SOMENTE DESTE DIA.\n" +
-        "Digite '2' para apagar DE TODOS OS DIAS deste mês.\n" +
-        "Deixe em branco ou cancele para não apagar nada."
-      );
-
-      if (deleteType === '2') {
-        toDeleteIds = filteredSchedules
-          .filter(s => 
-            s.userId === schedule.userId && 
-            s.activityType === schedule.activityType && 
-            s.location === schedule.location
-          )
-          .map(s => s.id);
-      } else if (deleteType !== '1') {
-        return; // Cancelled or invalid input
-      }
-    } else {
-      if (!window.confirm("Deseja remover este agendamento?")) return;
+    if (deleteType === 'all') {
+      toDeleteIds = filteredSchedules
+        .filter(s => 
+          s.userId === schedule.userId && 
+          s.activityType === schedule.activityType && 
+          s.location === schedule.location
+        )
+        .map(s => s.id);
     }
     
     setIsSaving(true);
     try {
-      // Delete sequentially or implement a batch delete if available.
-      // Assuming deleteRecord takes one ID at a time based on current usage.
-      for (const id of toDeleteIds) {
-        await deleteRecord('activitySchedules', id);
-      }
+      await Promise.all(toDeleteIds.map(id => deleteRecord('activitySchedules', id)));
       showToast(toDeleteIds.length > 1 ? "Agendamentos removidos." : "Agendamento removido.", "success");
     } catch (error) {
       showToast("Erro ao remover agendamento.", "warning");
     } finally {
       setIsSaving(false);
+      setDeletingSchedule(null);
     }
   };
 
@@ -646,6 +632,82 @@ const ActivityScheduler: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {deletingSchedule && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-8 space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-black text-rose-600 uppercase tracking-tighter">Remover Agendamento</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                {deletingSchedule.location}
+              </p>
+            </div>
+
+            {filteredSchedules.filter(s => 
+              s.userId === deletingSchedule.userId && 
+              s.activityType === deletingSchedule.activityType && 
+              s.location === deletingSchedule.location
+            ).length > 1 ? (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600 text-center font-medium">
+                  Este agendamento se repete em outros dias neste mês. O que você deseja fazer?
+                </p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => confirmDeleteSchedule('single')}
+                    disabled={isSaving}
+                    className="w-full py-4 bg-rose-50 text-rose-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-rose-100 transition-all disabled:opacity-50"
+                  >
+                    Apagar SOMENTE deste dia
+                  </button>
+                  <button
+                    onClick={() => confirmDeleteSchedule('all')}
+                    disabled={isSaving}
+                    className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-rose-700 shadow-lg shadow-rose-900/20 transition-all disabled:opacity-50"
+                  >
+                    Apagar de TODOS os dias do mês
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600 text-center font-medium">
+                  Tem certeza que deseja remover este agendamento?
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setDeletingSchedule(null)}
+                    className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => confirmDeleteSchedule('single')}
+                    disabled={isSaving}
+                    className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-rose-700 shadow-lg shadow-rose-900/20 transition-all disabled:opacity-50"
+                  >
+                    {isSaving ? 'Removendo...' : 'Remover'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {filteredSchedules.filter(s => 
+              s.userId === deletingSchedule.userId && 
+              s.activityType === deletingSchedule.activityType && 
+              s.location === deletingSchedule.location
+            ).length > 1 && (
+              <div className="pt-2">
+                <button
+                  onClick={() => setDeletingSchedule(null)}
+                  className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

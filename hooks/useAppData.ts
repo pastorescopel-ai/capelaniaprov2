@@ -313,6 +313,8 @@ export const useAppData = () => {
       else if (collection === 'proGroupMembers') removeState(setProGroupMembers);
       else if (collection === 'proGroupProviderMembers') removeState(setProGroupProviderMembers);
       else if (collection === 'users') removeState(setUsers);
+      else if (collection === 'activitySchedules') removeState(setActivitySchedules);
+      else if (collection === 'dailyActivityReports') removeState(setDailyActivityReports);
     }
     return success;
   };
