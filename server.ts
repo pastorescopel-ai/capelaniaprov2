@@ -11,6 +11,12 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Log de todas as requisições
+  app.use((req, res, next) => {
+    console.log(`DEBUG: Request received: ${req.url}`);
+    next();
+  });
+
   const getConfig = () => ({
     supabaseUrl: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "",
     supabaseKey: process.env.VITE_SUPABASE_KEY || process.env.SUPABASE_KEY || "",
