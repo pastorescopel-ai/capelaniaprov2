@@ -21,6 +21,15 @@ async function startServer() {
     res.json(getConfig());
   });
 
+  // API para debug
+  app.get("/api/debug", (req, res) => {
+    res.json({
+      hasUrl: !!(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL),
+      hasKey: !!(process.env.VITE_SUPABASE_KEY || process.env.SUPABASE_KEY),
+      envKeys: Object.keys(process.env).filter(k => k.includes("SUPABASE")),
+    });
+  });
+
   // Middleware do Vite para desenvolvimento
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -29,7 +38,7 @@ async function startServer() {
     });
 
     app.use(async (req, res, next) => {
-      if (req.url === "/" || req.url === "/index.html") {
+      if (req.url === '/' || req.url.endsWith('.html')) {
         try {
           let html = fs.readFileSync(path.join(__dirname, "index.html"), "utf-8");
           html = await vite.transformIndexHtml(req.url, html);
