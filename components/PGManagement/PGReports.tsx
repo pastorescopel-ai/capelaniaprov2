@@ -54,10 +54,13 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
     const data = sectors.map(sector => {
         const sectorIdClean = cleanId(sector.id);
         
-        // Filtra colaboradores que já estavam na unidade no período
+        // Filtra colaboradores ativos no período (Temporal Accuracy)
         const staff = proStaff.filter(s => 
           cleanId(s.sectorId) === sectorIdClean &&
-          (!s.cycleMonth || s.cycleMonth <= endDate)
+          // Deve ter entrado antes ou durante o período
+          (s.joinedAt ? s.joinedAt <= endTimestamp : (!s.cycleMonth || s.cycleMonth <= endDate)) &&
+          // Deve estar ativo OU ter saído depois ou durante o período
+          (s.active !== false || (s.leftAt && s.leftAt >= startTimestamp))
         );
         
         // Filtro de membros ativos no período (Competência)

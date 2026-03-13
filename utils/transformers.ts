@@ -30,7 +30,7 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   visit_requests: ['id', 'pg_name', 'leader_name', 'leader_phone', 'unit', 'date', 'status', 'request_notes', 'preferred_chaplain_id', 'assigned_chaplain_id', 'chaplain_response', 'sector_id', 'meeting_location', 'scheduled_time', 'is_read', 'created_at', 'updated_at'],
   app_config: ['id', 'mural_text', 'header_line1', 'header_line2', 'header_line3', 'font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'header_text_align', 'primary_color', 'app_logo_url', 'report_logo_url', 'last_modified_by', 'last_modified_at', 'header_profiles', 'updated_at'],
   pro_sectors: ['id', 'name', 'unit', 'active', 'cycle_month', 'updated_at'],
-  pro_staff: ['id', 'name', 'sector_id', 'unit', 'whatsapp', 'active', 'cycle_month', 'updated_at'],
+  pro_staff: ['id', 'name', 'sector_id', 'unit', 'whatsapp', 'active', 'joined_at', 'left_at', 'cycle_month', 'updated_at'],
   pro_patients: ['id', 'name', 'unit', 'whatsapp', 'last_lesson', 'updated_at'],
   pro_providers: ['id', 'name', 'unit', 'whatsapp', 'sector', 'updated_at'],
   pro_groups: ['id', 'name', 'current_leader', 'leader_phone', 'sector_id', 'unit', 'active', 'cycle_month', 'updated_at'],

@@ -17,6 +17,8 @@ export interface ProStaff {
   unit: Unit;
   whatsapp?: string;
   active?: boolean;
+  joinedAt?: number;
+  leftAt?: number;
   cycleMonth?: string; // Mês de Referência (YYYY-MM-DD)
   updatedAt?: number;
 }

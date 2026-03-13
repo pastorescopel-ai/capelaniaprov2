@@ -61,6 +61,8 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
             incomingList.forEach(incoming => {
                 const key = incoming.id; 
                 const existing = map.get(key);
+                const importTimestamp = new Date(selectedMonth + 'T00:00:00').getTime();
+
                 if (existing) {
                     if (existing.unit === activeUnit) {
                         const updated = { 
@@ -68,7 +70,10 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
                             name: incoming.name, 
                             active: true, 
                             cycleMonth: selectedMonth,
-                            updatedAt: Date.now() 
+                            updatedAt: Date.now(),
+                            // Se estava inativo, removemos a data de saída e garantimos que joinedAt exista
+                            leftAt: null,
+                            joinedAt: existing.joinedAt || importTimestamp
                         };
                         if (type === 'staff') updated.sectorId = incoming.sectorIdLinked || existing.sectorId || "";
                         map.set(key, updated);
@@ -81,6 +86,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
                         unit: activeUnit, 
                         active: true, 
                         cycleMonth: selectedMonth,
+                        joinedAt: importTimestamp,
                         updatedAt: Date.now() 
                     };
                     if (type === 'staff') newItem.sectorId = incoming.sectorIdLinked || "";
@@ -91,6 +97,8 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
 
             const incomingKeys = new Set(incomingList.map(i => i.id));
             const resultList: any[] = [];
+            const previousMonthEnd = new Date(new Date(selectedMonth + 'T00:00:00').getTime() - 1).getTime();
+
             map.forEach((value, key) => {
                 if (value.unit === activeUnit) {
                     if (!incomingKeys.has(key)) {
@@ -98,6 +106,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
                         // No modo 'incremental', mantemos como está
                         if (importMode === 'sync' && value.active !== false) { 
                             value.active = false; 
+                            value.leftAt = previousMonthEnd;
                             value.updatedAt = Date.now(); 
                             stats.deactivated++; 
                         }
