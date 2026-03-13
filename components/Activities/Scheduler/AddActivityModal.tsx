@@ -40,6 +40,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
   const [sectorSelections, setSectorSelections] = useState<{location: string, time: string}[]>([]);
   const [currentSector, setCurrentSector] = useState('');
   const [currentSectorTime, setCurrentSectorTime] = useState('');
+  const [modalUserId, setModalUserId] = useState(selectedUser || '');
 
   const toggleLocation = (loc: string) => {
     setSelectedLocations(prev => 
@@ -54,7 +55,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
       if (addingActivity.type === 'cult') {
         sectorSelections.forEach(sel => {
           newSchedules.push({
-            userId: selectedUser,
+            userId: modalUserId,
             unit: selectedUnit,
             month: selectedMonth,
             dayOfWeek: day,
@@ -67,7 +68,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
       } else {
         selectedLocations.forEach(loc => {
           newSchedules.push({
-            userId: selectedUser,
+            userId: modalUserId,
             unit: selectedUnit,
             month: selectedMonth,
             dayOfWeek: day,
@@ -84,8 +85,8 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-8 space-y-6 animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-start sm:items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-6 sm:p-8 my-auto mb-20 sm:mb-auto space-y-6 animate-in zoom-in-95 duration-200">
         <div className="text-center space-y-2 relative">
           <button onClick={onClose} className="absolute -top-2 -right-2 p-2 text-slate-400 hover:text-slate-600 transition-all">
             <X size={20} />
@@ -101,6 +102,22 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
         </div>
 
         <div className="space-y-4">
+          {!selectedUser && (
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Capelão Responsável</label>
+              <select
+                value={modalUserId}
+                onChange={e => setModalUserId(e.target.value)}
+                className="w-full p-3 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+              >
+                <option value="">Selecione um capelão...</option>
+                {chaplains.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Repetir nos dias</label>
             <div className="flex gap-1">
@@ -256,7 +273,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
             </button>
             <button
               onClick={handleConfirm}
-              disabled={isSaving || (addingActivity.type === 'cult' ? sectorSelections.length === 0 : selectedLocations.length === 0)}
+              disabled={isSaving || !modalUserId || (addingActivity.type === 'cult' ? sectorSelections.length === 0 : selectedLocations.length === 0)}
               className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-900/20 transition-all disabled:opacity-50"
             >
               {isSaving ? 'Salvando...' : 'Confirmar'}

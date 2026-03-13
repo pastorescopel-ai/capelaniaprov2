@@ -42,7 +42,7 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   daily_activity_reports: ['id', 'user_id', 'date', 'unit', 'completed_blueprints', 'completed_cults', 'completed_encontro', 'completed_visite_cantando', 'palliative_count', 'surgical_count', 'pediatric_count', 'uti_count', 'observations', 'created_at', 'updated_at']
 };
 
-export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at', 'joined_at', 'left_at', 'staff_id', 'provider_id', 'sector_id', 'group_id'];
+export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at', 'joined_at', 'left_at', 'staff_id', 'provider_id', 'sector_id', 'group_id', 'day_of_week'];
 
 export const isValidUUID = (uuid: string) => {
   const s = "" + uuid;

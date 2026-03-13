@@ -29,6 +29,7 @@ const ActivityScheduler: React.FC = () => {
     return new Date(firstDay.getTime() - offset).toISOString().split('T')[0];
   });
   const [selectedUser, setSelectedUser] = useState<string>('');
+  const [hasInitializedUser, setHasInitializedUser] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const chaplains = useMemo(() => {
@@ -37,9 +38,9 @@ const ActivityScheduler: React.FC = () => {
     return all.filter(u => u.id === currentUser?.id);
   }, [users, isAdmin, currentUser?.id]);
 
-  // Auto-select user if not set
+  // Auto-select user only once on mount or when chaplains load
   useEffect(() => {
-    if (!selectedUser && chaplains.length > 0) {
+    if (!hasInitializedUser && chaplains.length > 0) {
       if (isAdmin) {
         // For admin, default to their own ID if they are a chaplain, or the first one
         const self = chaplains.find(c => c.id === currentUser?.id);
@@ -51,8 +52,9 @@ const ActivityScheduler: React.FC = () => {
       } else {
         setSelectedUser(currentUser?.id || '');
       }
+      setHasInitializedUser(true);
     }
-  }, [chaplains, isAdmin, currentUser?.id, selectedUser]);
+  }, [chaplains, isAdmin, currentUser?.id, hasInitializedUser]);
   
   const [addingActivity, setAddingActivity] = useState<{ dayOfWeek: number, type: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando' } | null>(null);
   const [showReplicateModal, setShowReplicateModal] = useState(false);
@@ -85,12 +87,6 @@ const ActivityScheduler: React.FC = () => {
       return;
     }
     
-    // If admin has "All" selected, they must pick one to schedule
-    if (isAdmin && !selectedUser) {
-      showToast("Selecione um capelão específico para agendar.", "warning");
-      return;
-    }
-
     setAddingActivity({ dayOfWeek, type });
   };
 
@@ -127,9 +123,13 @@ const ActivityScheduler: React.FC = () => {
         showToast("Algumas atividades foram ignoradas pois já estavam agendadas por outro capelão.", "warning");
       }
 
-      await saveRecord('activitySchedules', toSave.length === 1 ? toSave[0] : toSave);
-      showToast("Atividade(s) agendada(s) com sucesso!", "success");
-      setAddingActivity(null);
+      const success = await saveRecord('activitySchedules', toSave.length === 1 ? toSave[0] : toSave);
+      if (success) {
+        showToast("Atividade(s) agendada(s) com sucesso!", "success");
+        setAddingActivity(null);
+      } else {
+        showToast("Erro ao agendar atividade no servidor.", "warning");
+      }
     } catch (error) {
       showToast("Erro ao agendar atividade.", "warning");
     } finally {
@@ -341,7 +341,7 @@ const ActivityScheduler: React.FC = () => {
                       </button>
                     </div>
                     <div className="space-y-1">
-                      {filteredSchedules.filter(s => s.dayOfWeek === day.id && s.activityType === 'blueprint').map(s => (
+                      {filteredSchedules.filter(s => Number(s.dayOfWeek) === day.id && s.activityType === 'blueprint').map(s => (
                         <div key={s.id} className="flex items-center justify-between p-2 bg-indigo-50/50 rounded-lg group">
                           <div className="min-w-0">
                             <p className="text-[8px] font-black text-indigo-900 uppercase truncate">{s.location}</p>
@@ -374,7 +374,7 @@ const ActivityScheduler: React.FC = () => {
                       </button>
                     </div>
                     <div className="space-y-1">
-                      {filteredSchedules.filter(s => s.dayOfWeek === day.id && s.activityType === 'cult').map(s => (
+                      {filteredSchedules.filter(s => Number(s.dayOfWeek) === day.id && s.activityType === 'cult').map(s => (
                         <div key={s.id} className="flex items-center justify-between p-2 bg-emerald-50/50 rounded-lg group">
                           <div className="min-w-0">
                             <p className="text-[8px] font-black text-emerald-900 uppercase truncate">
@@ -412,7 +412,7 @@ const ActivityScheduler: React.FC = () => {
                       </button>
                     </div>
                     <div className="space-y-1">
-                      {filteredSchedules.filter(s => s.dayOfWeek === day.id && s.activityType === 'encontro').map(s => (
+                      {filteredSchedules.filter(s => Number(s.dayOfWeek) === day.id && s.activityType === 'encontro').map(s => (
                         <div key={s.id} className="flex items-center justify-between p-2 bg-amber-50/50 rounded-lg group">
                           <div className="min-w-0">
                             <p className="text-[8px] font-black text-amber-900 uppercase truncate">Encontro HAB</p>
@@ -445,7 +445,7 @@ const ActivityScheduler: React.FC = () => {
                       </button>
                     </div>
                     <div className="space-y-1">
-                      {filteredSchedules.filter(s => s.dayOfWeek === day.id && s.activityType === 'visiteCantando').map(s => (
+                      {filteredSchedules.filter(s => Number(s.dayOfWeek) === day.id && s.activityType === 'visiteCantando').map(s => (
                         <div key={s.id} className="flex items-center justify-between p-2 bg-rose-50/50 rounded-lg group">
                           <div className="min-w-0">
                             <p className="text-[8px] font-black text-rose-900 uppercase truncate">Visite Cantando</p>
