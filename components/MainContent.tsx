@@ -20,6 +20,7 @@ const ActivityManager = lazy(() => import('./Activities/ActivityManager'));
 
 interface MainContentProps {
   activeTab: string;
+  activitiesSubTab?: 'analysis' | 'checklist' | 'scheduler' | 'reports';
   visitedTabs: Set<string>;
   currentUser: User;
   currentUnit: Unit;
@@ -73,7 +74,7 @@ const TabLoading = () => (
 
 const MainContent: React.FC<MainContentProps> = (props) => {
   const {
-    activeTab, visitedTabs, currentUser, currentUnit, unitSectors, editingItem, isLoading,
+    activeTab, activitiesSubTab, visitedTabs, currentUser, currentUnit, unitSectors, editingItem, isLoading,
     setActiveTab, setCurrentUnit, setEditingItem, setItemToDelete,
     updateCurrentUser, handleSaveItem, onRegisterMission, onGoToReturnHistory, getVisibleHistory
   } = props;
@@ -126,9 +127,9 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     profile: currentUser && <Profile user={currentUser} isSyncing={isLoading} onUpdateUser={u => { updateCurrentUser(u); saveRecord('users', u); }} />,
     admin: <AdminPanel />,
     dataHealing: <DataHealer />,
-    activities: <ActivityManager isActive={activeTab === 'activities'} />
+    activities: <ActivityManager isActive={activeTab === 'activities'} initialSubTab={activitiesSubTab} />
   }), [
-    activeTab, bibleClasses, bibleStudies, config, currentUnit, currentUser, editingItem, 
+    activeTab, activitiesSubTab, bibleClasses, bibleStudies, config, currentUnit, currentUser, editingItem, 
     getVisibleHistory, handleSaveItem, handleTransfer, isLoading, loadFromCloud, 
     onGoToReturnHistory, onRegisterMission, saveRecord, saveToCloud, setActiveTab, 
     setEditingItem, setItemToDelete, smallGroups, staffVisits, unitSectors, 

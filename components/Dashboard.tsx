@@ -17,7 +17,7 @@ interface DashboardProps {
   visits: StaffVisit[];
   currentUser: User;
   config: Config;
-  onGoToTab: (tab: string) => void;
+  onGoToTab: (tab: string, subTab?: any) => void;
   onRegisterMission: (visit: any) => void;
   onGoToReturnHistory: (visit?: any) => void;
   onUpdateConfig: (newConfig: Config) => any;
@@ -72,7 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         schedules={activitySchedules} 
         reports={dailyActivityReports} 
         currentUser={currentUser} 
-        onGoToActivities={() => onGoToTab('activities')} 
+        onGoToActivities={() => onGoToTab('activities', 'checklist')} 
       />
 
       {/* Notificações de Retorno (Movido para baixo do Mural) */}

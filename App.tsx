@@ -29,11 +29,17 @@ const App: React.FC = () => {
 
   // Controle de abas visitadas para renderização sob demanda (Performance)
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['dashboard']));
+  const [activitiesSubTab, setActivitiesSubTab] = useState<'analysis' | 'checklist' | 'scheduler' | 'reports' | undefined>(undefined);
   const skipClearRef = React.useRef(false);
 
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = (tab: string, subTab?: any) => {
     setActiveTab(tab);
     setVisitedTabs(prev => new Set(prev).add(tab));
+    if (tab === 'activities' && subTab) {
+      setActivitiesSubTab(subTab);
+    } else if (tab !== 'activities') {
+      setActivitiesSubTab(undefined);
+    }
   };
 
   const handleRegisterMission = (visit: any) => {
@@ -161,6 +167,7 @@ const App: React.FC = () => {
         {/* Conteúdo Principal Modularizado */}
         <MainContent 
           activeTab={activeTab}
+          activitiesSubTab={activitiesSubTab}
           visitedTabs={visitedTabs}
           currentUser={currentUser}
           currentUnit={currentUnit}

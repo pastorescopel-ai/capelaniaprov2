@@ -28,18 +28,35 @@ const ActivityScheduler: React.FC = () => {
     const offset = firstDay.getTimezoneOffset() * 60000;
     return new Date(firstDay.getTime() - offset).toISOString().split('T')[0];
   });
-  const [selectedUser, setSelectedUser] = useState<string>(isAdmin ? '' : (currentUser?.id || ''));
+  const [selectedUser, setSelectedUser] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
-  
-  const [addingActivity, setAddingActivity] = useState<{ dayOfWeek: number, type: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando' } | null>(null);
-  const [showReplicateModal, setShowReplicateModal] = useState(false);
-  const [deletingSchedule, setDeletingSchedule] = useState<ActivitySchedule | null>(null);
 
   const chaplains = useMemo(() => {
     const all = users.filter(u => u.role === UserRole.CHAPLAIN || u.role === UserRole.INTERN || u.role === UserRole.ADMIN);
     if (isAdmin) return all;
     return all.filter(u => u.id === currentUser?.id);
   }, [users, isAdmin, currentUser?.id]);
+
+  // Auto-select user if not set
+  useEffect(() => {
+    if (!selectedUser && chaplains.length > 0) {
+      if (isAdmin) {
+        // For admin, default to their own ID if they are a chaplain, or the first one
+        const self = chaplains.find(c => c.id === currentUser?.id);
+        if (self) {
+          setSelectedUser(self.id);
+        } else {
+          setSelectedUser(chaplains[0].id);
+        }
+      } else {
+        setSelectedUser(currentUser?.id || '');
+      }
+    }
+  }, [chaplains, isAdmin, currentUser?.id, selectedUser]);
+  
+  const [addingActivity, setAddingActivity] = useState<{ dayOfWeek: number, type: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando' } | null>(null);
+  const [showReplicateModal, setShowReplicateModal] = useState(false);
+  const [deletingSchedule, setDeletingSchedule] = useState<ActivitySchedule | null>(null);
 
   useEffect(() => {
     if (!isAdmin && currentUser?.id && selectedUser !== currentUser.id) {
@@ -63,10 +80,17 @@ const ActivityScheduler: React.FC = () => {
   );
 
   const handleOpenAddModal = (dayOfWeek: number, type: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando') => {
-    if (!selectedUser) {
-      showToast("Selecione um capelão primeiro.", "warning");
+    if (!selectedUser && !isAdmin) {
+      showToast("Usuário não identificado.", "warning");
       return;
     }
+    
+    // If admin has "All" selected, they must pick one to schedule
+    if (isAdmin && !selectedUser) {
+      showToast("Selecione um capelão específico para agendar.", "warning");
+      return;
+    }
+
     setAddingActivity({ dayOfWeek, type });
   };
 
@@ -74,19 +98,20 @@ const ActivityScheduler: React.FC = () => {
     setIsSaving(true);
     try {
       const toSave = newSchedules.filter(ns => {
+        const nsLocation = String(ns.location);
         if (ns.activityType === 'blueprint' || ns.activityType === 'cult') {
           const conflict = globalSchedulesForMonth.find(s => 
-            s.dayOfWeek === ns.dayOfWeek && 
+            Number(s.dayOfWeek) === Number(ns.dayOfWeek) && 
             s.activityType === ns.activityType && 
-            s.location === ns.location
+            String(s.location) === nsLocation
           );
           return !conflict;
         } else {
           const conflict = filteredSchedules.find(s => 
             s.userId === ns.userId && 
-            s.dayOfWeek === ns.dayOfWeek && 
+            Number(s.dayOfWeek) === Number(ns.dayOfWeek) && 
             s.activityType === ns.activityType && 
-            s.location === ns.location
+            String(s.location) === nsLocation
           );
           return !conflict;
         }

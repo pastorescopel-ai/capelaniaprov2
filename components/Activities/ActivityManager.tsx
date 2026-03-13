@@ -11,18 +11,29 @@ import { Calendar, CheckCircle, BarChart3, TrendingUp, CheckSquare } from 'lucid
 
 interface ActivityManagerProps {
   isActive?: boolean;
+  initialSubTab?: 'analysis' | 'checklist' | 'scheduler' | 'reports';
 }
 
-const ActivityManager: React.FC<ActivityManagerProps> = ({ isActive }) => {
+const ActivityManager: React.FC<ActivityManagerProps> = ({ isActive, initialSubTab }) => {
   const { currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'analysis' | 'checklist' | 'scheduler' | 'reports'>('checklist');
+  const [activeTab, setActiveTab] = useState<'analysis' | 'checklist' | 'scheduler' | 'reports'>('analysis');
+
+  // Scroll to top when tab or sub-tab changes
+  useEffect(() => {
+    if (isActive) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [isActive, activeTab]);
 
   useEffect(() => {
     if (isActive) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setActiveTab('checklist');
+      if (initialSubTab) {
+        setActiveTab(initialSubTab); // eslint-disable-line react-hooks/set-state-in-effect
+      } else {
+        setActiveTab('analysis');
+      }
     }
-  }, [isActive]);
+  }, [isActive, initialSubTab]);
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
@@ -81,17 +92,19 @@ const ActivityManager: React.FC<ActivityManagerProps> = ({ isActive }) => {
             <span>Atividades Agendadas</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('reports')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all ${
-              activeTab === 'reports'
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <BarChart3 size={14} />
-            <span>Relatórios</span>
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setActiveTab('reports')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all ${
+                activeTab === 'reports'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <BarChart3 size={14} />
+              <span>Relatórios</span>
+            </button>
+          )}
         </nav>
         </div>
       </header>
