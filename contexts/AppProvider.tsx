@@ -1,13 +1,13 @@
-import React, { useContext, ReactNode } from 'react';
-import { AppContext } from './AppContext';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { useAppData } from '../hooks/useAppData';
+
+type AppContextType = ReturnType<typeof useAppData>;
+
+export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const value = {
-    proSectors: [],
-    proStaff: [],
-    config: {}
-  };
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  const appData = useAppData();
+  return <AppContext.Provider value={appData}>{children}</AppContext.Provider>;
 };
 
 export const useApp = () => {
