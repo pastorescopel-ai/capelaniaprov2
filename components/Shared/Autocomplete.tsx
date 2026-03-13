@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { normalizeString } from '../../utils/formatters';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '../../contexts/ToastProvider';
 
 export interface AutocompleteOption {
   value: string;      // O valor real que será salvo (ex: nome limpo ou formatado)

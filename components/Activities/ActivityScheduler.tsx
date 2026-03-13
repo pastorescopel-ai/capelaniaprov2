@@ -488,6 +488,7 @@ const ActivityScheduler: React.FC = () => {
           sectors={sectors}
           chaplains={chaplains}
           daysOfWeek={daysOfWeek}
+          isAdmin={isAdmin}
           onClose={() => setAddingActivity(null)}
           onConfirm={handleConfirmAddSchedule}
           isSaving={isSaving}

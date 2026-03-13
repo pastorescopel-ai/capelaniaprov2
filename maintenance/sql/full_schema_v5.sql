@@ -57,7 +57,18 @@ BEGIN
     IF EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir tudo para usuários autenticados em activity_schedules') THEN
         DROP POLICY "Permitir tudo para usuários autenticados em activity_schedules" ON activity_schedules;
     END IF;
-    CREATE POLICY "Permitir tudo para usuários autenticados em activity_schedules" ON activity_schedules FOR ALL USING (auth.role() = 'authenticated');
+    IF EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir leitura para todos em activity_schedules') THEN
+        DROP POLICY "Permitir leitura para todos em activity_schedules" ON activity_schedules;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir escrita para o próprio usuário ou admin em activity_schedules') THEN
+        DROP POLICY "Permitir escrita para o próprio usuário ou admin em activity_schedules" ON activity_schedules;
+    END IF;
+    
+    CREATE POLICY "Permitir leitura para todos em activity_schedules" ON activity_schedules FOR SELECT USING (auth.role() = 'authenticated');
+    CREATE POLICY "Permitir escrita para o próprio usuário ou admin em activity_schedules" ON activity_schedules FOR ALL USING (
+        auth.uid() = user_id OR 
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+    );
 
     -- daily_activity_reports
     IF EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Permitir tudo para usuários autenticados em daily_activity_reports') THEN

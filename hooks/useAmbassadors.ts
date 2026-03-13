@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Ambassador, Unit } from '../types';
-import { useToast } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastProvider';
 import { normalizeString } from '../utils/formatters';
 
 export const useAmbassadors = (proSectors: any[]) => {

@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { useToast } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastProvider';
 
 export const useDocumentGenerator = () => {
   const [isGenerating, setIsGenerating] = useState<string | null>(null);

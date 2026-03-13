@@ -1,4 +1,4 @@
-import { useToast } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastProvider';
 import { BibleStudy, BibleClass, User } from '../types';
 
 interface UseAppOperationsProps {

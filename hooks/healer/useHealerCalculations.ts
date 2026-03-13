@@ -2,7 +2,7 @@ import { useMemo, useEffect } from 'react';
 import { normalizeString } from '../../utils/formatters';
 import { ParticipantType } from '../../types';
 import { supabase } from '../../services/supabaseClient';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '../../contexts/ToastProvider';
 
 export const useHealerCalculations = (
   appData: any,

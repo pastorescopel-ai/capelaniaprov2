@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { User, VisitRequest, UserRole } from '../types';
 import { useApp } from '../hooks/useApp';
-import { useToast } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastProvider';
 import { usePGInference } from './usePGInference';
 
 interface UseVisitRequestsWidgetProps {

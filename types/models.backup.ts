@@ -145,7 +145,6 @@ export interface User {
   profilePic?: string;
   attendsHaba?: boolean;
   habaDays?: number[];
-  auth_id?: string;
 }
 
 export interface BibleStudy {

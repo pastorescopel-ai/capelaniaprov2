@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Unit } from '../../types';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '../../contexts/ToastProvider';
 import { Upload, Users, FileText, Printer } from 'lucide-react';
 import { generateAmbassadorReportHtml } from '../../utils/ambassadorPdf';
 import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
@@ -58,35 +58,31 @@ const AmbassadorsManager: React.FC = () => {
   };
 
   // Filtros de Relatório
-  const [reportStartDate, setReportStartDate] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  });
-  const [reportEndDate, setReportEndDate] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-  });
+  const [reportStartDate, setReportStartDate] = useState<string | null>(null);
+  const [reportEndDate, setReportEndDate] = useState<string | null>(null);
   const [reportSectorId, setReportSectorId] = useState<string>('all');
   const [reportSortOrder, setReportSortOrder] = useState<'alpha' | 'percent'>('alpha');
   const [reportFilterCritical, setReportFilterCritical] = useState(false);
 
-  // Sincronizar datas do relatório com o mês selecionado no cabeçalho
-  useEffect(() => {
+  // Datas derivadas do mês selecionado
+  const derivedDates = React.useMemo(() => {
     const d = new Date(selectedMonth + 'T12:00:00');
-    const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
-    
-    setReportStartDate(prev => prev === start ? prev : start);
-    setReportEndDate(prev => prev === end ? prev : end);
+    return {
+      start: new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0],
+      end: new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+    };
   }, [selectedMonth]);
+
+  const effectiveStartDate = reportStartDate || derivedDates.start;
+  const effectiveEndDate = reportEndDate || derivedDates.end;
 
   // --- GERAÇÃO DE PDF ---
   const handleGeneratePDF = async (mode: 'sector' | 'full') => {
     const html = generateAmbassadorReportHtml(ambassadors, {
       mode,
       unit: currentUnit,
-      startDate: reportStartDate,
-      endDate: reportEndDate,
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate,
       sectorId: reportSectorId,
       sortOrder: reportSortOrder,
       filterCritical: reportFilterCritical,

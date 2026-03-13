@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Unit, SmallGroup, User, ParticipantType } from '../types';
-import { useToast } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastProvider';
 import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp } from '../utils/formatters';
 import { usePGInference } from './usePGInference';

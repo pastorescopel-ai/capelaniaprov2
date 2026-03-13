@@ -2,7 +2,7 @@
 import React, { useMemo, useEffect } from 'react';
 import { Unit, UserRole } from '../../types';
 import { useApp } from '../../hooks/useApp';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthProvider';
 import Autocomplete from '../Shared/Autocomplete';
 import ConfirmationModal from '../Shared/ConfirmationModal';
 import { usePGInference } from '../../hooks/usePGInference';

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '../../contexts/ToastProvider';
 import AdminLists from './AdminLists';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 

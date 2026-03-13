@@ -1,5 +1,5 @@
 import { normalizeString } from '../../utils/formatters';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '../../contexts/ToastProvider';
 
 export const useHealerActions = (
   appData: any,

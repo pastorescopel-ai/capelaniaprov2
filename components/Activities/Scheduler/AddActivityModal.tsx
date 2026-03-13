@@ -13,6 +13,7 @@ interface AddActivityModalProps {
   sectors: ProSector[];
   chaplains: User[];
   daysOfWeek: { id: number, label: string }[];
+  isAdmin: boolean;
   onClose: () => void;
   onConfirm: (newSchedules: any[]) => Promise<void>;
   isSaving: boolean;
@@ -27,6 +28,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
   sectors,
   chaplains,
   daysOfWeek,
+  isAdmin,
   onClose,
   onConfirm,
   isSaving
@@ -123,7 +125,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
         </div>
 
         <div className="space-y-4">
-          {!selectedUser && (
+          {(isAdmin || !selectedUser) && (
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Capelão Responsável</label>
               <select

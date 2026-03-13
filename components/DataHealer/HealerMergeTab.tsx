@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Autocomplete from '../Shared/Autocomplete';
 import { PersonType } from '../../hooks/useDataHealer';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '../../contexts/ToastProvider';
 
 interface HealerMergeTabProps {
   mergeSourceType: PersonType;
@@ -29,9 +29,6 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
 }) => {
   const { showToast } = useToast();
   
-  const [sourceInput, setSourceInput] = useState('');
-  const [targetInput, setTargetInput] = useState('');
-
   const getOptions = React.useCallback((type: PersonType) => {
     if (type === 'Colaborador' || type === 'Ex-Colaborador') return officialStaffOptions;
     if (type === 'Paciente') return officialPatientOptions;
@@ -44,16 +41,19 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
     return opt ? opt.label : '';
   }, [getOptions]);
 
-  // Sincronizar labels quando IDs mudam (ex: após mesclagem ou seleção externa)
-  useEffect(() => {
-    const label = mergeSourceId ? getLabel(mergeSourceType, mergeSourceId) : '';
-    setSourceInput(prev => prev === label ? prev : label);
-  }, [mergeSourceId, mergeSourceType, getLabel]);
+  const [sourceInput, setSourceInput] = useState('');
+  const [hasUserTypedSource, setHasUserTypedSource] = useState(false);
+  const [targetInput, setTargetInput] = useState('');
+  const [hasUserTypedTarget, setHasUserTypedTarget] = useState(false);
 
-  useEffect(() => {
-    const label = mergeTargetId ? getLabel(mergeTargetType, mergeTargetId) : '';
-    setTargetInput(prev => prev === label ? prev : label);
-  }, [mergeTargetId, mergeTargetType, getLabel]);
+  const sourceLabel = useMemo(() => mergeSourceId ? getLabel(mergeSourceType, mergeSourceId) : '', [mergeSourceId, mergeSourceType, getLabel]);
+  const targetLabel = useMemo(() => mergeTargetId ? getLabel(mergeTargetType, mergeTargetId) : '', [mergeTargetId, mergeTargetType, getLabel]);
+
+  const displaySourceInput = hasUserTypedSource ? sourceInput : sourceLabel;
+  const displayTargetInput = hasUserTypedTarget ? targetInput : targetLabel;
+
+  // Sincronizar labels quando IDs mudam (ex: após mesclagem ou seleção externa)
+  // Removido useEffect para evitar cascading renders
 
   const handleMerge = () => {
     if (!mergeSourceId || !mergeTargetId) return;
@@ -70,6 +70,8 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
         setMergeTargetId('');
         setSourceInput('');
         setTargetInput('');
+        setHasUserTypedSource(false);
+        setHasUserTypedTarget(false);
     }
   };
 
@@ -99,7 +101,7 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
                             {(['Colaborador', 'Paciente', 'Prestador'] as PersonType[]).map(t => (
                                 <button 
                                     key={t} 
-                                    onClick={() => { setMergeSourceType(t); setMergeSourceId(''); setSourceInput(''); }} 
+                                    onClick={() => { setMergeSourceType(t); setMergeSourceId(''); setSourceInput(''); setHasUserTypedSource(false); }} 
                                     className={`flex-1 px-3 py-2 rounded-md text-[10px] font-bold uppercase transition-all whitespace-nowrap ${mergeSourceType === t ? 'bg-white shadow text-rose-600' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     {t}
@@ -108,13 +110,17 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
                         </div>
                         <Autocomplete 
                             options={getOptions(mergeSourceType)}
-                            value={sourceInput}
-                            onChange={(val) => setSourceInput(val)}
+                            value={displaySourceInput}
+                            onChange={(val) => {
+                                setSourceInput(val);
+                                setHasUserTypedSource(true);
+                            }}
                             onSelectOption={(label) => {
                                 const opt = getOptions(mergeSourceType).find(o => o.label === label);
                                 if (opt) {
                                     setMergeSourceId(String(opt.value));
                                     setSourceInput(label);
+                                    setHasUserTypedSource(false);
                                 }
                             }}
                             placeholder={`Buscar ${mergeSourceType}...`}
@@ -139,7 +145,7 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
                             {(['Colaborador', 'Paciente', 'Prestador'] as PersonType[]).map(t => (
                                 <button 
                                     key={t} 
-                                    onClick={() => { setMergeTargetType(t); setMergeTargetId(''); setTargetInput(''); }} 
+                                    onClick={() => { setMergeTargetType(t); setMergeTargetId(''); setTargetInput(''); setHasUserTypedTarget(false); }} 
                                     className={`flex-1 px-3 py-2 rounded-md text-[10px] font-bold uppercase transition-all whitespace-nowrap ${mergeTargetType === t ? 'bg-white shadow text-emerald-700' : 'text-emerald-600/70 hover:text-emerald-700'}`}
                                 >
                                     {t}
@@ -148,13 +154,17 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
                         </div>
                         <Autocomplete 
                             options={getOptions(mergeTargetType)}
-                            value={targetInput}
-                            onChange={(val) => setTargetInput(val)}
+                            value={displayTargetInput}
+                            onChange={(val) => {
+                                setTargetInput(val);
+                                setHasUserTypedTarget(true);
+                            }}
                             onSelectOption={(label) => {
                                 const opt = getOptions(mergeTargetType).find(o => o.label === label);
                                 if (opt) {
                                     setMergeTargetId(String(opt.value));
                                     setTargetInput(label);
+                                    setHasUserTypedTarget(false);
                                 }
                             }}
                             placeholder={`Buscar ${mergeTargetType}...`}

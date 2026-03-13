@@ -54,10 +54,10 @@ async function startServer() {
           const injection = `<script>
             window.__SUPABASE_CONFIG__ = ${JSON.stringify(config)};
             console.log("DEBUG: Injected Supabase Config:", {
-              hasUrl: !!config.supabaseUrl,
-              hasKey: !!config.supabaseKey,
-              urlLength: config.supabaseUrl?.length,
-              keyLength: config.supabaseKey?.length
+              hasUrl: !!window.__SUPABASE_CONFIG__.supabaseUrl,
+              hasKey: !!window.__SUPABASE_CONFIG__.supabaseKey,
+              urlLength: window.__SUPABASE_CONFIG__.supabaseUrl?.length,
+              keyLength: window.__SUPABASE_CONFIG__.supabaseKey?.length
             });
           </script>`;
           html = html.replace(/<!--\s*CONFIG_INJECTION\s*-->/, injection);
@@ -86,8 +86,8 @@ async function startServer() {
           const injection = `<script>
             window.__SUPABASE_CONFIG__ = ${JSON.stringify(config)};
             console.log("DEBUG PROD: Injected Supabase Config:", {
-              hasUrl: !!config.supabaseUrl,
-              hasKey: !!config.supabaseKey
+              hasUrl: !!window.__SUPABASE_CONFIG__.supabaseUrl,
+              hasKey: !!window.__SUPABASE_CONFIG__.supabaseKey
             });
           </script>`;
           const replaced = html.replace(/<!--\s*CONFIG_INJECTION\s*-->/, injection);

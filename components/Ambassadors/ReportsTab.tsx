@@ -7,9 +7,9 @@ interface ReportsTabProps {
   ambassadors: Ambassador[];
   proSectors: ProSector[];
   stats: any;
-  reportStartDate: string;
+  reportStartDate: string | null;
   setReportStartDate: (val: string) => void;
-  reportEndDate: string;
+  reportEndDate: string | null;
   setReportEndDate: (val: string) => void;
   reportSectorId: string;
   setReportSectorId: (val: string) => void;
@@ -77,7 +77,7 @@ const ReportsTab: React.FC<ReportsTabProps> = ({
               <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input 
                 type="date" 
-                value={reportStartDate}
+                value={reportStartDate || ''}
                 onChange={e => setReportStartDate(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white"
               />
@@ -89,7 +89,7 @@ const ReportsTab: React.FC<ReportsTabProps> = ({
               <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input 
                 type="date" 
-                value={reportEndDate}
+                value={reportEndDate || ''}
                 onChange={e => setReportEndDate(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white"
               />

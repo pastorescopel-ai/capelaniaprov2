@@ -1,7 +1,7 @@
 
 import { useState, useCallback, useEffect, useTransition } from 'react';
 import { Unit, User, UserRole, RecordStatus } from '../types';
-import { useToast } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastProvider';
 import { isRecordLocked } from '../utils/validators';
 import { toSafeDateISO } from '../utils/formatters';
 

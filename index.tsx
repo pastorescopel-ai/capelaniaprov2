@@ -8,9 +8,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
-import { AppProvider } from './contexts/AppContext';
-import { AuthProvider } from './contexts/AuthContext';
-import { ToastProvider } from './contexts/ToastContext';
+import { AppProvider } from './contexts/AppProvider';
+import { AuthProvider } from './contexts/AuthProvider';
+import { ToastProvider } from './contexts/ToastProvider';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

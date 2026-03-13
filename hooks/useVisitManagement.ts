@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { VisitRequest, Unit, User } from '../types';
-import { useToast } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastProvider';
 
 export const useVisitManagement = (
   saveRecord: (collection: string, item: any) => Promise<boolean>,

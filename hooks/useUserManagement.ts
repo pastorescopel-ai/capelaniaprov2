@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { User, UserRole } from '../types';
-import { useToast } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastProvider';
 import { hashPassword } from '../utils/crypto';
 import { useApp } from '../hooks/useApp';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';

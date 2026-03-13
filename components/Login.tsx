@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DEFAULT_APP_LOGO } from '../assets';
 import { Config } from '../types';
-import { useToast } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastProvider';
 
 interface LoginProps {
   onLogin: (email: string, pass: string) => Promise<boolean>;

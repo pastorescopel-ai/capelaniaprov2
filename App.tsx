@@ -7,7 +7,7 @@ import ConfirmationModal from './components/Shared/ConfirmationModal';
 import MainContent from './components/MainContent';
 import { Unit } from './types/enums';
 import { useApp } from './hooks/useApp';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from './contexts/AuthProvider';
 import { useAppFlow } from './hooks/useAppFlow';
 
 const App: React.FC = () => {
