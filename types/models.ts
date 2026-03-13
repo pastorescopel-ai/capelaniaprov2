@@ -256,9 +256,12 @@ export interface ActivitySchedule {
   unit: Unit;
   month: string; // YYYY-MM-DD (primeiro dia do mês)
   dayOfWeek: number; // 0-6
+  date?: string; // YYYY-MM-DD (Data específica, opcional)
   activityType: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando';
   location: string; // Nome do local (Blueprint) ou ID do Setor (Culto)
   time?: string; // Horário da atividade (HH:mm)
+  responsibleName?: string; // Nome do responsável (Visite Cantando)
+  responsibleWhatsApp?: string; // WhatsApp do responsável (Visite Cantando)
   createdAt?: number;
 }
 

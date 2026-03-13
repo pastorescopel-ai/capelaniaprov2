@@ -415,7 +415,9 @@ const ActivityScheduler: React.FC = () => {
                       {filteredSchedules.filter(s => Number(s.dayOfWeek) === day.id && s.activityType === 'encontro').map(s => (
                         <div key={s.id} className="flex items-center justify-between p-2 bg-amber-50/50 rounded-lg group">
                           <div className="min-w-0">
-                            <p className="text-[8px] font-black text-amber-900 uppercase truncate">Encontro HAB</p>
+                            <p className="text-[8px] font-black text-amber-900 uppercase truncate">
+                              Encontro HAB {s.date ? `(${s.date.split('-')[2]})` : ''}
+                            </p>
                             <div className="flex items-center gap-1">
                               {s.time && <span className="text-[7px] font-bold text-amber-500 bg-amber-100 px-1 rounded">{s.time}</span>}
                               {!selectedUser && (
@@ -448,7 +450,11 @@ const ActivityScheduler: React.FC = () => {
                       {filteredSchedules.filter(s => Number(s.dayOfWeek) === day.id && s.activityType === 'visiteCantando').map(s => (
                         <div key={s.id} className="flex items-center justify-between p-2 bg-rose-50/50 rounded-lg group">
                           <div className="min-w-0">
-                            <p className="text-[8px] font-black text-rose-900 uppercase truncate">Visite Cantando</p>
+                            <p className="text-[8px] font-black text-rose-900 uppercase truncate">
+                              Visite Cantando {s.date ? `(${s.date.split('-')[2]})` : ''}
+                            </p>
+                            {s.responsibleName && <p className="text-[7px] font-bold text-rose-700 truncate">{s.responsibleName}</p>}
+                            {s.responsibleWhatsApp && <p className="text-[7px] font-bold text-rose-600 truncate">{s.responsibleWhatsApp}</p>}
                             <div className="flex items-center gap-1">
                               {s.time && <span className="text-[7px] font-bold text-rose-500 bg-rose-100 px-1 rounded">{s.time}</span>}
                               {!selectedUser && (

@@ -31,27 +31,44 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
   onConfirm,
   isSaving
 }) => {
-  const [selectedDays, setSelectedDays] = useState<number[]>([addingActivity.dayOfWeek]);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [responsibleName, setResponsibleName] = useState('');
+  const [responsibleWhatsApp, setResponsibleWhatsApp] = useState('');
   const [selectedLocations, setSelectedLocations] = useState<string[]>(
     addingActivity.type === 'encontro' ? ['Encontro HAB'] : 
     addingActivity.type === 'visiteCantando' ? ['Visite Cantando'] : []
   );
-  const [newActivityTime, setNewActivityTime] = useState('');
+  const [newActivityTime, setNewActivityTime] = useState(
+    addingActivity.type === 'encontro' ? '09:00' : 
+    addingActivity.type === 'visiteCantando' ? '15:00' : ''
+  );
   const [sectorSelections, setSectorSelections] = useState<{location: string, time: string}[]>([]);
   const [currentSector, setCurrentSector] = useState('');
   const [currentSectorTime, setCurrentSectorTime] = useState('');
   const [modalUserId, setModalUserId] = useState(selectedUser || '');
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+
+  const formatPhone = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    const match = cleaned.match(/^(\d{2})(\d{5})(\d{4})$/);
+    if (match) return `(${match[1]}) ${match[2]}-${match[3]}`;
+    const matchShort = cleaned.match(/^(\d{2})(\d{4})(\d{4})$/);
+    if (matchShort) return `(${matchShort[1]}) ${matchShort[2]}-${matchShort[3]}`;
+    return value;
+  };
 
   const toggleLocation = (loc: string) => {
-    setSelectedLocations(prev => 
-      prev.includes(loc) ? prev.filter(l => l !== loc) : [...prev, loc]
-    );
+    setSelectedLocations(prev => prev.includes(loc) ? prev.filter(l => l !== loc) : [...prev, loc]);
   };
 
   const handleConfirm = () => {
     const newSchedules: any[] = [];
 
-    selectedDays.forEach(day => {
+    const daysToProcess = (addingActivity.type === 'encontro' || addingActivity.type === 'visiteCantando') && selectedDate 
+      ? [new Date(selectedDate + 'T12:00:00').getDay() === 0 ? 7 : new Date(selectedDate + 'T12:00:00').getDay()]
+      : selectedDays;
+
+    daysToProcess.forEach(day => {
       if (addingActivity.type === 'cult') {
         sectorSelections.forEach(sel => {
           newSchedules.push({
@@ -59,6 +76,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
             unit: selectedUnit,
             month: selectedMonth,
             dayOfWeek: day,
+            date: (addingActivity.type === 'encontro' || addingActivity.type === 'visiteCantando') && selectedDate ? selectedDate : undefined,
             activityType: addingActivity.type,
             location: sel.location,
             time: sel.time || undefined,
@@ -72,9 +90,12 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
             unit: selectedUnit,
             month: selectedMonth,
             dayOfWeek: day,
+            date: (addingActivity.type === 'encontro' || addingActivity.type === 'visiteCantando') && selectedDate ? selectedDate : undefined,
             activityType: addingActivity.type,
             location: loc,
             time: newActivityTime || undefined,
+            responsibleName: addingActivity.type === 'visiteCantando' ? responsibleName : undefined,
+            responsibleWhatsApp: addingActivity.type === 'visiteCantando' ? responsibleWhatsApp : undefined,
             createdAt: Date.now()
           });
         });
@@ -171,6 +192,44 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {(addingActivity.type === 'encontro' || addingActivity.type === 'visiteCantando') && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Data Específica</label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  className="w-full p-4 bg-slate-50 border-none rounded-2xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                />
+              </div>
+              {addingActivity.type === 'visiteCantando' && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Nome do Responsável</label>
+                    <input
+                      type="text"
+                      value={responsibleName}
+                      onChange={e => setResponsibleName(e.target.value)}
+                      className="w-full p-4 bg-slate-50 border-none rounded-2xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                      placeholder="Nome do responsável"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">WhatsApp do Responsável</label>
+                    <input
+                      type="text"
+                      value={responsibleWhatsApp}
+                      onChange={e => setResponsibleWhatsApp(formatPhone(e.target.value))}
+                      className="w-full p-4 bg-slate-50 border-none rounded-2xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           )}
 

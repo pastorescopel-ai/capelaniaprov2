@@ -77,9 +77,9 @@ const ActivityChecklist: React.FC = () => {
     activitySchedules.filter(s => 
       s.userId === selectedUser && 
       s.month === currentMonth && 
-      s.dayOfWeek === currentDayOfWeek
+      (s.date === selectedDate || (!s.date && s.dayOfWeek === currentDayOfWeek))
     ),
-    [activitySchedules, selectedUser, currentMonth, currentDayOfWeek]
+    [activitySchedules, selectedUser, currentMonth, currentDayOfWeek, selectedDate]
   );
 
   const handleToggleBlueprint = (loc: string) => {

@@ -30,21 +30,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const { visitRequests, users, activitySchedules, dailyActivityReports, isInitialized } = useApp(); 
   
-  if (!isInitialized) {
-    return <div className="p-8 text-center text-slate-500 font-bold">Carregando dashboard...</div>;
-  }
-
-  const today = new Date().toISOString().split('T')[0];
-  const d = new Date().getDay();
-  const dayOfWeek = d === 0 ? 7 : d;
-  const monthStart = getMonthStartISO();
-  
-  const todaysSchedules = activitySchedules.filter(s => 
-    s.userId === currentUser.id && 
-    s.month === monthStart && 
-    Number(s.dayOfWeek) === dayOfWeek
-  );
-  
   const {
     pendingReturns,
     todaysReturns,
@@ -59,6 +44,21 @@ const Dashboard: React.FC<DashboardProps> = ({
     goals,
     accumulated
   } = useDashboardStats(studies, classes, groups, visits, currentUser);
+
+  if (!isInitialized) {
+    return <div className="p-8 text-center text-slate-500 font-bold">Carregando dashboard...</div>;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const d = new Date().getDay();
+  const dayOfWeek = d === 0 ? 7 : d;
+  const monthStart = getMonthStartISO();
+  
+  const todaysSchedules = activitySchedules.filter(s => 
+    s.userId === currentUser.id && 
+    s.month === monthStart && 
+    (s.date === today || (!s.date && Number(s.dayOfWeek) === dayOfWeek))
+  );
 
   if (!currentUser) return null;
 
