@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Ambassador, Unit, Sector } from '../../types';
 
@@ -10,9 +10,41 @@ interface AmbassadorTableProps {
 }
 
 const AmbassadorTable: React.FC<AmbassadorTableProps> = ({ ambassadors, currentUnit, proSectors, deleteAmbassador }) => {
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortValue = (amb: Ambassador, key: string) => {
+    switch (key) {
+      case 'registrationId': return amb.registrationId || '';
+      case 'name': return amb.name;
+      case 'sector': return proSectors.find(s => String(s.id) === String(amb.sectorId))?.name || '';
+      case 'date': return new Date(amb.completionDate).getTime();
+      default: return '';
+    }
+  };
+
   const filteredAmbassadors = ambassadors
     .filter(a => a.unit === currentUnit)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => {
+      const valA = getSortValue(a, sortConfig.key);
+      const valB = getSortValue(b, sortConfig.key);
+
+      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+  const renderSortIcon = (column: string) => {
+    if (sortConfig.key !== column) return <span className="opacity-30">↕</span>;
+    return sortConfig.direction === 'asc' ? <span>↑</span> : <span>↓</span>;
+  };
 
   return (
     <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
@@ -25,10 +57,10 @@ const AmbassadorTable: React.FC<AmbassadorTableProps> = ({ ambassadors, currentU
         <table className="w-full text-left border-collapse">
           <thead className="bg-slate-50">
             <tr className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
-              <th className="p-4">Matrícula</th>
-              <th className="p-4">Nome</th>
-              <th className="p-4">Setor</th>
-              <th className="p-4">Data</th>
+              <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('registrationId')}>Matrícula {renderSortIcon('registrationId')}</th>
+              <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>Nome {renderSortIcon('name')}</th>
+              <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('sector')}>Setor {renderSortIcon('sector')}</th>
+              <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('date')}>Data {renderSortIcon('date')}</th>
               <th className="p-4 text-right">Ações</th>
             </tr>
           </thead>

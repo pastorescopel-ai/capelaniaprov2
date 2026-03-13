@@ -35,8 +35,8 @@ const HealerPGsTab: React.FC<HealerPGsTabProps> = ({ duplicatePGs, handleMergePG
                 <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-lg">
                   <i className="fas fa-users-rectangle"></i>
                 </div>
-                <div>
-                  <h3 className="font-black text-slate-800 uppercase text-sm tracking-tight">{dup.name}</h3>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-slate-800 uppercase text-sm tracking-tight truncate">{dup.name}</h3>
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Unidade {dup.unit}</span>
                 </div>
               </div>

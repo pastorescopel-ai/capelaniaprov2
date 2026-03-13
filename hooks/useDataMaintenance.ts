@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { DataRepository } from '../services/dataRepository';
 import { Unit, ProSector } from '../types';
+import { normalizeString } from '../utils/formatters';
 
 export const useDataMaintenance = (
   reloadCallback: (showLoader: boolean) => Promise<void>
@@ -119,6 +120,32 @@ export const useDataMaintenance = (
     return data;
   };
 
+  const unifyIdentityV6 = async (orphanName: string, targetId: string, targetType: string): Promise<string> => {
+    if (!supabase) return "Erro Conexão";
+    const numericId = targetId.replace(/\D/g, '');
+    const { data, error } = await supabase.rpc('unify_identity_v6', { 
+        orphan_name: orphanName, 
+        target_id: numericId,
+        target_type: targetType
+    });
+    if (error) throw new Error(error.message);
+    await reloadCallback(false);
+    return data;
+  };
+
+  const mergeIdentitiesV6 = async (sourceId: string, sourceType: string, targetId: string, targetType: string): Promise<string> => {
+    if (!supabase) return "Erro Conexão";
+    const { data, error } = await supabase.rpc('merge_identities_v6', { 
+        source_id: sourceId.replace(/\D/g, ''), 
+        source_type: sourceType,
+        target_id: targetId.replace(/\D/g, ''),
+        target_type: targetType
+    });
+    if (error) throw new Error(error.message);
+    await reloadCallback(false);
+    return data;
+  };
+
   const healSectorConnection = async (badName: string, targetSectorId: string): Promise<string> => {
     if (!supabase) return "Erro Conexão";
     const numericId = targetSectorId.replace(/\D/g, '');
@@ -146,12 +173,17 @@ export const useDataMaintenance = (
         updates.sector_id = parseInt(numericSectorId);
     }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('bible_study_sessions')
         .update(updates)
-        .eq('name', orphanName);
+        .ilike('name', `%${orphanName.trim()}%`)
+        .select();
 
     if (error) throw new Error(error.message);
+    if (!data || data.length === 0) {
+        throw new Error(`Nenhum registro encontrado contendo o nome "${orphanName}" (mesmo ignorando maiúsculas/minúsculas e espaços extras).`);
+    }
+    
     await reloadCallback(false);
     return `Estudos de ${orphanName} vinculados com sucesso!`;
   };
@@ -207,6 +239,7 @@ export const useDataMaintenance = (
     executeSectorMigration,
     executePGMigration,
     unifyStudentIdentity,
+    unifyIdentityV6,
     createAndLinkIdentity,
     healSectorConnection,
     linkStudySessionIdentity,

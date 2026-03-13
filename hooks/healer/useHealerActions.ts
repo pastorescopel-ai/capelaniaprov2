@@ -8,7 +8,7 @@ export const useHealerActions = (
   const { 
     bibleClasses, bibleStudies, smallGroups, staffVisits, visitRequests,
     proStaff, proPatients, proProviders, proSectors, proGroups,
-    unifyStudentIdentity, createAndLinkIdentity, healSectorConnection, 
+    unifyStudentIdentity, unifyIdentityV6, mergeIdentitiesV6, createAndLinkIdentity, healSectorConnection, 
     linkStudySessionIdentity, saveRecord, mergePGs, deleteRecord, loadFromCloud,
     syncPGMembershipCycle
   } = appData;
@@ -31,43 +31,48 @@ export const useHealerActions = (
 
           setIsProcessing(true);
           try {
-              const result = await unifyStudentIdentity(orphanName, targetId);
+              const result = await unifyIdentityV6(orphanName, targetId, 'Colaborador');
+              const isError = result.startsWith('Erro:');
               
-              const targetStaff = proStaff.find((s: any) => String(s.id).includes(targetId));
-              if (targetStaff) {
-                  const normOrphan = normalizeString(orphanName);
-                  
-                  const groupsToUpdate = proGroups.filter((g: any) => normalizeString(g.leader) === normOrphan || normalizeString(g.currentLeader) === normOrphan);
-                  for (const g of groupsToUpdate) {
-                      await saveRecord('proGroups', { 
-                          ...g, 
-                          leader: normalizeString(g.leader) === normOrphan ? targetStaff.name : g.leader,
-                          currentLeader: normalizeString(g.currentLeader) === normOrphan ? targetStaff.name : g.currentLeader,
-                          leaderPhone: targetStaff.whatsapp || g.leaderPhone
-                      });
+              if (!isError) {
+                  const targetStaff = proStaff.find((s: any) => String(s.id).includes(targetId));
+                  if (targetStaff) {
+                      const normOrphan = normalizeString(orphanName);
+                      
+                      const groupsToUpdate = proGroups.filter((g: any) => normalizeString(g.leader) === normOrphan || normalizeString(g.currentLeader) === normOrphan);
+                      for (const g of groupsToUpdate) {
+                          await saveRecord('proGroups', { 
+                              ...g, 
+                              leader: normalizeString(g.leader) === normOrphan ? targetStaff.name : g.leader,
+                              currentLeader: normalizeString(g.currentLeader) === normOrphan ? targetStaff.name : g.currentLeader,
+                              leaderPhone: targetStaff.whatsapp || g.leaderPhone
+                          });
+                      }
+
+                      const historyToUpdate = smallGroups.filter((sg: any) => normalizeString(sg.leader) === normOrphan);
+                      for (const sg of historyToUpdate) {
+                          await saveRecord('smallGroups', { ...sg, leader: targetStaff.name });
+                      }
+
+                      // Correção retroativa do participantType para registros que foram salvos incorretamente como Prestador/Paciente
+                      const studiesToUpdate = bibleStudies.filter((s: any) => normalizeString(s.name) === normOrphan && s.participantType !== 'Colaborador');
+                      for (const s of studiesToUpdate) {
+                          await saveRecord('bibleStudies', { ...s, participantType: 'Colaborador' });
+                      }
+
+                      const visitsToUpdate = staffVisits.filter((v: any) => normalizeString(v.staffName) === normOrphan && v.participantType !== 'Colaborador');
+                      for (const v of visitsToUpdate) {
+                          await saveRecord('staffVisits', { ...v, participantType: 'Colaborador' });
+                      }
                   }
 
-                  const historyToUpdate = smallGroups.filter((sg: any) => normalizeString(sg.leader) === normOrphan);
-                  for (const sg of historyToUpdate) {
-                      await saveRecord('smallGroups', { ...sg, leader: targetStaff.name });
-                  }
-
-                  // Correção retroativa do participantType para registros que foram salvos incorretamente como Prestador/Paciente
-                  const studiesToUpdate = bibleStudies.filter((s: any) => normalizeString(s.name) === normOrphan && s.participantType !== 'Colaborador');
-                  for (const s of studiesToUpdate) {
-                      await saveRecord('bibleStudies', { ...s, participantType: 'Colaborador' });
-                  }
-
-                  const visitsToUpdate = staffVisits.filter((v: any) => normalizeString(v.staffName) === normOrphan && v.participantType !== 'Colaborador');
-                  for (const v of visitsToUpdate) {
-                      await saveRecord('staffVisits', { ...v, participantType: 'Colaborador' });
-                  }
+                  showToast(`Cura profunda concluída! ${result}`, "success");
+                  setResolvedItems((prev: any) => new Set(prev).add(orphanName));
+                  setResolvedItems((prev: any) => new Set(prev).add(normalizeString(orphanName)));
+                  setTargetMap((prev: any) => { const n = {...prev}; delete n[orphanName]; return n; });
+              } else {
+                  showToast(`Erro na unificação: ${result}`, "error");
               }
-
-              showToast(`Cura profunda concluída! ${result}`, "success");
-              setResolvedItems((prev: any) => new Set(prev).add(orphanName));
-              setResolvedItems((prev: any) => new Set(prev).add(normalizeString(orphanName)));
-              setTargetMap((prev: any) => { const n = {...prev}; delete n[orphanName]; return n; });
           } catch (e: any) { showToast("Erro: " + e.message, "error"); } 
           finally { setIsProcessing(false); }
 
@@ -81,8 +86,14 @@ export const useHealerActions = (
                   const existing = list.find((p: any) => p.name === targetName);
                   if (!existing) throw new Error(`${selectedType} selecionado não encontrado.`);
                   
-                  const result = await unifyStudentIdentity(orphanName, existing.id);
-                  showToast(`Vínculo universal realizado: ${result}`, "success");
+                  const result = await unifyIdentityV6(orphanName, existing.id, selectedType);
+                  const isError = result.startsWith('Erro:');
+                  showToast(`Vínculo universal realizado: ${result}`, isError ? "error" : "success");
+                  
+                  if (!isError) {
+                      setResolvedItems((prev: any) => new Set(prev).add(orphanName));
+                      setTargetMap((prev: any) => { const n = {...prev}; delete n[orphanName]; return n; });
+                  }
               } else {
                   if (!confirm(`Confirma criar novo cadastro de ${selectedType} para "${orphanName}"?`)) {
                       setIsProcessing(false);
@@ -90,8 +101,9 @@ export const useHealerActions = (
                   }
                   const result = await createAndLinkIdentity(orphanName, selectedType);
                   showToast(result, "success");
+                  setResolvedItems((prev: any) => new Set(prev).add(orphanName));
+                  setTargetMap((prev: any) => { const n = {...prev}; delete n[orphanName]; return n; });
               }
-              setResolvedItems((prev: any) => new Set(prev).add(orphanName));
           } catch (e: any) { showToast("Erro: " + e.message, "error"); }
           finally { setIsProcessing(false); }
       }
@@ -249,84 +261,15 @@ export const useHealerActions = (
   const handleUniversalMerge = async (sourceType: string, sourceId: string, targetType: string, targetId: string) => {
       setIsProcessing(true);
       try {
-          const sourceList = sourceType === 'Colaborador' ? proStaff : sourceType === 'Paciente' ? proPatients : proProviders;
-          const targetList = targetType === 'Colaborador' ? proStaff : targetType === 'Paciente' ? proPatients : proProviders;
-
-          const sourceRecord = sourceList.find((r: any) => String(r.id) === String(sourceId));
-          const targetRecord = targetList.find((r: any) => String(r.id) === String(targetId));
-
-          if (!sourceRecord) throw new Error("Cadastro de origem não encontrado.");
-          if (!targetRecord) throw new Error("Cadastro de destino não encontrado.");
-
-          const normSource = normalizeString(sourceRecord.name);
+          const result = await mergeIdentitiesV6(sourceId, sourceType, targetId, targetType);
+          const isError = result.startsWith('Erro:');
           
-          // Helper function for more robust matching
-          const isMatch = (nameToTest: string) => {
-              if (!nameToTest) return false;
-              const normTest = normalizeString(nameToTest);
-              // Primeiro tenta match exato
-              if (normTest === normSource) return true;
-              // Se não for exato, verifica se o nome original está contido no nome testado (ou vice-versa)
-              // Isso ajuda a pegar casos onde o histórico tem "Simone Sawada" e o cadastro tinha "Simone Cristina Sawada"
-              return normTest.includes(normSource) || normSource.includes(normTest);
-          };
-
-          // 1. Atualizar Estudos Bíblicos
-          const studiesToUpdate = bibleStudies.filter((s: any) => isMatch(s.name));
-          for (const s of studiesToUpdate) {
-              await saveRecord('bibleStudies', { 
-                  ...s, 
-                  name: targetRecord.name, 
-                  staffId: targetRecord.id, 
-                  participantType: targetType,
-                  sectorId: targetRecord.sectorId || s.sectorId 
-              });
+          if (!isError) {
+              showToast("Mesclagem concluída com sucesso! Histórico transferido e cadastro incorreto removido.", "success");
+              await loadFromCloud(false);
+          } else {
+              showToast(result, "error");
           }
-
-          // 2. Atualizar Visitas
-          const visitsToUpdate = staffVisits.filter((v: any) => isMatch(v.staffName));
-          for (const v of visitsToUpdate) {
-              await saveRecord('staffVisits', { 
-                  ...v, 
-                  staffName: targetRecord.name, 
-                  participantType: targetType 
-              });
-          }
-
-          // 3. Atualizar Aulas Bíblicas
-          const classesToUpdate = bibleClasses.filter((c: any) => c.students?.some((st: any) => isMatch(st)));
-          for (const c of classesToUpdate) {
-              const updatedStudents = c.students.map((st: any) => isMatch(st) ? targetRecord.name : st);
-              await saveRecord('bibleClasses', { ...c, students: updatedStudents });
-          }
-
-          // 4. Atualizar Histórico de PGs
-          const historyToUpdate = smallGroups.filter((sg: any) => isMatch(sg.leader));
-          for (const sg of historyToUpdate) {
-              await saveRecord('smallGroups', { ...sg, leader: targetRecord.name });
-          }
-
-          // 5. Atualizar PGs Ativos
-          const groupsToUpdate = proGroups.filter((g: any) => isMatch(g.leader) || isMatch(g.currentLeader));
-          for (const g of groupsToUpdate) {
-              await saveRecord('proGroups', { 
-                  ...g, 
-                  leader: isMatch(g.leader) ? targetRecord.name : g.leader,
-                  currentLeader: isMatch(g.currentLeader) ? targetRecord.name : g.currentLeader,
-                  leaderPhone: targetRecord.whatsapp || g.leaderPhone
-              });
-          }
-
-          // 6. Apagar o registro de origem
-          const collectionMap: Record<string, string> = {
-              'Colaborador': 'proStaff',
-              'Paciente': 'proPatients',
-              'Prestador': 'proProviders'
-          };
-          await deleteRecord(collectionMap[sourceType], sourceId);
-
-          showToast("Mesclagem concluída com sucesso! Histórico transferido e cadastro incorreto removido.", "success");
-          await loadFromCloud(false);
       } catch (e: any) {
           showToast("Erro na mesclagem: " + e.message, "error");
       } finally {

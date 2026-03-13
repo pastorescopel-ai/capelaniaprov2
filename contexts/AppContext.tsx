@@ -42,6 +42,8 @@ interface AppContextType {
   executeSectorMigration: (oldName: string, newName: string) => Promise<string>;
   executePGMigration: (oldName: string, newName: string) => Promise<string>;
   unifyStudentIdentity: (orphanName: string, targetStaffId: string) => Promise<string>;
+  unifyIdentityV6: (orphanName: string, targetId: string, targetType: string) => Promise<string>;
+  mergeIdentitiesV6: (sourceId: string, sourceType: string, targetId: string, targetType: string) => Promise<string>;
   createAndLinkIdentity: (orphanName: string, newType: 'Paciente' | 'Prestador') => Promise<string>;
   healSectorConnection: (badName: string, targetSectorId: string) => Promise<string>;
   linkStudySessionIdentity: (orphanName: string, targetStaffId: string, targetSectorId: string | null, participantType: string) => Promise<string>;

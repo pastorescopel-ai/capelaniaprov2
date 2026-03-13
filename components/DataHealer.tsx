@@ -7,6 +7,7 @@ import HealerAttendeesTab from './DataHealer/HealerAttendeesTab';
 import HealerSectorsTab from './DataHealer/HealerSectorsTab';
 import HealerPGsTab from './DataHealer/HealerPGsTab';
 import HealerMergeTab from './DataHealer/HealerMergeTab';
+import HealerAmbassadorsTab from './DataHealer/HealerAmbassadorsTab';
 
 const DataHealer: React.FC = () => {
   const {
@@ -44,6 +45,7 @@ const DataHealer: React.FC = () => {
       if (activeTab === 'studies') return 'indigo';
       if (activeTab === 'pgs') return 'amber';
       if (activeTab === 'merge') return 'slate';
+      if (activeTab === 'ambassadors') return 'rose';
       return 'blue';
   };
   const currentTheme = getTheme();
@@ -127,7 +129,7 @@ const DataHealer: React.FC = () => {
       )}
 
       {/* ABAS DE NAVEGAÇÃO */}
-      <div className="flex bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 max-w-xl mx-auto gap-2">
+      <div className="flex bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 max-w-xl mx-auto gap-2 overflow-x-auto">
           <button 
             onClick={() => { setActiveTab('people'); setTargetMap({}); setPersonTypeMap({}); setSearchQuery(''); }}
             className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'people' ? 'bg-rose-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
@@ -157,6 +159,12 @@ const DataHealer: React.FC = () => {
             className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'sectors' ? 'bg-blue-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
           >
               <i className="fas fa-building"></i> Setores
+          </button>
+          <button 
+            onClick={() => { setActiveTab('ambassadors'); setSearchQuery(''); }}
+            className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'ambassadors' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+              <i className="fas fa-user-check"></i> Embaixadores
           </button>
           <button 
             onClick={() => { setActiveTab('merge'); setSearchQuery(''); }}
@@ -259,9 +267,13 @@ const DataHealer: React.FC = () => {
                 <HealerAttendeesTab 
                   attendeeOrphans={attendeeOrphans}
                   isLoadingAttendees={isLoadingAttendees}
+                  personTypeMap={personTypeMap}
+                  setPersonTypeMap={setPersonTypeMap}
                   targetMap={targetMap}
                   setTargetMap={setTargetMap}
                   officialStaffOptions={officialStaffOptions}
+                  officialPatientOptions={officialPatientOptions}
+                  officialProviderOptions={officialProviderOptions}
                   handleProcessPerson={handleProcessPerson}
                   isProcessing={isProcessing}
                 />
@@ -276,6 +288,10 @@ const DataHealer: React.FC = () => {
                   handleHealSector={handleHealSector}
                   isProcessing={isProcessing}
                 />
+              )}
+
+              {activeTab === 'ambassadors' && (
+                <HealerAmbassadorsTab />
               )}
 
               {activeTab === 'pgs' && (

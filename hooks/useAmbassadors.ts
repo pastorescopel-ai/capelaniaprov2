@@ -55,13 +55,23 @@ export const useAmbassadors = (proSectors: any[]) => {
   }, [fetchAmbassadors]);
 
   const deleteAmbassador = async (id: string) => {
-    if (!confirm('Tem certeza que deseja remover este embaixador?')) return;
     const { error } = await supabase.from('ambassadors').delete().eq('id', id);
     if (error) showToast('Erro ao excluir', 'error');
     else {
       showToast('Excluído com sucesso', 'success');
       setAmbassadors(prev => prev.filter(a => a.id !== id));
     }
+  };
+
+  const deleteCycleAmbassadors = async (cycleMonth: string) => {
+    const { error } = await supabase.from('ambassadors').delete().eq('cycle_month', cycleMonth);
+    if (error) {
+      showToast('Erro ao limpar ciclo', 'error');
+      return false;
+    }
+    showToast('Ciclo limpo com sucesso', 'success');
+    fetchAmbassadors();
+    return true;
   };
 
   const processImport = async (onSuccess: () => void, cycleMonth: string) => {
@@ -86,7 +96,6 @@ export const useAmbassadors = (proSectors: any[]) => {
       const upsertMap = new Map<string, any>();
 
       // Para o BI: Definimos o created_at como o primeiro dia do mês de competência
-      // Isso garante que o BI agrupe corretamente por mês.
       const competenceDate = new Date(cycleMonth + 'T12:00:00Z');
       const biCreatedAt = competenceDate.toISOString();
 
@@ -104,6 +113,17 @@ export const useAmbassadors = (proSectors: any[]) => {
         if (!matricula || !nome) continue;
 
         const regId = String(matricula).trim();
+        const nomeStr = String(nome).trim();
+
+        // Validação: Matrícula deve ser apenas números
+        if (!/^\d+$/.test(regId)) {
+          throw new Error(`Matrícula inválida na linha: ${regId}. Apenas números são permitidos.`);
+        }
+
+        // Validação: Nome não pode conter números
+        if (/\d/.test(nomeStr)) {
+          throw new Error(`Nome inválido na linha: ${nomeStr}. Números não são permitidos em nomes.`);
+        }
 
         let unit = Unit.HAB;
         let sectorIdMatch = null;
@@ -113,16 +133,19 @@ export const useAmbassadors = (proSectors: any[]) => {
         if (sectorMatch) {
             unit = sectorMatch.unit;
             sectorIdMatch = sectorMatch.id;
+        } else {
+          // Validação: Setor deve ser identificado
+          throw new Error(`Setor não identificado para o embaixador: ${nomeStr} (Setor ID: ${idSetorExcel}).`);
         }
 
         upsertMap.set(regId, {
           registration_id: regId,
-          name: String(nome).trim(),
+          name: nomeStr,
           sector_id: sectorIdMatch, 
           unit: unit,
-          completion_date: biCreatedAt, // Usamos a data de competência como data de conclusão também
+          completion_date: biCreatedAt,
           cycle_month: cycleMonth,
-          created_at: biCreatedAt, // Crucial para o BI
+          created_at: biCreatedAt,
           updated_at: new Date().toISOString()
         });
       }
@@ -130,12 +153,11 @@ export const useAmbassadors = (proSectors: any[]) => {
       const toUpsert = Array.from(upsertMap.values());
 
       if (toUpsert.length > 0) {
-        // Agora o conflito é por (registration_id, cycle_month)
         const { error } = await supabase.from('ambassadors').upsert(toUpsert, { onConflict: 'registration_id,cycle_month' });
         if (error) throw error;
         showToast(`${toUpsert.length} registros processados para o ciclo ${cycleMonth}!`, 'success');
         setImportPreview([]);
-        setSelectedMonth(cycleMonth); // Muda a visão para o mês importado
+        setSelectedMonth(cycleMonth);
         fetchAmbassadors();
         onSuccess();
       } else {
@@ -157,6 +179,7 @@ export const useAmbassadors = (proSectors: any[]) => {
     setSelectedMonth,
     fetchAmbassadors,
     deleteAmbassador,
+    deleteCycleAmbassadors,
     processImport
   };
 };

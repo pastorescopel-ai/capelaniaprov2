@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Autocomplete from '../Shared/Autocomplete';
 import { PersonType } from '../../hooks/useDataHealer';
 import { useToast } from '../../contexts/ToastContext';
@@ -28,6 +28,10 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
   handleUniversalMerge, isProcessing
 }) => {
   const { showToast } = useToast();
+  
+  const [sourceInput, setSourceInput] = useState('');
+  const [targetInput, setTargetInput] = useState('');
+
   const getOptions = React.useCallback((type: PersonType) => {
     if (type === 'Colaborador' || type === 'Ex-Colaborador') return officialStaffOptions;
     if (type === 'Paciente') return officialPatientOptions;
@@ -40,14 +44,15 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
     return opt ? opt.label : '';
   }, [getOptions]);
 
-  const sourceInput = useMemo(() => {
-    if (!mergeSourceId) return '';
-    return getLabel(mergeSourceType, mergeSourceId);
+  // Sincronizar labels quando IDs mudam (ex: após mesclagem ou seleção externa)
+  useEffect(() => {
+    const label = mergeSourceId ? getLabel(mergeSourceType, mergeSourceId) : '';
+    setSourceInput(prev => prev === label ? prev : label);
   }, [mergeSourceId, mergeSourceType, getLabel]);
 
-  const targetInput = useMemo(() => {
-    if (!mergeTargetId) return '';
-    return getLabel(mergeTargetType, mergeTargetId);
+  useEffect(() => {
+    const label = mergeTargetId ? getLabel(mergeTargetType, mergeTargetId) : '';
+    setTargetInput(prev => prev === label ? prev : label);
   }, [mergeTargetId, mergeTargetType, getLabel]);
 
   const handleMerge = () => {

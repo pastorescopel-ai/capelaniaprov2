@@ -11,6 +11,7 @@ import AmbassadorDashboard from './AmbassadorDashboard';
 import AmbassadorTable from './AmbassadorTable';
 import ImportTab from './ImportTab';
 import ReportsTab from './ReportsTab';
+import ConfirmationModal from '../Shared/ConfirmationModal';
 
 const AmbassadorsManager: React.FC = () => {
   const { proSectors, proStaff, config } = useApp();
@@ -32,6 +33,8 @@ const AmbassadorsManager: React.FC = () => {
     deleteAmbassador, 
     processImport 
   } = useAmbassadors(proSectors);
+
+  const [ambassadorToDelete, setAmbassadorToDelete] = useState<string | null>(null);
 
   // Hook de Estatísticas
   const { stats, getChartData } = useAmbassadorStats(ambassadors, proSectors, proStaff, selectedMonth);
@@ -100,7 +103,7 @@ const AmbassadorsManager: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-20 relative">
+    <div className="embaixadores-manager space-y-8 animate-in fade-in duration-500 pb-20 relative">
       
       {/* Cabeçalho Estilo Gestão de PGs */}
       <div className="sticky top-[-1rem] md:top-[-2rem] z-[100] -mx-4 md:-mx-8 px-4 md:px-8 py-4 bg-[#f1f5f9]/90 backdrop-blur-xl border-b border-slate-200/50 shadow-sm transition-all">
@@ -215,7 +218,7 @@ const AmbassadorsManager: React.FC = () => {
               ambassadors={ambassadors}
               currentUnit={currentUnit}
               proSectors={proSectors}
-              deleteAmbassador={deleteAmbassador}
+              deleteAmbassador={(id) => setAmbassadorToDelete(id)}
             />
           )}
 
@@ -241,6 +244,20 @@ const AmbassadorsManager: React.FC = () => {
           )}
         </main>
       </div>
+
+      <ConfirmationModal
+        isOpen={!!ambassadorToDelete}
+        title="Excluir Embaixador"
+        message="Tem certeza que deseja excluir este embaixador? Esta ação não pode ser desfeita."
+        onConfirm={() => {
+          if (ambassadorToDelete) {
+            deleteAmbassador(ambassadorToDelete);
+            setAmbassadorToDelete(null);
+          }
+        }}
+        onCancel={() => setAmbassadorToDelete(null)}
+        variant="danger"
+      />
     </div>
   );
 };
