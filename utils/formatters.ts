@@ -38,6 +38,17 @@ export const formatWhatsApp = (value: string) => {
 };
 
 /**
+ * Retorna o primeiro dia do mês em formato ISO (YYYY-MM-DD) de forma segura para o fuso horário local.
+ */
+export const getMonthStartISO = (date: Date = new Date()): string => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const offset = firstDay.getTimezoneOffset() * 60000;
+  return new Date(firstDay.getTime() - offset).toISOString().split('T')[0];
+};
+
+/**
  * Normaliza datas para armazenamento no banco de dados.
  * Adiciona T12:00:00 para evitar que o fuso horário (UTC) altere o dia no banco (corrupção de data).
  */

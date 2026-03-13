@@ -4,6 +4,7 @@ import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { Unit, UserRole, ActivitySchedule } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
+import { getMonthStartISO } from '../../utils/formatters';
 import { Calendar as CalendarIcon, Plus, Trash2, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { generateMonthlyScheduleHTML } from '../../utils/activityTemplates';
 import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
@@ -14,7 +15,7 @@ import ReplicateScaleModal from './Scheduler/ReplicateScaleModal';
 import DeleteScheduleModal from './Scheduler/DeleteScheduleModal';
 
 const ActivityScheduler: React.FC = () => {
-  const { users, proSectors, activitySchedules, saveRecord, deleteRecord, config } = useApp();
+  const { users, proSectors, activitySchedules, saveRecord, deleteRecord, config, isInitialized } = useApp();
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const { generatePdf, isGenerating: isGeneratingPdf } = useDocumentGenerator();
@@ -22,12 +23,7 @@ const ActivityScheduler: React.FC = () => {
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
   const [selectedUnit, setSelectedUnit] = useState<Unit>(Unit.HAB);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const offset = firstDay.getTimezoneOffset() * 60000;
-    return new Date(firstDay.getTime() - offset).toISOString().split('T')[0];
-  });
+  const [selectedMonth, setSelectedMonth] = useState(() => getMonthStartISO());
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [hasInitializedUser, setHasInitializedUser] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -42,13 +38,8 @@ const ActivityScheduler: React.FC = () => {
   useEffect(() => {
     if (!hasInitializedUser && chaplains.length > 0) {
       if (isAdmin) {
-        // For admin, default to their own ID if they are a chaplain, or the first one
-        const self = chaplains.find(c => c.id === currentUser?.id);
-        if (self) {
-          setSelectedUser(self.id);
-        } else {
-          setSelectedUser(chaplains[0].id);
-        }
+        // For admin, default to "Todos os Capelães" (empty string)
+        setSelectedUser('');
       } else {
         setSelectedUser(currentUser?.id || '');
       }
@@ -72,7 +63,11 @@ const ActivityScheduler: React.FC = () => {
   );
 
   const filteredSchedules = useMemo(() => 
-    activitySchedules.filter(s => s.unit === selectedUnit && s.month === selectedMonth && (selectedUser ? s.userId === selectedUser : true)),
+    activitySchedules.filter(s => 
+      s.unit === selectedUnit && 
+      s.month === selectedMonth && 
+      (!selectedUser || s.userId === selectedUser)
+    ),
     [activitySchedules, selectedUnit, selectedMonth, selectedUser]
   );
 
@@ -80,6 +75,10 @@ const ActivityScheduler: React.FC = () => {
     activitySchedules.filter(s => s.unit === selectedUnit && s.month === selectedMonth),
     [activitySchedules, selectedUnit, selectedMonth]
   );
+
+  if (!isInitialized) {
+    return <div className="p-8 text-center text-slate-500 font-bold">Carregando agenda...</div>;
+  }
 
   const handleOpenAddModal = (dayOfWeek: number, type: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando') => {
     if (!selectedUser && !isAdmin) {
@@ -161,6 +160,7 @@ const ActivityScheduler: React.FC = () => {
         dayOfWeek: s.dayOfWeek,
         activityType: s.activityType,
         location: s.location,
+        time: s.time,
         createdAt: Date.now()
       }));
 

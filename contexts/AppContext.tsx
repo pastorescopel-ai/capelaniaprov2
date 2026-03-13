@@ -27,6 +27,7 @@ interface AppContextType {
   config: Config;
   isSyncing: boolean;
   isConnected: boolean;
+  isInitialized: boolean;
   
   loadFromCloud: (showLoader?: boolean) => Promise<void>;
   saveToCloud: (overrides?: any, showLoader?: boolean) => Promise<boolean>;

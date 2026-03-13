@@ -61,7 +61,13 @@ const ActivityChecklist: React.FC = () => {
     }
   }, [selectedDate, selectedUser, dailyActivityReports]);
 
-  const currentDayOfWeek = useMemo(() => new Date(selectedDate + 'T12:00:00').getDay(), [selectedDate]);
+  const currentDayOfWeek = useMemo(() => {
+    const d = new Date(selectedDate + 'T12:00:00').getDay();
+    // Convert 0 (Sunday) to 7, and 1-6 to 1-6. 
+    // Wait, the scheduler uses 1-6. If Sunday is 0, what should it be?
+    // Let's assume Sunday is not used or map it to 7.
+    return d === 0 ? 7 : d;
+  }, [selectedDate]);
   
   const currentMonth = useMemo(() => {
     return selectedDate.substring(0, 7) + '-01';

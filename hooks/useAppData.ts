@@ -346,7 +346,13 @@ export const useAppData = () => {
   }, [saveRecord]);
 
   useEffect(() => {
-    if (!isInitialized) { loadFromCloud(true); setIsInitialized(true); }
+    if (!isInitialized) {
+      const init = async () => {
+        await loadFromCloud(true);
+        setIsInitialized(true);
+      };
+      init();
+    }
   }, [loadFromCloud, isInitialized]);
 
   // Sincronização automática de estudantes nas classes bíblicas quando os participantes mudam
@@ -374,7 +380,7 @@ export const useAppData = () => {
     users, bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests,
     proStaff, proPatients, proProviders, proSectors, proGroups, proGroupLocations, proGroupMembers, proGroupProviderMembers, 
     activitySchedules, dailyActivityReports, bibleClassAttendees,
-    config, isSyncing, isConnected, 
+    config, isSyncing, isConnected, isInitialized,
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, syncMasterContact
   };
 };

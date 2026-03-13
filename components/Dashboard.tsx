@@ -3,6 +3,7 @@ import React from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole, Config } from '../types';
 import { useApp } from '../hooks/useApp';
 import { useDashboardStats } from '../hooks/useDashboardStats';
+import { getMonthStartISO } from '../utils/formatters';
 import Mural from './Dashboard/Mural';
 import StatCards from './Dashboard/StatCards';
 import ImpactCharts from './Dashboard/ImpactCharts';
@@ -27,16 +28,21 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ 
   studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onGoToReturnHistory, onUpdateConfig 
 }) => {
-  const { visitRequests, users, activitySchedules, dailyActivityReports } = useApp(); 
+  const { visitRequests, users, activitySchedules, dailyActivityReports, isInitialized } = useApp(); 
   
+  if (!isInitialized) {
+    return <div className="p-8 text-center text-slate-500 font-bold">Carregando dashboard...</div>;
+  }
+
   const today = new Date().toISOString().split('T')[0];
-  const dayOfWeek = new Date().getDay();
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  const d = new Date().getDay();
+  const dayOfWeek = d === 0 ? 7 : d;
+  const monthStart = getMonthStartISO();
   
   const todaysSchedules = activitySchedules.filter(s => 
     s.userId === currentUser.id && 
     s.month === monthStart && 
-    s.dayOfWeek === dayOfWeek
+    Number(s.dayOfWeek) === dayOfWeek
   );
   
   const {

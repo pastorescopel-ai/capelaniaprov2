@@ -1,6 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { ActivitySchedule, DailyActivityReport, User } from '../../types';
+import { getMonthStartISO } from '../../utils/formatters';
 import { CheckCircle, Circle, MapPin, Users, HeartPulse, Calendar } from 'lucide-react';
 
 interface ActivityProgressWidgetProps {
@@ -17,14 +18,15 @@ const ActivityProgressWidget: React.FC<ActivityProgressWidgetProps> = ({
   onGoToActivities
 }) => {
   const today = new Date().toISOString().split('T')[0];
-  const dayOfWeek = new Date().getDay();
-  const currentMonth = today.substring(0, 7) + '-01';
+  const d = new Date().getDay();
+  const dayOfWeek = d === 0 ? 7 : d;
+  const currentMonth = getMonthStartISO();
 
   const todaysSchedules = useMemo(() => 
     schedules.filter(s => 
       s.userId === currentUser.id && 
       s.month === currentMonth && 
-      s.dayOfWeek === dayOfWeek
+      Number(s.dayOfWeek) === dayOfWeek
     ),
     [schedules, currentUser.id, currentMonth, dayOfWeek]
   );
