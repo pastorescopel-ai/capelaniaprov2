@@ -6,26 +6,76 @@ import { DataRepository } from '../services/dataRepository';
 import { AuthContext } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
 
+const INACTIVITY_LIMIT = 4 * 60 * 60 * 1000; // 4 horas em milissegundos
+const LAST_ACTIVITY_KEY = 'capelania_last_activity';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { saveRecord } = useApp();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  // Função para atualizar o carimbo de última atividade
+  const updateActivity = () => {
+    localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+  };
+
+  // Função para verificar se o tempo de inatividade expirou
+  const checkInactivity = () => {
+    const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
+    if (lastActivity) {
+      const elapsed = Date.now() - parseInt(lastActivity, 10);
+      if (elapsed > INACTIVITY_LIMIT) {
+        console.log("[Auth] Sessão expirada por inatividade (4h)");
+        return true;
+      }
+    }
+    return false;
+  };
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      setIsAuthLoading(false);
+      return;
+    }
+
+    // Monitor de eventos para resetar o timer de inatividade
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    const handleUserActivity = () => {
+      if (isAuthenticated) updateActivity();
+    };
+
+    events.forEach(event => window.addEventListener(event, handleUserActivity));
 
     // Check active session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.email) {
-        DataRepository.getUserByEmail(session.user.email).then(dbUser => {
-          if (dbUser) {
-            setCurrentUser(dbUser);
-            setIsAuthenticated(true);
+    const initSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user?.email) {
+          // Verifica se a sessão expirou por inatividade antes de restaurar
+          if (checkInactivity()) {
+            await supabase.auth.signOut();
+            setCurrentUser(null);
+            setIsAuthenticated(false);
+          } else {
+            const dbUser = await DataRepository.getUserByEmail(session.user.email);
+            if (dbUser) {
+              setCurrentUser(dbUser);
+              setIsAuthenticated(true);
+              updateActivity(); // Renova o timer ao entrar
+            }
           }
-        });
+        }
+      } catch (error) {
+        console.error("[Auth] Erro ao inicializar sessão:", error);
+      } finally {
+        setIsAuthLoading(false);
       }
-    });
+    };
+
+    initSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user?.email) {
@@ -33,16 +83,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (dbUser) {
             setCurrentUser(dbUser);
             setIsAuthenticated(true);
+            updateActivity();
           }
         });
       } else {
         setCurrentUser(null);
         setIsAuthenticated(false);
+        localStorage.removeItem(LAST_ACTIVITY_KEY);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Intervalo para verificar inatividade periodicamente enquanto o app está aberto
+    const inactivityInterval = setInterval(() => {
+      if (isAuthenticated && checkInactivity()) {
+        logout();
+      }
+    }, 60000); // Verifica a cada minuto
+
+    return () => {
+      subscription.unsubscribe();
+      events.forEach(event => window.removeEventListener(event, handleUserActivity));
+      clearInterval(inactivityInterval);
+    };
+  }, [isAuthenticated]);
 
   const login = async (email: string, pass: string): Promise<boolean> => {
     setLoginError(null);
@@ -77,6 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         setCurrentUser(dbUser);
         setIsAuthenticated(true);
+        updateActivity();
         return true;
       }
     }
@@ -125,6 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setCurrentUser(dbUser);
       setIsAuthenticated(true);
+      updateActivity();
       return true;
     } else {
       setLoginError('Senha incorreta.');
@@ -139,12 +204,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUser(null);
     setIsAuthenticated(false);
     setLoginError(null);
+    localStorage.removeItem(LAST_ACTIVITY_KEY);
   };
 
   const updateCurrentUser = (user: User) => setCurrentUser(user);
 
   return (
-    <AuthContext.Provider value={{ currentUser, isAuthenticated, login, logout, updateCurrentUser, loginError }}>
+    <AuthContext.Provider value={{ currentUser, isAuthenticated, login, logout, updateCurrentUser, loginError, isAuthLoading }}>
       {children}
     </AuthContext.Provider>
   );
