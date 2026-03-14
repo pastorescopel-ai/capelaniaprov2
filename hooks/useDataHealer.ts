@@ -3,7 +3,7 @@ import { useHealerState } from './healer/useHealerState';
 import { useHealerCalculations } from './healer/useHealerCalculations';
 import { useHealerActions } from './healer/useHealerActions';
 
-export type HealerTab = 'people' | 'sectors' | 'attendees' | 'studies' | 'pgs' | 'merge' | 'ambassadors';
+export type HealerTab = 'people' | 'sectors' | 'attendees' | 'studies' | 'pgs' | 'merge' | 'ambassadors' | 'memberships';
 export type PersonType = 'Colaborador' | 'Ex-Colaborador' | 'Paciente' | 'Prestador';
 
 export const useDataHealer = () => {
@@ -22,6 +22,7 @@ export const useDataHealer = () => {
   return {
     ...state,
     ...calculations,
-    ...actions
+    ...actions,
+    proGroups: appData.proGroups
   };
 };

@@ -299,13 +299,62 @@ export const useHealerCalculations = (
     return duplicates;
   }, [proGroups]);
 
+  // --- MATRÍCULAS DUPLICADAS ---
+  const duplicateMemberships = useMemo(() => {
+    const duplicates: { personName: string, personId: string, type: 'staff' | 'provider', memberships: any[] }[] = [];
+    
+    // 1. CLT
+    const staffMap = new Map<string, any[]>();
+    (appData.proGroupMembers || []).forEach((m: any) => {
+      if (m.leftAt || m.isError) return;
+      const sid = String(m.staffId);
+      if (!staffMap.has(sid)) staffMap.set(sid, []);
+      staffMap.get(sid)!.push(m);
+    });
+
+    staffMap.forEach((list, sid) => {
+      if (list.length > 1) {
+        const person = proStaff.find((s: any) => String(s.id) === sid);
+        duplicates.push({
+          personName: person?.name || `ID: ${sid}`,
+          personId: sid,
+          type: 'staff',
+          memberships: list
+        });
+      }
+    });
+
+    // 2. Prestadores
+    const providerMap = new Map<string, any[]>();
+    (appData.proGroupProviderMembers || []).forEach((m: any) => {
+      if (m.leftAt || m.isError) return;
+      const pid = String(m.providerId);
+      if (!providerMap.has(pid)) providerMap.set(pid, []);
+      providerMap.get(pid)!.push(m);
+    });
+
+    providerMap.forEach((list, pid) => {
+      if (list.length > 1) {
+        const person = proProviders.find((p: any) => String(p.id) === pid);
+        duplicates.push({
+          personName: person?.name || `ID: ${pid}`,
+          personId: pid,
+          type: 'provider',
+          memberships: list
+        });
+      }
+    });
+
+    return duplicates;
+  }, [appData.proGroupMembers, appData.proGroupProviderMembers, proStaff, proProviders]);
+
   // --- HEALTH SCORE ---
   const healthScore = useMemo(() => {
-    const totalOrphans = peopleOrphans.length + studyOrphans.length + sectorOrphans.length + state.attendeeOrphans.length + duplicatePGs.length;
+    const totalOrphans = peopleOrphans.length + studyOrphans.length + sectorOrphans.length + state.attendeeOrphans.length + duplicatePGs.length + duplicateMemberships.length;
     if (totalOrphans === 0) return 100;
     const score = 100 - (totalOrphans * 2);
     return Math.max(0, score);
-  }, [peopleOrphans, studyOrphans, sectorOrphans, state.attendeeOrphans, duplicatePGs]);
+  }, [peopleOrphans, studyOrphans, sectorOrphans, state.attendeeOrphans, duplicatePGs, duplicateMemberships]);
 
   const isHealthy = (name: string) => {
       const norm = normalizeString(name);
@@ -324,6 +373,7 @@ export const useHealerCalculations = (
     officialSectorOptions,
     filteredPeopleList,
     duplicatePGs,
+    duplicateMemberships,
     healthScore,
     isHealthy
   };

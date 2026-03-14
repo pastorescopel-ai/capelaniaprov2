@@ -8,6 +8,7 @@ import HealerSectorsTab from './DataHealer/HealerSectorsTab';
 import HealerPGsTab from './DataHealer/HealerPGsTab';
 import HealerMergeTab from './DataHealer/HealerMergeTab';
 import HealerAmbassadorsTab from './DataHealer/HealerAmbassadorsTab';
+import HealerMembershipsTab from './DataHealer/HealerMembershipsTab';
 
 const DataHealer: React.FC = () => {
   const {
@@ -27,6 +28,8 @@ const DataHealer: React.FC = () => {
     handleProcessPerson, handleHealSector, handleLinkStudy, isHealthy,
     healthScore,
     duplicatePGs,
+    duplicateMemberships,
+    proGroups,
     handleMergePGs,
     getSourceRecords,
     handleDeleteSourceRecord,
@@ -35,7 +38,8 @@ const DataHealer: React.FC = () => {
     mergeTargetType, setMergeTargetType,
     mergeTargetId, setMergeTargetId,
     handleUniversalMerge,
-    handleSyncTemporalCycle
+    handleSyncTemporalCycle,
+    handleFixDuplicateMembership
   } = useDataHealer();
 
   // Tema dinâmico
@@ -44,13 +48,14 @@ const DataHealer: React.FC = () => {
       if (activeTab === 'people') return 'rose';
       if (activeTab === 'studies') return 'indigo';
       if (activeTab === 'pgs') return 'amber';
+      if (activeTab === 'memberships') return 'emerald';
       if (activeTab === 'merge') return 'slate';
       if (activeTab === 'ambassadors') return 'rose';
       return 'blue';
   };
   const currentTheme = getTheme();
 
-  const totalOrphans = peopleOrphans.length + studyOrphans.length + sectorOrphans.length + attendeeOrphans.length + duplicatePGs.length;
+  const totalOrphans = peopleOrphans.length + studyOrphans.length + sectorOrphans.length + attendeeOrphans.length + duplicatePGs.length + duplicateMemberships.length;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-32 max-w-5xl mx-auto">
@@ -153,6 +158,12 @@ const DataHealer: React.FC = () => {
             className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'pgs' ? 'bg-amber-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
           >
               <i className="fas fa-users-rectangle"></i> PGs
+          </button>
+          <button 
+            onClick={() => { setActiveTab('memberships'); setTargetMap({}); setSearchQuery(''); }}
+            className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'memberships' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+              <i className="fas fa-id-card"></i> Matrículas
           </button>
           <button 
             onClick={() => { setActiveTab('sectors'); setTargetMap({}); setSearchQuery(''); }}
@@ -299,6 +310,15 @@ const DataHealer: React.FC = () => {
                   duplicatePGs={duplicatePGs}
                   handleMergePGs={handleMergePGs}
                   isProcessing={isProcessing}
+                />
+              )}
+
+              {activeTab === 'memberships' && (
+                <HealerMembershipsTab 
+                  duplicateMemberships={duplicateMemberships}
+                  handleFixDuplicateMembership={handleFixDuplicateMembership}
+                  isProcessing={isProcessing}
+                  proGroups={proGroups}
                 />
               )}
           </div>

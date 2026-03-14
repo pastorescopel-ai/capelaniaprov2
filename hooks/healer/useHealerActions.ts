@@ -295,6 +295,42 @@ export const useHealerActions = (
     }
   };
 
+  const handleFixDuplicateMembership = async (personId: string, type: 'staff' | 'provider', keepId: string) => {
+    const collection = type === 'staff' ? 'proGroupMembers' : 'proGroupProviderMembers';
+    const idField = type === 'staff' ? 'staffId' : 'providerId';
+    const membersList = type === 'staff' ? appData.proGroupMembers : appData.proGroupProviderMembers;
+
+    const duplicates = (membersList || []).filter((m: any) => String((m as any)[idField]) === String(personId) && !m.leftAt && !m.isError);
+    
+    if (duplicates.length <= 1) {
+      showToast("Não há duplicidade ativa para este colaborador.", "info");
+      return;
+    }
+
+    const toRemove = duplicates.filter((m: any) => m.id !== keepId);
+    const keepRecord = duplicates.find((m: any) => m.id === keepId);
+    const keepGroupName = proGroups.find((g: any) => g.id === keepRecord?.groupId)?.name || 'selecionado';
+    
+    if (!confirm(`Deseja manter apenas a matrícula no grupo "${keepGroupName}" e remover as outras ${toRemove.length}?`)) return;
+
+    setIsProcessing(true);
+    try {
+      // Marcamos como erro para "retirar" da visão ativa mas manter rastro se necessário
+      const updates = toRemove.map(m => ({ ...m, isError: true, leftAt: Date.now() }));
+      const success = await saveRecord(collection, updates);
+      
+      if (success) {
+        showToast("Duplicidades resolvidas!", "success");
+      } else {
+        showToast("Erro ao resolver duplicidades.", "error");
+      }
+    } catch (e: any) {
+      showToast("Erro: " + e.message, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return {
     handleProcessPerson,
     handleHealSector,
@@ -303,6 +339,7 @@ export const useHealerActions = (
     getSourceRecords,
     handleDeleteSourceRecord,
     handleUniversalMerge,
-    handleSyncTemporalCycle
+    handleSyncTemporalCycle,
+    handleFixDuplicateMembership
   };
 };

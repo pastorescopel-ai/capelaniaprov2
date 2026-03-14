@@ -33,6 +33,9 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   const [removalType, setRemovalType] = useState<'exit' | 'error'>('exit');
   const [memberToRemove, setMemberToRemove] = useState<{ id: string; name: string; staffId: string } | null>(null);
 
+  // Estado para o Modal de Ajuste de Ciclo
+  const [isCycleModalOpen, setIsCycleModalOpen] = useState(false);
+
   useEffect(() => {
     setPendingTransfers(new Set());
     setPendingRemovals(new Set());
@@ -93,35 +96,61 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       const idField = type === 'staff' ? 'staffId' : 'providerId';
       const membersList = type === 'staff' ? proGroupMembers : proGroupProviderMembers;
 
-      // Busca QUALQUER matrícula deste colaborador (mesmo as encerradas ou com erro)
-      const allMemberships = membersList.filter(m => cleanId((m as any)[idField]) === cleanId(personId));
-      
       const { firstDayMs } = getCycleDates(selectedMonth);
 
-      if (allMemberships.length > 0) {
-        // Pega a matrícula mais recente para reativar/ajustar
-        const latest = [...allMemberships].sort((a, b) => (b.joinedAt || 0) - (a.joinedAt || 0))[0];
-        
-        console.log(`[Protocolo] Encontrado registro prévio. Reativando e ajustando para o novo ciclo...`);
-        
-        const updates = [{ 
-          ...latest, 
+      // 1. PRIORIDADE: Destravar registros com erro (isError: true)
+      const errorRecord = membersList.find(m => cleanId((m as any)[idField]) === cleanId(personId) && m.isError);
+      
+      if (errorRecord) {
+        console.log(`[Protocolo] Destravando registro de erro encontrado...`);
+        const update = { 
+          ...errorRecord, 
           groupId: currentPG.id,
           joinedAt: firstDayMs,
           cycleMonth: selectedMonth,
-          leftAt: null, // Reativa o membro
-          isError: false // Limpa a flag de erro
-        }];
-
-        const success = await saveRecord(collection, updates);
+          leftAt: null, 
+          isError: false 
+        };
+        const success = await saveRecord(collection, [update]);
         if (success) {
-          showToast("Matrícula reativada e atualizada!", "success");
+          showToast("Registro destravado e matriculado!", "success");
           if (type === 'provider') setProviderSearch('');
-        } else {
-          throw new Error("Erro ao reativar registro.");
+          return;
         }
+      }
+
+      // 2. MOVIMENTAÇÃO: Verificar se já existe matrícula ativa
+      const activeMembership = membersList.find(m => cleanId((m as any)[idField]) === cleanId(personId) && !m.leftAt);
+
+      if (activeMembership) {
+        if (activeMembership.cycleMonth === selectedMonth) {
+          // MESMO MÊS: Apenas atualiza o PG (Ajuste Direto)
+          console.log(`[Protocolo] Movimentação no mesmo mês. Atualizando registro...`);
+          const update = { ...activeMembership, groupId: currentPG.id, joinedAt: firstDayMs };
+          const success = await saveRecord(collection, [update]);
+          if (success) showToast("Matrícula atualizada!", "success");
+        } else {
+          // MÊS DIFERENTE: Encerra o antigo (Histórico) e cria novo
+          console.log(`[Protocolo] Movimentação entre meses. Gerando histórico...`);
+          const { lastDayMs: oldLastDay } = getCycleDates(activeMembership.cycleMonth);
+          
+          const closeOld = { ...activeMembership, leftAt: oldLastDay };
+          const createNew: any = {
+            groupId: currentPG.id,
+            [idField]: personId,
+            joinedAt: firstDayMs,
+            cycleMonth: selectedMonth,
+            leftAt: null,
+            isError: false
+          };
+          
+          const success = await saveRecord(collection, [closeOld, createNew]);
+          if (success) showToast("Nova matrícula com histórico preservado!", "success");
+        }
+        if (type === 'provider') setProviderSearch('');
       } else {
-        // Cria nova matrícula se não houver NENHUM histórico
+        // 3. NOVA MATRÍCULA: Sem histórico prévio
+        console.log(`[Protocolo] Criando nova matrícula (sem histórico)...`);
         const newMember: any = {
           groupId: currentPG.id,
           [idField]: personId,
@@ -132,12 +161,9 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
         };
         
         const success = await saveRecord(collection, newMember);
-        
         if (success) {
           showToast("Matrícula realizada!", "success");
           if (type === 'provider') setProviderSearch('');
-        } else {
-          throw new Error("O banco de dados rejeitou a gravação.");
         }
       }
     } catch (e: any) {
@@ -257,9 +283,6 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   const handleBulkUpdateCycleMonth = async () => {
     if (!currentPG || pgMembers.length === 0) return;
     
-    const confirm = window.confirm(`Deseja ajustar o Ciclo de Competência e a Data de Entrada de TODOS os ${pgMembers.length} membros deste PG para ${selectedMonth}?`);
-    if (!confirm) return;
-
     setIsProcessing(true);
     try {
       const { firstDayMs } = getCycleDates(selectedMonth);
@@ -278,7 +301,9 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
           const updated = { 
             ...originalMember, 
             cycleMonth: selectedMonth,
-            joinedAt: firstDayMs // Força a data de entrada para o início do ciclo
+            joinedAt: firstDayMs, // Força a data de entrada para o início do ciclo
+            leftAt: null, // Garante que estão ativos
+            isError: false // Limpa erros se houver
           };
           if (isProvider) providerUpdates.push(updated);
           else staffUpdates.push(updated);
@@ -289,6 +314,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       if (providerUpdates.length > 0) await saveRecord('proGroupProviderMembers', providerUpdates);
 
       showToast("Ciclo e datas de entrada atualizados para todos!", "success");
+      setIsCycleModalOpen(false);
     } catch (e) {
       showToast("Erro ao atualizar ciclo em massa.", "warning");
     } finally {
@@ -306,6 +332,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     isProcessing,
     removalType, setRemovalType,
     memberToRemove, setMemberToRemove,
+    isCycleModalOpen, setIsCycleModalOpen,
     currentSector, currentPG,
     availableProviders, coverageGaps, emptyPGs, availableStaff, pgMembers,
     isNewProvider,

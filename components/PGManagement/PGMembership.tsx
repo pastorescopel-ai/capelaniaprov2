@@ -4,6 +4,7 @@ import { Unit } from '../../types';
 import Autocomplete from '../Shared/Autocomplete';
 import GapRadar from './GapRadar';
 import RemovalModal from './RemovalModal';
+import CycleUpdateModal from './CycleUpdateModal';
 import { usePGMembership } from '../../hooks/usePGMembership';
 
 interface PGMembershipProps {
@@ -20,6 +21,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     isProcessing,
     removalType, setRemovalType,
     memberToRemove, setMemberToRemove,
+    isCycleModalOpen, setIsCycleModalOpen,
     currentSector, currentPG,
     availableProviders, coverageGaps, emptyPGs, availableStaff, pgMembers,
     isNewProvider,
@@ -88,6 +90,14 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         setRemovalType={setRemovalType}
         onCancel={() => setMemberToRemove(null)}
         onConfirm={confirmRemoval}
+      />
+
+      <CycleUpdateModal 
+        isOpen={isCycleModalOpen}
+        onCancel={() => setIsCycleModalOpen(false)}
+        onConfirm={handleBulkUpdateCycleMonth}
+        selectedMonth={selectedMonth}
+        memberCount={pgMembers.length}
       />
 
       <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 grid md:grid-cols-2 gap-8 text-slate-800 relative">
@@ -253,7 +263,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
             
             {currentPG && pgMembers.length > 0 && (
               <button 
-                onClick={handleBulkUpdateCycleMonth}
+                onClick={() => setIsCycleModalOpen(true)}
                 disabled={isProcessing}
                 className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white text-[9px] font-black uppercase rounded-lg shadow-sm hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
                 title="Sincronizar todos os membros com o ciclo selecionado"
