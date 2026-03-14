@@ -92,11 +92,44 @@ const AdminPanel: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'config' | 'identity' | 'lists' | 'tools'>('config');
 
+  // Lógica para notificação de fechamento de mês
+  const previousMonthClosed = useCallback(() => {
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevISO = prev.toISOString().split('T')[0];
+    return proMonthlyStats.some(s => s.month === prevISO);
+  }, [proMonthlyStats]);
+
+  const getPreviousMonthLabel = () => {
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return prev.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
+
   if (!currentUser) return null;
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700">
       
+      {/* Notificação de Fechamento Pendente */}
+      {!previousMonthClosed() && (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between gap-4 animate-bounce-subtle">
+          <div className="flex items-center gap-3 text-amber-800">
+            <i className="fas fa-exclamation-triangle text-xl"></i>
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-tight">Fechamento Pendente</p>
+              <p className="text-[10px] font-bold opacity-80">O mês de <span className="uppercase">{getPreviousMonthLabel()}</span> ainda não foi encerrado oficialmente.</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setActiveTab('tools')}
+            className="px-4 py-2 bg-amber-600 text-white text-[9px] font-black uppercase rounded-xl hover:bg-amber-700 transition-all shadow-sm"
+          >
+            Resolver Agora
+          </button>
+        </div>
+      )}
+
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-4xl font-black text-slate-800 tracking-tight uppercase">Administração</h1>
@@ -162,33 +195,19 @@ const AdminPanel: React.FC = () => {
 
         {activeTab === 'tools' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Cards de Ação Rápida em Ferramentas */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center text-center gap-4 hover:shadow-md transition-all">
-                <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl">
-                  <i className="fas fa-key"></i>
-                </div>
-                <h3 className="font-black uppercase text-xs tracking-widest text-slate-800">Chave API Pro</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-relaxed">Configuração de acesso aos recursos avançados de IA e BI.</p>
-                <button 
-                  onClick={async () => {
-                    try {
-                      if (window.aistudio && window.aistudio.openSelectKey) {
-                        await window.aistudio.openSelectKey();
-                        window.location.reload();
-                      } else {
-                        showToast("Recurso indisponível neste ambiente.", "warning");
-                      }
-                    } catch (e) {
-                      showToast("Erro ao abrir seletor de chave.", "error");
-                    }
-                  }}
-                  className="mt-2 px-8 py-3 bg-indigo-600 text-white font-black rounded-xl uppercase text-[9px] tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-200"
-                >
-                  Configurar Agora
-                </button>
-              </div>
+            <AdminDataTools 
+              currentUser={currentUser} 
+              onRefreshData={() => loadFromCloud(true)} 
+              onRestoreFullDNA={importFromDNA} 
+              isRefreshing={isRefreshing} 
+              proData={{ staff: proStaff, sectors: proSectors, groups: proGroups, stats: proMonthlyStats }}
+              ambassadors={ambassadors}
+              proGroupMembers={proGroupMembers}
+              saveRecord={saveRecord}
+            />
 
+            {/* Cards de Ação Secundária */}
+            <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center text-center gap-4 hover:shadow-md transition-all">
                 <div className="w-16 h-16 bg-slate-800 text-amber-400 rounded-2xl flex items-center justify-center text-2xl">
                   <i className="fas fa-download"></i>
@@ -202,35 +221,7 @@ const AdminPanel: React.FC = () => {
                   Baixar Backup
                 </button>
               </div>
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center text-center gap-4 hover:shadow-md transition-all">
-                <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-2xl">
-                  <i className="fas fa-database"></i>
-                </div>
-                <h3 className="font-black uppercase text-xs tracking-widest text-slate-800">Correção de Banco (SQL)</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-relaxed">Se o editor de cabeçalhos não estiver salvando, execute este comando no SQL Editor do Supabase.</p>
-                <button 
-                  onClick={() => {
-                    const sql = `ALTER TABLE app_config ADD COLUMN IF NOT EXISTS header_profiles JSONB;`;
-                    navigator.clipboard.writeText(sql);
-                    showToast("Comando SQL copiado!", "success");
-                  }}
-                  className="mt-2 px-8 py-3 bg-amber-600 text-white font-black rounded-xl uppercase text-[9px] tracking-widest hover:bg-amber-700 transition-all active:scale-95 shadow-lg shadow-amber-200"
-                >
-                  Copiar Comando SQL
-                </button>
-              </div>
             </div>
-
-            <AdminDataTools 
-              currentUser={currentUser} 
-              onRefreshData={() => loadFromCloud(true)} 
-              onRestoreFullDNA={importFromDNA} 
-              isRefreshing={isRefreshing} 
-              proData={{ staff: proStaff, sectors: proSectors, groups: proGroups }}
-              ambassadors={ambassadors}
-              proGroupMembers={proGroupMembers}
-              saveRecord={saveRecord}
-            />
           </div>
         )}
       </main>

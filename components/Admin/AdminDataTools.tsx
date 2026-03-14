@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User, ProStaff, ProSector, ProGroup, ProGroupMember, Ambassador, Unit, ProMonthlyStats } from '../../types';
 import { useToast } from '../../contexts/ToastProvider';
 import { supabase } from '../../services/supabaseClient';
@@ -34,6 +34,28 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   });
+
+  // Efeito para sugerir o mês em aberto automaticamente
+  useEffect(() => {
+    if (!proData.stats) return;
+
+    const now = new Date();
+    const currentMonthISO = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthISO = prevMonth.toISOString().split('T')[0];
+
+    // Verifica se o mês anterior está fechado
+    const isPrevClosed = proData.stats.some(s => s.month === prevMonthISO);
+    
+    // Se o anterior não estiver fechado, sugere ele. 
+    // Se estiver, sugere o atual.
+    const suggestedMonth = isPrevClosed ? currentMonthISO : prevMonthISO;
+    
+    // Só atualiza se o usuário ainda não tiver mudado manualmente para algo diferente do "hoje" inicial
+    // ou se acabamos de realizar um fechamento (detectado pela mudança no stats)
+    setSelectedCloseMonth(suggestedMonth);
+  }, [proData.stats]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formatMonthLabel = (iso: string) => {
@@ -83,35 +105,24 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
     }
   };
 
-  const handleGenerateSnapshot = async () => {
-    if (!supabase) {
-        showToast("Erro de conexão com o banco.", "warning");
-        return;
-    }
-    setIsSnapshotting(true);
-    try {
-        const { error } = await supabase.rpc('capture_daily_snapshot');
-        if (error) {
-            console.error("Erro RPC:", error);
-            showToast("Erro ao processar snapshot.", "warning");
-        } else {
-            showToast("Snapshot BI processado com sucesso!", "success");
-            await onRefreshData(); 
-        }
-    } catch (e: any) {
-        showToast("Exceção: " + e.message, "warning");
-    } finally {
-        setIsSnapshotting(false);
-    }
-  };
-
   const handleCloseMonth = async () => {
-    const confirm = window.confirm(`Deseja fechar o mês de ${formatMonthLabel(selectedCloseMonth)} para TODAS as unidades (HAB e HABA)? Isso gravará os percentuais como definitivos.`);
+    const isAlreadyClosed = proData.stats?.some(s => s.month === selectedCloseMonth);
+    const actionText = isAlreadyClosed ? 'ATUALIZAR' : 'FECHAR';
+    
+    const confirm = window.confirm(`Deseja ${actionText} o mês de ${formatMonthLabel(selectedCloseMonth)} para TODAS as unidades (HAB e HABA)? ${isAlreadyClosed ? 'Os dados anteriores serão sobrescritos pelos atuais.' : 'Isso gravará os percentuais como definitivos.'}`);
     if (!confirm) return;
 
-    setSyncState({ isOpen: true, status: 'processing', title: 'Fechamento Global', message: 'Processando HAB e HABA. Aguarde...' });
+    setSyncState({ isOpen: true, status: 'processing', title: `${actionText === 'FECHAR' ? 'Fechamento' : 'Atualização'} Global`, message: 'Processando HAB e HABA. Aguarde...' });
 
     try {
+        // Se já estiver fechado, precisamos limpar os registros antigos primeiro para evitar duplicidade
+        if (isAlreadyClosed && proData.stats) {
+            const recordsToDelete = proData.stats.filter(s => s.month === selectedCloseMonth);
+            for (const rec of recordsToDelete) {
+                if (rec.id) await deleteRecord('proMonthlyStats', rec.id);
+            }
+        }
+
         const snapshots: ProMonthlyStats[] = [];
         const units = [Unit.HAB, Unit.HABA];
 
@@ -164,15 +175,105 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
             await saveRecord('proMonthlyStats', snap);
         }
 
-        setSyncState({ isOpen: true, status: 'success', title: 'Mês Fechado', message: `Sucesso! ${snapshots.length} registros de histórico gravados para ${formatMonthLabel(selectedCloseMonth)} (HAB + HABA).` });
+        setSyncState({ isOpen: true, status: 'success', title: 'Mês Atualizado', message: `Sucesso! ${snapshots.length} registros de histórico gravados/atualizados para ${formatMonthLabel(selectedCloseMonth)} (HAB + HABA).` });
+        await onRefreshData();
     } catch (e: any) {
-        setSyncState({ isOpen: true, status: 'error', title: 'Erro no Fechamento', message: "Falha ao gravar estatísticas globais.", error: e.message });
+        setSyncState({ isOpen: true, status: 'error', title: 'Erro no Processo', message: "Falha ao gravar estatísticas globais.", error: e.message });
     }
   };
+
+  const handleReopenMonth = async () => {
+    const confirm = window.confirm(`ATENÇÃO: Deseja REABRIR o mês de ${formatMonthLabel(selectedCloseMonth)}? Isso apagará o histórico definitivo e os relatórios voltarão a calcular os dados "ao vivo".`);
+    if (!confirm) return;
+
+    setSyncState({ isOpen: true, status: 'processing', title: 'Reabrindo Mês', message: 'Removendo registros do histórico...' });
+
+    try {
+        if (proData.stats) {
+            const recordsToDelete = proData.stats.filter(s => s.month === selectedCloseMonth);
+            if (recordsToDelete.length === 0) {
+                showToast("Não existem dados de fechamento para este mês.", "warning");
+                setSyncState(prev => ({ ...prev, isOpen: false }));
+                return;
+            }
+
+            for (const rec of recordsToDelete) {
+                if (rec.id) await deleteRecord('proMonthlyStats', rec.id);
+            }
+        }
+
+        setSyncState({ isOpen: true, status: 'success', title: 'Mês Reaberto', message: `O mês de ${formatMonthLabel(selectedCloseMonth)} foi reaberto com sucesso. Os dados agora são calculados em tempo real.` });
+        await onRefreshData();
+    } catch (e: any) {
+        setSyncState({ isOpen: true, status: 'error', title: 'Erro ao Reabrir', message: "Falha ao remover registros do histórico.", error: e.message });
+    }
+  };
+
+  const isMonthClosed = proData.stats?.some(s => s.month === selectedCloseMonth);
 
   return (
     <>
       <SyncModal isOpen={syncState.isOpen} status={syncState.status} title={syncState.title} message={syncState.message} errorDetails={syncState.error} onClose={() => setSyncState(prev => ({ ...prev, isOpen: false }))} />
+      
+      {/* FERRAMENTA DE FECHAMENTO - DESTAQUE NO TOPO */}
+      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 ${isMonthClosed ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'} rounded-2xl flex items-center justify-center text-xl transition-colors`}>
+                <i className={`fas ${isMonthClosed ? 'fa-lock' : 'fa-archive'}`}></i>
+              </div>
+              <div>
+                <h3 className="text-slate-800 font-black uppercase text-sm tracking-tight">
+                  {isMonthClosed ? 'Mês Encerrado Oficialmente' : 'Fechamento de Mês Oficial'}
+                </h3>
+                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
+                  {isMonthClosed ? 'Os dados deste período estão congelados no histórico' : 'Grave os indicadores de todas as unidades como definitivos'}
+                </p>
+              </div>
+            </div>
+            {isMonthClosed && (
+              <span className="px-4 py-1.5 bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase rounded-full tracking-widest animate-pulse">
+                Histórico Ativo
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-4 items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+            <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+              <label className="text-[9px] font-black text-slate-400 uppercase px-2">Período:</label>
+              <input 
+                type="month" 
+                value={selectedCloseMonth.substring(0, 7)} 
+                onChange={(e) => setSelectedCloseMonth(e.target.value + '-01')}
+                className="bg-transparent border-none rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-700 focus:ring-0"
+              />
+            </div>
+
+            <button 
+              onClick={handleCloseMonth} 
+              className={`flex-1 md:flex-none px-10 py-4 ${isMonthClosed ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-100' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'} text-white rounded-2xl font-black text-[10px] uppercase shadow-lg transition-all flex items-center justify-center gap-3 tracking-widest active:scale-95`}
+            >
+              <i className={`fas ${isMonthClosed ? 'fa-sync-alt' : 'fa-check-circle'}`}></i> 
+              {isMonthClosed ? 'Atualizar Fechamento' : 'Executar Fechamento'} ({formatMonthLabel(selectedCloseMonth)})
+            </button>
+
+            {isMonthClosed && (
+              <button 
+                onClick={handleReopenMonth} 
+                className="px-6 py-4 bg-rose-50 text-rose-600 font-black rounded-2xl hover:bg-rose-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm border border-rose-100"
+              >
+                <i className="fas fa-lock-open"></i> Reabrir Mês
+              </button>
+            )}
+
+            <div className="flex-1"></div>
+
+            <button onClick={onRefreshData} className={`px-6 py-4 bg-emerald-50 text-emerald-600 font-black rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm border border-emerald-100`}>
+              <i className={`fas fa-sync-alt ${isRefreshing ? 'animate-spin' : ''}`}></i> Sincronizar Agora
+            </button>
+          </div>
+      </div>
+
       {/* MODAL RESTAURAR DNA */}
       {showDNAConfirm && (
         <div className="fixed inset-0 z-[7000]">
@@ -203,7 +304,8 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
         </div>
       )}
 
-      <div className="flex justify-center mb-8">
+      {/* RESTAURAR BACKUP */}
+      <div className="flex justify-center">
         <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col items-center text-center gap-6 shadow-sm hover:border-blue-300 transition-all group w-full max-w-md">
             <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center text-white text-2xl shadow-xl group-hover:scale-110 transition-transform">
             <i className="fas fa-file-import text-blue-400"></i>
@@ -225,42 +327,6 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
             <input ref={fileInputRef} type="file" onChange={handleFileSelected} accept=".json" className="hidden" />
             </div>
         </div>
-      </div>
-
-      {/* FERRAMENTAS DE DADOS - BARRA SUPERIOR */}
-      <div className="flex flex-wrap gap-4 justify-center md:justify-end mb-8 items-center bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-          <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
-            <label className="text-[9px] font-black text-slate-400 uppercase px-2">Mês de Fechamento:</label>
-            <input 
-              type="month" 
-              value={selectedCloseMonth.substring(0, 7)} 
-              onChange={(e) => setSelectedCloseMonth(e.target.value + '-01')}
-              className="bg-white border-none rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-700 focus:ring-0 shadow-sm"
-            />
-          </div>
-
-          <button 
-            onClick={handleCloseMonth} 
-            className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[9px] uppercase shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-3 tracking-widest active:scale-95"
-            title="Grava os percentuais atuais como definitivos para o histórico"
-          >
-            <i className="fas fa-archive"></i> Fechar Mês ({formatMonthLabel(selectedCloseMonth)})
-          </button>
-
-          <div className="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div>
-
-          <button 
-            onClick={handleGenerateSnapshot} 
-            disabled={isSnapshotting}
-            className="px-6 py-4 bg-indigo-50 text-indigo-600 font-black rounded-2xl hover:bg-indigo-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm border border-indigo-100"
-          >
-            <i className={`fas ${isSnapshotting ? 'fa-circle-notch fa-spin' : 'fa-camera'}`}></i>
-            <span>{isSnapshotting ? 'Processando...' : 'Atualizar Dados BI'}</span>
-          </button>
-
-          <button onClick={onRefreshData} className={`px-6 py-4 bg-emerald-50 text-emerald-600 font-black rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-3 uppercase text-[9px] tracking-widest active:scale-95 shadow-sm border border-emerald-100`}>
-            <i className={`fas fa-sync-alt ${isRefreshing ? 'animate-spin' : ''}`}></i> Sincronizar Agora
-          </button>
       </div>
     </>
   );
