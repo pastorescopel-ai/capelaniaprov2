@@ -93,37 +93,42 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       const idField = type === 'staff' ? 'staffId' : 'providerId';
       const membersList = type === 'staff' ? proGroupMembers : proGroupProviderMembers;
 
-      // Busca matrícula ATIVA (sem data de saída)
-      const existingActiveMemberships = membersList.filter(m => cleanId((m as any)[idField]) === cleanId(personId) && !m.leftAt);
+      // Busca QUALQUER matrícula deste colaborador (mesmo as encerradas ou com erro)
+      const allMemberships = membersList.filter(m => cleanId((m as any)[idField]) === cleanId(personId));
       
       const { firstDayMs } = getCycleDates(selectedMonth);
 
-      if (existingActiveMemberships.length > 0) {
-        console.log(`[Protocolo] Encontrada matrícula ativa. Ajustando registro existente para o novo ciclo/grupo...`);
+      if (allMemberships.length > 0) {
+        // Pega a matrícula mais recente para reativar/ajustar
+        const latest = [...allMemberships].sort((a, b) => (b.joinedAt || 0) - (a.joinedAt || 0))[0];
         
-        // Em vez de fechar e criar novo, atualizamos o registro atual para evitar conflitos de cronologia no Supabase
-        const updates = existingActiveMemberships.map(m => ({ 
-          ...m, 
+        console.log(`[Protocolo] Encontrado registro prévio. Reativando e ajustando para o novo ciclo...`);
+        
+        const updates = [{ 
+          ...latest, 
           groupId: currentPG.id,
           joinedAt: firstDayMs,
           cycleMonth: selectedMonth,
-          isError: false // Resetamos erro se houver
-        }));
+          leftAt: null, // Reativa o membro
+          isError: false // Limpa a flag de erro
+        }];
 
         const success = await saveRecord(collection, updates);
         if (success) {
-          showToast("Matrícula atualizada com sucesso!", "success");
+          showToast("Matrícula reativada e atualizada!", "success");
           if (type === 'provider') setProviderSearch('');
         } else {
-          throw new Error("Erro ao atualizar registro existente.");
+          throw new Error("Erro ao reativar registro.");
         }
       } else {
-        // Cria nova matrícula se não houver nenhuma ativa
+        // Cria nova matrícula se não houver NENHUM histórico
         const newMember: any = {
           groupId: currentPG.id,
           [idField]: personId,
           joinedAt: firstDayMs,
-          cycleMonth: selectedMonth
+          cycleMonth: selectedMonth,
+          leftAt: null,
+          isError: false
         };
         
         const success = await saveRecord(collection, newMember);
