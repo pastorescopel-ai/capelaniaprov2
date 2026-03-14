@@ -93,52 +93,52 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       const idField = type === 'staff' ? 'staffId' : 'providerId';
       const membersList = type === 'staff' ? proGroupMembers : proGroupProviderMembers;
 
-      // Soft Delete: Verifica se existe QUALQUER matrícula ATIVA (em qualquer grupo)
+      // Busca matrícula ATIVA (sem data de saída)
       const existingActiveMemberships = membersList.filter(m => cleanId((m as any)[idField]) === cleanId(personId) && !m.leftAt);
       
-      if (existingActiveMemberships.length > 0) {
-        console.log(`[Protocolo] Encontradas ${existingActiveMemberships.length} matrículas ativas. Fechando...`);
-        // Se já estiver no grupo de destino, não faz nada
-        if (existingActiveMemberships.some(m => m.groupId === currentPG.id)) {
-          console.warn(`[Protocolo] Colaborador já está no PG de destino.`);
-          setPendingTransfers(prev => { const newSet = new Set(prev); newSet.delete(personId); return newSet; });
-          return; 
-        }
-        
-        // "Fecha" TODAS as matrículas anteriores para garantir limpeza total
-        // Usamos o dia anterior ao início do novo ciclo para evitar sobreposição se necessário, 
-        // mas aqui usaremos o Date.now() ou o dia anterior ao ciclo atual.
-        // Para simplificar e manter a lógica de BI, fechamos no momento atual ou no fim do mês anterior.
-        const { firstDayMs } = getCycleDates(selectedMonth);
-        const prevMonthLastDay = new Date(firstDayMs - 86400000); // 1 dia antes do início do ciclo
-        prevMonthLastDay.setHours(12, 0, 0, 0);
-
-        const closeUpdates = existingActiveMemberships.map(m => ({ ...m, leftAt: prevMonthLastDay.getTime() }));
-        await saveRecord(collection, closeUpdates);
-      }
-
-      // Cria nova matrícula com base no seletor de mês
       const { firstDayMs } = getCycleDates(selectedMonth);
 
-      const newMember: any = {
-        groupId: currentPG.id,
-        [idField]: personId,
-        joinedAt: firstDayMs,
-        cycleMonth: selectedMonth
-      };
-      
-      const success = await saveRecord(collection, newMember);
-      
-      if (success) {
-        showToast("Matrícula realizada!", "success");
-        if (type === 'provider') setProviderSearch('');
+      if (existingActiveMemberships.length > 0) {
+        console.log(`[Protocolo] Encontrada matrícula ativa. Ajustando registro existente para o novo ciclo/grupo...`);
+        
+        // Em vez de fechar e criar novo, atualizamos o registro atual para evitar conflitos de cronologia no Supabase
+        const updates = existingActiveMemberships.map(m => ({ 
+          ...m, 
+          groupId: currentPG.id,
+          joinedAt: firstDayMs,
+          cycleMonth: selectedMonth,
+          isError: false // Resetamos erro se houver
+        }));
+
+        const success = await saveRecord(collection, updates);
+        if (success) {
+          showToast("Matrícula atualizada com sucesso!", "success");
+          if (type === 'provider') setProviderSearch('');
+        } else {
+          throw new Error("Erro ao atualizar registro existente.");
+        }
       } else {
-        throw new Error("O banco de dados rejeitou a gravação. Verifique o console.");
+        // Cria nova matrícula se não houver nenhuma ativa
+        const newMember: any = {
+          groupId: currentPG.id,
+          [idField]: personId,
+          joinedAt: firstDayMs,
+          cycleMonth: selectedMonth
+        };
+        
+        const success = await saveRecord(collection, newMember);
+        
+        if (success) {
+          showToast("Matrícula realizada!", "success");
+          if (type === 'provider') setProviderSearch('');
+        } else {
+          throw new Error("O banco de dados rejeitou a gravação.");
+        }
       }
     } catch (e: any) {
       console.error(`[Protocolo] Falha na matrícula:`, e);
       setPendingTransfers(prev => { const newSet = new Set(prev); newSet.delete(personId); return newSet; });
-      showToast(e.message || "Erro ao matricular. Verifique a conexão.", "warning");
+      showToast(e.message || "Erro ao processar matrícula.", "warning");
     } finally { setIsProcessing(false); }
   };
 
