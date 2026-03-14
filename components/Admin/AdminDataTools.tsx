@@ -1,23 +1,45 @@
 
 import React, { useState, useRef } from 'react';
-import { User } from '../../types';
+import { User, ProStaff, ProSector, ProGroup, ProGroupMember, Ambassador, Unit, ProMonthlyStats } from '../../types';
 import { useToast } from '../../contexts/ToastProvider';
 import { supabase } from '../../services/supabaseClient';
+import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 
 interface AdminDataToolsProps {
   currentUser: User;
   onRefreshData: () => Promise<any>;
   onRestoreFullDNA: (dna: any) => Promise<{ success: boolean; message: string }>;
   isRefreshing: boolean;
+  proData: {
+    staff: ProStaff[];
+    sectors: ProSector[];
+    groups: ProGroup[];
+  };
+  ambassadors: Ambassador[];
+  proGroupMembers: ProGroupMember[];
+  saveRecord: (collection: string, item: any) => Promise<any>;
 }
 
-const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshData, onRestoreFullDNA, isRefreshing }) => {
+const AdminDataTools: React.FC<AdminDataToolsProps> = ({ 
+  currentUser, onRefreshData, onRestoreFullDNA, isRefreshing,
+  proData, ambassadors, proGroupMembers, saveRecord
+}) => {
   const { showToast } = useToast();
   const [showDNAConfirm, setShowDNAConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSnapshotting, setIsSnapshotting] = useState(false);
   const [pendingDNA, setPendingDNA] = useState<any>(null);
+  const [syncState, setSyncState] = useState<{isOpen: boolean; status: SyncStatus; title: string; message: string; error?: string;}>({ isOpen: false, status: 'idle', title: '', message: '' });
+  const [selectedCloseMonth, setSelectedCloseMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const formatMonthLabel = (iso: string) => {
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
 
   const handleTriggerFileSelect = () => {
     if (fileInputRef.current) {
@@ -83,8 +105,74 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshD
     }
   };
 
+  const handleCloseMonth = async () => {
+    const confirm = window.confirm(`Deseja fechar o mês de ${formatMonthLabel(selectedCloseMonth)} para TODAS as unidades (HAB e HABA)? Isso gravará os percentuais como definitivos.`);
+    if (!confirm) return;
+
+    setSyncState({ isOpen: true, status: 'processing', title: 'Fechamento Global', message: 'Processando HAB e HABA. Aguarde...' });
+
+    try {
+        const snapshots: ProMonthlyStats[] = [];
+        const units = [Unit.HAB, Unit.HABA];
+
+        for (const unit of units) {
+            // 1. Snapshots de Setores (Embaixadores)
+            proData.sectors.filter(s => s.unit === unit && s.active !== false).forEach(sector => {
+                const staffInSector = proData.staff.filter(s => s.sectorId === sector.id && s.unit === unit && s.active !== false);
+                const ambassadorsInSector = ambassadors.filter(a => a.sectorId === sector.id && a.unit === unit && a.cycleMonth === selectedCloseMonth);
+                
+                const totalStaff = staffInSector.length;
+                const totalParticipants = ambassadorsInSector.length;
+                const percentage = totalStaff > 0 ? (totalParticipants / totalStaff) * 100 : 0;
+
+                snapshots.push({
+                    month: selectedCloseMonth,
+                    type: 'sector',
+                    targetId: sector.id,
+                    totalStaff,
+                    totalParticipants,
+                    percentage,
+                    goal: 5,
+                    unit
+                });
+            });
+
+            // 2. Snapshots de PGs
+            proData.groups.filter(g => g.unit === unit && g.active !== false).forEach(group => {
+                const members = proGroupMembers.filter(m => m.groupId === group.id && !m.leftAt);
+                const sector = proData.sectors.find(s => s.id === group.sectorId);
+                const staffInSector = sector ? proData.staff.filter(s => s.sectorId === sector.id && s.unit === unit && s.active !== false) : [];
+                
+                const totalS = staffInSector.length;
+                const totalP = members.length;
+                const percentage = totalS > 0 ? (totalP / totalS) * 100 : 0;
+
+                snapshots.push({
+                    month: selectedCloseMonth,
+                    type: 'pg',
+                    targetId: group.id,
+                    totalStaff: totalS,
+                    totalParticipants: totalP,
+                    percentage,
+                    goal: 80,
+                    unit
+                });
+            });
+        }
+
+        for (const snap of snapshots) {
+            await saveRecord('proMonthlyStats', snap);
+        }
+
+        setSyncState({ isOpen: true, status: 'success', title: 'Mês Fechado', message: `Sucesso! ${snapshots.length} registros de histórico gravados para ${formatMonthLabel(selectedCloseMonth)} (HAB + HABA).` });
+    } catch (e: any) {
+        setSyncState({ isOpen: true, status: 'error', title: 'Erro no Fechamento', message: "Falha ao gravar estatísticas globais.", error: e.message });
+    }
+  };
+
   return (
     <>
+      <SyncModal isOpen={syncState.isOpen} status={syncState.status} title={syncState.title} message={syncState.message} errorDetails={syncState.error} onClose={() => setSyncState(prev => ({ ...prev, isOpen: false }))} />
       {/* MODAL RESTAURAR DNA */}
       {showDNAConfirm && (
         <div className="fixed inset-0 z-[7000]">
@@ -140,7 +228,27 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({ currentUser, onRefreshD
       </div>
 
       {/* FERRAMENTAS DE DADOS - BARRA SUPERIOR */}
-      <div className="flex flex-wrap gap-3 justify-center md:justify-end mb-8">
+      <div className="flex flex-wrap gap-4 justify-center md:justify-end mb-8 items-center bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
+            <label className="text-[9px] font-black text-slate-400 uppercase px-2">Mês de Fechamento:</label>
+            <input 
+              type="month" 
+              value={selectedCloseMonth.substring(0, 7)} 
+              onChange={(e) => setSelectedCloseMonth(e.target.value + '-01')}
+              className="bg-white border-none rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-700 focus:ring-0 shadow-sm"
+            />
+          </div>
+
+          <button 
+            onClick={handleCloseMonth} 
+            className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[9px] uppercase shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-3 tracking-widest active:scale-95"
+            title="Grava os percentuais atuais como definitivos para o histórico"
+          >
+            <i className="fas fa-archive"></i> Fechar Mês ({formatMonthLabel(selectedCloseMonth)})
+          </button>
+
+          <div className="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div>
+
           <button 
             onClick={handleGenerateSnapshot} 
             disabled={isSnapshotting}

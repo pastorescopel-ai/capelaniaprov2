@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Config } from '../types';
+import { Config, Unit } from '../types';
 import { useToast } from '../contexts/ToastProvider';
 import AdminConfig from './Admin/AdminConfig';
 import AdminLists from './Admin/AdminLists';
@@ -12,8 +12,8 @@ const AdminPanel: React.FC = () => {
   const { 
     config, 
     bibleStudies, bibleClasses, smallGroups, staffVisits, users,
-    proStaff, proSectors, proGroups, 
-    saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA
+    proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, proMonthlyStats, ambassadors,
+    saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, saveRecord
   } = useApp();
   
   const { currentUser } = useAuth();
@@ -21,6 +21,7 @@ const AdminPanel: React.FC = () => {
   const [localConfig, setLocalConfig] = useState(config);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeUnit, setActiveUnit] = useState<Unit>(Unit.HAB);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -145,8 +146,17 @@ const AdminPanel: React.FC = () => {
 
         {activeTab === 'lists' && (
           <AdminLists 
-            proData={{ staff: proStaff, sectors: proSectors, groups: proGroups }}
+            proData={{ 
+              staff: proStaff, 
+              sectors: proSectors, 
+              groups: proGroups,
+              memberships: proGroupMembers,
+              providerMemberships: proGroupProviderMembers,
+              stats: proMonthlyStats
+            }}
             onSavePro={handleSaveProData}
+            activeUnit={activeUnit}
+            setActiveUnit={setActiveUnit}
           />
         )}
 
@@ -216,6 +226,10 @@ const AdminPanel: React.FC = () => {
               onRefreshData={() => loadFromCloud(true)} 
               onRestoreFullDNA={importFromDNA} 
               isRefreshing={isRefreshing} 
+              proData={{ staff: proStaff, sectors: proSectors, groups: proGroups }}
+              ambassadors={ambassadors}
+              proGroupMembers={proGroupMembers}
+              saveRecord={saveRecord}
             />
           </div>
         )}

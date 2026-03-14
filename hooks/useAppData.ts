@@ -23,6 +23,8 @@ export const useAppData = () => {
   const [proGroupLocations, setProGroupLocations] = useState<ProGroupLocation[]>([]);
   const [proGroupMembers, setProGroupMembers] = useState<ProGroupMember[]>([]);
   const [proGroupProviderMembers, setProGroupProviderMembers] = useState<ProGroupProviderMember[]>([]);
+  const [proMonthlyStats, setProMonthlyStats] = useState<ProMonthlyStats[]>([]);
+  const [ambassadors, setAmbassadors] = useState<any[]>([]);
   const [activitySchedules, setActivitySchedules] = useState<ActivitySchedule[]>([]);
   const [dailyActivityReports, setDailyActivityReports] = useState<DailyActivityReport[]>([]);
   const [bibleClassAttendees, setBibleClassAttendees] = useState<any[]>([]);
@@ -58,6 +60,8 @@ export const useAppData = () => {
         setProGroupLocations(data.proGroupLocations || []);
         setProGroupMembers(data.proGroupMembers || []);
         setProGroupProviderMembers(data.proGroupProviderMembers || []);
+        setProMonthlyStats(data.proMonthlyStats || []);
+        setAmbassadors(data.ambassadors || []);
         setActivitySchedules(data.activitySchedules || []);
         setDailyActivityReports(data.dailyActivityReports || []);
         setBibleClassAttendees(data.bibleClassAttendees || []);
@@ -94,6 +98,8 @@ export const useAppData = () => {
         'pro_group_locations': 'proGroupLocations',
         'pro_group_members': 'proGroupMembers',
         'pro_group_provider_members': 'proGroupProviderMembers',
+        'pro_monthly_stats': 'proMonthlyStats',
+        'ambassadors': 'ambassadors',
         'activity_schedules': 'activitySchedules',
         'daily_activity_reports': 'dailyActivityReports',
         'bible_class_attendees': 'bibleClassAttendees',
@@ -137,6 +143,8 @@ export const useAppData = () => {
         else if (collection === 'proGroupLocations') updateState(setProGroupLocations);
         else if (collection === 'proGroupMembers') updateState(setProGroupMembers);
         else if (collection === 'proGroupProviderMembers') updateState(setProGroupProviderMembers);
+        else if (collection === 'proMonthlyStats') updateState(setProMonthlyStats);
+        else if (collection === 'ambassadors') updateState(setAmbassadors);
         else if (collection === 'activitySchedules') updateState(setActivitySchedules);
         else if (collection === 'dailyActivityReports') updateState(setDailyActivityReports);
         else if (collection === 'bibleClassAttendees') updateState(setBibleClassAttendees);
@@ -210,6 +218,8 @@ export const useAppData = () => {
       else if (collection === 'proGroupLocations') updateState(setProGroupLocations);
       else if (collection === 'proGroupMembers') updateState(setProGroupMembers);
       else if (collection === 'proGroupProviderMembers') updateState(setProGroupProviderMembers);
+      else if (collection === 'proMonthlyStats') updateState(setProMonthlyStats);
+      else if (collection === 'ambassadors') updateState(setAmbassadors);
       else if (collection === 'activitySchedules') updateState(setActivitySchedules);
       else if (collection === 'dailyActivityReports') updateState(setDailyActivityReports);
       else if (collection === 'bibleClassAttendees') updateState(setBibleClassAttendees);
@@ -318,6 +328,8 @@ export const useAppData = () => {
       else if (collection === 'proGroupLocations') removeState(setProGroupLocations);
       else if (collection === 'proGroupMembers') removeState(setProGroupMembers);
       else if (collection === 'proGroupProviderMembers') removeState(setProGroupProviderMembers);
+      else if (collection === 'proMonthlyStats') removeState(setProMonthlyStats);
+      else if (collection === 'ambassadors') removeState(setAmbassadors);
       else if (collection === 'users') removeState(setUsers);
       else if (collection === 'activitySchedules') removeState(setActivitySchedules);
       else if (collection === 'dailyActivityReports') removeState(setDailyActivityReports);
@@ -339,6 +351,8 @@ export const useAppData = () => {
       if (overrides?.proGroupLocations) await saveRecord('proGroupLocations', overrides.proGroupLocations);
       if (overrides?.proGroupMembers) await saveRecord('proGroupMembers', overrides.proGroupMembers);
       if (overrides?.proGroupProviderMembers) await saveRecord('proGroupProviderMembers', overrides.proGroupProviderMembers);
+      if (overrides?.proMonthlyStats) await saveRecord('proMonthlyStats', overrides.proMonthlyStats);
+      if (overrides?.ambassadors) await saveRecord('ambassadors', overrides.ambassadors);
       return true;
     } finally {
       if (showLoader) setIsSyncing(false);
@@ -378,7 +392,7 @@ export const useAppData = () => {
 
   return {
     users, bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests,
-    proStaff, proPatients, proProviders, proSectors, proGroups, proGroupLocations, proGroupMembers, proGroupProviderMembers, 
+    proStaff, proPatients, proProviders, proSectors, proGroups, proGroupLocations, proGroupMembers, proGroupProviderMembers, proMonthlyStats, ambassadors,
     activitySchedules, dailyActivityReports, bibleClassAttendees,
     config, isSyncing, isConnected, isInitialized,
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, syncMasterContact

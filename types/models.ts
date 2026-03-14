@@ -29,6 +29,8 @@ export interface ProPatient {
   unit: Unit;
   whatsapp?: string;
   lastLesson?: string;
+  joinedAt?: number;
+  leftAt?: number;
   updatedAt?: number;
 }
 
@@ -38,6 +40,8 @@ export interface ProProvider {
   unit: Unit;
   whatsapp?: string;
   sector?: string;
+  joinedAt?: number;
+  leftAt?: number;
   updatedAt?: number;
 }
 
@@ -80,6 +84,19 @@ export interface ProGroupProviderMember {
   leftAt?: number;
   isError?: boolean;
   cycleMonth?: string; // Mês de Competência (YYYY-MM-DD)
+}
+
+export interface ProMonthlyStats {
+  id?: string;
+  month: string; // YYYY-MM-DD
+  type: 'sector' | 'pg';
+  targetId: string;
+  totalStaff: number;
+  totalParticipants: number;
+  percentage: number;
+  goal: number;
+  unit: Unit;
+  createdAt?: number;
 }
 
 export interface HeaderLine {

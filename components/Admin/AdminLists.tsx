@@ -1,23 +1,40 @@
 
 import React, { useRef, useState, useMemo } from 'react';
 import { useToast } from '../../contexts/ToastProvider';
-import { ProStaff, ProSector, ProGroup, Unit } from '../../types';
+import { ProStaff, ProSector, ProGroup, Unit, ProGroupMember, ProGroupProviderMember, ProMonthlyStats } from '../../types';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 import Autocomplete from '../Shared/Autocomplete';
 import { cleanID, normalizeString } from '../../utils/formatters';
 import { useExcelProcessor, ProcessedRow } from '../../hooks/useExcelProcessor';
+import { useApp } from '../../hooks/useApp';
 
 interface AdminListsProps {
-  proData?: { staff: ProStaff[]; sectors: ProSector[]; groups: ProGroup[] };
+  proData?: { 
+    staff: ProStaff[]; 
+    sectors: ProSector[]; 
+    groups: ProGroup[];
+    memberships?: ProGroupMember[];
+    providerMemberships?: ProGroupProviderMember[];
+    stats?: ProMonthlyStats[];
+  };
   onSavePro?: (staff: ProStaff[], sectors: ProSector[], groups: ProGroup[]) => Promise<boolean>;
+  activeUnit: Unit;
+  setActiveUnit: (unit: Unit) => void;
 }
 
-const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
+const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit, setActiveUnit }) => {
+  const { saveRecord, proGroupMembers, proGroupProviderMembers, ambassadors, proMonthlyStats } = useApp();
   const { showToast } = useToast();
   const { processExcelFile, isProcessing: isReadingFile } = useExcelProcessor();
+
+  const formatMonthLabel = (dateStr: string) => {
+    if (!dateStr) return '';
+    const [year, month] = dateStr.split('-');
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    return `${months[parseInt(month) - 1]}/${year}`;
+  };
   
   const [activeTab, setActiveTab] = useState<'staff' | 'sectors' | 'pgs'>('staff');
-  const [activeUnit, setActiveUnit] = useState<Unit>(Unit.HAB);
   const [importMode, setImportMode] = useState<'sync' | 'incremental'>('sync');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -73,7 +90,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
                             updatedAt: Date.now(),
                             // Se estava inativo, removemos a data de saída e garantimos que joinedAt exista
                             leftAt: null,
-                            joinedAt: existing.joinedAt || importTimestamp
+                            joinedAt: incoming.joinedAt || existing.joinedAt || importTimestamp
                         };
                         if (type === 'staff') updated.sectorId = incoming.sectorIdLinked || existing.sectorId || "";
                         map.set(key, updated);
@@ -86,7 +103,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
                         unit: activeUnit, 
                         active: true, 
                         cycleMonth: selectedMonth,
-                        joinedAt: importTimestamp,
+                        joinedAt: incoming.joinedAt || importTimestamp,
                         updatedAt: Date.now() 
                     };
                     if (type === 'staff') newItem.sectorId = incoming.sectorIdLinked || "";
@@ -109,6 +126,14 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
                             value.leftAt = previousMonthEnd;
                             value.updatedAt = Date.now(); 
                             stats.deactivated++; 
+
+                            // Cascata: Inativar matrículas em PGs
+                            if (type === 'staff') {
+                                const memberships = proGroupMembers.filter(m => m.staffId === key && !m.leftAt);
+                                memberships.forEach(m => {
+                                    saveRecord('proGroupMembers', { ...m, leftAt: previousMonthEnd });
+                                });
+                            }
                         }
                     }
                 }
@@ -181,11 +206,6 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro }) => {
       pgs: { icon: 'fa-users', title: 'Importação de Pequenos Grupos', fields: "Obrigatório: Apenas ID e Nome do PG (ou Grupo).", optional: "Líder é opcional.", warn: "Proibido: Colunas de Funcionários ou Setores." }
   };
   const currentInst = instructions[activeTab];
-
-  const formatMonthLabel = (iso: string) => {
-    const d = new Date(iso + 'T12:00:00');
-    return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  };
 
   return (
     <div className="space-y-12">

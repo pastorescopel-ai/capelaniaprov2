@@ -28,10 +28,12 @@ export const DataRepository = {
         supabase.from('pro_group_provider_members').select('*').range(0, MAX_ROWS),
         supabase.from('bible_class_attendees').select('*').range(0, MAX_ROWS),
         supabase.from('activity_schedules').select('*').range(0, MAX_ROWS),
-        supabase.from('daily_activity_reports').select('*').range(0, MAX_ROWS)
+        supabase.from('daily_activity_reports').select('*').range(0, MAX_ROWS),
+        supabase.from('pro_monthly_stats').select('*').range(0, MAX_ROWS),
+        supabase.from('ambassadors').select('*').range(0, MAX_ROWS)
       ]);
 
-      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar] = results;
+      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar, pms, amb] = results;
 
       // Log de erros para debug (invisível ao usuário)
       results.forEach((res, idx) => {
@@ -69,7 +71,9 @@ export const DataRepository = {
         proGroupProviderMembers: toCamel(pgpm.data || []),
         activitySchedules: toCamel(asch.data || []),
         dailyActivityReports: toCamel(dar.data || []),
-        bibleClassAttendees: attendees
+        bibleClassAttendees: attendees,
+        proMonthlyStats: toCamel(pms.data || []),
+        ambassadors: toCamel(amb.data || [])
       };
     } catch (error) {
       console.error("Erro fatal ao sincronizar com Supabase:", error);

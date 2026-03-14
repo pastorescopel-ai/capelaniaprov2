@@ -9,6 +9,7 @@ export interface ProcessedRow {
   name: string;
   unit: Unit;
   cycleMonth?: string;
+  joinedAt?: number;
   sectorIdRaw?: string;
   sectorNameRaw?: string;
   sectorIdLinked?: string | null;
@@ -86,6 +87,7 @@ export const useExcelProcessor = () => {
           const idxName = findColumnIndex(headers, ['NOME', 'COLABORADOR', 'FUNCIONARIO', 'SETOR', 'PG', 'GRUPO', 'DESCRIÇÃO']);
           const idxSecId = findColumnIndex(headers, ['ID SETOR', 'COD SETOR', 'COD DEPARTAMENTO', 'CODIGO SETOR', 'ID_SETOR']);
           const idxSecName = findColumnIndex(headers, ['NOME SETOR', 'SETOR', 'DEPARTAMENTO']);
+          const idxJoinedAt = findColumnIndex(headers, ['ADMISSAO', 'DATA ADMISSAO', 'DT ADM', 'ENTRADA']);
 
           if (idxId === -1 || idxName === -1) {
               throw new Error("Colunas obrigatórias (ID e Nome) não encontradas.");
@@ -116,6 +118,25 @@ export const useExcelProcessor = () => {
               seenIds.add(finalId);
 
               const item: ProcessedRow = { id: finalId, name, unit: activeUnit, sectorStatus: 'ok' };
+
+              if (idxJoinedAt !== -1 && row[idxJoinedAt]) {
+                  try {
+                      // Tenta converter data do Excel (pode ser número serial ou string)
+                      const dateVal = row[idxJoinedAt];
+                      if (typeof dateVal === 'number') {
+                          // Excel serial date
+                          const date = new Date((dateVal - (25567 + 1)) * 86400 * 1000);
+                          item.joinedAt = date.getTime();
+                      } else {
+                          const date = new Date(dateVal);
+                          if (!isNaN(date.getTime())) {
+                              item.joinedAt = date.getTime();
+                          }
+                      }
+                  } catch (e) {
+                      console.warn("Erro ao processar data de admissão", e);
+                  }
+              }
 
               if (activeTab === 'staff') {
                   const sIdRaw = row[idxSecId] ? cleanID(row[idxSecId]) : '';

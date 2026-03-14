@@ -9,7 +9,7 @@ interface PGDashboardProps {
 }
 
 const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
-  const { proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups } = useApp();
+  const { proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, proMonthlyStats } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'sector' | 'pg'>('sector');
   
@@ -25,6 +25,56 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
   const metrics = useMemo(() => {
     const targetDate = new Date(selectedMonth);
     const nextMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
+
+    // 0. Verificar se existem snapshots para o mês selecionado
+    const snapshots = proMonthlyStats.filter(s => s.month === selectedMonth && s.type === 'sector' && s.unit === unit);
+    
+    if (snapshots.length > 0) {
+      const sectorData = snapshots.map(snap => {
+        const sector = proSectors.find(s => String(s.id) === String(snap.targetId));
+        
+        // Tenta encontrar os PGs que pertenciam a este setor na época
+        // Como não temos snapshot de PGs por setor, usamos os atuais como fallback
+        const pgsInSector = proGroupLocations
+          .filter(loc => String(loc.sectorId) === String(snap.targetId))
+          .map(loc => proGroups.find(g => String(g.id) === String(loc.groupId)))
+          .filter(g => !!g);
+
+        return {
+          sector: sector || { id: snap.targetId, name: 'Setor Excluído', unit: snap.unit } as any,
+          pgsInSector,
+          total: snap.totalStaff,
+          enrolled: snap.totalParticipants,
+          pgCount: pgsInSector.length,
+          percentage: snap.percentage
+        };
+      });
+
+      // Filtro de Busca Inteligente
+      const normSearch = normalizeString(searchTerm);
+      const searchTerms = normSearch.split(' ').filter(t => t);
+
+      const filteredData = sectorData.filter(d => {
+          if (searchTerms.length === 0) return d.total > 0;
+          const targetText = filterType === 'sector' ? d.sector.name : d.pgsInSector.map(pg => pg?.name || '').join(' ');
+          const normTarget = normalizeString(targetText);
+          return searchTerms.every(term => normTarget.includes(term)) && d.total > 0;
+      });
+
+      let totalStaff = 0;
+      let enrolledStaff = 0;
+      sectorData.forEach(d => {
+          totalStaff += d.total;
+          enrolledStaff += d.enrolled;
+      });
+
+      return { 
+          globalPercentage: totalStaff > 0 ? (enrolledStaff / totalStaff) * 100 : 0, 
+          totalStaff, 
+          enrolledStaff, 
+          displaySectors: filteredData.sort((a, b) => a.percentage - b.percentage) 
+      };
+    }
 
     // 1. Filtrar setores e staff da unidade (Apenas Ativos)
     const unitSectors = proSectors.filter(s => s.unit === unit && s.active !== false);
@@ -116,7 +166,7 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
         enrolledStaff, 
         displaySectors: filteredData.sort((a, b) => a.percentage - b.percentage) 
     };
-  }, [proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, unit, searchTerm, filterType, selectedMonth]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, proMonthlyStats, unit, searchTerm, filterType, selectedMonth]);
 
   // Gerar opções de meses (Últimos 6 meses)
   const monthOptions = useMemo(() => {

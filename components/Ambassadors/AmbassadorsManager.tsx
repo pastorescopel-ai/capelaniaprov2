@@ -14,7 +14,7 @@ import ReportsTab from './ReportsTab';
 import ConfirmationModal from '../Shared/ConfirmationModal';
 
 const AmbassadorsManager: React.FC = () => {
-  const { proSectors, proStaff, config } = useApp();
+  const { proSectors, proStaff, proMonthlyStats, config } = useApp();
   const { showToast } = useToast();
   const { generatePdf, isGenerating } = useDocumentGenerator();
   
@@ -37,7 +37,7 @@ const AmbassadorsManager: React.FC = () => {
   const [ambassadorToDelete, setAmbassadorToDelete] = useState<string | null>(null);
 
   // Hook de Estatísticas
-  const { stats, getChartData } = useAmbassadorStats(ambassadors, proSectors, proStaff, selectedMonth);
+  const { stats, getChartData } = useAmbassadorStats(ambassadors, proSectors, proStaff, proMonthlyStats, selectedMonth);
 
   // Funções de Navegação de Mês
   const handlePrevMonth = () => {

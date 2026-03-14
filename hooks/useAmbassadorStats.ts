@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { Unit, Ambassador, ProSector, ProStaff } from '../types';
+import { Unit, Ambassador, ProSector, ProStaff, ProMonthlyStats } from '../types';
 
 export const useAmbassadorStats = (
   ambassadors: Ambassador[],
   proSectors: ProSector[],
   proStaff: ProStaff[],
+  proMonthlyStats: ProMonthlyStats[],
   selectedMonth?: string
 ) => {
   const stats = useMemo(() => {
@@ -13,7 +14,28 @@ export const useAmbassadorStats = (
       [Unit.HABA]: { total: 0, sectors: {} as Record<string, { id: string, name: string, count: number, totalStaff: number, percent: number }> }
     };
 
-    // Lógica de Seleção de Staff: 
+    // 1. Verificar se existem snapshots para o mês selecionado
+    if (selectedMonth) {
+      const snapshots = proMonthlyStats.filter(s => s.month === selectedMonth && s.type === 'sector');
+      if (snapshots.length > 0) {
+        snapshots.forEach(snap => {
+          const sector = proSectors.find(s => s.id === snap.targetId);
+          if (sector && dataByUnit[snap.unit]) {
+            dataByUnit[snap.unit].sectors[snap.targetId] = {
+              id: snap.targetId,
+              name: sector.name,
+              count: snap.totalParticipants,
+              totalStaff: snap.totalStaff,
+              percent: snap.percentage
+            };
+            dataByUnit[snap.unit].total += snap.totalParticipants;
+          }
+        });
+        return dataByUnit;
+      }
+    }
+
+    // Lógica de Seleção de Staff (Fallback se não houver snapshot): 
     // 1. Tenta pegar o staff importado especificamente para o mês selecionado
     // 2. Se não houver, usa o staff marcado como "Ativo" (última importação realizada)
     const getStaffForUnit = (unit: Unit) => {
@@ -59,7 +81,7 @@ export const useAmbassadorStats = (
     });
 
     return dataByUnit;
-  }, [ambassadors, proSectors, proStaff, selectedMonth]);
+  }, [ambassadors, proSectors, proStaff, proMonthlyStats, selectedMonth]);
 
   const getChartData = (unit: Unit) => {
     return Object.values(stats[unit].sectors)
