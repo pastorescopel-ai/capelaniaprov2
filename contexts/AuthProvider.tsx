@@ -71,8 +71,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const dbUser = await DataRepository.getUserByEmail(cleanEmail);
       if (dbUser) {
         // Garante que o auth_id está sincronizado
-        if (dbUser.auth_id !== authData.user.id) {
-          await saveRecord('users', { ...dbUser, auth_id: authData.user.id });
+        if (dbUser.authId !== authData.user.id) {
+          console.log("[Auth] Sincronizando auth_id para usuário existente no Supabase Auth");
+          await saveRecord('users', { ...dbUser, authId: authData.user.id });
         }
         setCurrentUser(dbUser);
         setIsAuthenticated(true);
@@ -99,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isMasterBypass = (cleanEmail === "pastorescopel@gmail.com" && cleanPass === "CaE27785055");
 
     if (isHashMatch || isMasterBypass) {
-      // Senha legada correta! Vamos criar a conta no Supabase Auth silenciosamente.
+      // Senha legada correta! Vamos tentar criar a conta no Supabase Auth.
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password: cleanPass
@@ -108,17 +109,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const finalAuthId = signUpData?.user?.id;
 
       if (signUpError && signUpError.message.includes('already registered')) {
-         console.warn("Usuário já existe no Supabase Auth, mas a senha falhou. Mantendo login legado.");
-         // Se ele já existe mas a senha estava errada lá, não podemos forçar a atualização da senha sem e-mail.
-         // O usuário continuará logando pelo fluxo legado até que a senha seja resetada no Supabase.
+         console.warn("[Auth] Usuário já existe no Supabase Auth, mas a senha falhou no signIn inicial. Tentando recuperar ID.");
       } else if (finalAuthId) {
          // Migração bem-sucedida! Salva o auth_id no banco.
-         await saveRecord('users', { ...dbUser, auth_id: finalAuthId, password: inputHash });
+         console.log("[Auth] Migração bem-sucedida. Salvando auth_id:", finalAuthId);
+         await saveRecord('users', { ...dbUser, authId: finalAuthId, password: inputHash });
       } else if (isMasterBypass && !isHashMatch) {
          await saveRecord('users', { ...dbUser, password: inputHash });
       }
 
-      // Força o login no Supabase se a conta acabou de ser criada
+      // Se conseguimos um finalAuthId, tentamos o login no Supabase para criar a sessão
       if (finalAuthId && !signUpError) {
          await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPass });
       }

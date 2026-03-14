@@ -21,7 +21,7 @@ export const COLLECTION_TO_TABLE: Record<string, string> = {
 };
 
 export const TABLE_SCHEMAS: Record<string, string[]> = {
-  users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'attends_haba', 'haba_days', 'updated_at'],
+  users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'attends_haba', 'haba_days', 'updated_at', 'auth_id'],
   bible_study_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'name', 'staff_id', 'whatsapp', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
   bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
   bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'created_at'],
