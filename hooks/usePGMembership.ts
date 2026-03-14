@@ -70,6 +70,18 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
 
   // --- AÇÕES ---
 
+  const getCycleDates = (isoDate: string) => {
+    const [year, month] = isoDate.split('-').map(Number);
+    // Dia 01 às 12:00:00
+    const firstDay = new Date(year, month - 1, 1, 12, 0, 0);
+    // Último dia às 12:00:00
+    const lastDay = new Date(year, month, 0, 12, 0, 0);
+    return {
+      firstDayMs: firstDay.getTime(),
+      lastDayMs: lastDay.getTime()
+    };
+  };
+
   const handleEnroll = async (personId: string, type: 'staff' | 'provider' = 'staff') => {
     if (!currentPG) { showToast("Selecione um PG de destino primeiro.", "warning"); return; }
     console.log(`[Protocolo] Iniciando matrícula: ${type} ${personId} -> PG ${currentPG.id}`);
@@ -94,18 +106,25 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
         }
         
         // "Fecha" TODAS as matrículas anteriores para garantir limpeza total
-        const closeUpdates = existingActiveMemberships.map(m => ({ ...m, leftAt: Date.now() }));
+        // Usamos o dia anterior ao início do novo ciclo para evitar sobreposição se necessário, 
+        // mas aqui usaremos o Date.now() ou o dia anterior ao ciclo atual.
+        // Para simplificar e manter a lógica de BI, fechamos no momento atual ou no fim do mês anterior.
+        const { firstDayMs } = getCycleDates(selectedMonth);
+        const prevMonthLastDay = new Date(firstDayMs - 86400000); // 1 dia antes do início do ciclo
+        prevMonthLastDay.setHours(12, 0, 0, 0);
+
+        const closeUpdates = existingActiveMemberships.map(m => ({ ...m, leftAt: prevMonthLastDay.getTime() }));
         await saveRecord(collection, closeUpdates);
       }
 
       // Cria nova matrícula com base no seletor de mês
-      const cycleMonth = selectedMonth;
+      const { firstDayMs } = getCycleDates(selectedMonth);
 
       const newMember: any = {
         groupId: currentPG.id,
         [idField]: personId,
-        joinedAt: Date.now(),
-        cycleMonth
+        joinedAt: firstDayMs,
+        cycleMonth: selectedMonth
       };
       
       const success = await saveRecord(collection, newMember);
@@ -188,13 +207,12 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     try {
       if (activeMemberships.length > 0) {
           // ENCERRAMENTO DE CICLO (SOFT DELETE): Baseado no mês selecionado
-          // Define a data de saída como o último momento do mês selecionado
-          const cycleDate = new Date(selectedMonth + 'T12:00:00');
-          const lastDayOfMonth = new Date(cycleDate.getFullYear(), cycleDate.getMonth() + 1, 0, 23, 59, 59);
+          // Define a data de saída como o meio-dia do último dia do mês selecionado
+          const { lastDayMs } = getCycleDates(selectedMonth);
           
           const updates = activeMemberships.map(m => ({ 
             ...m, 
-            leftAt: lastDayOfMonth.getTime(),
+            leftAt: lastDayMs,
             isError: removalType === 'error'
           }));
           
@@ -234,11 +252,13 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   const handleBulkUpdateCycleMonth = async () => {
     if (!currentPG || pgMembers.length === 0) return;
     
-    const confirm = window.confirm(`Deseja ajustar o Ciclo de Competência de TODOS os ${pgMembers.length} membros deste PG para ${selectedMonth}?`);
+    const confirm = window.confirm(`Deseja ajustar o Ciclo de Competência e a Data de Entrada de TODOS os ${pgMembers.length} membros deste PG para ${selectedMonth}?`);
     if (!confirm) return;
 
     setIsProcessing(true);
     try {
+      const { firstDayMs } = getCycleDates(selectedMonth);
+      
       // Separar membros por tipo (staff vs provider)
       const staffUpdates: any[] = [];
       const providerUpdates: any[] = [];
@@ -250,7 +270,11 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
           : proGroupMembers.find(m => m.id === member.id);
 
         if (originalMember) {
-          const updated = { ...originalMember, cycleMonth: selectedMonth };
+          const updated = { 
+            ...originalMember, 
+            cycleMonth: selectedMonth,
+            joinedAt: firstDayMs // Força a data de entrada para o início do ciclo
+          };
           if (isProvider) providerUpdates.push(updated);
           else staffUpdates.push(updated);
         }
@@ -259,7 +283,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       if (staffUpdates.length > 0) await saveRecord('proGroupMembers', staffUpdates);
       if (providerUpdates.length > 0) await saveRecord('proGroupProviderMembers', providerUpdates);
 
-      showToast("Ciclo de competência atualizado para todos!", "success");
+      showToast("Ciclo e datas de entrada atualizados para todos!", "success");
     } catch (e) {
       showToast("Erro ao atualizar ciclo em massa.", "warning");
     } finally {
