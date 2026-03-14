@@ -13,7 +13,7 @@ const AdminPanel: React.FC = () => {
     config, 
     bibleStudies, bibleClasses, smallGroups, staffVisits, users,
     proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, proMonthlyStats, ambassadors,
-    saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, saveRecord
+    saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, saveRecord, deleteRecord
   } = useApp();
   
   const { currentUser } = useAuth();
@@ -204,6 +204,7 @@ const AdminPanel: React.FC = () => {
               ambassadors={ambassadors}
               proGroupMembers={proGroupMembers}
               saveRecord={saveRecord}
+              deleteRecord={deleteRecord}
             />
 
             {/* Cards de Ação Secundária */}

@@ -14,15 +14,17 @@ interface AdminDataToolsProps {
     staff: ProStaff[];
     sectors: ProSector[];
     groups: ProGroup[];
+    stats?: ProMonthlyStats[];
   };
   ambassadors: Ambassador[];
   proGroupMembers: ProGroupMember[];
   saveRecord: (collection: string, item: any) => Promise<any>;
+  deleteRecord: (collection: string, id: string) => Promise<any>;
 }
 
 const AdminDataTools: React.FC<AdminDataToolsProps> = ({ 
   currentUser, onRefreshData, onRestoreFullDNA, isRefreshing,
-  proData, ambassadors, proGroupMembers, saveRecord
+  proData, ambassadors, proGroupMembers, saveRecord, deleteRecord
 }) => {
   const { showToast } = useToast();
   const [showDNAConfirm, setShowDNAConfirm] = useState(false);
