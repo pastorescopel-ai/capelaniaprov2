@@ -307,6 +307,18 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
           };
           if (isProvider) providerUpdates.push(updated);
           else staffUpdates.push(updated);
+        } else {
+          // Se não existe no banco, cria um novo registro
+          const newMember = { 
+            groupId: currentPG.id,
+            [isProvider ? 'providerId' : 'staffId']: (member as any)[isProvider ? 'providerId' : 'staffId'],
+            cycleMonth: selectedMonth,
+            joinedAt: firstDayMs,
+            leftAt: null,
+            isError: false
+          };
+          if (isProvider) providerUpdates.push(newMember);
+          else staffUpdates.push(newMember);
         }
       });
 
