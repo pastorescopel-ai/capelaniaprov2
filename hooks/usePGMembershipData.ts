@@ -42,6 +42,12 @@ export const usePGMembershipData = ({
 }: UsePGMembershipDataProps) => {
   const cleanId = (id: any) => String(id || '').replace(/\D/g, '');
 
+  // --- MAPAS DE ÍNDICE (Otimização de Performance) ---
+  const staffMap = useMemo(() => new Map(proStaff.map(s => [cleanId(s.id), s])), [proStaff]);
+  const providerMap = useMemo(() => new Map(proProviders.map(p => [cleanId(p.id), p])), [proProviders]);
+  const groupMap = useMemo(() => new Map(proGroups.map(g => [g.id, g])), [proGroups]);
+  const sectorMap = useMemo(() => new Map(proSectors.map(s => [s.id, s])), [proSectors]);
+
   const currentSector = useMemo(() => 
     proSectors.find(s => s.name === selectedSectorName && s.unit === unit && s.active !== false), 
     [proSectors, selectedSectorName, unit]
@@ -65,7 +71,7 @@ export const usePGMembershipData = ({
             (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && 
             !pendingRemovals.has(m.id)
         );
-        const groupName = membership ? proGroups.find(g => g.id === membership.groupId)?.name : null;
+        const groupName = membership ? groupMap.get(membership.groupId)?.name : null;
         const dateStr = membership?.joinedAt ? new Date(membership.joinedAt).toLocaleDateString('pt-BR') : null;
         
         return { ...provider, membership, groupName, joinedDate: dateStr };
@@ -86,7 +92,7 @@ export const usePGMembershipData = ({
         if (a.membership && !b.membership) return 1;
         return String(a.name || "").localeCompare(String(b.name || ""));
     });
-  }, [proProviders, unit, providerSearch, proGroupProviderMembers, proGroups, currentPG, pendingRemovals, pendingTransfers]);
+  }, [proProviders, unit, providerSearch, proGroupProviderMembers, groupMap, currentPG, pendingRemovals, pendingTransfers, isMonthClosed, selectedMonth]);
 
   const coverageGaps = useMemo(() => {
     const sectors = proSectors.filter(s => s.unit === unit && s.active !== false);
@@ -136,19 +142,23 @@ export const usePGMembershipData = ({
         return [];
     }
 
+    // Mapa de membros ativos para busca rápida
+    const activeMembersMap = new Map();
+    proGroupMembers.forEach(m => {
+        if ((isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && !pendingRemovals.has(m.id)) {
+            activeMembersMap.set(cleanId(m.staffId), m);
+        }
+    });
+
     return filtered.map(staff => {
-        const membership = proGroupMembers.find(m => 
-          cleanId(m.staffId) === cleanId(staff.id) && 
-          (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && 
-          !pendingRemovals.has(m.id)
-        );
+        const membership = activeMembersMap.get(cleanId(staff.id));
         
-        const groupName = membership ? proGroups.find(g => g.id === membership.groupId)?.name : null;
+        const groupName = membership ? groupMap.get(membership.groupId)?.name : null;
         const dateStr = membership?.joinedAt 
             ? new Date(membership.joinedAt).toLocaleDateString('pt-BR') 
             : null;
 
-        const sector = proSectors.find(s => s.id === staff.sectorId);
+        const sector = sectorMap.get(staff.sectorId);
         return { ...staff, membership, groupName, joinedDate: dateStr, sectorName: sector?.name || 'Sem Setor' };
       })
       .filter(staff => {
@@ -169,16 +179,21 @@ export const usePGMembershipData = ({
         if (a.membership && !b.membership) return 1;
         return String(a.name || "").localeCompare(String(b.name || ""));
       });
-  }, [proStaff, currentSector, staffSearch, proGroupMembers, proGroups, currentPG, pendingTransfers, pendingRemovals, unit, proSectors]);
+  }, [proStaff, currentSector, staffSearch, proGroupMembers, groupMap, currentPG, pendingTransfers, pendingRemovals, unit, sectorMap, isMonthClosed, selectedMonth]);
 
   const pgMembers = useMemo(() => {
     if (!currentPG) return [];
     
-    const realStaffMembers = proGroupMembers
-      .filter(m => m.groupId === currentPG.id && (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && !pendingRemovals.has(m.id))
-      .map(m => {
-        const staff = proStaff.find(s => cleanId(s.id) === cleanId(m.staffId));
-        const sector = proSectors.find(s => s.id === staff?.sectorId);
+    // Filtra membros ativos para o PG atual
+    const staffMembers = proGroupMembers.filter(m => 
+        m.groupId === currentPG.id && 
+        (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && 
+        !pendingRemovals.has(m.id)
+    );
+
+    const realStaffMembers = staffMembers.map(m => {
+        const staff = staffMap.get(cleanId(m.staffId));
+        const sector = sectorMap.get(staff?.sectorId || '');
         return { 
             id: m.id,
             staffName: staff?.name || `Desconhecido (ID: ${m.staffId})`, 
@@ -190,12 +205,16 @@ export const usePGMembershipData = ({
             isLeader: currentPG.currentLeader === staff?.name,
             type: 'staff'
         };
-      });
+    });
 
-    const realProviderMembers = proGroupProviderMembers
-      .filter(m => m.groupId === currentPG.id && (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && !pendingRemovals.has(m.id))
-      .map(m => {
-        const provider = proProviders.find(p => cleanId(p.id) === cleanId(m.providerId));
+    const providerMembers = proGroupProviderMembers.filter(m => 
+        m.groupId === currentPG.id && 
+        (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && 
+        !pendingRemovals.has(m.id)
+    );
+
+    const realProviderMembers = providerMembers.map(m => {
+        const provider = providerMap.get(cleanId(m.providerId));
         return {
             id: m.id,
             staffName: provider?.name || `Desconhecido (ID: ${m.providerId})`,
@@ -206,12 +225,12 @@ export const usePGMembershipData = ({
             isLeader: currentPG.currentLeader === provider?.name,
             type: 'provider'
         };
-      });
+    });
 
     const optimisticMembers = Array.from(pendingTransfers).map(id => {
-        const staff = proStaff.find(s => s.id === id);
-        const provider = proProviders.find(p => p.id === id);
-        const sector = staff ? proSectors.find(s => s.id === staff.sectorId) : null;
+        const staff = staffMap.get(id);
+        const provider = providerMap.get(id);
+        const sector = staff ? sectorMap.get(staff.sectorId || '') : null;
         const name = staff?.name || provider?.name || "Processando...";
         return {
             id: `temp-${id}`, 
@@ -234,7 +253,7 @@ export const usePGMembershipData = ({
         if (!a.isLeader && b.isLeader) return 1;
         return String(a.staffName || "").localeCompare(String(b.staffName || ""));
     });
-  }, [proGroupMembers, proGroupProviderMembers, currentPG, proStaff, proProviders, pendingTransfers, pendingRemovals, proSectors]);
+  }, [proGroupMembers, proGroupProviderMembers, currentPG, staffMap, providerMap, pendingTransfers, pendingRemovals, sectorMap, isMonthClosed, selectedMonth]);
 
   return {
     currentSector,

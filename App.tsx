@@ -27,19 +27,23 @@ const App: React.FC = () => {
     handleSaveItem, confirmDeletion, getVisibleHistory
   } = useAppFlow({ currentUser, saveRecord, deleteRecord });
 
+  const [isTabTransitionPending, startTabTransition] = React.useTransition();
+
   // Controle de abas visitadas para renderização sob demanda (Performance)
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['dashboard']));
   const [activitiesSubTab, setActivitiesSubTab] = useState<'analysis' | 'checklist' | 'scheduler' | 'reports' | undefined>(undefined);
   const skipClearRef = React.useRef(false);
 
   const handleTabChange = (tab: string, subTab?: any) => {
-    setActiveTab(tab);
-    setVisitedTabs(prev => new Set(prev).add(tab));
-    if (tab === 'activities' && subTab) {
-      setActivitiesSubTab(subTab);
-    } else if (tab !== 'activities') {
-      setActivitiesSubTab(undefined);
-    }
+    startTabTransition(() => {
+      setActiveTab(tab);
+      setVisitedTabs(prev => new Set(prev).add(tab));
+      if (tab === 'activities' && subTab) {
+        setActivitiesSubTab(subTab);
+      } else if (tab !== 'activities') {
+        setActivitiesSubTab(undefined);
+      }
+    });
   };
 
   const handleRegisterMission = (visit: any) => {

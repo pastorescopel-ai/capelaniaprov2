@@ -92,62 +92,62 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     activeTab
   });
 
-  const tabComponents = useMemo(() => ({
-    dashboard: (
-      <Dashboard 
-        studies={bibleStudies} 
-        classes={bibleClasses} 
-        groups={smallGroups} 
-        visits={staffVisits} 
-        currentUser={currentUser} 
-        config={config} 
-        onGoToTab={setActiveTab} 
-        onRegisterMission={onRegisterMission}
-        onGoToReturnHistory={onGoToReturnHistory}
-        onUpdateConfig={c => saveToCloud({config: c}, false)} 
-        onUpdateUser={u => saveRecord('users', u)} 
-      />
-    ),
-    bibleStudy: (
-      <BibleStudyForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} history={getVisibleHistory(bibleStudies)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} onTransfer={handleTransfer} />
-    ),
-    bibleClass: (
-      <BibleClassForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={unitSectors} history={getVisibleHistory(bibleClasses)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} onTransfer={handleTransfer} />
-    ),
-    smallGroup: (
-      <SmallGroupForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(smallGroups)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />
-    ),
-    staffVisit: (
-      <StaffVisitForm currentUser={currentUser} users={users} onToggleReturn={id => { const item = staffVisits.find(v=>v.id===id); if(item) saveRecord('staffVisits', {...item, returnCompleted: !item.returnCompleted}); }} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(staffVisits)} allHistory={staffVisits} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />
-    ),
-    reports: <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} currentUser={currentUser} config={config} onRefresh={() => loadFromCloud(true)} />,
-    pgManagement: <PGManager />,
-    ambassadors: <AmbassadorsManager />,
-    users: <UserManagement users={users} currentUser={currentUser} onUpdateUsers={async u => { await saveToCloud({ users: u }, true); }} />,
-    profile: currentUser && <Profile user={currentUser} isSyncing={isLoading} onUpdateUser={u => { updateCurrentUser(u); saveRecord('users', u); }} />,
-    admin: <AdminPanel />,
-    dataHealing: <DataHealer />,
-    activities: <ActivityManager isActive={activeTab === 'activities'} initialSubTab={activitiesSubTab} />
-  }), [
-    activeTab, activitiesSubTab, bibleClasses, bibleStudies, config, currentUnit, currentUser, editingItem, 
-    getVisibleHistory, handleSaveItem, handleTransfer, isLoading, loadFromCloud, 
-    onGoToReturnHistory, onRegisterMission, saveRecord, saveToCloud, setActiveTab, 
-    setEditingItem, setItemToDelete, smallGroups, staffVisits, unitSectors, 
-    updateCurrentUser, users
-  ]);
+  const renderTab = (tabId: string) => {
+    switch (tabId) {
+      case 'dashboard':
+        return (
+          <Dashboard 
+            studies={bibleStudies} 
+            classes={bibleClasses} 
+            groups={smallGroups} 
+            visits={staffVisits} 
+            currentUser={currentUser} 
+            config={config} 
+            onGoToTab={setActiveTab} 
+            onRegisterMission={onRegisterMission}
+            onGoToReturnHistory={onGoToReturnHistory}
+            onUpdateConfig={c => saveToCloud({config: c}, false)} 
+            onUpdateUser={u => saveRecord('users', u)} 
+          />
+        );
+      case 'bibleStudy':
+        return <BibleStudyForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} history={getVisibleHistory(bibleStudies)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} onTransfer={handleTransfer} />;
+      case 'bibleClass':
+        return <BibleClassForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={unitSectors} history={getVisibleHistory(bibleClasses)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} onTransfer={handleTransfer} />;
+      case 'smallGroup':
+        return <SmallGroupForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(smallGroups)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />;
+      case 'staffVisit':
+        return <StaffVisitForm currentUser={currentUser} users={users} onToggleReturn={id => { const item = staffVisits.find(v=>v.id===id); if(item) saveRecord('staffVisits', {...item, returnCompleted: !item.returnCompleted}); }} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(staffVisits)} allHistory={staffVisits} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />;
+      case 'reports':
+        return <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} currentUser={currentUser} config={config} onRefresh={() => loadFromCloud(true)} />;
+      case 'pgManagement':
+        return <PGManager />;
+      case 'ambassadors':
+        return <AmbassadorsManager />;
+      case 'users':
+        return <UserManagement users={users} currentUser={currentUser} onUpdateUsers={async u => { await saveToCloud({ users: u }, true); }} />;
+      case 'profile':
+        return currentUser && <Profile user={currentUser} isSyncing={isLoading} onUpdateUser={u => { updateCurrentUser(u); saveRecord('users', u); }} />;
+      case 'admin':
+        return <AdminPanel />;
+      case 'dataHealing':
+        return <DataHealer />;
+      case 'activities':
+        return <ActivityManager isActive={activeTab === 'activities'} initialSubTab={activitiesSubTab} />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <div id="main-content-wrapper" className="relative min-h-[70vh]">
-      {Object.entries(tabComponents).map(([tabId, component]) => {
+      {Array.from(visitedTabs).map((tabId) => {
         const isVisible = activeTab === tabId;
-        const hasBeenVisited = visitedTabs.has(tabId);
         
-        if (!hasBeenVisited && !isVisible) return null;
-
         return (
-          <div key={tabId} className={`${getTabClass(tabId)} ${isVisible ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}>
+          <div key={tabId} className={`${getTabClass(tabId)} ${isVisible ? 'block' : 'hidden'} ${isVisible ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}>
             <Suspense fallback={<TabLoading />}>
-              {component}
+              {renderTab(tabId)}
             </Suspense>
           </div>
         );
