@@ -1,7 +1,9 @@
 import React, { lazy, Suspense, useMemo } from 'react';
 import { Unit, User } from '../types';
 import { useAppOperations } from '../hooks/useAppOperations';
-import { useApp } from '../hooks/useApp';
+import { useApp } from '../contexts/AppProvider';
+import { useBible } from '../contexts/BibleContext';
+import { usePro } from '../contexts/ProContext';
 
 // Lazy Imports
 const Dashboard = lazy(() => import('./Dashboard'));
@@ -79,10 +81,13 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     updateCurrentUser, handleSaveItem, onRegisterMission, onGoToReturnHistory, getVisibleHistory
   } = props;
 
-  const { 
-    users, bibleStudies, bibleClasses, smallGroups, staffVisits, config, 
+  const {
+    users, config, smallGroups, staffVisits,
     saveToCloud, saveRecord, loadFromCloud 
   } = useApp();
+
+  const { bibleStudies, bibleClasses } = useBible();
+  const { proSectors, proGroups, proGroupMembers, proGroupProviderMembers, proStaff, proProviders, proMonthlyStats, ambassadors } = usePro();
 
   const { handleTransfer, getTabClass } = useAppOperations({
     bibleStudies,

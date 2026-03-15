@@ -391,10 +391,10 @@ export const useAppData = () => {
   }, [bibleClassAttendees]);
 
   return {
-    users, bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests,
-    proStaff, proPatients, proProviders, proSectors, proGroups, proGroupLocations, proGroupMembers, proGroupProviderMembers, proMonthlyStats, ambassadors,
-    activitySchedules, dailyActivityReports, bibleClassAttendees,
-    config, isSyncing, isConnected, isInitialized,
+    users, setUsers, bibleStudies, setBibleStudies, bibleClasses, setBibleClasses, smallGroups, setSmallGroups, staffVisits, setStaffVisits, visitRequests, setVisitRequests,
+    proStaff, setProStaff, proPatients, setProPatients, proProviders, setProProviders, proSectors, setProSectors, proGroups, setProGroups, proGroupLocations, setProGroupLocations, proGroupMembers, setProGroupMembers, proGroupProviderMembers, setProGroupProviderMembers, proMonthlyStats, setProMonthlyStats, ambassadors, setAmbassadors,
+    activitySchedules, setActivitySchedules, dailyActivityReports, setDailyActivityReports, bibleClassAttendees, setBibleClassAttendees,
+    config, setConfig, isSyncing, isConnected, isInitialized,
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, syncMasterContact
   };
 };

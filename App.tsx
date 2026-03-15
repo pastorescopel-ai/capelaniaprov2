@@ -7,15 +7,20 @@ import ConfirmationModal from './components/Shared/ConfirmationModal';
 import MainContent from './components/MainContent';
 import { Unit } from './types/enums';
 import { useApp } from './hooks/useApp';
+import { useBible } from './contexts/BibleContext';
+import { usePro } from './contexts/ProContext';
 import { useAuth } from './contexts/AuthProvider';
 import { useAppFlow } from './hooks/useAppFlow';
 
 const App: React.FC = () => {
   const {
-    users, bibleStudies, bibleClasses, smallGroups, staffVisits,
-    proSectors, config, isSyncing, isConnected, loadFromCloud, saveToCloud, saveRecord, deleteRecord,
+    users, smallGroups, staffVisits,
+    config, isSyncing, isConnected, loadFromCloud, saveToCloud, saveRecord, deleteRecord,
     activitySchedules, dailyActivityReports
   } = useApp();
+
+  const { bibleStudies, bibleClasses } = useBible();
+  const { proSectors } = usePro();
 
   const { isAuthenticated, currentUser, login, logout, updateCurrentUser, loginError, isAuthLoading } = useAuth();
 
