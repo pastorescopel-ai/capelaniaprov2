@@ -9,15 +9,31 @@ interface UsePGMembershipProps {
 }
 
 export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
-  const { proSectors, proStaff, proProviders, proGroups, proGroupMembers, proGroupProviderMembers, proGroupLocations, saveRecord } = useApp();
+  const { proSectors, proStaff, proProviders, proGroups, proGroupMembers, proGroupProviderMembers, proGroupLocations, saveRecord, proMonthlyStats } = useApp();
   const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState<'staff' | 'providers'>('staff');
   const [selectedSectorName, setSelectedSectorName] = useState('');
   const [staffSearch, setStaffSearch] = useState('');
+  const [debouncedStaffSearch, setDebouncedStaffSearch] = useState('');
   const [selectedPGName, setSelectedPGName] = useState('');
   const [providerSearch, setProviderSearch] = useState('');
+  const [debouncedProviderSearch, setDebouncedProviderSearch] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedStaffSearch(staffSearch);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [staffSearch]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedProviderSearch(providerSearch);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [providerSearch]);
 
   // --- CICLO DE COMPETÊNCIA ---
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -25,6 +41,8 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   });
   
+  const isMonthClosed = proMonthlyStats?.some(s => s.month === selectedMonth);
+
   // --- ESTADOS OTIMISTAS (UI Instantânea) ---
   const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());
   const [pendingRemovals, setPendingRemovals] = useState<Set<string>>(new Set());
@@ -61,12 +79,14 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     proGroupProviderMembers,
     proGroupLocations,
     proProviders,
-    staffSearch,
-    providerSearch,
+    staffSearch: debouncedStaffSearch,
+    providerSearch: debouncedProviderSearch,
     selectedSectorName,
     selectedPGName,
     pendingTransfers,
-    pendingRemovals
+    pendingRemovals,
+    selectedMonth,
+    isMonthClosed
   });
 
   const isNewProvider = providerSearch && !proProviders.some(p => String(p.name || "").toLowerCase().trim() === providerSearch.toLowerCase().trim() && p.unit === unit);

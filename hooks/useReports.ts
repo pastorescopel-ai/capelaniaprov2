@@ -18,7 +18,7 @@ interface UseReportsProps {
 
 export const useReports = ({ studies, classes, groups, visits, users, config }: UseReportsProps) => {
   const { generatePdf, generateExcel, isGenerating } = useDocumentGenerator();
-  const { proGroups, proGroupMembers, proStaff, proSectors, proProviders, proGroupProviderMembers } = useApp();
+  const { proGroups, proGroupMembers, proStaff, proSectors, proProviders, proGroupProviderMembers, proMonthlyStats } = useApp();
   
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 

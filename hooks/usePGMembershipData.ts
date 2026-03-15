@@ -18,6 +18,8 @@ interface UsePGMembershipDataProps {
   selectedPGName: string;
   pendingTransfers: Set<string>;
   pendingRemovals: Set<string>;
+  selectedMonth: string;
+  isMonthClosed: boolean;
 }
 
 export const usePGMembershipData = ({
@@ -34,7 +36,9 @@ export const usePGMembershipData = ({
   selectedSectorName,
   selectedPGName,
   pendingTransfers,
-  pendingRemovals
+  pendingRemovals,
+  selectedMonth,
+  isMonthClosed
 }: UsePGMembershipDataProps) => {
   const cleanId = (id: any) => String(id || '').replace(/\D/g, '');
 
@@ -58,7 +62,7 @@ export const usePGMembershipData = ({
     return filtered.map(provider => {
         const membership = proGroupProviderMembers.find(m => 
             cleanId(m.providerId) === cleanId(provider.id) && 
-            !m.leftAt && 
+            (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && 
             !pendingRemovals.has(m.id)
         );
         const groupName = membership ? proGroups.find(g => g.id === membership.groupId)?.name : null;
@@ -135,7 +139,7 @@ export const usePGMembershipData = ({
     return filtered.map(staff => {
         const membership = proGroupMembers.find(m => 
           cleanId(m.staffId) === cleanId(staff.id) && 
-          !m.leftAt && 
+          (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && 
           !pendingRemovals.has(m.id)
         );
         
@@ -171,7 +175,7 @@ export const usePGMembershipData = ({
     if (!currentPG) return [];
     
     const realStaffMembers = proGroupMembers
-      .filter(m => m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id))
+      .filter(m => m.groupId === currentPG.id && (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && !pendingRemovals.has(m.id))
       .map(m => {
         const staff = proStaff.find(s => cleanId(s.id) === cleanId(m.staffId));
         const sector = proSectors.find(s => s.id === staff?.sectorId);
@@ -189,7 +193,7 @@ export const usePGMembershipData = ({
       });
 
     const realProviderMembers = proGroupProviderMembers
-      .filter(m => m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id))
+      .filter(m => m.groupId === currentPG.id && (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && !pendingRemovals.has(m.id))
       .map(m => {
         const provider = proProviders.find(p => cleanId(p.id) === cleanId(m.providerId));
         return {

@@ -18,6 +18,7 @@ export const useReportLogic = (
   groups: SmallGroup[],
   visits: StaffVisit[],
   users: User[],
+  proMonthlyStats: any[],
   filters: ReportFilters
 ) => {
   // 1. DADOS FILTRADOS (Respeita as datas selecionadas na UI)
