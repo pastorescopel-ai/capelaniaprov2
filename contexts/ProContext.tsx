@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ProMonthlyStats } from '../types';
+import { ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider as ProProviderModel, ProMonthlyStats, ProGroupLocation } from '../types';
 
 interface ProContextType {
   proStaff: ProStaff[];
@@ -7,16 +7,18 @@ interface ProContextType {
   proGroups: ProGroup[];
   proGroupMembers: ProGroupMember[];
   proGroupProviderMembers: ProGroupProviderMember[];
+  proGroupLocations: ProGroupLocation[];
   proPatients: ProPatient[];
-  proProviders: ProProvider[];
+  proProviders: ProProviderModel[];
   proMonthlyStats: ProMonthlyStats[];
   setProStaff: React.Dispatch<React.SetStateAction<ProStaff[]>>;
   setProSectors: React.Dispatch<React.SetStateAction<ProSector[]>>;
   setProGroups: React.Dispatch<React.SetStateAction<ProGroup[]>>;
   setProGroupMembers: React.Dispatch<React.SetStateAction<ProGroupMember[]>>;
   setProGroupProviderMembers: React.Dispatch<React.SetStateAction<ProGroupProviderMember[]>>;
+  setProGroupLocations: React.Dispatch<React.SetStateAction<ProGroupLocation[]>>;
   setProPatients: React.Dispatch<React.SetStateAction<ProPatient[]>>;
-  setProProviders: React.Dispatch<React.SetStateAction<ProProvider[]>>;
+  setProProviders: React.Dispatch<React.SetStateAction<ProProviderModel[]>>;
   setProMonthlyStats: React.Dispatch<React.SetStateAction<ProMonthlyStats[]>>;
 }
 

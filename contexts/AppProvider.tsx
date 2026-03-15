@@ -25,6 +25,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     proGroups: appData.proGroups,
     proGroupMembers: appData.proGroupMembers,
     proGroupProviderMembers: appData.proGroupProviderMembers,
+    proGroupLocations: appData.proGroupLocations,
     proPatients: appData.proPatients,
     proProviders: appData.proProviders,
     proMonthlyStats: appData.proMonthlyStats,
@@ -33,6 +34,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProGroups: appData.setProGroups,
     setProGroupMembers: appData.setProGroupMembers,
     setProGroupProviderMembers: appData.setProGroupProviderMembers,
+    setProGroupLocations: appData.setProGroupLocations,
     setProPatients: appData.setProPatients,
     setProProviders: appData.setProProviders,
     setProMonthlyStats: appData.setProMonthlyStats

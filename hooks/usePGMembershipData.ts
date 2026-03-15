@@ -65,26 +65,30 @@ export const usePGMembershipData = ({
         filtered = filtered.filter(p => normalizeString(p.name).includes(searchNorm));
     }
     
+    const activeProviderMembershipsMap = new Map();
+    proGroupProviderMembers.forEach(m => {
+        if ((isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && !pendingRemovals.has(m.id)) {
+            activeProviderMembershipsMap.set(cleanId(m.providerId), m);
+        }
+    });
+
+    const currentPGProviderIds = new Set();
+    if (currentPG) {
+        proGroupProviderMembers.forEach(m => {
+            if (m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id)) {
+                currentPGProviderIds.add(cleanId(m.providerId));
+            }
+        });
+    }
+
     const result = filtered.map(provider => {
-        const membership = proGroupProviderMembers.find(m => 
-            cleanId(m.providerId) === cleanId(provider.id) && 
-            (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && 
-            !pendingRemovals.has(m.id)
-        );
+        const membership = activeProviderMembershipsMap.get(cleanId(provider.id));
         const groupName = membership ? groupMap.get(membership.groupId)?.name : null;
         const dateStr = membership?.joinedAt ? new Date(membership.joinedAt).toLocaleDateString('pt-BR') : null;
         
         return { ...provider, membership, groupName, joinedDate: dateStr };
     }).filter(provider => {
-        if (currentPG) {
-            const isAlreadyInThisGroup = proGroupProviderMembers.some(m => 
-                m.groupId === currentPG.id && 
-                cleanId(m.providerId) === cleanId(provider.id) && 
-                !m.leftAt &&
-                !pendingRemovals.has(m.id)
-            );
-            if (isAlreadyInThisGroup) return false;
-        }
+        if (currentPG && currentPGProviderIds.has(cleanId(provider.id))) return false;
         if (pendingTransfers.has(provider.id)) return false;
         return true;
     }).sort((a, b) => {
@@ -99,14 +103,24 @@ export const usePGMembershipData = ({
     const sectors = proSectors.filter(s => s.unit === unit && s.active !== false);
     const staff = proStaff.filter(s => s.unit === unit && s.active !== false);
 
+    const enrolledStaffIds = new Set();
+    proGroupMembers.forEach(m => {
+        if (!m.leftAt) enrolledStaffIds.add(cleanId(m.staffId));
+    });
+
+    const staffBySector = new Map<string, any[]>();
+    staff.forEach(st => {
+        const sId = cleanId(st.sectorId);
+        if (!staffBySector.has(sId)) staffBySector.set(sId, []);
+        staffBySector.get(sId)?.push(st);
+    });
+
     const result = sectors.map(s => {
-      const sectorStaff = staff.filter(st => cleanId(st.sectorId) === cleanId(s.id));
+      const sectorStaff = staffBySector.get(cleanId(s.id)) || [];
       const total = sectorStaff.length;
       if (total === 0) return null;
 
-      const enrolled = sectorStaff.filter(st => 
-        proGroupMembers.some(m => cleanId(m.staffId) === cleanId(st.id) && !m.leftAt)
-      ).length;
+      const enrolled = sectorStaff.filter(st => enrolledStaffIds.has(cleanId(st.id))).length;
 
       const percentage = (enrolled / total) * 100;
       if (percentage >= 100) return null;
@@ -124,9 +138,14 @@ export const usePGMembershipData = ({
   }, [proSectors, proStaff, proGroupMembers, unit]);
 
   const emptyPGs = useMemo(() => {
+    const activeGroupIds = new Set();
+    proGroupMembers.forEach(m => {
+        if (!m.leftAt) activeGroupIds.add(m.groupId);
+    });
+
     const result = proGroups
       .filter(g => g.unit === unit && g.active !== false)
-      .filter(g => !proGroupMembers.some(m => m.groupId === g.id && !m.leftAt))
+      .filter(g => !activeGroupIds.has(g.id))
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
     return result;
   }, [proGroups, proGroupMembers, unit]);
@@ -135,9 +154,10 @@ export const usePGMembershipData = ({
     let filtered = proStaff.filter(s => s.unit === unit && s.active !== false);
     
     if (staffSearch) {
+        const searchNorm = normalizeString(staffSearch);
         filtered = filtered.filter(s => 
             tokenMatch(s.name, staffSearch) || 
-            cleanId(s.id).includes(normalizeString(staffSearch))
+            cleanId(s.id).includes(searchNorm)
         );
     } else if (currentSector) {
         filtered = filtered.filter(s => s.sectorId === currentSector.id);
@@ -154,6 +174,15 @@ export const usePGMembershipData = ({
         }
     });
 
+    const currentPGStaffIds = new Set();
+    if (currentPG) {
+        proGroupMembers.forEach(m => {
+            if (m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id)) {
+                currentPGStaffIds.add(cleanId(m.staffId));
+            }
+        });
+    }
+
     const result = filtered.map(staff => {
         const membership = activeMembersMap.get(cleanId(staff.id));
         
@@ -166,15 +195,7 @@ export const usePGMembershipData = ({
         return { ...staff, membership, groupName, joinedDate: dateStr, sectorName: sector?.name || 'Sem Setor' };
       })
       .filter(staff => {
-        if (currentPG) {
-            const isAlreadyInThisGroup = proGroupMembers.some(m => 
-                m.groupId === currentPG.id && 
-                cleanId(m.staffId) === cleanId(staff.id) && 
-                !m.leftAt &&
-                !pendingRemovals.has(m.id)
-            );
-            if (isAlreadyInThisGroup) return false;
-        }
+        if (currentPG && currentPGStaffIds.has(cleanId(staff.id))) return false;
         if (pendingTransfers.has(staff.id)) return false;
         return true;
       })
