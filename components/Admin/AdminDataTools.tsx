@@ -18,13 +18,14 @@ interface AdminDataToolsProps {
   };
   ambassadors: Ambassador[];
   proGroupMembers: ProGroupMember[];
+  proGroupProviderMembers: ProGroupProviderMember[];
   saveRecord: (collection: string, item: any) => Promise<any>;
   deleteRecord: (collection: string, id: string) => Promise<any>;
 }
 
 const AdminDataTools: React.FC<AdminDataToolsProps> = ({ 
   currentUser, onRefreshData, onRestoreFullDNA, isRefreshing,
-  proData, ambassadors, proGroupMembers, saveRecord, deleteRecord
+  proData, ambassadors, proGroupMembers, proGroupProviderMembers, saveRecord, deleteRecord
 }) => {
   const { showToast } = useToast();
   const [showDNAConfirm, setShowDNAConfirm] = useState(false);
@@ -258,10 +259,91 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
 
   const isMonthClosed = proData.stats?.some(s => s.month === selectedCloseMonth);
 
+  const handleRestoreFromCache = async () => {
+    const totalCLT = proGroupMembers.length;
+    const totalProviders = proGroupProviderMembers.length;
+    const total = totalCLT + totalProviders;
+
+    if (total === 0) {
+      showToast("Não há membros carregados no estado local para restaurar.", "warning");
+      return;
+    }
+
+    const confirm = window.confirm(`Deseja tentar restaurar ${total} vínculos (${totalCLT} CLT + ${totalProviders} Prestadores) do estado local para o banco de dados? Use isso apenas se você vê os membros no app mas eles sumiram do Supabase.`);
+    if (!confirm) return;
+
+    setIsProcessing(true);
+    try {
+      let success = true;
+      
+      if (totalCLT > 0) {
+        const toRestoreCLT = proGroupMembers.filter(m => m.groupId && m.staffId);
+        const resCLT = await saveRecord('proGroupMembers', toRestoreCLT);
+        if (!resCLT) success = false;
+      }
+
+      if (totalProviders > 0) {
+        const toRestoreProv = proGroupProviderMembers.filter((m: any) => m.groupId && m.providerId);
+        const resProv = await saveRecord('proGroupProviderMembers', toRestoreProv);
+        if (!resProv) success = false;
+      }
+
+      if (success) {
+        showToast(`Vínculos restaurados com sucesso!`, "success");
+      } else {
+        showToast("Falha parcial ou total na restauração.", "warning");
+      }
+    } catch (err) {
+      showToast("Erro na restauração: " + (err as Error).message, "warning");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <>
       <SyncModal isOpen={syncState.isOpen} status={syncState.status} title={syncState.title} message={syncState.message} errorDetails={syncState.error} onClose={() => setSyncState(prev => ({ ...prev, isOpen: false }))} />
       
+      {/* PAINEL DE DIAGNÓSTICO E RECUPERAÇÃO - EMERGÊNCIA */}
+      <div className="bg-rose-50 p-6 rounded-[2.5rem] border border-rose-100 shadow-sm space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-rose-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+            <i className="fas fa-exclamation-triangle"></i>
+          </div>
+          <div>
+            <h3 className="text-rose-900 font-black uppercase text-xs tracking-tight">Ferramentas de Recuperação</h3>
+            <p className="text-rose-700/60 font-bold text-[9px] uppercase">Use apenas em caso de inconsistência grave de dados</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white p-3 rounded-2xl border border-rose-100 shadow-sm">
+            <p className="text-[8px] font-black text-slate-400 uppercase">Membros CLT (Local)</p>
+            <p className="text-lg font-black text-rose-600">{proGroupMembers.length}</p>
+          </div>
+          <div className="bg-white p-3 rounded-2xl border border-rose-100 shadow-sm">
+            <p className="text-[8px] font-black text-slate-400 uppercase">Prestadores (Local)</p>
+            <p className="text-lg font-black text-rose-600">{proGroupProviderMembers.length}</p>
+          </div>
+          <div className="bg-white p-3 rounded-2xl border border-rose-100 shadow-sm">
+            <p className="text-[8px] font-black text-slate-400 uppercase">Setores Ativos</p>
+            <p className="text-lg font-black text-slate-700">{proData.sectors.filter(s => s.active !== false).length}</p>
+          </div>
+          <div className="bg-white p-3 rounded-2xl border border-rose-100 shadow-sm">
+            <p className="text-[8px] font-black text-slate-400 uppercase">PGs Ativos</p>
+            <p className="text-lg font-black text-slate-700">{proData.groups.filter(g => g.active !== false).length}</p>
+          </div>
+          <button 
+            onClick={handleRestoreFromCache}
+            disabled={isProcessing || proGroupMembers.length === 0}
+            className="bg-rose-600 hover:bg-rose-700 text-white rounded-2xl p-3 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 disabled:opacity-50 shadow-md"
+          >
+            <i className="fas fa-undo-alt text-sm"></i>
+            <span className="text-[8px] font-black uppercase">Restaurar Vínculos</span>
+          </button>
+        </div>
+      </div>
+
       {/* FERRAMENTA DE FECHAMENTO - DESTAQUE NO TOPO */}
       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
           <div className="flex items-center justify-between">

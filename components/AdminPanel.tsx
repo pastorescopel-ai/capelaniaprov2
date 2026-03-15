@@ -203,6 +203,7 @@ const AdminPanel: React.FC = () => {
               proData={{ staff: proStaff, sectors: proSectors, groups: proGroups, stats: proMonthlyStats }}
               ambassadors={ambassadors}
               proGroupMembers={proGroupMembers}
+              proGroupProviderMembers={proGroupProviderMembers}
               saveRecord={saveRecord}
               deleteRecord={deleteRecord}
             />
