@@ -44,7 +44,9 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   pro_monthly_stats: ['id', 'month', 'type', 'target_id', 'total_staff', 'total_participants', 'percentage', 'goal', 'unit', 'created_at']
 };
 
-export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'staff_id', 'provider_id', 'sector_id', 'group_id', 'day_of_week', 'total_staff', 'total_participants', 'percentage', 'goal'];
+export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'last_modified_at', 'updated_at', 'created_at', 'joined_at', 'left_at', 'staff_id', 'provider_id', 'sector_id', 'group_id', 'day_of_week', 'total_staff', 'total_participants', 'percentage', 'goal'];
+
+export const DATE_FIELDS = ['joined_at', 'left_at', 'updated_at', 'created_at', 'completion_date', 'return_date', 'scheduled_time', 'last_modified_at'];
 
 export const isValidUUID = (uuid: string) => {
   const s = "" + uuid;
@@ -78,6 +80,13 @@ export const toCamel = (obj: any): any => {
     }
     
     let val = obj[key];
+    
+    if (DATE_FIELDS.includes(key) && val && typeof val === 'string') {
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) {
+            val = d.getTime();
+        }
+    }
     
     if ((key === 'id' || key.endsWith('_id')) && typeof val === 'number') {
         val = String(val);
@@ -136,6 +145,14 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
             val = parseFloat(val);
             if (isNaN(val)) continue;
         }
+      }
+
+      if (DATE_FIELDS.includes(snakeKey) && val) {
+          if (typeof val === 'number') {
+              val = new Date(val).toISOString();
+          } else if (typeof val === 'string' && !isNaN(Number(val))) {
+              val = new Date(Number(val)).toISOString();
+          }
       }
       
       const isFK = snakeKey === 'user_id' || snakeKey === 'sector_id' || snakeKey === 'record_id' || snakeKey === 'group_id' || snakeKey === 'staff_id' || snakeKey === 'provider_id';

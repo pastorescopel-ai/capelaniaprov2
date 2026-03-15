@@ -137,11 +137,11 @@ export const useExcelProcessor = () => {
                       if (typeof dateVal === 'number') {
                           // Excel serial date
                           const date = new Date((dateVal - (25567 + 1)) * 86400 * 1000);
-                          item.joinedAt = date.toISOString().split('T')[0] + 'T12:00:00';
+                          item.joinedAt = date.getTime();
                       } else {
                           const date = new Date(dateVal);
                           if (!isNaN(date.getTime())) {
-                              item.joinedAt = date.toISOString().split('T')[0] + 'T12:00:00';
+                              item.joinedAt = date.getTime();
                           }
                       }
                   } catch (e) {

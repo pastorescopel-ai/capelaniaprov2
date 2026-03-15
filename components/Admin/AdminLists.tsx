@@ -78,7 +78,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
             incomingList.forEach(incoming => {
                 const key = incoming.id; 
                 const existing = map.get(key);
-                const importTimestamp = new Date(selectedMonth + 'T00:00:00').getTime();
+                const importTimestamp = new Date(selectedMonth + 'T12:00:00').getTime();
 
                 if (existing) {
                     if (existing.unit === activeUnit) {
@@ -114,7 +114,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
 
             const incomingKeys = new Set(incomingList.map(i => i.id));
             const resultList: any[] = [];
-            const previousMonthEnd = new Date(new Date(selectedMonth + 'T00:00:00').getTime() - 1).getTime();
+            const previousMonthEnd = new Date(new Date(selectedMonth + 'T12:00:00').getTime() - 86400000).getTime();
 
             map.forEach((value, key) => {
                 if (value.unit === activeUnit) {
