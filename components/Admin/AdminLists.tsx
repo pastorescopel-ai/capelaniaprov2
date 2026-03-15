@@ -88,9 +88,8 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                             active: true, 
                             cycleMonth: selectedMonth,
                             updatedAt: Date.now(),
-                            // Se estava inativo, removemos a data de saída e garantimos que joinedAt exista
-                            leftAt: null,
-                            joinedAt: incoming.joinedAt || existing.joinedAt || importTimestamp
+                            // Se estava inativo, removemos a data de saída
+                            leftAt: null
                         };
                         if (type === 'staff') updated.sectorId = incoming.sectorIdLinked || existing.sectorId || "";
                         map.set(key, updated);
@@ -103,7 +102,6 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                         unit: activeUnit, 
                         active: true, 
                         cycleMonth: selectedMonth,
-                        joinedAt: incoming.joinedAt || importTimestamp,
                         updatedAt: Date.now() 
                     };
                     if (type === 'staff') newItem.sectorId = incoming.sectorIdLinked || "";
@@ -201,7 +199,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   const getSectorNameFromDB = (sectorId: string) => { const s = proData?.sectors.find(sec => sec.id === sectorId); return s ? s.name : sectorId; };
 
   const instructions = {
-      staff: { icon: 'fa-user-md', title: 'Importação de Colaboradores', fields: "Obrigatório: 'Matrícula', 'Nome', 'ID_Setor', 'Setor' e 'Admissão'.", optional: "", warn: "A planilha NÃO deve conter colunas de PGs." },
+      staff: { icon: 'fa-user-md', title: 'Importação de Colaboradores', fields: "Obrigatório: 'Matrícula', 'Nome', 'ID_Setor' e 'Setor'.", optional: "", warn: "A planilha NÃO deve conter colunas de PGs." },
       sectors: { icon: 'fa-map-marker-alt', title: 'Importação de Setores', fields: "Obrigatório: 'ID' e 'Nome Setor' (ou Departamento).", optional: "", warn: "Proibido: Colunas de Funcionários (Matrícula) ou PGs." },
       pgs: { icon: 'fa-users', title: 'Importação de Pequenos Grupos', fields: "Obrigatório: Apenas ID e Nome do PG (ou Grupo).", optional: "Líder é opcional.", warn: "Proibido: Colunas de Funcionários ou Setores." }
   };
@@ -286,16 +284,13 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
         
         <div className="overflow-x-auto">
             <table className="w-full text-left">
-                <thead><tr className="text-[9px] font-black uppercase text-slate-400 border-b"><th className="p-4">ID (Limpo)</th><th className="p-4">Nome</th>{activeTab === 'staff' && <><th className="p-4">Vínculo de Setor</th><th className="p-4">Admissão</th></>}<th className="p-4">Mês Ref.</th>{activeTab !== 'staff' && <th className="p-4">Unidade</th>}</tr></thead>
+                <thead><tr className="text-[9px] font-black uppercase text-slate-400 border-b"><th className="p-4">ID (Limpo)</th><th className="p-4">Nome</th>{activeTab === 'staff' && <th className="p-4">Vínculo de Setor</th>}<th className="p-4">Mês Ref.</th>{activeTab !== 'staff' && <th className="p-4">Unidade</th>}</tr></thead>
                 <tbody className="divide-y">{currentItems.map((item, i) => (
                     <tr key={i} className={`hover:bg-slate-50 transition-colors ${item.sectorStatus === 'error' ? 'bg-amber-50' : ''}`}>
                         <td className="p-4 text-xs font-mono font-bold text-blue-600">{item.id}</td><td className="p-4 text-sm font-bold text-slate-700">{item.name}</td>
                         {activeTab === 'staff' && (
                           <>
                             <td className="p-4">{previewData.length > 0 ? (item.sectorStatus === 'ok' ? (<div className="flex items-center justify-between group"><div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]"><i className="fas fa-check"></i></div><div><span className="text-[10px] font-black text-slate-700 uppercase block">{item.linkedSectorName}</span>{item.sectorNameRaw && item.sectorNameRaw !== item.linkedSectorName && (<span className="text-[8px] text-slate-400 block strike">Excel: {item.sectorNameRaw}</span>)}</div></div><button onClick={() => handleManualSectorChange(i, '')} className="w-6 h-6 rounded-lg bg-slate-50 text-slate-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"><i className="fas fa-pencil-alt text-[10px]"></i></button></div>) : (<div className="space-y-1"><Autocomplete options={sectorOptions} value={item.sectorNameRaw || ''} onChange={(val) => handleManualSectorChange(i, val)} placeholder="⚠️ Vincular Setor..." required={false} className="w-full p-2 text-xs font-bold rounded-xl border-2 border-amber-300 bg-white" /><span className="text-[8px] font-bold text-rose-400">ID Excel: {item.sectorIdRaw || 'N/A'}</span></div>)) : (<span className="text-[10px] font-bold uppercase text-slate-500">{getSectorNameFromDB(item.sectorId)}</span>)}</td>
-                            <td className="p-4 text-[10px] font-bold text-slate-500">
-                              {item.joinedAt ? new Date(item.joinedAt).toLocaleDateString('pt-BR') : 'N/A'}
-                            </td>
                           </>
                         )}
                         <td className="p-4">

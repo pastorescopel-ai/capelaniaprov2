@@ -27,18 +27,30 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
     const nextMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
 
     // 0. Verificar se existem snapshots para o mês selecionado
-    const snapshots = proMonthlyStats.filter(s => s.month === selectedMonth && s.type === 'sector' && s.unit === unit);
+    const snapshots = proMonthlyStats.filter(s => s.month === selectedMonth && s.unit === unit);
     
     if (snapshots.length > 0) {
-      const sectorData = snapshots.map(snap => {
+      const sectorSnaps = snapshots.filter(s => s.type === 'sector');
+      const pgSnaps = snapshots.filter(s => s.type === 'pg');
+
+      const sectorData = sectorSnaps.map(snap => {
         const sector = proSectors.find(s => String(s.id) === String(snap.targetId));
         
-        // Tenta encontrar os PGs que pertenciam a este setor na época
-        // Como não temos snapshot de PGs por setor, usamos os atuais como fallback
-        const pgsInSector = proGroupLocations
-          .filter(loc => String(loc.sectorId) === String(snap.targetId))
-          .map(loc => proGroups.find(g => String(g.id) === String(loc.groupId)))
-          .filter(g => !!g);
+        // Se temos snapshots de PGs, usamos eles, senão fallback para os atuais
+        const pgsInSector = pgSnaps.length > 0 
+          ? pgSnaps
+              .filter(ps => {
+                  const pg = proGroups.find(g => String(g.id) === String(ps.targetId));
+                  // Aqui precisaríamos saber a qual setor o PG pertencia no snapshot. 
+                  // Como o snapshot de PG não guarda o setor_id, usamos a localização atual como melhor esforço
+                  return proGroupLocations.some(loc => String(loc.groupId) === String(ps.targetId) && String(loc.sectorId) === String(snap.targetId));
+              })
+              .map(ps => proGroups.find(g => String(g.id) === String(ps.targetId)))
+              .filter(g => !!g)
+          : proGroupLocations
+              .filter(loc => String(loc.sectorId) === String(snap.targetId))
+              .map(loc => proGroups.find(g => String(g.id) === String(loc.groupId)))
+              .filter(g => !!g);
 
         return {
           sector: sector || { id: snap.targetId, name: 'Setor Excluído', unit: snap.unit } as any,
@@ -46,7 +58,8 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
           total: snap.totalStaff,
           enrolled: snap.totalParticipants,
           pgCount: pgsInSector.length,
-          percentage: snap.percentage
+          percentage: snap.percentage,
+          isSnapshot: true
         };
       });
 
@@ -77,36 +90,36 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
     }
 
     // 1. Filtrar setores e staff da unidade
-    // Regra temporal: Se o mês selecionado for o atual, usamos os "Ativos" (active !== false)
-    // Se for um mês passado, precisamos considerar quem era ativo NAQUELA ÉPOCA
     const isCurrentMonth = selectedMonth === new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
     
-    const unitSectors = proSectors.filter(s => s.unit === unit && (isCurrentMonth ? s.active !== false : true));
+    // Pegamos TODOS os colaboradores da unidade para o cálculo global
     const unitStaff = proStaff.filter(s => s.unit === unit && (isCurrentMonth ? s.active !== false : true));
+    const unitSectors = proSectors.filter(s => s.unit === unit && (isCurrentMonth ? s.active !== false : true));
+
+    // Mapeamento de staff por setor para eficiência e para identificar "Sem Setor"
+    const staffBySector = new Map<string, any[]>();
+    const unassignedStaff: any[] = [];
+
+    unitStaff.forEach(s => {
+      const leftDate = s.leftAt ? new Date(s.leftAt) : null;
+      const wasActiveInMonth = !leftDate || leftDate >= targetDate;
+
+      if (wasActiveInMonth) {
+        const sId = cleanId(s.sectorId);
+        if (sId && proSectors.some(sec => cleanId(sec.id) === sId)) {
+          if (!staffBySector.has(sId)) staffBySector.set(sId, []);
+          staffBySector.get(sId)?.push(s);
+        } else {
+          unassignedStaff.push(s);
+        }
+      }
+    });
 
     const sectorData = unitSectors.map(sector => {
       const sectorIdClean = cleanId(sector.id);
-      
-      // Staff neste setor que era ativo no mês selecionado
-      const staffInSector = unitStaff.filter(s => {
-        const isSameSector = cleanId(s.sectorId) === sectorIdClean;
-        if (!isSameSector) return false;
-        
-        // Validação temporal:
-        // 1. Entrou antes ou durante o mês selecionado
-        const joinedDate = s.joinedAt ? new Date(s.joinedAt) : null;
-        const enteredBeforeEnd = !joinedDate || joinedDate <= nextMonth;
-        
-        // 2. Não saiu OU saiu depois do início do mês selecionado
-        const leftDate = s.leftAt ? new Date(s.leftAt) : null;
-        const wasActiveInMonth = !leftDate || leftDate >= targetDate;
-        
-        return enteredBeforeEnd && wasActiveInMonth;
-      });
-
+      const staffInSector = staffBySector.get(sectorIdClean) || [];
       const countTotal = staffInSector.length;
       
-      // Staff neste setor que está em ALGUM PG na competência selecionada
       const staffEnrolled = staffInSector.filter(s => 
         proGroupMembers.some(m => 
           cleanId(m.staffId) === cleanId(s.id) && 
@@ -116,15 +129,12 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
       ).length;
 
       // --- LÓGICA DE DETECÇÃO DE PGS ATIVOS NO SETOR ---
-      
-      // 1. PGs via Maestro (Geográficos)
       const geoGroupIds = new Set(
         proGroupLocations
           .filter(loc => cleanId(loc.sectorId) === sectorIdClean)
           .map(loc => cleanId(loc.groupId))
       );
 
-      // 2. PGs via Membros (Dinâmicos)
       const memberGroupIds = new Set(
         proGroupMembers
           .filter(m => 
@@ -134,7 +144,6 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
           .map(m => cleanId(m.groupId))
       );
 
-      // União dos IDs para evitar duplicidade
       const allGroupIdsInSector = new Set([...Array.from(geoGroupIds), ...Array.from(memberGroupIds)]);
       const pgsInSector = Array.from(allGroupIdsInSector)
         .map(gid => proGroups.find(g => cleanId(g.id) === gid))
@@ -149,6 +158,26 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
         percentage: countTotal > 0 ? (staffEnrolled / countTotal) * 100 : 0
       };
     });
+
+    // Adicionar "Sem Setor" se houver colaboradores órfãos
+    if (unassignedStaff.length > 0) {
+      const enrolledUnassigned = unassignedStaff.filter(s => 
+        proGroupMembers.some(m => 
+          cleanId(m.staffId) === cleanId(s.id) && 
+          (!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && 
+          (!m.leftAt || m.leftAt >= targetDate.getTime())
+        )
+      ).length;
+
+      sectorData.push({
+        sector: { id: 'unassigned', name: 'SEM SETOR DEFINIDO', unit } as any,
+        pgsInSector: [],
+        total: unassignedStaff.length,
+        enrolled: enrolledUnassigned,
+        pgCount: 0,
+        percentage: (enrolledUnassigned / unassignedStaff.length) * 100
+      });
+    }
 
     // Filtro de Busca Inteligente
     const normSearch = normalizeString(searchTerm);
@@ -224,7 +253,14 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
         <div className="absolute top-0 left-0 w-2 h-full bg-[#005a9c]"></div>
         
         <div className="space-y-2 z-10">
-          <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Cobertura de Discipulado ({unit})</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Cobertura de Discipulado ({unit})</h2>
+            {metrics.displaySectors[0]?.isSnapshot && (
+              <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-amber-200">
+                <i className="fas fa-lock mr-1"></i> Mês Fechado
+              </span>
+            )}
+          </div>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Colaboradores matriculados em Pequenos Grupos</p>
         </div>
 
