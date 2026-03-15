@@ -76,24 +76,42 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
       };
     }
 
-    // 1. Filtrar setores e staff da unidade (Apenas Ativos)
-    const unitSectors = proSectors.filter(s => s.unit === unit && s.active !== false);
-    const unitStaff = proStaff.filter(s => s.unit === unit && s.active !== false);
+    // 1. Filtrar setores e staff da unidade
+    // Regra temporal: Se o mês selecionado for o atual, usamos os "Ativos" (active !== false)
+    // Se for um mês passado, precisamos considerar quem era ativo NAQUELA ÉPOCA
+    const isCurrentMonth = selectedMonth === new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    
+    const unitSectors = proSectors.filter(s => s.unit === unit && (isCurrentMonth ? s.active !== false : true));
+    const unitStaff = proStaff.filter(s => s.unit === unit && (isCurrentMonth ? s.active !== false : true));
 
     const sectorData = unitSectors.map(sector => {
       const sectorIdClean = cleanId(sector.id);
       
-      // Staff neste setor
-      const staffInSector = unitStaff.filter(s => cleanId(s.sectorId) === sectorIdClean);
+      // Staff neste setor que era ativo no mês selecionado
+      const staffInSector = unitStaff.filter(s => {
+        const isSameSector = cleanId(s.sectorId) === sectorIdClean;
+        if (!isSameSector) return false;
+        
+        // Validação temporal:
+        // 1. Entrou antes ou durante o mês selecionado
+        const joinedDate = s.joinedAt ? new Date(s.joinedAt) : null;
+        const enteredBeforeEnd = !joinedDate || joinedDate <= nextMonth;
+        
+        // 2. Não saiu OU saiu depois do início do mês selecionado
+        const leftDate = s.leftAt ? new Date(s.leftAt) : null;
+        const wasActiveInMonth = !leftDate || leftDate >= targetDate;
+        
+        return enteredBeforeEnd && wasActiveInMonth;
+      });
+
       const countTotal = staffInSector.length;
       
       // Staff neste setor que está em ALGUM PG na competência selecionada
-      // Regra: Entrou até o fim do mês alvo E (não saiu OU saiu após o início do mês alvo)
       const staffEnrolled = staffInSector.filter(s => 
         proGroupMembers.some(m => 
           cleanId(m.staffId) === cleanId(s.id) && 
-          (!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && // Entrou na competência ou antes
-          (!m.leftAt || m.leftAt >= targetDate.getTime()) // Ainda não tinha saído no início do mês
+          (!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && 
+          (!m.leftAt || m.leftAt >= targetDate.getTime())
         )
       ).length;
 
