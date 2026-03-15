@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useTransition, memo } from 'react';
 import { Unit } from '../../types';
 import Autocomplete from '../Shared/Autocomplete';
 import GapRadar from './GapRadar';
@@ -11,7 +11,7 @@ interface PGMembershipProps {
   unit: Unit;
 }
 
-const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
+const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
   const {
     activeTab, setActiveTab,
     selectedSectorName, setSelectedSectorName,
@@ -31,19 +31,31 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     proSectors, proGroups
   } = usePGMembership({ unit });
 
-  const cleanId = (id: any) => String(id || '').replace(/\D/g, '');
+  const [isPending, startTransition] = useTransition();
+
+  const handleTabChange = (tab: 'staff' | 'providers') => {
+    startTransition(() => {
+      setActiveTab(tab);
+    });
+  };
 
   const handlePrevMonth = () => {
-    const d = new Date(selectedMonth + 'T12:00:00');
-    d.setMonth(d.getMonth() - 1);
-    setSelectedMonth(d.toISOString().split('T')[0]);
+    startTransition(() => {
+      const d = new Date(selectedMonth + 'T12:00:00');
+      d.setMonth(d.getMonth() - 1);
+      setSelectedMonth(d.toISOString().split('T')[0]);
+    });
   };
 
   const handleNextMonth = () => {
-    const d = new Date(selectedMonth + 'T12:00:00');
-    d.setMonth(d.getMonth() + 1);
-    setSelectedMonth(d.toISOString().split('T')[0]);
+    startTransition(() => {
+      const d = new Date(selectedMonth + 'T12:00:00');
+      d.setMonth(d.getMonth() + 1);
+      setSelectedMonth(d.toISOString().split('T')[0]);
+    });
   };
+
+  const cleanId = (id: any) => String(id || '').replace(/\D/g, '');
 
   const formatMonthLabel = (iso: string) => {
     const d = new Date(iso + 'T12:00:00');
@@ -51,7 +63,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
   };
 
   return (
-    <div className="space-y-8 animate-in slide-in-from-right duration-500">
+    <div className={`space-y-8 animate-in slide-in-from-right duration-500 transition-opacity duration-200 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
       
       {/* Seletor de Ciclo de Competência - Design Azul Elétrico */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
@@ -108,13 +120,13 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
         <div className="space-y-4 z-20 relative">
           <div className="flex bg-slate-50 p-1 rounded-xl w-fit border border-slate-100">
             <button 
-              onClick={() => setActiveTab('staff')}
+              onClick={() => handleTabChange('staff')}
               className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'staff' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
             >
               Colaboradores (CLT)
             </button>
             <button 
-              onClick={() => setActiveTab('providers')}
+              onClick={() => handleTabChange('providers')}
               className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'providers' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
             >
               Prestadores
@@ -318,6 +330,8 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
       />
     </div>
   );
-};
+});
+
+PGMembership.displayName = 'PGMembership';
 
 export default PGMembership;

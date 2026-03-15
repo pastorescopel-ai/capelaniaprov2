@@ -1,6 +1,7 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, memo, useEffect } from 'react';
 import { Unit } from '../../types';
+import { usePro } from '../../contexts/ProContext';
 import { useApp } from '../../hooks/useApp';
 import { DEFAULT_APP_LOGO } from '../../assets';
 import { normalizeString, cleanID } from '../../utils/formatters';
@@ -11,16 +12,25 @@ interface PGReportsProps {
   unit: Unit;
 }
 
-const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
-  const { config, proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups } = useApp();
+const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
+  const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups } = usePro();
+  const { config } = useApp();
   const { generatePdf, generateZipOfPdfs, isGenerating, progress } = useDocumentGenerator();
   
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'sector' | 'pg'>('sector');
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterCritical, setFilterCritical] = useState(false);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   const reportHeaderInfo = useMemo(() => {
     const s = new Date(startDate + 'T12:00:00');
@@ -127,7 +137,7 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
         return { sector, totalStaff: staff.length, enrolledCount: enrolledStaff.length, coverage, pgs, notEnrolledList: notEnrolled, enrolledList: enrolledStaff, enrolledByPG };
     });
 
-    const normSearch = normalizeString(searchTerm);
+    const normSearch = normalizeString(debouncedSearchTerm);
     const searchTerms = normSearch.split(' ').filter(t => t);
 
     return data.filter(d => {
@@ -145,7 +155,7 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
         const normTarget = normalizeString(targetText);
         return searchTerms.every(term => normTarget.includes(term));
     });
-  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, unit, searchTerm, filterType, startDate, endDate, filterCritical]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, unit, debouncedSearchTerm, filterType, startDate, endDate, filterCritical]);
 
   const generateSectorHtml = (data: any) => {
     return `
@@ -329,6 +339,8 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
       </div>
     </div>
   );
-};
+});
+
+PGReports.displayName = 'PGReports';
 
 export default PGReports;

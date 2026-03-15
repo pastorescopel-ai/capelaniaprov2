@@ -65,7 +65,7 @@ export const usePGMembershipData = ({
         filtered = filtered.filter(p => normalizeString(p.name).includes(searchNorm));
     }
     
-    return filtered.map(provider => {
+    const result = filtered.map(provider => {
         const membership = proGroupProviderMembers.find(m => 
             cleanId(m.providerId) === cleanId(provider.id) && 
             (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && 
@@ -92,13 +92,14 @@ export const usePGMembershipData = ({
         if (a.membership && !b.membership) return 1;
         return String(a.name || "").localeCompare(String(b.name || ""));
     });
+    return result;
   }, [proProviders, unit, providerSearch, proGroupProviderMembers, groupMap, currentPG, pendingRemovals, pendingTransfers, isMonthClosed, selectedMonth]);
 
   const coverageGaps = useMemo(() => {
     const sectors = proSectors.filter(s => s.unit === unit && s.active !== false);
     const staff = proStaff.filter(s => s.unit === unit && s.active !== false);
 
-    return sectors.map(s => {
+    const result = sectors.map(s => {
       const sectorStaff = staff.filter(st => cleanId(st.sectorId) === cleanId(s.id));
       const total = sectorStaff.length;
       if (total === 0) return null;
@@ -119,13 +120,15 @@ export const usePGMembershipData = ({
         color: percentage >= 80 ? 'emerald' : percentage >= 31 ? 'amber' : 'rose'
       };
     }).filter(item => item !== null).sort((a, b) => a!.percentage - b!.percentage);
+    return result;
   }, [proSectors, proStaff, proGroupMembers, unit]);
 
   const emptyPGs = useMemo(() => {
-    return proGroups
+    const result = proGroups
       .filter(g => g.unit === unit && g.active !== false)
       .filter(g => !proGroupMembers.some(m => m.groupId === g.id && !m.leftAt))
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    return result;
   }, [proGroups, proGroupMembers, unit]);
 
   const availableStaff = useMemo(() => {
@@ -139,6 +142,7 @@ export const usePGMembershipData = ({
     } else if (currentSector) {
         filtered = filtered.filter(s => s.sectorId === currentSector.id);
     } else {
+        // Se não houver busca nem setor selecionado, retorna vazio para não sobrecarregar
         return [];
     }
 
@@ -150,7 +154,7 @@ export const usePGMembershipData = ({
         }
     });
 
-    return filtered.map(staff => {
+    const result = filtered.map(staff => {
         const membership = activeMembersMap.get(cleanId(staff.id));
         
         const groupName = membership ? groupMap.get(membership.groupId)?.name : null;
@@ -179,10 +183,13 @@ export const usePGMembershipData = ({
         if (a.membership && !b.membership) return 1;
         return String(a.name || "").localeCompare(String(b.name || ""));
       });
+    return result;
   }, [proStaff, currentSector, staffSearch, proGroupMembers, groupMap, currentPG, pendingTransfers, pendingRemovals, unit, sectorMap, isMonthClosed, selectedMonth]);
 
   const pgMembers = useMemo(() => {
-    if (!currentPG) return [];
+    if (!currentPG) {
+        return [];
+    }
     
     // Filtra membros ativos para o PG atual
     const staffMembers = proGroupMembers.filter(m => 
@@ -248,11 +255,12 @@ export const usePGMembershipData = ({
         index === self.findIndex((t) => (t.staffId === m.staffId))
     );
 
-    return allMembers.sort((a, b) => {
+    const result = allMembers.sort((a, b) => {
         if (a.isLeader && !b.isLeader) return -1;
         if (!a.isLeader && b.isLeader) return 1;
         return String(a.staffName || "").localeCompare(String(b.staffName || ""));
     });
+    return result;
   }, [proGroupMembers, proGroupProviderMembers, currentPG, staffMap, providerMap, pendingTransfers, pendingRemovals, sectorMap, isMonthClosed, selectedMonth]);
 
   return {

@@ -18,41 +18,45 @@ export const useReportLogic = (
   groups: SmallGroup[],
   visits: StaffVisit[],
   users: User[],
-  proMonthlyStats: any[],
   filters: ReportFilters
 ) => {
   // 1. DADOS FILTRADOS (Respeita as datas selecionadas na UI)
   const filteredData = useMemo(() => {
-    console.time('filteredData');
-    const filterFn = (item: any) => {
-      if (!item || !item.date) return false;
-      const itemDate = item.date.split('T')[0];
-      const dateMatch = itemDate >= filters.startDate && itemDate <= filters.endDate;
-      const chaplainMatch = filters.selectedChaplain === 'all' || item.userId === filters.selectedChaplain;
-      const itemUnit = item.unit || Unit.HAB;
-      const unitMatch = filters.selectedUnit === 'all' || itemUnit === filters.selectedUnit;
-      
-      const isStudyOrClass = item.status !== undefined;
-      const statusMatch = (filters.selectedStatus === 'all' || !isStudyOrClass) || 
-                          normalizeString(item.status) === normalizeString(filters.selectedStatus);
-      
-      return dateMatch && chaplainMatch && unitMatch && statusMatch;
+    // Create filter functions outside the loop for better performance
+    const isDateInRange = (dateStr: string) => {
+      const d = dateStr.split('T')[0];
+      return d >= filters.startDate && d <= filters.endDate;
     };
 
+    const isChaplainMatch = (userId: string) => 
+      filters.selectedChaplain === 'all' || userId === filters.selectedChaplain;
+
+    const isUnitMatch = (unit?: Unit) => 
+      filters.selectedUnit === 'all' || (unit || Unit.HAB) === filters.selectedUnit;
+
+    const isStatusMatch = (status?: RecordStatus) => 
+      filters.selectedStatus === 'all' || normalizeString(status || '') === normalizeString(filters.selectedStatus);
+
     const result = {
-      studies: filters.selectedActivity === ActivityFilter.TODAS || filters.selectedActivity === ActivityFilter.ESTUDOS ? (studies || []).filter(filterFn) : [],
-      classes: filters.selectedActivity === ActivityFilter.TODAS || filters.selectedActivity === ActivityFilter.CLASSES ? (classes || []).filter(filterFn) : [],
-      groups: filters.selectedActivity === ActivityFilter.TODAS || filters.selectedActivity === ActivityFilter.PGS ? (groups || []).filter(filterFn) : [],
-      visits: filters.selectedActivity === ActivityFilter.TODAS || filters.selectedActivity === ActivityFilter.VISITAS ? (visits || []).filter(filterFn) : [],
+      studies: filters.selectedActivity === ActivityFilter.TODAS || filters.selectedActivity === ActivityFilter.ESTUDOS 
+        ? (studies || []).filter(s => s.date && isDateInRange(s.date) && isChaplainMatch(s.userId) && isUnitMatch(s.unit) && isStatusMatch(s.status))
+        : [],
+      classes: filters.selectedActivity === ActivityFilter.TODAS || filters.selectedActivity === ActivityFilter.CLASSES 
+        ? (classes || []).filter(c => c.date && isDateInRange(c.date) && isChaplainMatch(c.userId) && isUnitMatch(c.unit) && isStatusMatch(c.status))
+        : [],
+      groups: filters.selectedActivity === ActivityFilter.TODAS || filters.selectedActivity === ActivityFilter.PGS 
+        ? (groups || []).filter(g => g.date && isDateInRange(g.date) && isChaplainMatch(g.userId) && isUnitMatch(g.unit))
+        : [],
+      visits: filters.selectedActivity === ActivityFilter.TODAS || filters.selectedActivity === ActivityFilter.VISITAS 
+        ? (visits || []).filter(v => v.date && isDateInRange(v.date) && isChaplainMatch(v.userId) && isUnitMatch(v.unit))
+        : [],
     };
-    console.timeEnd('filteredData');
     return result;
   }, [studies, classes, groups, visits, filters]);
 
   // 2. DADOS ACUMULADOS DO ANO (Ignora data de início do filtro, usa 01/01 do ano corrente)
   // Isso resolve o problema dos números "sumindo" quando muda o mês.
   const accumulatedStats = useMemo(() => {
-    console.time('accumulatedStats');
     const currentYear = new Date().getFullYear();
     const startOfYear = `${currentYear}-01-01`;
     // Usa a data fim do filtro para não pegar futuro, mas começa em Jan 01
@@ -72,7 +76,8 @@ export const useReportLogic = (
     };
 
     // Varre Estudos do Ano
-    studies.forEach(s => {
+    for (let i = 0; i < studies.length; i++) {
+        const s = studies[i];
         if (s.date && isYTD(s.date)) {
              // Aplica filtros de unidade/capelão se selecionados, mas ignora data inicial
              const unitMatch = filters.selectedUnit === 'all' || s.unit === filters.selectedUnit;
@@ -81,10 +86,11 @@ export const useReportLogic = (
                  if (s.name) addUniqueName(s.name);
              }
         }
-    });
+    }
 
     // Varre Classes do Ano
-    classes.forEach(c => {
+    for (let i = 0; i < classes.length; i++) {
+        const c = classes[i];
         if (c.date && isYTD(c.date)) {
              const unitMatch = filters.selectedUnit === 'all' || c.unit === filters.selectedUnit;
              const chaplainMatch = filters.selectedChaplain === 'all' || c.userId === filters.selectedChaplain;
@@ -92,12 +98,11 @@ export const useReportLogic = (
                  if (Array.isArray(c.students)) c.students.forEach(n => addUniqueName(n));
              }
         }
-    });
+    }
 
     const result = {
         uniqueStudentsYTD: uniqueStudentsYTD.size
     };
-    console.timeEnd('accumulatedStats');
     return result;
   }, [studies, classes, filters.selectedUnit, filters.selectedChaplain, filters.endDate]);
 

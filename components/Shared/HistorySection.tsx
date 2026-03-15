@@ -41,13 +41,21 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
   const [filterStart, setFilterStart] = useState(getStartOfMonth());
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
   
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const loaderRef = useRef<HTMLDivElement>(null);
 
   const filteredHistory = useMemo(() => {
-    const normQuery = normalizeString(searchQuery);
+    const normQuery = normalizeString(debouncedSearchQuery);
     const searchTerms = normQuery.split(' ').filter(t => t.trim() !== '');
 
     const filtered = data.filter(item => {
@@ -85,12 +93,12 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
 
     if (disableSort) return filtered;
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [data, filterChaplain, filterStart, filterEnd, searchQuery, searchFields, disableSort, bypassFilter]);
+  }, [data, filterChaplain, filterStart, filterEnd, debouncedSearchQuery, searchFields, disableSort, bypassFilter]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(PAGE_SIZE);
-  }, [filterChaplain, filterStart, filterEnd, searchQuery]);
+  }, [filterChaplain, filterStart, filterEnd, debouncedSearchQuery]);
 
   const visibleHistory = filteredHistory.slice(0, visibleCount);
   const hasMore = visibleCount < filteredHistory.length;

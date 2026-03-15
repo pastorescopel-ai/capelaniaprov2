@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { normalizeString } from '../../utils/formatters';
 import { useToast } from '../../contexts/ToastProvider';
 
@@ -33,10 +33,23 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   className 
 }) => {
   const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value);
+  const [debouncedValue, setDebouncedValue] = useState(value);
   const { showToast } = useToast();
 
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(inputValue);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [inputValue]);
+
   const filtered = useMemo(() => {
-    const normSearch = normalizeString(value);
+    const normSearch = normalizeString(debouncedValue);
     if (!normSearch && !open) return [];
 
     // BUSCA INTELIGENTE: Quebra a busca em termos (palavras)
@@ -64,7 +77,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
       if (a.category === 'Migration' && b.category === 'History') return 1;
       return a.label.localeCompare(b.label);
     });
-  }, [options, value, open]);
+  }, [options, debouncedValue, open]);
 
   const validateInput = (currentValue: string) => {
     // Apenas valida se estiver no modo estrito e houver algum valor digitado
@@ -85,13 +98,18 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
       <input 
         required={required} // Usa a prop dinâmica aqui
         placeholder={placeholder}
-        value={value || ''}
-        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        value={inputValue || ''}
+        onChange={(e) => { 
+            const val = e.target.value;
+            setInputValue(val); 
+            onChange(val); 
+            setOpen(true); 
+        }}
         onFocus={() => setOpen(true)}
         onKeyDown={(e) => {
             if (e.key === 'Enter') {
                 // Ao dar Enter, valida imediatamente o texto
-                validateInput(value);
+                validateInput(inputValue);
                 setOpen(false);
             }
         }}
@@ -99,7 +117,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
            // Delay para permitir que o clique na opção ocorra antes do blur fechar/validar
            setTimeout(() => {
              setOpen(false);
-             validateInput(value);
+             validateInput(inputValue);
            }, 250);
         }}
         className={className || "w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500/20 font-medium text-slate-800 transition-all placeholder:text-slate-400"}

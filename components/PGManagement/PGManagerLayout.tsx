@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import { Unit } from '../../types';
 import PGDashboard from './PGDashboard';
 import PGMembership from './PGMembership';
@@ -9,6 +9,7 @@ import PGOps from './PGOps';
 const PGManagerLayout: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'ops' | 'reports'>('dashboard');
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     const container = document.getElementById('main-scroll-container');
@@ -16,6 +17,18 @@ const PGManagerLayout: React.FC = () => {
       container.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [activeSubTab, currentUnit]);
+
+  const handleTabChange = (tabId: 'dashboard' | 'membership' | 'ops' | 'reports') => {
+    startTransition(() => {
+      setActiveSubTab(tabId);
+    });
+  };
+
+  const handleUnitChange = (u: Unit) => {
+    startTransition(() => {
+      setCurrentUnit(u);
+    });
+  };
 
   const tabs = [
     { id: 'dashboard', label: 'Visão Geral', icon: 'fas fa-chart-pie' },
@@ -49,7 +62,7 @@ const PGManagerLayout: React.FC = () => {
               {[Unit.HAB, Unit.HABA].map(u => (
                 <button 
                   key={u} 
-                  onClick={() => setCurrentUnit(u)} 
+                  onClick={() => handleUnitChange(u)} 
                   className={`px-6 md:px-8 py-2 md:py-3 rounded-lg md:rounded-xl font-black text-[9px] md:text-[10px] uppercase transition-all ${
                     currentUnit === u 
                       ? 'bg-[#005a9c] text-white shadow-lg scale-105' 
@@ -66,7 +79,7 @@ const PGManagerLayout: React.FC = () => {
             {tabs.map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveSubTab(tab.id as any)}
+                onClick={() => handleTabChange(tab.id as any)}
                 className={`flex items-center gap-2 px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl border-2 transition-all whitespace-nowrap ${
                   activeSubTab === tab.id 
                     ? 'bg-white border-[#005a9c] text-[#005a9c] shadow-md scale-105' 
@@ -81,7 +94,7 @@ const PGManagerLayout: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto min-h-[500px]">
+      <div className={`max-w-7xl mx-auto min-h-[500px] transition-opacity duration-200 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
         <main className="animate-in fade-in slide-in-from-top-2 duration-500">
           {activeSubTab === 'dashboard' && <PGDashboard unit={currentUnit} />}
           {activeSubTab === 'membership' && <PGMembership unit={currentUnit} />}

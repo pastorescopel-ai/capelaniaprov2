@@ -1,6 +1,7 @@
 
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, memo } from 'react';
 import { Unit, UserRole } from '../../types';
+import { usePro } from '../../contexts/ProContext';
 import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthProvider';
 import Autocomplete from '../Shared/Autocomplete';
@@ -13,8 +14,9 @@ interface PGOpsProps {
   unit: Unit;
 }
 
-const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
-  const { proGroups, users, saveRecord, visitRequests, proStaff, deleteRecord, proGroupLocations, proSectors } = useApp();
+const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
+  const { proGroups, proStaff, proGroupLocations, proSectors } = usePro();
+  const { users, saveRecord, visitRequests, deleteRecord } = useApp();
   const { currentUser } = useAuth();
   
   const { inferPGDetails } = usePGInference(unit, proGroups, proSectors, proGroupLocations, proStaff);
@@ -197,6 +199,8 @@ const PGOps: React.FC<PGOpsProps> = ({ unit }) => {
         />
     </div>
   );
-};
+});
+
+PGOps.displayName = 'PGOps';
 
 export default PGOps;

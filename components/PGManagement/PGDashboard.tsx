@@ -1,16 +1,17 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, memo, useEffect } from 'react';
 import { Unit } from '../../types';
-import { useApp } from '../../hooks/useApp';
+import { usePro } from '../../contexts/ProContext';
 import { normalizeString, cleanID } from '../../utils/formatters';
 
 interface PGDashboardProps {
   unit: Unit;
 }
 
-const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
-  const { proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, proMonthlyStats } = useApp();
+const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
+  const { proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, proMonthlyStats } = usePro();
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'sector' | 'pg'>('sector');
   
   // Estado para o mês de competência selecionado (Padrão: Mês Atual)
@@ -18,6 +19,13 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   });
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   const metrics = useMemo(() => {
     const targetDate = new Date(selectedMonth);
@@ -62,7 +70,7 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
       });
 
       // Filtro de Busca Inteligente
-      const normSearch = normalizeString(searchTerm);
+      const normSearch = normalizeString(debouncedSearchTerm);
       const searchTerms = normSearch.split(' ').filter(t => t);
 
       const filteredData = sectorData.filter(d => {
@@ -178,7 +186,7 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
     }
 
     // Filtro de Busca Inteligente
-    const normSearch = normalizeString(searchTerm);
+    const normSearch = normalizeString(debouncedSearchTerm);
     const searchTerms = normSearch.split(' ').filter(t => t);
 
     const filteredData = sectorData.filter(d => {
@@ -211,7 +219,7 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
         enrolledStaff, 
         displaySectors: filteredData.sort((a, b) => a.percentage - b.percentage) 
     };
-  }, [proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, proMonthlyStats, unit, searchTerm, filterType, selectedMonth]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, proMonthlyStats, unit, debouncedSearchTerm, filterType, selectedMonth]);
 
   // Gerar opções de meses (Últimos 6 meses)
   const monthOptions = useMemo(() => {
@@ -357,6 +365,8 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
       </div>
     </div>
   );
-};
+});
+
+PGDashboard.displayName = 'PGDashboard';
 
 export default PGDashboard;
