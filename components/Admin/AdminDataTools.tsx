@@ -3,7 +3,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User, ProStaff, ProSector, ProGroup, ProGroupMember, Ambassador, Unit, ProMonthlyStats } from '../../types';
 import { useToast } from '../../contexts/ToastProvider';
 import { supabase } from '../../services/supabaseClient';
-import SyncModal, { SyncStatus } from '../Shared/SyncModal';
+import ForceSyncModal from './ForceSyncModal';
+import SyncModal from '../Shared/SyncModal';
 
 interface AdminDataToolsProps {
   currentUser: User;
@@ -30,6 +31,7 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
   const { showToast } = useToast();
   const [showDNAConfirm, setShowDNAConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isForceSyncModalOpen, setIsForceSyncModalOpen] = useState(false);
   const [isSnapshotting, setIsSnapshotting] = useState(false);
   const [pendingDNA, setPendingDNA] = useState<any>(null);
   const [syncState, setSyncState] = useState<{isOpen: boolean; status: SyncStatus; title: string; message: string; error?: string;}>({ isOpen: false, status: 'idle', title: '', message: '' });
@@ -259,42 +261,49 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
 
   const isMonthClosed = proData.stats?.some(s => s.month === selectedCloseMonth);
 
-  const handleRestoreFromCache = async () => {
-    const totalCLT = proGroupMembers.length;
-    const totalProviders = proGroupProviderMembers.length;
-    const total = totalCLT + totalProviders;
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  });
 
-    if (total === 0) {
-      showToast("Não há membros carregados no estado local para restaurar.", "warning");
-      return;
-    }
-
-    const confirm = window.confirm(`Deseja tentar restaurar ${total} vínculos (${totalCLT} CLT + ${totalProviders} Prestadores) do estado local para o banco de dados? Use isso apenas se você vê os membros no app mas eles sumiram do Supabase.`);
-    if (!confirm) return;
-
+  const handleForceSync = async () => {
+    setIsForceSyncModalOpen(false);
     setIsProcessing(true);
     try {
       let success = true;
       
-      if (totalCLT > 0) {
-        const toRestoreCLT = proGroupMembers.filter(m => m.groupId && m.staffId);
-        const resCLT = await saveRecord('proGroupMembers', toRestoreCLT);
+      if (proGroupMembers.length > 0) {
+        const toSyncCLT = proGroupMembers.map(m => ({
+            ...m,
+            cycleMonth: selectedMonth,
+            joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
+            leftAt: null,
+            isError: false
+        }));
+        const resCLT = await saveRecord('proGroupMembers', toSyncCLT);
         if (!resCLT) success = false;
       }
 
-      if (totalProviders > 0) {
-        const toRestoreProv = proGroupProviderMembers.filter((m: any) => m.groupId && m.providerId);
-        const resProv = await saveRecord('proGroupProviderMembers', toRestoreProv);
+      if (proGroupProviderMembers.length > 0) {
+        const toSyncProv = proGroupProviderMembers.map((m: any) => ({
+            ...m,
+            cycleMonth: selectedMonth,
+            joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
+            leftAt: null,
+            isError: false
+        }));
+        const resProv = await saveRecord('proGroupProviderMembers', toSyncProv);
         if (!resProv) success = false;
       }
 
       if (success) {
-        showToast(`Vínculos restaurados com sucesso!`, "success");
+        showToast(`Sincronização forçada concluída para ${formatMonthLabel(selectedMonth)}!`, "success");
+        await onRefreshData();
       } else {
-        showToast("Falha parcial ou total na restauração.", "warning");
+        showToast("Falha parcial ou total na sincronização.", "warning");
       }
     } catch (err) {
-      showToast("Erro na restauração: " + (err as Error).message, "warning");
+      showToast("Erro na sincronização: " + (err as Error).message, "warning");
     } finally {
       setIsProcessing(false);
     }
@@ -303,6 +312,13 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
   return (
     <>
       <SyncModal isOpen={syncState.isOpen} status={syncState.status} title={syncState.title} message={syncState.message} errorDetails={syncState.error} onClose={() => setSyncState(prev => ({ ...prev, isOpen: false }))} />
+      <ForceSyncModal 
+        isOpen={isForceSyncModalOpen} 
+        onClose={() => setIsForceSyncModalOpen(false)} 
+        onConfirm={handleForceSync}
+        cltCount={proGroupMembers.length}
+        providerCount={proGroupProviderMembers.length}
+      />
       
       {/* PAINEL DE DIAGNÓSTICO E RECUPERAÇÃO - EMERGÊNCIA */}
       <div className="bg-rose-50 p-6 rounded-[2.5rem] border border-rose-100 shadow-sm space-y-4">
@@ -330,16 +346,20 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
             <p className="text-lg font-black text-slate-700">{proData.sectors.filter(s => s.active !== false).length}</p>
           </div>
           <div className="bg-white p-3 rounded-2xl border border-rose-100 shadow-sm">
-            <p className="text-[8px] font-black text-slate-400 uppercase">PGs Ativos</p>
-            <p className="text-lg font-black text-slate-700">{proData.groups.filter(g => g.active !== false).length}</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase">Mês de Registro</p>
+            <input 
+              type="date" 
+              value={selectedMonth} 
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="text-sm font-black text-slate-700 w-full bg-transparent border-none focus:ring-0"
+            />
           </div>
           <button 
-            onClick={handleRestoreFromCache}
-            disabled={isProcessing || proGroupMembers.length === 0}
-            className="bg-rose-600 hover:bg-rose-700 text-white rounded-2xl p-3 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 disabled:opacity-50 shadow-md"
+            onClick={() => setIsForceSyncModalOpen(true)}
+            disabled={isProcessing || (proGroupMembers.length === 0 && proGroupProviderMembers.length === 0)}
+            className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest shadow-lg hover:bg-blue-700 transition-all disabled:opacity-50"
           >
-            <i className="fas fa-undo-alt text-sm"></i>
-            <span className="text-[8px] font-black uppercase">Restaurar Vínculos</span>
+            {isProcessing ? 'Sincronizando...' : 'Forçar Sincronização'}
           </button>
         </div>
       </div>
