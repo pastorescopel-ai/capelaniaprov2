@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { Unit } from '../../types';
 import { useApp } from '../../hooks/useApp';
-import { normalizeString } from '../../utils/formatters';
+import { normalizeString, cleanID } from '../../utils/formatters';
 
 interface PGDashboardProps {
   unit: Unit;
@@ -19,9 +19,6 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
     return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   });
 
-  // Helper para normalização de IDs
-  const cleanId = (id: any) => String(id || '').trim();
-
   const metrics = useMemo(() => {
     const targetDate = new Date(selectedMonth);
     const nextMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
@@ -34,26 +31,27 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
       const pgSnaps = snapshots.filter(s => s.type === 'pg');
 
       const sectorData = sectorSnaps.map(snap => {
-        const sector = proSectors.find(s => String(s.id) === String(snap.targetId));
+        const sector = proSectors.find(s => cleanID(s.id) === cleanID(snap.targetId));
+        const sectorName = snap.targetId === 'unassigned' ? 'SEM SETOR DEFINIDO' : (sector?.name || 'Setor Excluído');
         
         // Se temos snapshots de PGs, usamos eles, senão fallback para os atuais
         const pgsInSector = pgSnaps.length > 0 
           ? pgSnaps
               .filter(ps => {
-                  const pg = proGroups.find(g => String(g.id) === String(ps.targetId));
+                  const pg = proGroups.find(g => cleanID(g.id) === cleanID(ps.targetId));
                   // Aqui precisaríamos saber a qual setor o PG pertencia no snapshot. 
                   // Como o snapshot de PG não guarda o setor_id, usamos a localização atual como melhor esforço
-                  return proGroupLocations.some(loc => String(loc.groupId) === String(ps.targetId) && String(loc.sectorId) === String(snap.targetId));
+                  return proGroupLocations.some(loc => cleanID(loc.groupId) === cleanID(ps.targetId) && cleanID(loc.sectorId) === cleanID(snap.targetId));
               })
-              .map(ps => proGroups.find(g => String(g.id) === String(ps.targetId)))
+              .map(ps => proGroups.find(g => cleanID(g.id) === cleanID(ps.targetId)))
               .filter(g => !!g)
           : proGroupLocations
-              .filter(loc => String(loc.sectorId) === String(snap.targetId))
-              .map(loc => proGroups.find(g => String(g.id) === String(loc.groupId)))
+              .filter(loc => cleanID(loc.sectorId) === cleanID(snap.targetId))
+              .map(loc => proGroups.find(g => cleanID(g.id) === cleanID(loc.groupId)))
               .filter(g => !!g);
 
         return {
-          sector: sector || { id: snap.targetId, name: 'Setor Excluído', unit: snap.unit } as any,
+          sector: sector || { id: snap.targetId, name: sectorName, unit: snap.unit } as any,
           pgsInSector,
           total: snap.totalStaff,
           enrolled: snap.totalParticipants,
@@ -105,8 +103,8 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
       const wasActiveInMonth = !leftDate || leftDate >= targetDate;
 
       if (wasActiveInMonth) {
-        const sId = cleanId(s.sectorId);
-        if (sId && proSectors.some(sec => cleanId(sec.id) === sId)) {
+        const sId = cleanID(s.sectorId);
+        if (sId && proSectors.some(sec => cleanID(sec.id) === sId)) {
           if (!staffBySector.has(sId)) staffBySector.set(sId, []);
           staffBySector.get(sId)?.push(s);
         } else {
@@ -116,13 +114,13 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
     });
 
     const sectorData = unitSectors.map(sector => {
-      const sectorIdClean = cleanId(sector.id);
+      const sectorIdClean = cleanID(sector.id);
       const staffInSector = staffBySector.get(sectorIdClean) || [];
       const countTotal = staffInSector.length;
       
       const staffEnrolled = staffInSector.filter(s => 
         proGroupMembers.some(m => 
-          cleanId(m.staffId) === cleanId(s.id) && 
+          cleanID(m.staffId) === cleanID(s.id) && 
           (!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && 
           (!m.leftAt || m.leftAt >= targetDate.getTime())
         )
@@ -131,22 +129,22 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
       // --- LÓGICA DE DETECÇÃO DE PGS ATIVOS NO SETOR ---
       const geoGroupIds = new Set(
         proGroupLocations
-          .filter(loc => cleanId(loc.sectorId) === sectorIdClean)
-          .map(loc => cleanId(loc.groupId))
+          .filter(loc => cleanID(loc.sectorId) === sectorIdClean)
+          .map(loc => cleanID(loc.groupId))
       );
 
       const memberGroupIds = new Set(
         proGroupMembers
           .filter(m => 
-            staffInSector.some(s => cleanId(s.id) === cleanId(m.staffId)) &&
+            staffInSector.some(s => cleanID(s.id) === cleanID(m.staffId)) &&
             (!m.leftAt || m.leftAt >= targetDate.getTime())
           )
-          .map(m => cleanId(m.groupId))
+          .map(m => cleanID(m.groupId))
       );
 
       const allGroupIdsInSector = new Set([...Array.from(geoGroupIds), ...Array.from(memberGroupIds)]);
       const pgsInSector = Array.from(allGroupIdsInSector)
-        .map(gid => proGroups.find(g => cleanId(g.id) === gid))
+        .map(gid => proGroups.find(g => cleanID(g.id) === gid))
         .filter(g => !!g);
 
       return {
@@ -163,7 +161,7 @@ const PGDashboard: React.FC<PGDashboardProps> = ({ unit }) => {
     if (unassignedStaff.length > 0) {
       const enrolledUnassigned = unassignedStaff.filter(s => 
         proGroupMembers.some(m => 
-          cleanId(m.staffId) === cleanId(s.id) && 
+          cleanID(m.staffId) === cleanID(s.id) && 
           (!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && 
           (!m.leftAt || m.leftAt >= targetDate.getTime())
         )

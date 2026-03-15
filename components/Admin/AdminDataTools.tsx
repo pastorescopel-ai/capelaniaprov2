@@ -127,12 +127,34 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
 
         const snapshots: ProMonthlyStats[] = [];
         const units = [Unit.HAB, Unit.HABA];
+        const targetDate = new Date(selectedCloseMonth);
 
         for (const unit of units) {
-            // 1. Snapshots de Setores (Embaixadores)
+            const unitStaff = proData.staff.filter(s => {
+                if (s.unit !== unit) return false;
+                if (s.active === false) return false;
+                const leftDate = s.leftAt ? new Date(s.leftAt) : null;
+                return !leftDate || leftDate >= targetDate;
+            });
+
+            const staffBySector = new Map<string, ProStaff[]>();
+            const unassignedStaff: ProStaff[] = [];
+
+            unitStaff.forEach(s => {
+                const sId = String(s.sectorId || '').trim();
+                if (sId && proData.sectors.some(sec => String(sec.id) === sId)) {
+                    if (!staffBySector.has(sId)) staffBySector.set(sId, []);
+                    staffBySector.get(sId)?.push(s);
+                } else {
+                    unassignedStaff.push(s);
+                }
+            });
+
+            // 1. Snapshots de Setores
             proData.sectors.filter(s => s.unit === unit && s.active !== false).forEach(sector => {
-                const staffInSector = proData.staff.filter(s => s.sectorId === sector.id && s.unit === unit && s.active !== false);
-                const ambassadorsInSector = ambassadors.filter(a => a.sectorId === sector.id && a.unit === unit && a.cycleMonth === selectedCloseMonth);
+                const sectorId = String(sector.id);
+                const staffInSector = staffBySector.get(sectorId) || [];
+                const ambassadorsInSector = ambassadors.filter(a => a.sectorId === sectorId && a.unit === unit && a.cycleMonth === selectedCloseMonth);
                 
                 const totalStaff = staffInSector.length;
                 const totalParticipants = ambassadorsInSector.length;
@@ -141,7 +163,7 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
                 snapshots.push({
                     month: selectedCloseMonth,
                     type: 'sector',
-                    targetId: sector.id,
+                    targetId: sectorId,
                     totalStaff,
                     totalParticipants,
                     percentage,
@@ -150,11 +172,34 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
                 });
             });
 
+            // 1.1 Snapshot de "Sem Setor"
+            if (unassignedStaff.length > 0) {
+                const enrolledUnassigned = unassignedStaff.filter(s => 
+                    proGroupMembers.some(m => 
+                        String(m.staffId) === String(s.id) && 
+                        (!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && 
+                        (!m.leftAt || m.leftAt >= targetDate.getTime())
+                    )
+                ).length;
+
+                snapshots.push({
+                    month: selectedCloseMonth,
+                    type: 'sector',
+                    targetId: 'unassigned',
+                    totalStaff: unassignedStaff.length,
+                    totalParticipants: enrolledUnassigned,
+                    percentage: (enrolledUnassigned / unassignedStaff.length) * 100,
+                    goal: 0,
+                    unit
+                });
+            }
+
             // 2. Snapshots de PGs
             proData.groups.filter(g => g.unit === unit && g.active !== false).forEach(group => {
-                const members = proGroupMembers.filter(m => m.groupId === group.id && !m.leftAt);
-                const sector = proData.sectors.find(s => s.id === group.sectorId);
-                const staffInSector = sector ? proData.staff.filter(s => s.sectorId === sector.id && s.unit === unit && s.active !== false) : [];
+                const groupId = String(group.id);
+                const members = proGroupMembers.filter(m => String(m.groupId) === groupId && !m.leftAt);
+                const sectorId = String(group.sectorId || '');
+                const staffInSector = sectorId ? (staffBySector.get(sectorId) || []) : [];
                 
                 const totalS = staffInSector.length;
                 const totalP = members.length;
@@ -163,7 +208,7 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
                 snapshots.push({
                     month: selectedCloseMonth,
                     type: 'pg',
-                    targetId: group.id,
+                    targetId: groupId,
                     totalStaff: totalS,
                     totalParticipants: totalP,
                     percentage,

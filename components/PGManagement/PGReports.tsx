@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Unit } from '../../types';
 import { useApp } from '../../hooks/useApp';
 import { DEFAULT_APP_LOGO } from '../../assets';
-import { normalizeString } from '../../utils/formatters';
+import { normalizeString, cleanID } from '../../utils/formatters';
 import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
 import { getBrandedHeaderByProfile, getBrandedFooter } from '../../utils/reportTemplates';
 
@@ -21,8 +21,6 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterCritical, setFilterCritical] = useState(false);
-
-  const cleanId = (id: any) => String(id || '').trim();
 
   const reportHeaderInfo = useMemo(() => {
     const s = new Date(startDate + 'T12:00:00');
@@ -52,14 +50,12 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
     const endTimestamp = new Date(endDate + 'T23:59:59').getTime();
 
     const data = sectors.map(sector => {
-        const sectorIdClean = cleanId(sector.id);
+        const sectorIdClean = cleanID(sector.id);
         
         // Filtra colaboradores ativos no período (Temporal Accuracy)
         const staff = proStaff.filter(s => 
-          cleanId(s.sectorId) === sectorIdClean &&
+          cleanID(s.sectorId) === sectorIdClean &&
           // Deve ter entrado antes ou durante o período
-          (s.joinedAt ? s.joinedAt <= endTimestamp : (!s.cycleMonth || s.cycleMonth <= endDate)) &&
-          // Deve estar ativo OU ter saído depois ou durante o período
           (s.active !== false || (s.leftAt && s.leftAt >= startTimestamp))
         );
         
@@ -76,16 +72,16 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
             (!m.leftAt || m.leftAt >= startTimestamp)
         );
 
-        const enrolledStaff = staff.filter(s => activeStaffMemberships.some(m => cleanId(m.staffId) === cleanId(s.id)));
-        const notEnrolled = staff.filter(s => !activeStaffMemberships.some(m => cleanId(m.staffId) === cleanId(s.id)));
+        const enrolledStaff = staff.filter(s => activeStaffMemberships.some(m => cleanID(m.staffId) === cleanID(s.id)));
+        const notEnrolled = staff.filter(s => !activeStaffMemberships.some(m => cleanID(m.staffId) === cleanID(s.id)));
         
         // Agrupamento por PG para o relatório (Incluindo Prestadores)
         const enrolledByPGMap = new Map<string, { pgName: string, members: any[], leaderName: string | null }>();
         
         // Adiciona Staff
         enrolledStaff.forEach(s => {
-            const m = activeStaffMemberships.find(mem => cleanId(mem.staffId) === cleanId(s.id));
-            const pg = m ? proGroups.find(g => cleanId(g.id) === cleanId(m.groupId)) : null;
+            const m = activeStaffMemberships.find(mem => cleanID(mem.staffId) === cleanID(s.id));
+            const pg = m ? proGroups.find(g => cleanID(g.id) === cleanID(m.groupId)) : null;
             const pgName = pg?.name || 'Sem PG Definido';
             const leaderName = pg?.currentLeader || null;
             
@@ -98,12 +94,12 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
         // Adiciona Prestadores (Apenas se pertencerem a este setor via PG ou se quisermos mostrar no relatório)
         // Nota: Prestadores não têm setor fixo, mas se estão em um PG que atua neste setor, eles aparecem.
         activeProviderMemberships.forEach(m => {
-            const pg = proGroups.find(g => cleanId(g.id) === cleanId(m.groupId));
+            const pg = proGroups.find(g => cleanID(g.id) === cleanID(m.groupId));
             // Verifica se o PG deste prestador atua neste setor
-            const pgInSector = proGroupLocations.some(loc => cleanId(loc.groupId) === cleanId(m.groupId) && cleanId(loc.sectorId) === sectorIdClean);
+            const pgInSector = proGroupLocations.some(loc => cleanID(loc.groupId) === cleanID(m.groupId) && cleanID(loc.sectorId) === sectorIdClean);
             
             if (pgInSector) {
-                const provider = proProviders.find(p => cleanId(p.id) === cleanId(m.providerId));
+                const provider = proProviders.find(p => cleanID(p.id) === cleanID(m.providerId));
                 if (provider) {
                     const pgName = pg?.name || 'Sem PG Definido';
                     const leaderName = pg?.currentLeader || null;
@@ -122,10 +118,10 @@ const PGReports: React.FC<PGReportsProps> = ({ unit }) => {
         const enrolledByPG = Array.from(enrolledByPGMap.values())
             .sort((a, b) => a.pgName.localeCompare(b.pgName));
 
-        const geoGroupIds = new Set(proGroupLocations.filter(loc => cleanId(loc.sectorId) === sectorIdClean).map(loc => cleanId(loc.groupId)));
-        const memberGroupIds = new Set(activeStaffMemberships.filter(m => staff.some(s => cleanId(s.id) === cleanId(m.staffId))).map(m => cleanId(m.groupId)));
+        const geoGroupIds = new Set(proGroupLocations.filter(loc => cleanID(loc.sectorId) === sectorIdClean).map(loc => cleanID(loc.groupId)));
+        const memberGroupIds = new Set(activeStaffMemberships.filter(m => staff.some(s => cleanID(s.id) === cleanID(m.staffId))).map(m => cleanID(m.groupId)));
         const allGroupIdsInSector = new Set([...Array.from(geoGroupIds), ...Array.from(memberGroupIds)]);
-        const pgs = Array.from(allGroupIdsInSector).map(gid => proGroups.find(g => cleanId(g.id) === gid)).filter(g => !!g);
+        const pgs = Array.from(allGroupIdsInSector).map(gid => proGroups.find(g => cleanID(g.id) === gid)).filter(g => !!g);
         const coverage = staff.length > 0 ? (enrolledStaff.length / staff.length) * 100 : 0;
 
         return { sector, totalStaff: staff.length, enrolledCount: enrolledStaff.length, coverage, pgs, notEnrolledList: notEnrolled, enrolledList: enrolledStaff, enrolledByPG };
