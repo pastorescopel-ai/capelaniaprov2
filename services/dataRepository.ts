@@ -186,5 +186,26 @@ export const DataRepository = {
     
     const { error } = await supabase.from(tableName).delete().eq('id', id);
     return !error;
+  },
+
+  async closeMonth(month: string, unit: string, stats: any, membersList: any[]) {
+    const record = {
+      month,
+      unit,
+      type: 'pg',
+      targetId: 'all',
+      totalStaff: stats.totalStaff,
+      totalParticipants: stats.totalParticipants,
+      percentage: stats.percentage,
+      goal: stats.goal,
+      snapshotData: JSON.stringify({
+        totalColaboradores: stats.totalStaff,
+        setorBreakdown: stats.sectorBreakdown,
+        performanceMetrics: stats.performanceMetrics,
+        membersList: membersList
+      })
+    };
+
+    return await this.upsertRecord('proMonthlyStats', record);
   }
 };

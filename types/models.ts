@@ -96,6 +96,16 @@ export interface ProMonthlyStats {
   goal: number;
   unit: Unit;
   createdAt?: number;
+  // --- CAMPOS PARA SNAPSHOT DE FECHAMENTO ---
+  snapshotData?: {
+    totalColaboradores: number;
+    setorBreakdown: Record<string, number>;
+    performanceMetrics: {
+      pgPercentage: number;
+      ambassadorPercentage: number;
+    };
+    membersList: any[]; // Lista de membros ativos no fechamento
+  };
 }
 
 export interface HeaderLine {
