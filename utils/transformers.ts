@@ -46,7 +46,7 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
 
 export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'staff_id', 'provider_id', 'sector_id', 'group_id', 'day_of_week', 'total_staff', 'total_participants', 'percentage', 'goal'];
 
-export const DATE_FIELDS = ['left_at', 'updated_at', 'created_at', 'completion_date', 'return_date', 'scheduled_time', 'last_modified_at'];
+export const DATE_FIELDS = ['joined_at', 'left_at', 'updated_at', 'created_at', 'completion_date', 'return_date', 'scheduled_time', 'last_modified_at'];
 
 export const isValidUUID = (uuid: string) => {
   const s = "" + uuid;

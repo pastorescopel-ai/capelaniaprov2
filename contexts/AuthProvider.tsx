@@ -51,7 +51,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check active session on mount
     const initSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("[Auth] Erro ao obter sessão:", error);
+          await supabase.auth.signOut();
+          setCurrentUser(null);
+          setIsAuthenticated(false);
+          return;
+        }
         
         if (session?.user?.email) {
           // Verifica se a sessão expirou por inatividade antes de restaurar
