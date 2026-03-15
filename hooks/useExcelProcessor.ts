@@ -36,7 +36,18 @@ export const useExcelProcessor = () => {
       const hasPGIdentifier = headers.some(h => h.includes('PG') || h.includes('GRUPO') || h.includes('NOME') || h.includes('LIDER'));
 
       if (tab === 'staff') {
-          if (!hasStaffCols) return { valid: false, error: "Arquivo inválido para Colaboradores. Necessário coluna 'Matrícula', 'Crachá' ou 'Funcionário'." };
+          const hasMatricula = headers.some(h => h.includes('MATRICULA') || h.includes('CRACHA'));
+          const hasNome = headers.some(h => h.includes('NOME') || h.includes('COLABORADOR') || h.includes('FUNCIONARIO'));
+          const hasIdSetor = headers.some(h => h.includes('ID SETOR') || h.includes('ID_SETOR') || h.includes('COD SETOR'));
+          const hasSetor = headers.some(h => h === 'SETOR' || h.includes('NOME SETOR') || h.includes('DEPARTAMENTO'));
+          const hasAdmissao = headers.some(h => h.includes('ADMISSAO') || h.includes('DATA ADMISSAO') || h.includes('DT ADM'));
+
+          if (!hasMatricula || !hasNome || !hasIdSetor || !hasSetor || !hasAdmissao) {
+              return { 
+                  valid: false, 
+                  error: "Arquivo inválido. Para importar colaboradores são obrigatórias as colunas: 'Matrícula', 'Nome', 'ID_Setor', 'Setor' e 'Admissão'." 
+              };
+          }
       }
       if (tab === 'sectors') {
           if (!hasSectorCols) return { valid: false, error: "Arquivo inválido para Setores. Necessário coluna 'Nome Setor' ou 'Departamento'." };
@@ -81,12 +92,12 @@ export const useExcelProcessor = () => {
           if (dataStartRow === -1) throw new Error("Não foi possível identificar as colunas.");
 
           const validation = validateSheetType(headers, activeTab);
-          // if (!validation.valid) throw new Error(validation.error); // Removed strict validation to allow importing the provided file format
+          if (!validation.valid) throw new Error(validation.error);
 
-          const idxId = findColumnIndex(headers, ['ID', 'COD', 'MATRICULA', 'MAT', 'CRACHA', 'REGISTRO']);
-          const idxName = findColumnIndex(headers, ['NOME', 'COLABORADOR', 'FUNCIONARIO', 'SETOR', 'PG', 'GRUPO', 'DESCRIÇÃO']);
-          const idxSecId = findColumnIndex(headers, ['ID SETOR', 'COD SETOR', 'COD DEPARTAMENTO', 'CODIGO SETOR', 'ID_SETOR']);
-          const idxSecName = findColumnIndex(headers, ['NOME SETOR', 'SETOR', 'DEPARTAMENTO']);
+          const idxId = findColumnIndex(headers, ['MATRICULA', 'MAT', 'CRACHA', 'REGISTRO', 'ID', 'COD']);
+          const idxName = findColumnIndex(headers, ['NOME', 'COLABORADOR', 'FUNCIONARIO', 'DESCRIÇÃO']);
+          const idxSecId = findColumnIndex(headers, ['ID SETOR', 'ID_SETOR', 'COD SETOR', 'COD DEPARTAMENTO', 'CODIGO SETOR']);
+          const idxSecName = findColumnIndex(headers, ['SETOR', 'NOME SETOR', 'DEPARTAMENTO']);
           const idxJoinedAt = findColumnIndex(headers, ['ADMISSAO', 'DATA ADMISSAO', 'DT ADM', 'ENTRADA']);
 
           if (idxId === -1 || idxName === -1) {
