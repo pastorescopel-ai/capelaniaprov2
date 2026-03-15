@@ -23,6 +23,7 @@ export const useReportLogic = (
 ) => {
   // 1. DADOS FILTRADOS (Respeita as datas selecionadas na UI)
   const filteredData = useMemo(() => {
+    console.time('filteredData');
     const filterFn = (item: any) => {
       if (!item || !item.date) return false;
       const itemDate = item.date.split('T')[0];
@@ -38,17 +39,20 @@ export const useReportLogic = (
       return dateMatch && chaplainMatch && unitMatch && statusMatch;
     };
 
-    return {
+    const result = {
       studies: filters.selectedActivity === ActivityFilter.TODAS || filters.selectedActivity === ActivityFilter.ESTUDOS ? (studies || []).filter(filterFn) : [],
       classes: filters.selectedActivity === ActivityFilter.TODAS || filters.selectedActivity === ActivityFilter.CLASSES ? (classes || []).filter(filterFn) : [],
       groups: filters.selectedActivity === ActivityFilter.TODAS || filters.selectedActivity === ActivityFilter.PGS ? (groups || []).filter(filterFn) : [],
       visits: filters.selectedActivity === ActivityFilter.TODAS || filters.selectedActivity === ActivityFilter.VISITAS ? (visits || []).filter(filterFn) : [],
     };
+    console.timeEnd('filteredData');
+    return result;
   }, [studies, classes, groups, visits, filters]);
 
   // 2. DADOS ACUMULADOS DO ANO (Ignora data de início do filtro, usa 01/01 do ano corrente)
   // Isso resolve o problema dos números "sumindo" quando muda o mês.
   const accumulatedStats = useMemo(() => {
+    console.time('accumulatedStats');
     const currentYear = new Date().getFullYear();
     const startOfYear = `${currentYear}-01-01`;
     // Usa a data fim do filtro para não pegar futuro, mas começa em Jan 01
@@ -90,9 +94,11 @@ export const useReportLogic = (
         }
     });
 
-    return {
+    const result = {
         uniqueStudentsYTD: uniqueStudentsYTD.size
     };
+    console.timeEnd('accumulatedStats');
+    return result;
   }, [studies, classes, filters.selectedUnit, filters.selectedChaplain, filters.endDate]);
 
   const auditList = useMemo(() => {
