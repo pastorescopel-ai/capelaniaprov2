@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Unit, SmallGroup, User, ParticipantType } from '../types';
 import { useToast } from '../contexts/ToastProvider';
 import { useApp } from '../hooks/useApp';
-import { normalizeString, formatWhatsApp } from '../utils/formatters';
+import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
 import { usePGInference } from './usePGInference';
 
 interface UseSmallGroupFormProps {
@@ -72,7 +72,7 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
         setIsSectorLocked(!!mission.sectorId || !!details.sectorId);
         showToast(`Missão carregada: ${mission.groupName}`, "success");
       } else {
-        setFormData({ ...editingItem, date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), observations: editingItem.observations || '', leaderPhone: editingItem.leaderPhone || '' });
+        setFormData({ ...editingItem, date: ensureISODate(editingItem.date) || getToday(), observations: editingItem.observations || '', leaderPhone: editingItem.leaderPhone || '' });
         const details = inferPGDetails(editingItem.groupName);
         setIsSectorLocked(!!details.sectorId);
       }

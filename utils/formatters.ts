@@ -52,8 +52,9 @@ export const getMonthStartISO = (date: Date = new Date()): string => {
  * Normaliza datas para armazenamento no banco de dados.
  * Adiciona T12:00:00 para evitar que o fuso horário (UTC) altere o dia no banco (corrupção de data).
  */
-export const toSafeDateISO = (dateStr: string): string => {
-  if (!dateStr) return "";
+export const toSafeDateISO = (val: any): string => {
+  if (!val) return "";
+  const dateStr = typeof val === 'number' ? new Date(val).toLocaleDateString('en-CA') : String(val);
   const base = dateStr.split('T')[0]; // Garante apenas YYYY-MM-DD
   return `${base}T12:00:00`;
 };
@@ -61,11 +62,24 @@ export const toSafeDateISO = (dateStr: string): string => {
 /**
  * Formata data ISO para exibição amigável PT-BR (DD/MM/YYYY).
  */
-export const formatDateBR = (dateStr: string): string => {
-  if (!dateStr) return "";
+export const formatDateBR = (val: any): string => {
+  if (!val) return "";
+  const dateStr = typeof val === 'number' ? new Date(val).toLocaleDateString('en-CA') : String(val);
   const parts = dateStr.split('T')[0].split('-');
   if (parts.length !== 3) return dateStr;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
+};
+
+/**
+ * Garante que o valor seja uma string no formato YYYY-MM-DD, 
+ * aceitando tanto strings ISO quanto timestamps numéricos.
+ */
+export const ensureISODate = (val: any): string => {
+  if (!val) return "";
+  if (typeof val === 'number') {
+    return new Date(val).toLocaleDateString('en-CA');
+  }
+  return String(val).split('T')[0];
 };
 
 export const getFirstName = (fullName: string) => {

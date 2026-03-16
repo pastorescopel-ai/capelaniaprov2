@@ -48,7 +48,11 @@ export const useDashboardStats = (
       return !hasSubsequent;
     });
 
-    const todays = pending.filter(v => v.returnDate === todayStr);
+    const todays = pending.filter(v => {
+      if (!v.returnDate) return false;
+      const vReturn = typeof v.returnDate === 'number' ? new Date(v.returnDate).toLocaleDateString('en-CA') : String(v.returnDate).split('T')[0];
+      return vReturn === todayStr;
+    });
     
     return { pendingReturns: pending, todaysReturns: todays };
   }, [userVisits, visits]);
@@ -60,9 +64,10 @@ export const useDashboardStats = (
     const currentYear = now.getFullYear();
     const mName = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(now);
 
-    const isCurrentMonth = (dateStr: string) => {
-      if (!dateStr) return false;
-      const d = new Date(dateStr + 'T12:00:00');
+    const isCurrentMonth = (val: any) => {
+      if (!val) return false;
+      const dateStr = typeof val === 'number' ? new Date(val).toLocaleDateString('en-CA') : String(val);
+      const d = new Date(dateStr.split('T')[0] + 'T12:00:00');
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     };
 
@@ -98,7 +103,9 @@ export const useDashboardStats = (
 
     const getMonthStats = (m: number, y: number) => {
       const filterFn = (item: any) => {
-        const d = new Date(item.date + 'T12:00:00');
+        if (!item.date) return false;
+        const dateStr = typeof item.date === 'number' ? new Date(item.date).toLocaleDateString('en-CA') : String(item.date);
+        const d = new Date(dateStr.split('T')[0] + 'T12:00:00');
         return d.getMonth() === m && d.getFullYear() === y;
       };
       

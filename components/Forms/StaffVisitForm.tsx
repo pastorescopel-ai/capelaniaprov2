@@ -141,7 +141,10 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           <div className={`px-3 py-1 rounded-lg border flex flex-col items-center justify-center ${isReturnFulfilled ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
             <span className={`text-[8px] font-black uppercase tracking-widest ${isReturnFulfilled ? 'text-emerald-400' : 'text-rose-400'}`}>Retorno</span>
             <span className={`text-[10px] font-black ${isReturnFulfilled ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {new Date(item.returnDate + 'T12:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
+              {(() => {
+                const d = typeof item.returnDate === 'number' ? new Date(item.returnDate) : new Date(String(item.returnDate).split('T')[0] + 'T12:00:00');
+                return isNaN(d.getTime()) ? 'Data Inválida' : d.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+              })()}
             </span>
           </div>
         ) : null;

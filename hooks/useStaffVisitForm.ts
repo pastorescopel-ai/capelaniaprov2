@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Unit, StaffVisit, User, VisitReason, ParticipantType } from '../types';
 import { useToast } from '../contexts/ToastProvider';
 import { useApp } from '../hooks/useApp';
-import { normalizeString, formatWhatsApp } from '../utils/formatters';
+import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
 
@@ -103,8 +103,8 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
           whatsapp: (editingItem as any).whatsapp || '', 
           participantType: (editingItem as any).participantType || ParticipantType.STAFF, 
           providerRole: (editingItem as any).providerRole || '', 
-          date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), 
-          returnDate: editingItem.returnDate ? editingItem.returnDate.split('T')[0] : getToday(), 
+          date: ensureISODate(editingItem.date) || getToday(), 
+          returnDate: ensureISODate(editingItem.returnDate) || getToday(), 
           observations: editingItem.observations || '' 
         });
         if (editingItem.participantType === ParticipantType.STAFF || !editingItem.participantType) {
@@ -224,7 +224,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       whatsapp: item.whatsapp || '',
       reason: VisitReason.RETORNO,
       requiresReturn: false,
-      returnDate: item.returnDate ? item.returnDate.split('T')[0] : getToday()
+      returnDate: ensureISODate(item.returnDate) || getToday()
     });
     if ((item as any).participantType === ParticipantType.STAFF || !(item as any).participantType) {
       const match = proStaff.find(s => normalizeString(s.name) === normalizeString(item.staffName));

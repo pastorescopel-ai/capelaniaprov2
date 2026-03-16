@@ -101,7 +101,16 @@ const Dashboard: React.FC<DashboardProps> = ({
               <h4 className="font-black text-slate-900 text-sm uppercase tracking-tight">Retornos Agendados</h4>
               <p className="text-slate-600 font-bold text-[10px] uppercase">
                 Você tem {pendingReturns.length} retorno(s) pendente(s). Próximo: {
-                  new Date(Math.min(...pendingReturns.map(v => new Date(v.returnDate + 'T12:00:00').getTime()))).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})
+                  (() => {
+                    const timestamps = pendingReturns.map(v => {
+                      if (typeof v.returnDate === 'number') return v.returnDate;
+                      const d = new Date(String(v.returnDate).split('T')[0] + 'T12:00:00');
+                      return isNaN(d.getTime()) ? Infinity : d.getTime();
+                    }).filter(t => t !== Infinity);
+                    
+                    if (timestamps.length === 0) return '---';
+                    return new Date(Math.min(...timestamps)).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+                  })()
                 }
               </p>
             </div>

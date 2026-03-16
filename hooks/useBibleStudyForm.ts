@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Unit, RecordStatus, BibleStudy, User, ParticipantType } from '../types';
 import { useToast } from '../contexts/ToastProvider';
 import { useApp } from '../hooks/useApp';
-import { normalizeString, formatWhatsApp } from '../utils/formatters';
+import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
 
@@ -125,7 +125,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
   useEffect(() => {
     if (editingItem) {
-      setFormData({ ...editingItem, participantType: editingItem.participantType || ParticipantType.STAFF, date: editingItem.date ? editingItem.date.split('T')[0] : getToday() });
+      setFormData({ ...editingItem, participantType: editingItem.participantType || ParticipantType.STAFF, date: ensureISODate(editingItem.date) || getToday() });
       if (editingItem.participantType === ParticipantType.STAFF) {
           const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(editingItem.name) && s.unit === unit);
           setIsSectorLocked(!!staff);

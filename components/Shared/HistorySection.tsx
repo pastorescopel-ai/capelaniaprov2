@@ -4,7 +4,7 @@ import { User, UserRole } from '../../types';
 import HistoryFilterBar from './HistoryFilterBar';
 import SkeletonCard from './SkeletonCard';
 import EmptyState from './EmptyState';
-import { normalizeString } from '../../utils/formatters';
+import { normalizeString, ensureISODate } from '../../utils/formatters';
 
 interface HistorySectionProps<T> {
   title?: string;
@@ -70,7 +70,8 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
       const isBypassed = bypassFilter?.(item);
       if (isBypassed) return true;
 
-      const itemDate = item.date.split('T')[0];
+      const itemDate = ensureISODate(item.date);
+      if (!itemDate) return false;
       const dateMatch = itemDate >= filterStart && itemDate <= filterEnd;
       const isSearching = searchTerms.length > 0;
       

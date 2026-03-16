@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 import { VisitRequest, Unit, User } from '../types';
 import { useToast } from '../contexts/ToastProvider';
+import { ensureISODate } from '../utils/formatters';
 
 export const useVisitManagement = (
   saveRecord: (collection: string, item: any) => Promise<boolean>,
@@ -38,7 +39,7 @@ export const useVisitManagement = (
     setSelectedChaplainId(req.assignedChaplainId || '');
     setLeaderPhone(req.leaderPhone || '');
     setMeetingLocation(req.meetingLocation || '');
-    setVisitDate(req.date.split('T')[0]);
+    setVisitDate(ensureISODate(req.date) || new Date().toLocaleDateString('en-CA'));
     setVisitTime(req.scheduledTime || '19:00');
     setNotes(req.requestNotes || '');
     window.scrollTo({ top: 0, behavior: 'smooth' });

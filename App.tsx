@@ -12,6 +12,8 @@ import { usePro } from './contexts/ProContext';
 import { useAuth } from './contexts/AuthProvider';
 import { useAppFlow } from './hooks/useAppFlow';
 
+import { ensureISODate } from './utils/formatters';
+
 const App: React.FC = () => {
   const {
     users, smallGroups, staffVisits,
@@ -61,7 +63,7 @@ const App: React.FC = () => {
       leader: visit.leaderName,
       leaderPhone: visit.leaderPhone || '',
       unit: visit.unit,
-      date: visit.date.split('T')[0],
+      date: ensureISODate(visit.date) || new Date().toLocaleDateString('en-CA'),
       scheduledTime: visit.scheduledTime,
       sectorId: visit.sectorId,
       sectorName: visit.sectorName

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Unit, RecordStatus, BibleClass, ParticipantType, User } from '../types';
 import { useToast } from '../contexts/ToastProvider';
 import { useApp } from '../hooks/useApp';
-import { normalizeString, formatWhatsApp } from '../utils/formatters';
+import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
 
@@ -263,7 +263,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       setFormData({ 
         ...editingItem, 
         participantType: editingItem.participantType || ParticipantType.STAFF, 
-        date: editingItem.date ? editingItem.date.split('T')[0] : getToday(), 
+        date: ensureISODate(editingItem.date) || getToday(), 
         representativePhone: editingItem.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || '' 
       });
     }
