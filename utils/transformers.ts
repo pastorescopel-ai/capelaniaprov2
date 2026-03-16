@@ -97,7 +97,20 @@ export const toCamel = (obj: any): any => {
   return newObj;
 };
 
-export const TABLES_WITH_NUMERIC_DATES = ['activity_schedules'];
+export const TABLES_WITH_NUMERIC_DATES = [
+  'activity_schedules', 
+  'pro_monthly_stats',
+  'pro_group_members',
+  'pro_group_provider_members',
+  'pro_staff',
+  'pro_sectors',
+  'pro_groups',
+  'pro_patients',
+  'pro_providers',
+  'users',
+  'app_config',
+  'ambassadors'
+];
 
 export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: string): any => {
   if (!obj || typeof obj !== 'object') return obj;
@@ -150,19 +163,20 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
       }
 
       if (DATE_FIELDS.includes(snakeKey) && val) {
+          // Campos de metadados do sistema geralmente são BIGINT (milissegundos)
+          const isSystemDate = ['created_at', 'updated_at', 'last_modified_at'].includes(snakeKey);
           const isNumericTable = TABLES_WITH_NUMERIC_DATES.includes(tableName);
           
-          if (isNumericTable) {
-              // Para tabelas que usam BIGINT (milissegundos)
+          // Se for campo de sistema OU a tabela for inteiramente numérica, enviamos como número (BIGINT)
+          if (isSystemDate || isNumericTable) {
               if (typeof val === 'string') {
                   const d = new Date(val);
                   if (!isNaN(d.getTime())) {
                       val = d.getTime();
                   }
               }
-              // Se já for número, mantém como número
           } else {
-              // Para tabelas que usam TIMESTAMPTZ (ISO String)
+              // Caso contrário, enviamos como ISO String (TIMESTAMPTZ)
               if (typeof val === 'number') {
                   val = new Date(val).toISOString();
               } else if (typeof val === 'string' && !isNaN(Number(val))) {

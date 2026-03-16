@@ -86,7 +86,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
           participantType: (editingItem as any).participantType || ParticipantType.STAFF,
           providerRole: (editingItem as any).providerRole || '',
           whatsapp: (editingItem as any).whatsapp || '',
-          reason: VisitReason.RETORNO,
+          reason: VisitReason.ACOMPANHAMENTO,
           requiresReturn: false,
           returnDate: getToday()
         });
@@ -222,7 +222,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       participantType: (item as any).participantType || ParticipantType.STAFF,
       providerRole: (item as any).providerRole || '',
       whatsapp: item.whatsapp || '',
-      reason: VisitReason.RETORNO,
+      reason: VisitReason.ACOMPANHAMENTO,
       requiresReturn: false,
       returnDate: ensureISODate(item.returnDate) || getToday()
     });

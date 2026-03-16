@@ -26,7 +26,8 @@ export enum VisitReason {
   AGENDAMENTO = 'Agendamento',
   SOLICITACAO = 'Solicitação',
   ROTINA = 'Rotina',
-  ACOMPANHAMENTO = 'ACOMPANHAMENTO',
+  ACOMPANHAMENTO = 'Acompanhamento',
+  RETORNO = 'Retorno',
   OUTROS = 'Outros'
 }
 
