@@ -97,6 +97,8 @@ export const toCamel = (obj: any): any => {
   return newObj;
 };
 
+export const TABLES_WITH_NUMERIC_DATES = ['activity_schedules'];
+
 export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: string): any => {
   if (!obj || typeof obj !== 'object') return obj;
   const newObj: any = {};
@@ -148,10 +150,24 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
       }
 
       if (DATE_FIELDS.includes(snakeKey) && val) {
-          if (typeof val === 'number') {
-              val = new Date(val).toISOString();
-          } else if (typeof val === 'string' && !isNaN(Number(val))) {
-              val = new Date(Number(val)).toISOString();
+          const isNumericTable = TABLES_WITH_NUMERIC_DATES.includes(tableName);
+          
+          if (isNumericTable) {
+              // Para tabelas que usam BIGINT (milissegundos)
+              if (typeof val === 'string') {
+                  const d = new Date(val);
+                  if (!isNaN(d.getTime())) {
+                      val = d.getTime();
+                  }
+              }
+              // Se já for número, mantém como número
+          } else {
+              // Para tabelas que usam TIMESTAMPTZ (ISO String)
+              if (typeof val === 'number') {
+                  val = new Date(val).toISOString();
+              } else if (typeof val === 'string' && !isNaN(Number(val))) {
+                  val = new Date(Number(val)).toISOString();
+              }
           }
       }
       
