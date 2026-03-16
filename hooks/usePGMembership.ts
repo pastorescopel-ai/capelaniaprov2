@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Unit, ProGroup } from '../types';
 import { usePro } from '../contexts/ProContext';
+import { useApp } from '../contexts/AppProvider';
 import { useToast } from '../contexts/ToastProvider';
 import { usePGMembershipData } from './usePGMembershipData';
 
@@ -9,7 +10,8 @@ interface UsePGMembershipProps {
 }
 
 export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
-  const { proSectors, proStaff, proProviders, proGroups, proGroupMembers, proGroupProviderMembers, proGroupLocations, saveRecord, proMonthlyStats } = usePro();
+  const { proSectors, proStaff, proProviders, proGroups, proGroupMembers, proGroupProviderMembers, proGroupLocations, proMonthlyStats } = usePro();
+  const { saveRecord } = useApp();
   const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState<'staff' | 'providers'>('staff');

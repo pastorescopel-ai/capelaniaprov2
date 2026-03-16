@@ -112,8 +112,8 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
     if (allowedFields.includes(snakeKey)) {
       let val = obj[key];
       
-      // Se for ID vazio, removemos para o Supabase gerar um novo
-      if (snakeKey === 'id' && val === '' && tableName !== 'visit_requests') {
+      // Se for ID vazio, nulo ou indefinido, removemos para o Supabase gerar um novo (exceto visit_requests)
+      if (snakeKey === 'id' && (val === '' || val === null || val === undefined) && tableName !== 'visit_requests') {
         continue;
       }
 

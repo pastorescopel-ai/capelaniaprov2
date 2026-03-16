@@ -91,43 +91,59 @@ export const DataRepository = {
 
     const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName], tableName));
 
-    if (tableName === 'app_config') {
-      if (GLOBAL_ID_CACHE[tableName]) {
-        payloads[0].id = GLOBAL_ID_CACHE[tableName];
-      } else {
-        const { data } = await supabase.from(tableName).select('id').limit(1);
-        if (data && data.length > 0) {
-          payloads[0].id = data[0].id;
-          GLOBAL_ID_CACHE[tableName] = data[0].id;
-        } else {
-          delete payloads[0].id;
-        }
-      }
-    }
+    // Separar em dois grupos: os que têm ID (Updates/Upserts) e os que não têm (Inserts puros)
+    // Isso evita que o Postgrest preencha com 'null' o campo ID em um array misto
+    const withId = payloads.filter(p => p.id !== undefined && p.id !== null);
+    const withoutId = payloads.filter(p => p.id === undefined || p.id === null);
 
     const allUpsertedData: any[] = [];
-    const CHUNK_SIZE = 100;
-    for (let i = 0; i < payloads.length; i += CHUNK_SIZE) {
-      const chunk = payloads.slice(i, i + CHUNK_SIZE);
-      console.log(`[DataRepo] Tentando UPSERT em ${tableName}:`, chunk);
+
+    const processBatch = async (batch: any[]) => {
+      if (batch.length === 0) return true;
       
-      const { data, error } = await supabase.from(tableName).upsert(chunk).select();
-      
-      if (error) {
-        console.error(`[DataRepo] ERRO CRÍTICO no Supabase (${tableName}):`, {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          payloadSent: chunk
-        });
-        return { success: false };
+      const CHUNK_SIZE = 100;
+      for (let i = 0; i < batch.length; i += CHUNK_SIZE) {
+        const chunk = batch.slice(i, i + CHUNK_SIZE);
+        
+        // Se for app_config, garantir o ID
+        if (tableName === 'app_config' && chunk.length > 0) {
+           if (GLOBAL_ID_CACHE[tableName]) {
+             chunk[0].id = GLOBAL_ID_CACHE[tableName];
+           } else {
+             const { data } = await supabase.from(tableName).select('id').limit(1);
+             if (data && data.length > 0) {
+               chunk[0].id = data[0].id;
+               GLOBAL_ID_CACHE[tableName] = data[0].id;
+             }
+           }
+        }
+
+        console.log(`[DataRepo] Tentando UPSERT em ${tableName}:`, chunk);
+        const { data, error } = await supabase.from(tableName).upsert(chunk).select();
+        
+        if (error) {
+          console.error(`[DataRepo] ERRO CRÍTICO no Supabase (${tableName}):`, {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+            payloadSent: chunk
+          });
+          return false;
+        }
+        if (data) {
+          allUpsertedData.push(...toCamel(data));
+        }
+        console.log(`[DataRepo] Sucesso no UPSERT em ${tableName}. Resposta:`, data);
       }
-      if (data) {
-        allUpsertedData.push(...toCamel(data));
-      }
-      console.log(`[DataRepo] Sucesso no UPSERT em ${tableName}. Resposta:`, data);
-    }
+      return true;
+    };
+
+    const successWithId = await processBatch(withId);
+    if (!successWithId) return { success: false };
+
+    const successWithoutId = await processBatch(withoutId);
+    if (!successWithoutId) return { success: false };
 
     if (collection === 'bibleClasses') {
         // For bibleClasses, we need to ensure the students are attached to the returned objects
