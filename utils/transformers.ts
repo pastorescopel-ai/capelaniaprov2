@@ -97,20 +97,22 @@ export const toCamel = (obj: any): any => {
   return newObj;
 };
 
-export const TABLES_WITH_NUMERIC_DATES = [
-  'activity_schedules', 
-  'pro_monthly_stats',
-  'pro_group_members',
-  'pro_group_provider_members',
-  'pro_staff',
-  'pro_sectors',
-  'pro_groups',
-  'pro_patients',
-  'pro_providers',
-  'users',
-  'app_config',
-  'ambassadors'
-];
+// Mapeamento exato de colunas que são BIGINT (int8) no banco de dados, baseado no SQL do usuário.
+// Qualquer campo de data NÃO listado aqui para sua respectiva tabela será tratado como TIMESTAMPTZ/DATE (ISO String).
+export const NUMERIC_DATE_COLUMNS_BY_TABLE: Record<string, string[]> = {
+  activity_schedules: ['created_at'],
+  app_config: ['last_modified_at', 'updated_at'],
+  bible_classes: ['created_at', 'updated_at'],
+  bible_studies: ['created_at', 'updated_at'],
+  bible_study_sessions: ['created_at', 'updated_at'],
+  daily_activity_reports: ['created_at', 'updated_at'],
+  pro_group_locations: ['created_at'],
+  pro_sectors: ['created_at'], // Note: updated_at é timestamptz, por isso não está aqui
+  small_groups: ['created_at', 'updated_at'],
+  staff_visits: ['created_at', 'updated_at'],
+  users: ['updated_at'],
+  visit_requests: ['created_at', 'updated_at']
+};
 
 export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: string): any => {
   if (!obj || typeof obj !== 'object') return obj;
@@ -163,12 +165,11 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
       }
 
       if (DATE_FIELDS.includes(snakeKey) && val) {
-          // Campos de metadados do sistema geralmente são BIGINT (milissegundos)
-          const isSystemDate = ['created_at', 'updated_at', 'last_modified_at'].includes(snakeKey);
-          const isNumericTable = TABLES_WITH_NUMERIC_DATES.includes(tableName);
+          const numericCols = NUMERIC_DATE_COLUMNS_BY_TABLE[tableName] || [];
+          const isNumeric = numericCols.includes(snakeKey);
           
-          // Se for campo de sistema OU a tabela for inteiramente numérica, enviamos como número (BIGINT)
-          if (isSystemDate || isNumericTable) {
+          if (isNumeric) {
+              // Converte para número (BIGINT)
               if (typeof val === 'string') {
                   const d = new Date(val);
                   if (!isNaN(d.getTime())) {
@@ -176,7 +177,7 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
                   }
               }
           } else {
-              // Caso contrário, enviamos como ISO String (TIMESTAMPTZ)
+              // Converte para ISO String (TIMESTAMPTZ/DATE)
               if (typeof val === 'number') {
                   val = new Date(val).toISOString();
               } else if (typeof val === 'string' && !isNaN(Number(val))) {

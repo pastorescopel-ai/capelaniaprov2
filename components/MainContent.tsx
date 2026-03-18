@@ -7,18 +7,17 @@ import { usePro } from '../contexts/ProContext';
 
 // Lazy Imports
 const Dashboard = lazy(() => import('./Dashboard'));
-const BibleStudyForm = lazy(() => import('./Forms/BibleStudyForm'));
-const BibleClassForm = lazy(() => import('./Forms/BibleClassForm'));
-const SmallGroupForm = lazy(() => import('./Forms/SmallGroupForm'));
-const StaffVisitForm = lazy(() => import('./Forms/StaffVisitForm'));
-const Profile = lazy(() => import('./Profile'));
 const Reports = lazy(() => import('./Reports'));
-const UserManagement = lazy(() => import('./UserManagement'));
-const AdminPanel = lazy(() => import('./AdminPanel'));
 const PGManager = lazy(() => import('./PGManagement/PGManagerLayout'));
 const AmbassadorsManager = lazy(() => import('./Ambassadors/AmbassadorsManager'));
 const DataHealer = lazy(() => import('./DataHealer'));
 const ActivityManager = lazy(() => import('./Activities/ActivityManager'));
+
+// Modular Components
+const StaffModule = lazy(() => import('../modules/staff/StaffModule'));
+const PGModule = lazy(() => import('../modules/pg/PGModule'));
+const BibleModule = lazy(() => import('../modules/bible/BibleModule'));
+const CoreModule = lazy(() => import('../modules/core/CoreModule'));
 
 interface MainContentProps {
   activeTab: string;
@@ -116,27 +115,86 @@ const MainContent: React.FC<MainContentProps> = (props) => {
           />
         );
       case 'bibleStudy':
-        return <BibleStudyForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleStudies} unit={currentUnit} history={getVisibleHistory(bibleStudies)} onDelete={id => setItemToDelete({type: 'study', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('study', d)} onTransfer={handleTransfer} />;
+        return (
+          <BibleModule 
+            type="study" 
+            currentUser={currentUser} 
+            users={users} 
+            editingItem={editingItem} 
+            isLoading={isLoading} 
+            onCancelEdit={() => setEditingItem(null)} 
+            allHistory={bibleStudies} 
+            unit={currentUnit} 
+            history={getVisibleHistory(bibleStudies)} 
+            setItemToDelete={setItemToDelete} 
+            onEdit={setEditingItem} 
+            handleTransfer={handleTransfer} 
+          />
+        );
       case 'bibleClass':
-        return <BibleClassForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} allHistory={bibleClasses} unit={currentUnit} sectors={unitSectors} history={getVisibleHistory(bibleClasses)} onDelete={id => setItemToDelete({type: 'class', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('class', d)} onTransfer={handleTransfer} />;
+        return (
+          <BibleModule 
+            type="class" 
+            currentUser={currentUser} 
+            users={users} 
+            editingItem={editingItem} 
+            isLoading={isLoading} 
+            onCancelEdit={() => setEditingItem(null)} 
+            allHistory={bibleClasses} 
+            unit={currentUnit} 
+            sectors={unitSectors} 
+            history={getVisibleHistory(bibleClasses)} 
+            setItemToDelete={setItemToDelete} 
+            onEdit={setEditingItem} 
+            handleTransfer={handleTransfer} 
+          />
+        );
       case 'smallGroup':
-        return <SmallGroupForm currentUser={currentUser} users={users} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(smallGroups)} onDelete={id => setItemToDelete({type: 'pg', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('pg', d)} />;
+        return (
+          <PGModule 
+            currentUser={currentUser} 
+            users={users} 
+            editingItem={editingItem} 
+            isLoading={isLoading} 
+            onCancelEdit={() => setEditingItem(null)} 
+            allHistory={smallGroups} 
+            unit={currentUnit} 
+            history={getVisibleHistory(smallGroups)} 
+            setItemToDelete={setItemToDelete} 
+            onEdit={setEditingItem} 
+            handleTransfer={handleTransfer} 
+          />
+        );
+      case 'ambassadors':
+        return <AmbassadorsManager />;
       case 'staffVisit':
-        return <StaffVisitForm currentUser={currentUser} users={users} onToggleReturn={id => { const item = staffVisits.find(v=>v.id===id); if(item) saveRecord('staffVisits', {...item, returnCompleted: !item.returnCompleted}); }} editingItem={editingItem} isLoading={isLoading} onCancelEdit={() => setEditingItem(null)} unit={currentUnit} history={getVisibleHistory(staffVisits)} allHistory={staffVisits} onDelete={id => setItemToDelete({type: 'visit', id})} onEdit={setEditingItem} onSubmit={d => handleSaveItem('visit', d)} />;
+        return (
+          <StaffModule 
+            currentUser={currentUser} 
+            users={users} 
+            editingItem={editingItem} 
+            isLoading={isLoading} 
+            onCancelEdit={() => setEditingItem(null)} 
+            unit={currentUnit} 
+            history={getVisibleHistory(staffVisits)} 
+            allHistory={staffVisits} 
+            setItemToDelete={setItemToDelete} 
+            onEdit={setEditingItem} 
+            handleTransfer={handleTransfer} 
+          />
+        );
       case 'reports':
         return <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} currentUser={currentUser} config={config} onRefresh={() => loadFromCloud(true)} />;
       case 'pgManagement':
         return <PGManager />;
-      case 'ambassadors':
-        return <AmbassadorsManager />;
       case 'users':
-        return <UserManagement users={users} currentUser={currentUser} onUpdateUsers={async u => { await saveToCloud({ users: u }, true); }} />;
+        return <CoreModule type="users" currentUser={currentUser} users={users} isLoading={isLoading} onUpdateUsers={async u => { await saveToCloud({ users: u }, true); }} />;
       case 'profile':
-        return currentUser && <Profile user={currentUser} isSyncing={isLoading} onUpdateUser={u => { updateCurrentUser(u); saveRecord('users', u); }} />;
+        return <CoreModule type="profile" currentUser={currentUser} users={users} isLoading={isLoading} onUpdateUser={updateCurrentUser} />;
       case 'admin':
-        return <AdminPanel />;
+        return <CoreModule type="admin" currentUser={currentUser} users={users} isLoading={isLoading} />;
       case 'dataHealing':
-        return <DataHealer />;
+        return <CoreModule type="dataHealing" currentUser={currentUser} users={users} isLoading={isLoading} />;
       case 'activities':
         return <ActivityManager isActive={activeTab === 'activities'} initialSubTab={activitiesSubTab} />;
       default:
