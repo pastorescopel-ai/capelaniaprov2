@@ -16,6 +16,7 @@ interface HistorySectionProps<T> {
   renderItem: (item: T, index: number, allItems: T[]) => React.ReactNode;
   disableSort?: boolean;
   bypassFilter?: (item: T) => boolean;
+  onContinue?: (item: T) => void;
 }
 
 const PAGE_SIZE = 10;
@@ -29,7 +30,8 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
   searchFields,
   renderItem,
   disableSort = false,
-  bypassFilter
+  bypassFilter,
+  onContinue
 }: HistorySectionProps<T>) => {
   const [filterChaplain, setFilterChaplain] = useState('all');
   
@@ -93,8 +95,24 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
     });
 
     if (disableSort) return filtered;
-    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [data, filterChaplain, filterStart, filterEnd, debouncedSearchQuery, searchFields, disableSort, bypassFilter]);
+    
+    return filtered.sort((a, b) => {
+      // 1. Se for Admin e filtro for 'all', prioriza os próprios registros
+      if (currentUser.role === UserRole.ADMIN && filterChaplain === 'all') {
+        const aIsMine = a.userId === currentUser.id;
+        const bIsMine = b.userId === currentUser.id;
+        if (aIsMine && !bIsMine) return -1;
+        if (!aIsMine && bIsMine) return 1;
+      }
+      
+      // 2. Ordenação por data (mais recente primeiro)
+      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      
+      // 3. Tie-breaker: createdAt (mais recente primeiro)
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+  }, [data, filterChaplain, filterStart, filterEnd, debouncedSearchQuery, searchFields, disableSort, bypassFilter, currentUser]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

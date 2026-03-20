@@ -34,7 +34,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     lastClassStudents, callList,
     guideOptions, studentSearchOptions, sectorOptions,
     addStudent, handleClear, handleFormSubmit,
-    defaultState, ownershipConflict, setOwnershipConflict
+    handleContinueClass, defaultState, ownershipConflict, setOwnershipConflict
   } = useBibleClassForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
@@ -51,10 +51,10 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
   ), [formData, handleClear, setFormData]);
 
   const historySection = React.useMemo(() => (
-    <HistorySection<BibleClass> title="Histórico de Classes" data={history} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['guide', 'students']} renderItem={(item) => (
-      <HistoryCard key={item.id} icon="👥" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-indigo-600"} title={item.guide || 'Classe Bíblica'} subtitle={`${item.sector} • ${item.students.length} alunos`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role)} isAdmin={currentUser.role === UserRole.ADMIN} users={users} onTransfer={(newUid) => onTransfer?.('class', item.id, newUid)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} />
+    <HistorySection<BibleClass> title="Histórico de Classes" data={history} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['guide', 'students']} onContinue={handleContinueClass} renderItem={(item) => (
+      <HistoryCard key={item.id} icon="👥" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-indigo-600"} title={item.guide || 'Classe Bíblica'} subtitle={`${item.sector} • ${item.students.length} alunos`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role)} isAdmin={currentUser.role === UserRole.ADMIN} users={users} onTransfer={(newUid) => onTransfer?.('class', item.id, newUid)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} onContinue={() => handleContinueClass(item)} />
     )} />
-  ), [history, users, currentUser, isLoading, onTransfer, onEdit, onDelete]);
+  ), [history, users, currentUser, isLoading, onTransfer, onEdit, onDelete, handleContinueClass]);
 
   return (
     <>

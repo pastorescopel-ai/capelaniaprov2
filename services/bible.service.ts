@@ -1,10 +1,10 @@
 import { supabase } from './supabaseClient';
-import { cleanAndConvertToSnake } from '../utils/transformers';
+import { cleanAndConvertToSnake, TABLE_SCHEMAS } from '../utils/transformers';
 
 export const BibleService = {
   async fetchStudies() {
     const { data, error } = await supabase
-      .from('bible_studies')
+      .from('bible_study_sessions')
       .select('*')
       .order('date', { ascending: false });
     
@@ -23,9 +23,9 @@ export const BibleService = {
   },
 
   async saveBibleStudy(study: any) {
-    const snakeStudy = cleanAndConvertToSnake('bible_studies', study);
+    const snakeStudy = cleanAndConvertToSnake(study, TABLE_SCHEMAS.bible_study_sessions, 'bible_study_sessions');
     const { data, error } = await supabase
-      .from('bible_studies')
+      .from('bible_study_sessions')
       .upsert(snakeStudy)
       .select()
       .single();
@@ -35,7 +35,7 @@ export const BibleService = {
   },
 
   async saveBibleClass(bibleClass: any) {
-    const snakeClass = cleanAndConvertToSnake('bible_classes', bibleClass);
+    const snakeClass = cleanAndConvertToSnake(bibleClass, TABLE_SCHEMAS.bible_classes, 'bible_classes');
     const { data, error } = await supabase
       .from('bible_classes')
       .upsert(snakeClass)
@@ -47,7 +47,7 @@ export const BibleService = {
   },
 
   async saveClassAttendees(classId: string, attendees: any[]) {
-    const snakeAttendees = attendees.map(a => cleanAndConvertToSnake('bible_class_attendees', { ...a, classId }));
+    const snakeAttendees = attendees.map(a => cleanAndConvertToSnake({ ...a, classId }, TABLE_SCHEMAS.bible_class_attendees, 'bible_class_attendees'));
     const { error } = await supabase
       .from('bible_class_attendees')
       .upsert(snakeAttendees);

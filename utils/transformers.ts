@@ -50,7 +50,8 @@ export const DATE_FIELDS = ['joined_at', 'left_at', 'updated_at', 'created_at', 
 
 export const isValidUUID = (uuid: string) => {
   const s = "" + uuid;
-  return s.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  // Allow standard UUID or numeric string (for legacy/PRO IDs)
+  return s.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) || s.match(/^\d+$/);
 };
 
 const keyCache: Record<string, string> = {};
@@ -103,7 +104,6 @@ export const NUMERIC_DATE_COLUMNS_BY_TABLE: Record<string, string[]> = {
   activity_schedules: ['created_at'],
   app_config: ['last_modified_at', 'updated_at'],
   bible_classes: ['created_at', 'updated_at'],
-  bible_studies: ['created_at', 'updated_at'],
   bible_study_sessions: ['created_at', 'updated_at'],
   daily_activity_reports: ['created_at', 'updated_at'],
   pro_group_locations: ['created_at'],
@@ -192,7 +192,7 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
       }
 
       if (tableName !== 'visit_requests' && !tableName.startsWith('pro_') && snakeKey !== 'staff_id' && snakeKey !== 'provider_id' && snakeKey !== 'sector_id') {
-        if (isFK && val && !isValidUUID(val) && tableName !== 'bible_class_attendees') {
+        if (isFK && val && !isValidUUID(val) && tableName !== 'bible_class_attendees' && !String(val).match(/^\d+$/)) {
           newObj[snakeKey] = null;
           continue;
         }

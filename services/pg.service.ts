@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { cleanAndConvertToSnake } from '../utils/transformers';
+import { cleanAndConvertToSnake, TABLE_SCHEMAS } from '../utils/transformers';
 
 export const PGService = {
   async fetchSmallGroups() {
@@ -13,7 +13,7 @@ export const PGService = {
   },
 
   async saveSmallGroup(pg: any) {
-    const snakePG = cleanAndConvertToSnake('small_groups', pg);
+    const snakePG = cleanAndConvertToSnake(pg, TABLE_SCHEMAS.small_groups, 'small_groups');
     const { data, error } = await supabase
       .from('small_groups')
       .upsert(snakePG)

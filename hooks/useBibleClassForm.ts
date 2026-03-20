@@ -39,7 +39,11 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     // Busca a última classe DESTE SETOR e DESTE TIPO DE PARTICIPANTE
     const lastClass = [...allHistory]
       .filter(c => c.sector === formData.sector && c.unit === unit && (c.participantType || ParticipantType.STAFF) === formData.participantType)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      .sort((a, b) => {
+        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      })[0];
       
     return lastClass?.students || [];
   }, [formData.sector, allHistory, unit, formData.participantType]);
@@ -191,7 +195,11 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         // Filtra o histórico para pegar a última classe deste setor e deste tipo de participante
         const lastClass = [...allHistory]
             .filter(c => c.sector === formData.sector && c.unit === unit && (c.participantType || ParticipantType.STAFF) === formData.participantType)
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+            .sort((a, b) => {
+                const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+                if (dateDiff !== 0) return dateDiff;
+                return (b.createdAt || 0) - (a.createdAt || 0);
+            })[0];
         
         if (sectorObj && formData.participantType === ParticipantType.STAFF) {
             // STRICT OWNERSHIP CHECK: Verifica se a classe do setor pertence a outro
@@ -311,13 +319,21 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       if (formData.participantType !== ParticipantType.STAFF) {
           let lastClassWithStudent = [...allHistory]
               .filter(c => c.students && c.students.includes(finalString) && (c.participantType || ParticipantType.STAFF) === formData.participantType)
-              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+              .sort((a, b) => {
+                  const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+                  if (dateDiff !== 0) return dateDiff;
+                  return (b.createdAt || 0) - (a.createdAt || 0);
+              })[0];
           
           if (!lastClassWithStudent) {
               // Se não achou na aba atual, busca em qualquer aba (Migração)
               lastClassWithStudent = [...allHistory]
                   .filter(c => c.students && c.students.includes(finalString))
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                  .sort((a, b) => {
+                      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+                      if (dateDiff !== 0) return dateDiff;
+                      return (b.createdAt || 0) - (a.createdAt || 0);
+                  })[0];
           }
 
           if (lastClassWithStudent) {
@@ -430,6 +446,31 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     lastClassStudents, callList,
     guideOptions, studentSearchOptions, sectorOptions,
     addStudent, handleClear, handleFormSubmit,
+    handleContinueClass: (item: BibleClass) => {
+        // Busca a última classe DESTE SETOR e DESTE TIPO DE PARTICIPANTE para garantir que pegamos a mais recente
+        const lastClass = [...allHistory]
+            .filter(c => c.sector === item.sector && c.unit === unit && (c.participantType || ParticipantType.STAFF) === (item.participantType || ParticipantType.STAFF))
+            .sort((a, b) => {
+                const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+                if (dateDiff !== 0) return dateDiff;
+                return (b.createdAt || 0) - (a.createdAt || 0);
+            })[0];
+        
+        const baseItem = lastClass || item;
+
+        setFormData(prev => ({
+            ...prev,
+            id: '', // CRITICAL: Clear ID to ensure a new record is created
+            sector: baseItem.sector,
+            participantType: baseItem.participantType || ParticipantType.STAFF,
+            students: baseItem.students || [],
+            guide: baseItem.guide,
+            lesson: !isNaN(parseInt(baseItem.lesson)) ? (parseInt(baseItem.lesson) + 1).toString() : baseItem.lesson,
+            status: RecordStatus.CONTINUACAO,
+            representativePhone: baseItem.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || ''
+        }));
+        showToast(`Continuando classe de ${baseItem.sector}`, "info");
+    },
     defaultState,
     ownershipConflict, setOwnershipConflict
   };

@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { cleanAndConvertToSnake } from '../utils/transformers';
+import { cleanAndConvertToSnake, TABLE_SCHEMAS } from '../utils/transformers';
 
 export const StaffService = {
   async fetchVisits() {
@@ -13,7 +13,7 @@ export const StaffService = {
   },
 
   async saveVisit(visit: any) {
-    const snakeVisit = cleanAndConvertToSnake('staff_visits', visit);
+    const snakeVisit = cleanAndConvertToSnake(visit, TABLE_SCHEMAS.staff_visits, 'staff_visits');
     const { data, error } = await supabase
       .from('staff_visits')
       .upsert(snakeVisit)

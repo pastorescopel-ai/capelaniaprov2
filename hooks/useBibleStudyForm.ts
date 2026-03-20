@@ -196,7 +196,11 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
     const lastRecord = [...allHistory]
         .filter(h => normalizeString(h.name) === normName && h.unit === unit)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        .sort((a, b) => {
+            const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+            if (dateDiff !== 0) return dateDiff;
+            return (b.createdAt || 0) - (a.createdAt || 0);
+        })[0];
     
     if (lastRecord) {
         targetGuide = lastRecord.guide;
@@ -280,21 +284,6 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     }
   };
 
-  const groupedHistory = useMemo(() => {
-    const map = new Map<string, BibleStudy>();
-    history.forEach(s => {
-      const key = `${normalizeString(s.name)}-${s.unit}-${s.participantType}`;
-      if (!map.has(key)) {
-        map.set(key, s);
-      } else {
-        const existing = map.get(key)!;
-        if (new Date(s.date).getTime() > new Date(existing.date).getTime()) {
-          map.set(key, s);
-        }
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [history]);
 
   return {
     formData, setFormData,
@@ -302,7 +291,32 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     isSubmitting,
     guideOptions, sectorOptions, studentOptions,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
-    groupedHistory, defaultState,
+    handleContinueStudy: (item: BibleStudy) => {
+        const normName = normalizeString(item.name);
+        const lastRecord = [...allHistory]
+            .filter(h => normalizeString(h.name) === normName && h.unit === unit)
+            .sort((a, b) => {
+                const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+                if (dateDiff !== 0) return dateDiff;
+                return (b.createdAt || 0) - (a.createdAt || 0);
+            })[0];
+        
+        const baseItem = lastRecord || item;
+
+        setFormData(prev => ({
+            ...prev,
+            id: '', // CRITICAL: Clear ID to ensure a new record is created
+            name: baseItem.name,
+            participantType: baseItem.participantType || ParticipantType.STAFF,
+            sector: baseItem.sector,
+            whatsapp: baseItem.whatsapp,
+            guide: baseItem.guide,
+            lesson: !isNaN(parseInt(baseItem.lesson)) ? (parseInt(baseItem.lesson) + 1).toString() : baseItem.lesson,
+            status: RecordStatus.CONTINUACAO
+        }));
+        showToast(`Continuando estudo de ${baseItem.name}`, "info");
+    },
+    defaultState,
     ownershipConflict, setOwnershipConflict
   };
 };

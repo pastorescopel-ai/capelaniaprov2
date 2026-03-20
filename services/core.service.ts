@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { cleanAndConvertToSnake } from '../utils/transformers';
+import { cleanAndConvertToSnake, TABLE_SCHEMAS } from '../utils/transformers';
 
 export const CoreService = {
   async fetchUsers() {
@@ -23,7 +23,7 @@ export const CoreService = {
   },
 
   async saveUser(user: any) {
-    const snakeUser = cleanAndConvertToSnake('users', user);
+    const snakeUser = cleanAndConvertToSnake(user, TABLE_SCHEMAS.users, 'users');
     const { data, error } = await supabase
       .from('users')
       .upsert(snakeUser)
@@ -35,7 +35,7 @@ export const CoreService = {
   },
 
   async saveAppConfig(config: any) {
-    const snakeConfig = cleanAndConvertToSnake('app_config', config);
+    const snakeConfig = cleanAndConvertToSnake(config, TABLE_SCHEMAS.app_config, 'app_config');
     const { data, error } = await supabase
       .from('app_config')
       .upsert(snakeConfig)

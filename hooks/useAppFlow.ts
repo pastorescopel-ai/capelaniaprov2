@@ -45,7 +45,7 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
       return;
     }
 
-    const targetId = data.id || editingItem?.id || crypto.randomUUID();
+    const targetId = data.id || crypto.randomUUID();
     const now = Date.now();
     
     // NUCLEO_LOGICO: Normalização da data antes do envio ao banco

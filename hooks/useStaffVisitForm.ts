@@ -268,7 +268,20 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
         return new Date(a.returnDate).getTime() - new Date(b.returnDate).getTime();
       }
 
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
+      // Admin priority for general history
+      if (isAdmin) {
+        const aIsMine = a.userId === currentUser.id;
+        const bIsMine = b.userId === currentUser.id;
+        if (aIsMine && !bIsMine) return -1;
+        if (!aIsMine && bIsMine) return 1;
+      }
+
+      // 2. Ordenação por data (mais recente primeiro)
+      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      
+      // 3. Tie-breaker: createdAt (mais recente primeiro)
+      return (b.createdAt || 0) - (a.createdAt || 0);
     });
   }, [history, allHistory, currentUser]);
 

@@ -32,7 +32,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     isSubmitting,
     guideOptions, sectorOptions, studentOptions,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
-    groupedHistory, ownershipConflict, setOwnershipConflict
+    handleContinueStudy, ownershipConflict, setOwnershipConflict
   } = useBibleStudyForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
@@ -52,10 +52,10 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   ), [formData, handleClear, setFormData, setIsSectorLocked]);
 
   const historySection = React.useMemo(() => (
-    <HistorySection<BibleStudy> data={groupedHistory} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['name']} renderItem={(item) => (
-      <HistoryCard key={item.id} icon="📖" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-blue-600"} title={item.name} subtitle={`${item.sector} • ${item.status}`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role)} isAdmin={currentUser.role === UserRole.ADMIN} users={users} onTransfer={(newUid) => onTransfer?.('study', item.id, newUid)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} middle={item.participantType && item.participantType !== ParticipantType.STAFF && (<span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${item.participantType === ParticipantType.PATIENT ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{item.participantType}</span>)}/>
+    <HistorySection<BibleStudy> data={history} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['name']} onContinue={handleContinueStudy} renderItem={(item) => (
+      <HistoryCard key={item.id} icon="📖" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-blue-600"} title={item.name} subtitle={`${item.sector} • ${item.status}`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role)} isAdmin={currentUser.role === UserRole.ADMIN} users={users} onTransfer={(newUid) => onTransfer?.('study', item.id, newUid)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} onContinue={() => handleContinueStudy(item)} middle={item.participantType && item.participantType !== ParticipantType.STAFF && (<span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${item.participantType === ParticipantType.PATIENT ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{item.participantType}</span>)}/>
     )} />
-  ), [groupedHistory, users, currentUser, isLoading, onTransfer, onEdit, onDelete]);
+  ), [history, users, currentUser, isLoading, onTransfer, onEdit, onDelete, handleContinueStudy]);
 
   return (
     <>
