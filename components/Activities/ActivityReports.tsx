@@ -8,7 +8,7 @@ import { generateActivityReportHTML } from '../../utils/activityTemplates';
 import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
 
 const ActivityReports: React.FC = () => {
-  const { users, dailyActivityReports, config } = useApp();
+  const { users, proSectors, dailyActivityReports, config } = useApp();
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const { generatePdf, isGenerating: isGeneratingPdf } = useDocumentGenerator();
