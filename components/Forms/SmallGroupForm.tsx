@@ -81,7 +81,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
           isLoading={isSubmitting}
           className="w-full py-4 md:py-6 text-xs"
         >
-          Salvar Registro de PG
+          Salvar Registro
         </Button>
       </form>
     </FormScaffold>

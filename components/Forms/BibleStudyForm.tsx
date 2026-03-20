@@ -122,7 +122,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           isLoading={isSubmitting}
           className="w-full py-4 md:py-5 text-xs"
         >
-          Gravar Registro
+          Salvar Registro
         </Button>
       </form>
     </FormScaffold>

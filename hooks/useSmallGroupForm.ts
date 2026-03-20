@@ -149,12 +149,23 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
 
     setIsSubmitting(true);
     try {
-      await syncMasterContact(formData.leader, formData.leaderPhone, unit, ParticipantType.STAFF);
+      await syncMasterContact(formData.leader, formData.leaderPhone, unit, ParticipantType.STAFF, formData.sector);
       const pgMaster = proGroups.find(g => g.name === formData.groupName && g.unit === unit);
       if (pgMaster) {
           const cleanPhone = formData.leaderPhone.replace(/\D/g, '');
-          if (cleanPhone !== (pgMaster.leaderPhone || '')) {
-              await saveRecord('proGroups', { ...pgMaster, leaderPhone: cleanPhone });
+          const targetSector = proSectors.find(s => s.name === formData.sector && s.unit === unit);
+          
+          const leaderChanged = pgMaster.leader !== formData.leader;
+          const phoneChanged = cleanPhone !== (pgMaster.leaderPhone || '');
+          const sectorChanged = targetSector && pgMaster.sectorId !== targetSector.id;
+          
+          if (leaderChanged || phoneChanged || sectorChanged) {
+              await saveRecord('proGroups', { 
+                  ...pgMaster, 
+                  leader: formData.leader,
+                  leaderPhone: cleanPhone,
+                  ...(targetSector ? { sectorId: targetSector.id } : {})
+              });
           }
       }
 

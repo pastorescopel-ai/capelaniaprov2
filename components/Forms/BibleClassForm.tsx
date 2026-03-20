@@ -158,7 +158,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           isLoading={isSubmitting}
           className="w-full py-4 md:py-6 text-xs"
         >
-          Salvar Classe Bíblica
+          Salvar Registro
         </Button>
       </form>
     </FormScaffold>

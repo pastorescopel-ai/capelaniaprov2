@@ -224,7 +224,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           isLoading={isSubmitting}
           className="w-full py-4 md:py-6 text-xs"
         >
-          Registrar Visita Pastoral
+          Salvar Registro
         </Button>
       </form>
     </FormScaffold>
