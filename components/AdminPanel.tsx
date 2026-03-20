@@ -5,6 +5,7 @@ import { useToast } from '../contexts/ToastProvider';
 import AdminConfig from './Admin/AdminConfig';
 import AdminLists from './Admin/AdminLists';
 import AdminDataTools from './Admin/AdminDataTools';
+import AdminEditAuthorizations from './Admin/AdminEditAuthorizations';
 import { useApp } from '../hooks/useApp';
 import { useAuth } from '../contexts/AuthProvider';
 
@@ -13,6 +14,7 @@ const AdminPanel: React.FC = () => {
     config, 
     bibleStudies, bibleClasses, smallGroups, staffVisits, users,
     proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, proMonthlyStats, ambassadors,
+    editAuthorizations,
     saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, saveRecord, deleteRecord
   } = useApp();
   
@@ -90,7 +92,7 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'config' | 'identity' | 'lists' | 'tools'>('config');
+  const [activeTab, setActiveTab] = useState<'config' | 'identity' | 'lists' | 'tools' | 'permissions'>('config');
 
   // Lógica para notificação de fechamento de mês
   const previousMonthClosed = useCallback(() => {
@@ -151,6 +153,7 @@ const AdminPanel: React.FC = () => {
           { id: 'config', label: 'Configurações', icon: 'fa-cog' },
           { id: 'identity', label: 'Identidade Visual', icon: 'fa-palette' },
           { id: 'lists', label: 'Listas & PGs', icon: 'fa-list-ul' },
+          { id: 'permissions', label: 'Permissões', icon: 'fa-user-shield' },
           { id: 'tools', label: 'Ferramentas', icon: 'fa-tools' },
         ].map(tab => (
           <button
@@ -190,6 +193,16 @@ const AdminPanel: React.FC = () => {
             onSavePro={handleSaveProData}
             activeUnit={activeUnit}
             setActiveUnit={setActiveUnit}
+          />
+        )}
+
+        {activeTab === 'permissions' && (
+          <AdminEditAuthorizations 
+            users={users}
+            authorizations={editAuthorizations}
+            onSave={(auth) => saveRecord('editAuthorizations', auth)}
+            onDelete={(id) => deleteRecord('editAuthorizations', id)}
+            currentUser={currentUser}
           />
         )}
 

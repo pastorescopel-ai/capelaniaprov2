@@ -3,6 +3,7 @@ import { Unit, SmallGroup, User, ParticipantType } from '../types';
 import { useToast } from '../contexts/ToastProvider';
 import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
+import { isRecordLocked } from '../utils/validators';
 import { usePGInference } from './usePGInference';
 
 interface UseSmallGroupFormProps {
@@ -14,7 +15,7 @@ interface UseSmallGroupFormProps {
 }
 
 export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onSubmit }: UseSmallGroupFormProps) => {
-  const { proSectors, proGroups, proStaff, saveRecord, visitRequests, syncMasterContact, proGroupLocations } = useApp();
+  const { proSectors, proGroups, proStaff, saveRecord, visitRequests, syncMasterContact, proGroupLocations, editAuthorizations } = useApp();
   const { inferPGDetails, inferLeaderDetails } = usePGInference(unit, proGroups, proSectors, proGroupLocations, proStaff);
   const { showToast } = useToast();
   
@@ -126,6 +127,11 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
     if (!proGroups.some(g => g.name === formData.groupName && g.unit === unit)) { showToast("Selecione um Pequeno Grupo válido da lista.", "warning"); return; }
     if (!proSectors.some(s => s.name === formData.sector && s.unit === unit)) { showToast("Selecione um setor oficial válido.", "warning"); return; }
     
+    if (isRecordLocked(formData.date, currentUser.role, 'smallGroups', editAuthorizations)) {
+        showToast("Este período está bloqueado para lançamentos.", "error");
+        return;
+    }
+
     setIsSubmitting(true);
     try {
       await syncMasterContact(formData.leader, formData.leaderPhone, unit, ParticipantType.STAFF);
@@ -172,6 +178,7 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
     isSectorLocked, setIsSectorLocked,
     isSubmitting,
     sectorOptions, pgOptions, staffOptions,
+    editAuthorizations,
     handleSelectPG, handleSelectLeader, handleClear, handleFormSubmit,
     defaultState
   };

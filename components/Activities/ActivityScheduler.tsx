@@ -98,7 +98,8 @@ const ActivityScheduler: React.FC = () => {
           const conflict = globalSchedulesForMonth.find(s => 
             Number(s.dayOfWeek) === Number(ns.dayOfWeek) && 
             s.activityType === ns.activityType && 
-            String(s.location) === nsLocation
+            String(s.location) === nsLocation &&
+            (s.period || 'tarde') === ns.period
           );
           return !conflict;
         } else {
@@ -106,7 +107,8 @@ const ActivityScheduler: React.FC = () => {
             s.userId === ns.userId && 
             Number(s.dayOfWeek) === Number(ns.dayOfWeek) && 
             s.activityType === ns.activityType && 
-            String(s.location) === nsLocation
+            String(s.location) === nsLocation &&
+            (s.period || 'tarde') === ns.period
           );
           return !conflict;
         }
@@ -160,6 +162,7 @@ const ActivityScheduler: React.FC = () => {
         dayOfWeek: s.dayOfWeek,
         activityType: s.activityType,
         location: s.location,
+        period: s.period,
         time: s.time,
         createdAt: Date.now()
       }));
@@ -346,6 +349,9 @@ const ActivityScheduler: React.FC = () => {
                           <div className="min-w-0">
                             <p className="text-[8px] font-black text-indigo-900 uppercase truncate">{s.location}</p>
                             <div className="flex items-center gap-1">
+                              <span className={`text-[7px] font-black px-1 rounded uppercase ${s.period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                                {s.period === 'manha' ? 'Manhã' : 'Tarde'}
+                              </span>
                               {s.time && <span className="text-[7px] font-bold text-indigo-500 bg-indigo-100 px-1 rounded">{s.time}</span>}
                               {!selectedUser && (
                                 <p className="text-[7px] font-bold text-indigo-400 uppercase truncate">
@@ -381,6 +387,9 @@ const ActivityScheduler: React.FC = () => {
                               {sectors.find(sec => sec.id === s.location)?.name || 'Setor Removido'}
                             </p>
                             <div className="flex items-center gap-1">
+                              <span className={`text-[7px] font-black px-1 rounded uppercase ${s.period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                {s.period === 'manha' ? 'Manhã' : 'Tarde'}
+                              </span>
                               {s.time && <span className="text-[7px] font-bold text-emerald-500 bg-emerald-100 px-1 rounded">{s.time}</span>}
                               {!selectedUser && (
                                 <p className="text-[7px] font-bold text-emerald-400 uppercase truncate">
@@ -419,6 +428,9 @@ const ActivityScheduler: React.FC = () => {
                               Encontro HAB {s.date ? `(${s.date.split('-')[2]})` : ''}
                             </p>
                             <div className="flex items-center gap-1">
+                              <span className={`text-[7px] font-black px-1 rounded uppercase ${s.period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-amber-100 text-amber-600'}`}>
+                                {s.period === 'manha' ? 'Manhã' : 'Tarde'}
+                              </span>
                               {s.time && <span className="text-[7px] font-bold text-amber-500 bg-amber-100 px-1 rounded">{s.time}</span>}
                               {!selectedUser && (
                                 <p className="text-[7px] font-bold text-amber-400 uppercase truncate">
@@ -456,6 +468,9 @@ const ActivityScheduler: React.FC = () => {
                             {s.responsibleName && <p className="text-[7px] font-bold text-rose-700 truncate">{s.responsibleName}</p>}
                             {s.responsibleWhatsApp && <p className="text-[7px] font-bold text-rose-600 truncate">{s.responsibleWhatsApp}</p>}
                             <div className="flex items-center gap-1">
+                              <span className={`text-[7px] font-black px-1 rounded uppercase ${s.period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}`}>
+                                {s.period === 'manha' ? 'Manhã' : 'Tarde'}
+                              </span>
                               {s.time && <span className="text-[7px] font-bold text-rose-500 bg-rose-100 px-1 rounded">{s.time}</span>}
                               {!selectedUser && (
                                 <p className="text-[7px] font-bold text-rose-400 uppercase truncate">

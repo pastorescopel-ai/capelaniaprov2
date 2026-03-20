@@ -65,7 +65,7 @@ export const generateMonthlyScheduleHTML = (
                       return `
                         <div style="padding: 6px; border-radius: 6px; background: #f8fafc; border-left: 3px solid ${typeColor};">
                           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                            <span style="font-size: 7px; font-weight: 900; color: ${typeColor}; text-transform: uppercase;">${typeLabel}</span>
+                            <span style="font-size: 7px; font-weight: 900; color: ${typeColor}; text-transform: uppercase;">${typeLabel} | ${(s.period || 'tarde') === 'manha' ? 'Manhã' : 'Tarde'}</span>
                             ${s.time ? `<span style="font-size: 7px; font-weight: bold; color: #64748b;">${s.time}</span>` : ''}
                           </div>
                           <p style="font-size: 9px; font-weight: 700; color: #1e293b; margin: 0; text-transform: uppercase;">${locationName}</p>
@@ -127,7 +127,9 @@ export const generateDailyChecklistHTML = (
                     <div style="width: 20px; height: 20px; border: 2px solid #cbd5e1; border-radius: 4px;"></div>
                     <div style="flex: 1;">
                       <p style="font-size: 11px; font-weight: 900; color: #1e293b; margin: 0; text-transform: uppercase;">${locationName}</p>
-                      <span style="font-size: 9px; font-weight: bold; color: #64748b; text-transform: uppercase;">${s.activityType} ${s.time ? `| ${s.time}` : ''}</span>
+                      <span style="font-size: 9px; font-weight: bold; color: #64748b; text-transform: uppercase;">
+                        ${s.activityType} | ${(s.period || 'tarde') === 'manha' ? 'Manhã' : 'Tarde'} ${s.time ? `| ${s.time}` : ''}
+                      </span>
                     </div>
                   </div>
                 `;

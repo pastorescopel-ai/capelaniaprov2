@@ -29,6 +29,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     isSectorLocked, setIsSectorLocked,
     isSubmitting,
     sectorOptions, nameOptions,
+    editAuthorizations,
     handleSelectName, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
     sortedHistory, defaultState
   } = useStaffVisitForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
@@ -176,7 +177,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
               title={item.staffName} 
               subtitle={`${item.sector} • ${item.reason}`} 
               chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} 
-              isLocked={isRecordLocked(item.date, currentUser.role)} 
+              isLocked={isRecordLocked(item.date, currentUser.role, 'staffVisits', editAuthorizations)} 
               onEdit={() => onEdit?.(item)} 
               onDelete={() => onDelete(item.id)} 
               middle={returnBadge || ((item as any).participantType === ParticipantType.PROVIDER && (<span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">Prestador</span>))}
@@ -186,7 +187,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         );
       }} 
     />
-  ), [sortedHistory, users, currentUser, isLoading, allHistory, history, handlePerformReturn, onDelete, onEdit]);
+  ), [sortedHistory, users, currentUser, isLoading, allHistory, history, handlePerformReturn, onDelete, onEdit, editAuthorizations]);
 
   return (
     <FormScaffold title="Visita Pastoral" subtitle={`Unidade ${unit}`} headerActions={headerActions} history={historySection}>

@@ -3,6 +3,7 @@ import { Unit, RecordStatus, BibleClass, ParticipantType, User } from '../types'
 import { useToast } from '../contexts/ToastProvider';
 import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
+import { isRecordLocked } from '../utils/validators';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
 
@@ -16,7 +17,7 @@ interface UseBibleClassFormProps {
 }
 
 export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit }: UseBibleClassFormProps) => {
-  const { proStaff, proPatients, proProviders, proSectors, syncMasterContact } = useApp();
+  const { proStaff, proPatients, proProviders, proSectors, syncMasterContact, editAuthorizations } = useApp();
   const { showToast } = useToast();
   const { checkOwnershipConflict } = useIdentityGuard();
   
@@ -417,6 +418,11 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         if (!formData.representativePhone || formData.representativePhone.length < 10) { showToast("O WhatsApp do Representante é obrigatório para este grupo.", "warning"); return; }
     }
 
+    if (isRecordLocked(formData.date, currentUser.role, 'bibleClasses', editAuthorizations)) {
+        showToast("Este período está bloqueado para lançamentos.", "error");
+        return;
+    }
+
     setIsSubmitting(true);
     try {
       let finalObservations = formData.observations;
@@ -445,6 +451,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     isSubmitting,
     lastClassStudents, callList,
     guideOptions, studentSearchOptions, sectorOptions,
+    editAuthorizations,
     addStudent, handleClear, handleFormSubmit,
     handleContinueClass: (item: BibleClass) => {
         // Busca a última classe DESTE SETOR e DESTE TIPO DE PARTICIPANTE para garantir que pegamos a mais recente

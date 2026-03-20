@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ParticipantType, Unit, ActivitySchedule, DailyActivityReport } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ParticipantType, Unit, ActivitySchedule, DailyActivityReport, ProMonthlyStats, EditAuthorization } from '../types';
 import { DataRepository } from '../services/dataRepository';
 import { INITIAL_CONFIG } from '../constants';
 import { supabase } from '../services/supabaseClient';
@@ -28,6 +28,7 @@ export const useAppData = () => {
   const [activitySchedules, setActivitySchedules] = useState<ActivitySchedule[]>([]);
   const [dailyActivityReports, setDailyActivityReports] = useState<DailyActivityReport[]>([]);
   const [bibleClassAttendees, setBibleClassAttendees] = useState<any[]>([]);
+  const [editAuthorizations, setEditAuthorizations] = useState<EditAuthorization[]>([]);
   
   const [config, setConfig] = useState<Config>(INITIAL_CONFIG);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -65,6 +66,7 @@ export const useAppData = () => {
         setActivitySchedules(data.activitySchedules || []);
         setDailyActivityReports(data.dailyActivityReports || []);
         setBibleClassAttendees(data.bibleClassAttendees || []);
+        setEditAuthorizations(data.editAuthorizations || []);
         if (data.config) {
           setConfig(data.config);
           applySystemOverrides(data.config);
@@ -103,6 +105,7 @@ export const useAppData = () => {
         'activity_schedules': 'activitySchedules',
         'daily_activity_reports': 'dailyActivityReports',
         'bible_class_attendees': 'bibleClassAttendees',
+        'edit_authorizations': 'editAuthorizations',
         'users': 'users',
         'app_config': 'config'
       };
@@ -148,6 +151,7 @@ export const useAppData = () => {
         else if (collection === 'activitySchedules') updateState(setActivitySchedules);
         else if (collection === 'dailyActivityReports') updateState(setDailyActivityReports);
         else if (collection === 'bibleClassAttendees') updateState(setBibleClassAttendees);
+        else if (collection === 'editAuthorizations') updateState(setEditAuthorizations);
         else if (collection === 'users') updateState(setUsers);
         else if (collection === 'config') setConfig(camelRecord);
       } else if (eventType === 'DELETE') {
@@ -172,6 +176,7 @@ export const useAppData = () => {
         else if (collection === 'activitySchedules') removeState(setActivitySchedules);
         else if (collection === 'dailyActivityReports') removeState(setDailyActivityReports);
         else if (collection === 'bibleClassAttendees') removeState(setBibleClassAttendees);
+        else if (collection === 'editAuthorizations') removeState(setEditAuthorizations);
         else if (collection === 'users') removeState(setUsers);
       }
     };
@@ -223,6 +228,7 @@ export const useAppData = () => {
       else if (collection === 'activitySchedules') updateState(setActivitySchedules);
       else if (collection === 'dailyActivityReports') updateState(setDailyActivityReports);
       else if (collection === 'bibleClassAttendees') updateState(setBibleClassAttendees);
+      else if (collection === 'editAuthorizations') updateState(setEditAuthorizations);
       else if (collection === 'users') updateState(setUsers);
       else if (collection === 'config' && updatedItems[0]) setConfig(updatedItems[0]);
 
@@ -334,6 +340,7 @@ export const useAppData = () => {
       else if (collection === 'activitySchedules') removeState(setActivitySchedules);
       else if (collection === 'dailyActivityReports') removeState(setDailyActivityReports);
       else if (collection === 'bibleClassAttendees') removeState(setBibleClassAttendees);
+      else if (collection === 'editAuthorizations') removeState(setEditAuthorizations);
     }
     return success;
   };
@@ -394,6 +401,7 @@ export const useAppData = () => {
     users, setUsers, bibleStudies, setBibleStudies, bibleClasses, setBibleClasses, smallGroups, setSmallGroups, staffVisits, setStaffVisits, visitRequests, setVisitRequests,
     proStaff, setProStaff, proPatients, setProPatients, proProviders, setProProviders, proSectors, setProSectors, proGroups, setProGroups, proGroupLocations, setProGroupLocations, proGroupMembers, setProGroupMembers, proGroupProviderMembers, setProGroupProviderMembers, proMonthlyStats, setProMonthlyStats, ambassadors, setAmbassadors,
     activitySchedules, setActivitySchedules, dailyActivityReports, setDailyActivityReports, bibleClassAttendees, setBibleClassAttendees,
+    editAuthorizations, setEditAuthorizations,
     config, setConfig, isSyncing, isConnected, isInitialized,
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, syncMasterContact
   };

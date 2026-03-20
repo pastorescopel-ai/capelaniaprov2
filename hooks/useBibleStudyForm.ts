@@ -5,6 +5,7 @@ import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
+import { isRecordLocked } from '../utils/validators';
 
 interface UseBibleStudyFormProps {
   unit: Unit;
@@ -16,7 +17,7 @@ interface UseBibleStudyFormProps {
 }
 
 export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit }: UseBibleStudyFormProps) => {
-  const { proStaff, proPatients, proProviders, proSectors, syncMasterContact } = useApp();
+  const { proStaff, proPatients, proProviders, proSectors, syncMasterContact, editAuthorizations } = useApp();
   const { showToast } = useToast();
   const { checkIdentityConflict, checkOwnershipConflict } = useIdentityGuard();
   
@@ -246,6 +247,11 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     if (isSubmitting) return;
     if (!formData.name || !formData.guide || !formData.lesson) { showToast("Preencha Nome, Guia e Lição."); return; }
     
+    if (isRecordLocked(formData.date, currentUser.role, 'bibleStudies', editAuthorizations)) {
+        showToast("Este período está bloqueado para lançamentos.", "error");
+        return;
+    }
+
     const conflict = checkIdentityConflict(formData.name, formData.participantType, unit);
     if (conflict.hasConflict) {
         showToast(conflict.message, "warning");
@@ -290,6 +296,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     isSectorLocked, setIsSectorLocked,
     isSubmitting,
     guideOptions, sectorOptions, studentOptions,
+    editAuthorizations,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
     handleContinueStudy: (item: BibleStudy) => {
         const normName = normalizeString(item.name);

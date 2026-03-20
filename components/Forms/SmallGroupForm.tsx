@@ -29,6 +29,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
     isSectorLocked, setIsSectorLocked,
     isSubmitting,
     sectorOptions, pgOptions, staffOptions,
+    editAuthorizations,
     handleSelectPG, handleSelectLeader, handleClear, handleFormSubmit
   } = useSmallGroupForm({ unit, history, editingItem, currentUser, onSubmit });
 
@@ -54,9 +55,9 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
 
   const historySection = React.useMemo(() => (
     <HistorySection<SmallGroup> data={history} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['groupName', 'leader']} renderItem={(item) => (
-      <HistoryCard key={item.id} icon="🏠" color="text-emerald-600" title={item.groupName} subtitle={`${item.sector} • ${item.participantsCount} participantes • Líder: ${item.leader}`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} />
+      <HistoryCard key={item.id} icon="🏠" color="text-emerald-600" title={item.groupName} subtitle={`${item.sector} • ${item.participantsCount} participantes • Líder: ${item.leader}`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role, 'smallGroups', editAuthorizations)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} />
     )} />
-  ), [history, users, currentUser, isLoading, onEdit, onDelete]);
+  ), [history, users, currentUser, isLoading, onEdit, onDelete, editAuthorizations]);
 
   return (
     <FormScaffold title="Pequeno Grupo" subtitle={`Unidade ${unit}`} headerActions={headerActions} history={historySection}>

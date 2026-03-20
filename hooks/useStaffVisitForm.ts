@@ -3,6 +3,7 @@ import { Unit, StaffVisit, User, VisitReason, ParticipantType } from '../types';
 import { useToast } from '../contexts/ToastProvider';
 import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
+import { isRecordLocked } from '../utils/validators';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
 
@@ -16,7 +17,7 @@ interface UseStaffVisitFormProps {
 }
 
 export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit }: UseStaffVisitFormProps) => {
-  const { proStaff, proProviders, proSectors, syncMasterContact } = useApp();
+  const { proStaff, proProviders, proSectors, syncMasterContact, editAuthorizations } = useApp();
   const { showToast } = useToast();
   const { checkIdentityConflict } = useIdentityGuard();
 
@@ -192,6 +193,11 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     } else {
         if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast("WhatsApp é obrigatório para prestadores.", "warning"); return; }
     }
+
+    if (isRecordLocked(formData.date, currentUser.role, 'staffVisits', editAuthorizations)) {
+        showToast("Este período está bloqueado para lançamentos.", "error");
+        return;
+    }
     
     setIsSubmitting(true);
     try {
@@ -290,6 +296,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     isSectorLocked, setIsSectorLocked,
     isSubmitting,
     sectorOptions, nameOptions,
+    editAuthorizations,
     handleSelectName, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
     sortedHistory, defaultState
   };

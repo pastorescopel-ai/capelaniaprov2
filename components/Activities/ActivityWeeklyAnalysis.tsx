@@ -82,8 +82,17 @@ const ActivityWeeklyAnalysis: React.FC = () => {
       
       if (dayReport) {
         completedScheduled += daySchedules.filter(s => {
-          if (s.activityType === 'blueprint') return dayReport.completedBlueprints?.includes(s.location);
-          if (s.activityType === 'cult') return dayReport.completedCults?.includes(s.location);
+          const period = s.period || 'tarde';
+          const locWithPeriod = `${s.location}:${period}`;
+
+          if (s.activityType === 'blueprint') {
+            return dayReport.completedBlueprints?.includes(locWithPeriod) || 
+                   (period === 'tarde' && dayReport.completedBlueprints?.includes(s.location));
+          }
+          if (s.activityType === 'cult') {
+            return dayReport.completedCults?.includes(locWithPeriod) || 
+                   (period === 'tarde' && dayReport.completedCults?.includes(s.location));
+          }
           if (s.activityType === 'encontro') return dayReport.completedEncontro;
           if (s.activityType === 'visiteCantando') return dayReport.completedVisiteCantando;
           return false;

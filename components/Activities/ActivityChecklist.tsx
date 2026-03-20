@@ -82,21 +82,38 @@ const ActivityChecklist: React.FC = () => {
     [activitySchedules, selectedUser, currentMonth, currentDayOfWeek, selectedDate]
   );
 
-  const handleToggleBlueprint = (loc: string) => {
+  const handleToggleBlueprint = (loc: string, period: 'manha' | 'tarde' = 'tarde') => {
     const current = report.completedBlueprints || [];
-    if (current.includes(loc)) {
-      setReport({ ...report, completedBlueprints: current.filter(l => l !== loc) });
+    const locWithPeriod = `${loc}:${period}`;
+    
+    // Check for both new format (loc:period) and old format (loc) if period is 'tarde'
+    const hasNewFormat = current.includes(locWithPeriod);
+    const hasOldFormat = period === 'tarde' && current.includes(loc);
+    
+    if (hasNewFormat || hasOldFormat) {
+      setReport({ 
+        ...report, 
+        completedBlueprints: current.filter(l => l !== locWithPeriod && l !== loc) 
+      });
     } else {
-      setReport({ ...report, completedBlueprints: [...current, loc] });
+      setReport({ ...report, completedBlueprints: [...current, locWithPeriod] });
     }
   };
 
-  const handleToggleCult = (sectorId: string) => {
+  const handleToggleCult = (sectorId: string, period: 'manha' | 'tarde' = 'tarde') => {
     const current = report.completedCults || [];
-    if (current.includes(sectorId)) {
-      setReport({ ...report, completedCults: current.filter(id => id !== sectorId) });
+    const locWithPeriod = `${sectorId}:${period}`;
+    
+    const hasNewFormat = current.includes(locWithPeriod);
+    const hasOldFormat = period === 'tarde' && current.includes(sectorId);
+
+    if (hasNewFormat || hasOldFormat) {
+      setReport({ 
+        ...report, 
+        completedCults: current.filter(id => id !== locWithPeriod && id !== sectorId) 
+      });
     } else {
-      setReport({ ...report, completedCults: [...current, sectorId] });
+      setReport({ ...report, completedCults: [...current, locWithPeriod] });
     }
   };
 
@@ -182,8 +199,17 @@ const ActivityChecklist: React.FC = () => {
     if (totalScheduled === 0) return 0;
     
     const completedScheduled = scheduledActivities.filter(s => {
-      if (s.activityType === 'blueprint') return report.completedBlueprints?.includes(s.location);
-      if (s.activityType === 'cult') return report.completedCults?.includes(s.location);
+      const period = s.period || 'tarde';
+      const locationWithPeriod = `${s.location}:${period}`;
+      
+      if (s.activityType === 'blueprint') {
+        return report.completedBlueprints?.includes(locationWithPeriod) || 
+               (period === 'tarde' && report.completedBlueprints?.includes(s.location));
+      }
+      if (s.activityType === 'cult') {
+        return report.completedCults?.includes(locationWithPeriod) || 
+               (period === 'tarde' && report.completedCults?.includes(s.location));
+      }
       if (s.activityType === 'encontro') return report.completedEncontro;
       if (s.activityType === 'visiteCantando') return report.completedVisiteCantando;
       return false;
@@ -285,11 +311,13 @@ const ActivityChecklist: React.FC = () => {
                     <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Blueprint</h4>
                   </div>
                   {blueprints.map(s => {
-                    const isCompleted = report.completedBlueprints?.includes(s.location);
+                    const period = s.period || 'tarde';
+                    const isCompleted = report.completedBlueprints?.includes(`${s.location}:${period}`) || 
+                                       (period === 'tarde' && report.completedBlueprints?.includes(s.location));
                     return (
                       <button
-                        key={s.location}
-                        onClick={() => handleToggleBlueprint(s.location)}
+                        key={`${s.location}-${period}`}
+                        onClick={() => handleToggleBlueprint(s.location, period)}
                         className={`w-full flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${
                           isCompleted 
                             ? 'bg-indigo-50 border-indigo-500 text-indigo-900' 
@@ -297,7 +325,12 @@ const ActivityChecklist: React.FC = () => {
                         }`}
                       >
                         <div className="flex flex-col items-start">
-                          <span className="text-[10px] font-black uppercase">{s.location}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase">{s.location}</span>
+                            <span className={`text-[7px] font-black px-1 rounded uppercase ${period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                              {period === 'manha' ? 'Manhã' : 'Tarde'}
+                            </span>
+                          </div>
                           {s.time && <span className={`text-[8px] font-bold mt-1 ${isCompleted ? 'text-indigo-600' : 'text-slate-400'}`}>{s.time}</span>}
                         </div>
                         {isCompleted ? <CheckCircle size={16} /> : <Circle size={16} />}
@@ -314,12 +347,14 @@ const ActivityChecklist: React.FC = () => {
                     <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Setores</h4>
                   </div>
                   {cults.map(s => {
-                    const isCompleted = report.completedCults?.includes(s.location);
+                    const period = s.period || 'tarde';
+                    const isCompleted = report.completedCults?.includes(`${s.location}:${period}`) || 
+                                       (period === 'tarde' && report.completedCults?.includes(s.location));
                     const sectorName = proSectors.find(sec => sec.id === s.location)?.name || 'Setor Removido';
                     return (
                       <button
-                        key={s.location}
-                        onClick={() => handleToggleCult(s.location)}
+                        key={`${s.location}-${period}`}
+                        onClick={() => handleToggleCult(s.location, period)}
                         className={`w-full flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${
                           isCompleted 
                             ? 'bg-emerald-50 border-emerald-500 text-emerald-900' 
@@ -327,7 +362,12 @@ const ActivityChecklist: React.FC = () => {
                         }`}
                       >
                         <div className="flex flex-col items-start">
-                          <span className="text-[10px] font-black uppercase">{sectorName}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase">{sectorName}</span>
+                            <span className={`text-[7px] font-black px-1 rounded uppercase ${period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                              {period === 'manha' ? 'Manhã' : 'Tarde'}
+                            </span>
+                          </div>
                           {s.time && <span className={`text-[8px] font-bold mt-1 ${isCompleted ? 'text-emerald-600' : 'text-slate-400'}`}>{s.time}</span>}
                         </div>
                         {isCompleted ? <CheckCircle size={16} /> : <Circle size={16} />}

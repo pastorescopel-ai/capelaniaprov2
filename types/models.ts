@@ -286,6 +286,7 @@ export interface ActivitySchedule {
   date?: string; // YYYY-MM-DD (Data específica, opcional)
   activityType: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando';
   location: string; // Nome do local (Blueprint) ou ID do Setor (Culto)
+  period: 'manha' | 'tarde';
   time?: string; // Horário da atividade (HH:mm)
   responsibleName?: string; // Nome do responsável (Visite Cantando)
   responsibleWhatsApp?: string; // WhatsApp do responsável (Visite Cantando)
@@ -308,4 +309,15 @@ export interface DailyActivityReport {
   observations?: string;
   createdAt?: number;
   updatedAt?: number;
+}
+
+export interface EditAuthorization {
+  id: string;
+  userId: string;
+  userName: string;
+  allowedTabs: string[]; // ['estudos', 'classes', 'pg', 'visitas', 'relatorio']
+  monthToUnlock: string; // YYYY-MM-DD (primeiro dia do mês)
+  expiryDate: string; // YYYY-MM-DDTHH:mm:ss (Data e hora de expiração)
+  createdAt: number;
+  createdBy: string;
 }

@@ -34,6 +34,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
   isSaving
 }) => {
   const [selectedDate, setSelectedDate] = useState('');
+  const [selectedPeriod, setSelectedPeriod] = useState<'manha' | 'tarde'>('tarde');
   const [responsibleName, setResponsibleName] = useState('');
   const [responsibleWhatsApp, setResponsibleWhatsApp] = useState('');
   const [selectedLocations, setSelectedLocations] = useState<string[]>(
@@ -81,6 +82,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
             date: (addingActivity.type === 'encontro' || addingActivity.type === 'visiteCantando') && selectedDate ? selectedDate : undefined,
             activityType: addingActivity.type,
             location: sel.location,
+            period: selectedPeriod,
             time: sel.time || undefined,
             createdAt: Date.now()
           });
@@ -95,6 +97,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
             date: (addingActivity.type === 'encontro' || addingActivity.type === 'visiteCantando') && selectedDate ? selectedDate : undefined,
             activityType: addingActivity.type,
             location: loc,
+            period: selectedPeriod,
             time: newActivityTime || undefined,
             responsibleName: addingActivity.type === 'visiteCantando' ? responsibleName : undefined,
             responsibleWhatsApp: addingActivity.type === 'visiteCantando' ? responsibleWhatsApp : undefined,
@@ -158,6 +161,25 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
             </div>
           </div>
 
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Período</label>
+            <div className="flex gap-2">
+              {(['manha', 'tarde'] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setSelectedPeriod(p)}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all border-2 ${
+                    selectedPeriod === p 
+                      ? 'bg-indigo-50 border-indigo-500 text-indigo-700' 
+                      : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  {p === 'manha' ? 'Manhã' : 'Tarde'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {addingActivity.type === 'blueprint' && (
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Locais (Selecione um ou mais)</label>
@@ -166,7 +188,8 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
                   const conflictingSchedule = globalSchedulesForMonth.find(s => 
                     s.activityType === 'blueprint' && 
                     s.location === loc && 
-                    selectedDays.includes(s.dayOfWeek)
+                    selectedDays.includes(s.dayOfWeek) &&
+                    (s.period || 'tarde') === selectedPeriod
                   );
                   const isBlocked = !!conflictingSchedule;
                   const blockedBy = conflictingSchedule ? chaplains.find(c => c.id === conflictingSchedule.userId)?.name : null;
@@ -250,7 +273,8 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
                       const conflictingSchedule = globalSchedulesForMonth.find(s => 
                         s.activityType === 'cult' && 
                         s.location === sec.id && 
-                        selectedDays.includes(s.dayOfWeek)
+                        selectedDays.includes(s.dayOfWeek) &&
+                        (s.period || 'tarde') === selectedPeriod
                       );
                       const isBlocked = !!conflictingSchedule;
                       const blockedBy = conflictingSchedule ? chaplains.find(c => c.id === conflictingSchedule.userId)?.name : null;

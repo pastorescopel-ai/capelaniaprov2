@@ -1,5 +1,5 @@
 
-import { UserRole } from '../types';
+import { UserRole, EditAuthorization } from '../types';
 import { getFifthBusinessDay } from './formatters';
 
 /**
@@ -7,7 +7,12 @@ import { getFifthBusinessDay } from './formatters';
  * Registros do mês passado só podem ser editados até o 5º dia útil do mês atual.
  * Administradores nunca são bloqueados.
  */
-export const isRecordLocked = (dateStr: string, userRole: UserRole) => {
+export const isRecordLocked = (
+  dateStr: string, 
+  userRole: UserRole, 
+  tab?: string, 
+  authorizations: EditAuthorization[] = []
+) => {
   if (userRole === UserRole.ADMIN) return false;
   
   const now = new Date();
@@ -17,6 +22,22 @@ export const isRecordLocked = (dateStr: string, userRole: UserRole) => {
   if (recordDate.getFullYear() > now.getFullYear() || 
      (recordDate.getFullYear() === now.getFullYear() && recordDate.getMonth() >= now.getMonth())) {
     return false;
+  }
+
+  // Verifica autorizações especiais
+  if (tab && authorizations.length > 0) {
+    const activeAuth = authorizations.find(auth => {
+      const expiry = new Date(auth.expiryDate);
+      if (now > expiry) return false;
+      
+      const unlockMonth = new Date(auth.monthToUnlock);
+      const isSameMonth = recordDate.getUTCFullYear() === unlockMonth.getUTCFullYear() && 
+                          recordDate.getUTCMonth() === unlockMonth.getUTCMonth();
+      
+      return isSameMonth && auth.allowedTabs.includes(tab);
+    });
+
+    if (activeAuth) return false;
   }
 
   // Verifica se estamos dentro do prazo do 5º dia útil do mês atual
