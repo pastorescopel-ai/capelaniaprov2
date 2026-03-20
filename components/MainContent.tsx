@@ -180,7 +180,8 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             allHistory={staffVisits} 
             setItemToDelete={setItemToDelete} 
             onEdit={setEditingItem} 
-            handleTransfer={handleTransfer} 
+            handleTransfer={handleTransfer}
+            saveRecord={saveRecord}
           />
         );
       case 'reports':

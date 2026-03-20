@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { BibleService } from '../../services/bible.service';
+import { useAppData } from '../../hooks/useAppData';
 import { useToast } from '../../contexts/ToastProvider';
 import { toSafeDateISO } from '../../utils/formatters';
 import { isRecordLocked } from '../../utils/validators';
@@ -7,6 +7,7 @@ import { User } from '../../types';
 
 export const useBibleModule = (currentUser: User | null) => {
   const { showToast } = useToast();
+  const { saveRecord } = useAppData();
   const [isSaving, setIsSaving] = useState(false);
 
   const saveStudy = useCallback(async (data: any) => {
@@ -31,17 +32,17 @@ export const useBibleModule = (currentUser: User | null) => {
       updatedAt: now
     };
 
-    const result = await BibleService.saveBibleStudy(itemToSave);
+    const success = await saveRecord('bibleStudies', itemToSave);
     setIsSaving(false);
 
-    if (result.success) {
+    if (success) {
       showToast("Estudo salvo com sucesso!", "success");
       return true;
     } else {
       showToast("Erro ao salvar estudo.", "error");
       return false;
     }
-  }, [currentUser, showToast]);
+  }, [currentUser, showToast, saveRecord]);
 
   const saveClass = useCallback(async (data: any) => {
     if (!currentUser) return false;
@@ -65,17 +66,17 @@ export const useBibleModule = (currentUser: User | null) => {
       updatedAt: now
     };
 
-    const result = await BibleService.saveBibleClass(itemToSave);
+    const success = await saveRecord('bibleClasses', itemToSave);
     setIsSaving(false);
 
-    if (result.success) {
+    if (success) {
       showToast("Classe salva com sucesso!", "success");
       return true;
     } else {
       showToast("Erro ao salvar classe.", "error");
       return false;
     }
-  }, [currentUser, showToast]);
+  }, [currentUser, showToast, saveRecord]);
 
   return { saveStudy, saveClass, isSaving };
 };

@@ -15,7 +15,7 @@ const ImpactCharts: React.FC<ImpactChartsProps> = ({ individualData, globalData 
         <h3 className="text-base md:text-lg font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-tighter">
           <i className="fas fa-chart-bar text-blue-600"></i> Desempenho Individual
         </h3>
-        <div className="h-[200px] w-full min-h-[200px]">
+        <div className="h-[200px] w-full min-h-[200px] min-w-0 min-h-0">
           <ResponsiveContainer width="100%" height="100%" debounce={50}>
             <BarChart data={individualData}>
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 9, fontWeight: 800}} />
@@ -45,7 +45,7 @@ const ImpactCharts: React.FC<ImpactChartsProps> = ({ individualData, globalData 
           </div>
         </div>
 
-        <div className="h-[250px] w-full min-h-[250px]">
+        <div className="h-[250px] w-full min-h-[250px] min-w-0 min-h-0">
           <ResponsiveContainer width="100%" height="100%" debounce={50}>
             <BarChart 
               data={globalData.chartData}

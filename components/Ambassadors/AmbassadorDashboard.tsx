@@ -47,7 +47,7 @@ const AmbassadorDashboard: React.FC<AmbassadorDashboardProps> = ({ currentUnit, 
 
         <div className="bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-sm flex flex-col">
           <h3 className="text-sm font-black text-slate-700 uppercase tracking-tight mb-4">Desempenho por Setor</h3>
-          <div className="flex-1 min-h-[200px]">
+          <div className="flex-1 min-h-[200px] min-w-0 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={getChartData(currentUnit).slice(0, 10)} layout="vertical" margin={{ left: 0, right: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
