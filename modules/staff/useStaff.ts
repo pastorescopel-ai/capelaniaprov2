@@ -8,7 +8,7 @@ import { User } from '../../types';
 
 export const useStaff = (currentUser: User | null) => {
   const { showToast } = useToast();
-  const { saveRecord } = useAppData();
+  const { saveRecord, deleteRecord } = useAppData();
   const [isSaving, setIsSaving] = useState(false);
 
   const saveVisit = useCallback(async (data: any) => {
