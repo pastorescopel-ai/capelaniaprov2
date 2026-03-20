@@ -113,7 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       events.forEach(event => window.removeEventListener(event, handleUserActivity));
       clearInterval(inactivityInterval);
     };
-  }, [isAuthenticated]);
+  }, []); // Dependência vazia para rodar apenas uma vez na montagem
 
   const login = async (email: string, pass: string): Promise<boolean> => {
     setLoginError(null);
