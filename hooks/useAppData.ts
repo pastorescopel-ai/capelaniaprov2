@@ -232,10 +232,13 @@ export const useAppData = () => {
       else if (collection === 'users') updateState(setUsers);
       else if (collection === 'config' && updatedItems[0]) setConfig(updatedItems[0]);
 
+      // Sincronização centralizada forçada
+      await loadFromCloud(false);
+
       return true;
     }
     return false;
-  }, []);
+  }, [loadFromCloud]);
 
   /**
    * ULTIMATE_ENTITY_SYNC_ENGINE (V4.1 - Enhanced Sector Healing)

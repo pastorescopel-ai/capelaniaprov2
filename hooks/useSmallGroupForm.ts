@@ -107,6 +107,21 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       if (details.sectorId) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
   };
 
+  const handleLeaderChange = (name: string) => {
+      setFormData(prev => ({ ...prev, leader: name }));
+      if (!name) setIsSectorLocked(false);
+      // Opcional: tentar inferir se o nome digitado for exato
+      const details = inferLeaderDetails(name);
+      if (details.sectorId) {
+          setFormData(prev => ({ 
+              ...prev, 
+              leaderPhone: details.leaderPhone ? formatWhatsApp(details.leaderPhone) : prev.leaderPhone, 
+              sector: details.sectorName || prev.sector 
+          }));
+          setIsSectorLocked(true);
+      }
+  };
+
   const handleClear = () => {
     setFormData({ ...defaultState, date: formData.date });
     setIsSectorLocked(false);
@@ -179,7 +194,7 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
     isSubmitting,
     sectorOptions, pgOptions, staffOptions,
     editAuthorizations,
-    handleSelectPG, handleSelectLeader, handleClear, handleFormSubmit,
+    handleSelectPG, handleSelectLeader, handleLeaderChange, handleClear, handleFormSubmit,
     defaultState
   };
 };

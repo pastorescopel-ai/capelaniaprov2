@@ -30,7 +30,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
     isSubmitting,
     sectorOptions, pgOptions, staffOptions,
     editAuthorizations,
-    handleSelectPG, handleSelectLeader, handleClear, handleFormSubmit
+    handleSelectPG, handleSelectLeader, handleLeaderChange, handleClear, handleFormSubmit
   } = useSmallGroupForm({ unit, history, editingItem, currentUser, onSubmit });
 
   // Refs para controle de foco
@@ -65,7 +65,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
         <div className="grid md:grid-cols-2 gap-4 md:gap-6">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data do Encontro *</label><input type="date" value={formData.date || ''} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-500/20 transition-all" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do Grupo *</label><Autocomplete options={pgOptions} value={formData.groupName || ''} onChange={v => setFormData({...formData, groupName: v})} onSelectOption={handleSelectPG} placeholder="Selecione o PG..." isStrict={true} /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Líder Atual *</label><Autocomplete options={staffOptions} value={formData.leader || ''} onChange={v => { setFormData({...formData, leader: v}); if(!v) setIsSectorLocked(false); }} onSelectOption={handleSelectLeader} placeholder="Busque o líder no banco..." /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Líder Atual *</label><Autocomplete options={staffOptions} value={formData.leader || ''} onChange={handleLeaderChange} onSelectOption={handleSelectLeader} placeholder="Busque o líder no banco..." /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">WhatsApp do Líder *</label><input ref={phoneInputRef} placeholder="(00) 00000-0000" value={formData.leaderPhone || ''} onChange={e => setFormData({...formData, leaderPhone: formatWhatsApp(e.target.value)})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-500/20 transition-all" /></div>
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Localização *</label>
