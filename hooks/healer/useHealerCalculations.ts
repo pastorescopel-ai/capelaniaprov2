@@ -29,7 +29,7 @@ export const useHealerCalculations = (
             try {
                 const { data, error } = await supabase
                     .from('bible_class_attendees')
-                    .select('student_name')
+                    .select('student_name, class_id')
                     .is('staff_id', null);
                 
                 if (error) throw error;
@@ -41,6 +41,12 @@ export const useHealerCalculations = (
                         if (!n) return;
                         const key = normalizeString(n);
                         if (resolvedItems.has(n) || resolvedItems.has(key)) return;
+
+                        // Se a classe for de Prestadores ou Pacientes, não é anomalia
+                        const cls = bibleClasses.find((c: any) => c.id === row.class_id);
+                        if (cls && (cls.participantType === ParticipantType.PROVIDER || cls.participantType === ParticipantType.PATIENT)) {
+                            return;
+                        }
 
                         if (!groups[key]) groups[key] = { name: n, count: 0 };
                         groups[key].count++;
@@ -56,7 +62,7 @@ export const useHealerCalculations = (
         };
         fetchAttendees();
     }
-  }, [activeTab, resolvedItems, showToast, setAttendeeOrphans, setIsLoadingAttendees]);
+  }, [activeTab, resolvedItems, showToast, setAttendeeOrphans, setIsLoadingAttendees, bibleClasses]);
 
   // --- CÁLCULO DE ÓRFÃOS DE ESTUDOS ---
   const studyOrphans = useMemo(() => {
@@ -64,6 +70,9 @@ export const useHealerCalculations = (
       
       bibleStudies.forEach((s: any) => {
           if (!s.staffId && !s.sectorId) {
+              // Se for Prestador ou Paciente, não é anomalia de estudo
+              if (s.participantType === ParticipantType.PROVIDER || s.participantType === ParticipantType.PATIENT) return;
+
               const cleanName = s.name.trim();
               if (resolvedItems.has(cleanName)) return;
               
@@ -99,6 +108,9 @@ export const useHealerCalculations = (
         const cleanName = effectiveName.split(' (')[0].trim();
         if (resolvedItems.has(cleanName)) return;
 
+        // Se for Prestador ou Paciente, não é anomalia (conforme pedido do usuário)
+        if (participantType === ParticipantType.PROVIDER || participantType === ParticipantType.PATIENT) return;
+
         const norm = normalizeString(cleanName);
         const isMatchSearch = normSearch && norm.includes(normSearch);
         
@@ -124,7 +136,7 @@ export const useHealerCalculations = (
     };
 
     bibleClasses.forEach((cls: any) => {
-        cls.students?.forEach((s: any) => checkAndAdd(s, cls.sector, 'class', 'Colaborador'));
+        cls.students?.forEach((s: any) => checkAndAdd(s, cls.sector, 'class', cls.participantType || 'Colaborador'));
     });
 
     bibleStudies.forEach((s: any) => { 
@@ -174,10 +186,25 @@ export const useHealerCalculations = (
           }
       };
 
-      bibleStudies.forEach((s: any) => checkSector(s.sector));
-      staffVisits.forEach((v: any) => checkSector(v.sector));
+      bibleStudies.forEach((s: any) => {
+          // Apenas setores de colaboradores são auditados
+          if (s.participantType === ParticipantType.STAFF || !s.participantType) {
+              checkSector(s.sector);
+          }
+      });
+      staffVisits.forEach((v: any) => {
+          // Apenas setores de colaboradores são auditados
+          if (v.participantType === ParticipantType.STAFF || !v.participantType) {
+              checkSector(v.sector);
+          }
+      });
       smallGroups.forEach((g: any) => checkSector(g.sector));
-      bibleClasses.forEach((c: any) => checkSector(c.sector));
+      bibleClasses.forEach((c: any) => {
+          // Apenas setores de colaboradores são auditados
+          if (c.participantType === ParticipantType.STAFF || !c.participantType) {
+              checkSector(c.sector);
+          }
+      });
       visitRequests.forEach((vr: any) => checkSector(vr.sectorName));
 
       return Array.from(historySet).sort();

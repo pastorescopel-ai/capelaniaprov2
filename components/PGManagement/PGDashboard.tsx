@@ -1,18 +1,27 @@
 
 import React, { useMemo, useState, memo, useEffect } from 'react';
-import { Unit } from '../../types';
+import { Unit, ProHistoryRecord } from '../../types';
 import { usePro } from '../../contexts/ProContext';
+import { useApp } from '../../hooks/useApp';
+import { useAuth } from '../../contexts/AuthProvider';
 import { normalizeString, cleanID } from '../../utils/formatters';
+import CloseMonthModal from './CloseMonthModal';
 
 interface PGDashboardProps {
   unit: Unit;
 }
 
 const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
-  const { proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, proMonthlyStats } = usePro();
+  const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, proMonthlyStats, proHistoryRecords } = usePro();
+  const { saveRecord } = useApp();
+  const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'sector' | 'pg'>('sector');
+  const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const isAdmin = currentUser?.role === 'admin';
   
   // Estado para o mês de competência selecionado (Padrão: Mês Atual)
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -31,7 +40,62 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     const targetDate = new Date(selectedMonth);
     const nextMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
 
-    // 0. Verificar se existem snapshots para o mês selecionado
+    // 0. Verificar se existem registros de histórico para o mês selecionado
+    const historyForMonth = proHistoryRecords.filter(r => r.month === selectedMonth && r.unit === unit);
+    
+    if (historyForMonth.length > 0) {
+      const enrolledCount = historyForMonth.filter(r => r.isEnrolled).length;
+      const totalStaff = historyForMonth.length;
+      const activePGIds = new Set(historyForMonth.filter(r => r.isEnrolled).map(r => r.groupId));
+      
+      // Mapear setores para exibição baseada no histórico
+      const sectorsById = new Map(proSectors.map(s => [cleanID(s.id), s]));
+      const groupsById = new Map(proGroups.map(g => [cleanID(g.id), g]));
+      
+      const staffBySector = new Map<string, ProHistoryRecord[]>();
+      historyForMonth.forEach(r => {
+        const sId = cleanID(r.sectorId) || 'unassigned';
+        if (!staffBySector.has(sId)) staffBySector.set(sId, []);
+        staffBySector.get(sId)?.push(r);
+      });
+
+      const sectorData = Array.from(staffBySector.entries()).map(([sId, staff]) => {
+        const sector = sId === 'unassigned' ? { id: 'unassigned', name: 'SEM SETOR DEFINIDO', unit } as any : sectorsById.get(sId);
+        const enrolledInSector = staff.filter(r => r.isEnrolled).length;
+        const pgsInSectorIds = new Set(staff.filter(r => r.isEnrolled).map(r => r.groupId));
+        const pgsInSector = Array.from(pgsInSectorIds).map(gid => groupsById.get(gid)).filter(g => !!g);
+
+        return {
+          sector: sector || { id: sId, name: 'Setor Excluído', unit } as any,
+          pgsInSector,
+          total: staff.length,
+          enrolled: enrolledInSector,
+          pgCount: pgsInSector.length,
+          percentage: staff.length > 0 ? (enrolledInSector / staff.length) * 100 : 0,
+          isSnapshot: true
+        };
+      });
+
+      // Filtro de Busca
+      const normSearch = normalizeString(debouncedSearchTerm);
+      const searchTerms = normSearch.split(' ').filter(t => t);
+      const filteredData = sectorData.filter(d => {
+          if (searchTerms.length === 0) return d.total > 0;
+          const targetText = filterType === 'sector' ? d.sector.name : d.pgsInSector.map(pg => pg?.name || '').join(' ');
+          const normTarget = normalizeString(targetText);
+          return searchTerms.every(term => normTarget.includes(term)) && d.total > 0;
+      });
+
+      return {
+        globalPercentage: totalStaff > 0 ? (enrolledCount / totalStaff) * 100 : 0,
+        totalStaff,
+        enrolledStaff: enrolledCount,
+        activePGCount: activePGIds.size,
+        displaySectors: filteredData.sort((a, b) => a.percentage - b.percentage)
+      };
+    }
+
+    // 0. Verificar se existem snapshots para o mês selecionado (Legado ou Agregado)
     const snapshots = proMonthlyStats.filter(s => s.month === selectedMonth && s.unit === unit);
     
     if (snapshots.length > 0) {
@@ -99,6 +163,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
           globalPercentage: totalStaff > 0 ? (enrolledStaff / totalStaff) * 100 : 0, 
           totalStaff, 
           enrolledStaff, 
+          activePGCount: pgSnaps.length,
           displaySectors: filteredData.sort((a, b) => a.percentage - b.percentage) 
       };
     }
@@ -116,11 +181,28 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     
     const enrolledStaffIds = new Set<string>();
     const memberGroupIdsBySector = new Map<string, Set<string>>();
-    
+    const activePGIds = new Set<string>();
+
     proGroupMembers.forEach(m => {
       if ((!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && 
           (!m.leftAt || m.leftAt >= targetDate.getTime())) {
         enrolledStaffIds.add(cleanID(m.staffId));
+        
+        const group = groupsById.get(cleanID(m.groupId));
+        if (group && group.unit === unit) {
+          activePGIds.add(cleanID(m.groupId));
+        }
+      }
+    });
+
+    // Também contar PGs que tem apenas prestadores
+    (proGroupProviderMembers || []).forEach(m => {
+      if ((!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && 
+          (!m.leftAt || m.leftAt >= targetDate.getTime())) {
+        const group = groupsById.get(cleanID(m.groupId));
+        if (group && group.unit === unit) {
+          activePGIds.add(cleanID(m.groupId));
+        }
       }
     });
 
@@ -237,9 +319,10 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         globalPercentage, 
         totalStaff, 
         enrolledStaff, 
+        activePGCount: activePGIds.size,
         displaySectors: filteredData.sort((a, b) => a.percentage - b.percentage) 
     };
-  }, [proSectors, proStaff, proGroupMembers, proGroupLocations, proGroups, proMonthlyStats, unit, debouncedSearchTerm, filterType, selectedMonth]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, proMonthlyStats, proHistoryRecords, unit, debouncedSearchTerm, filterType, selectedMonth]);
 
   // Gerar opções de meses (Últimos 6 meses)
   const monthOptions = useMemo(() => {
@@ -255,8 +338,67 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     return options;
   }, []);
 
+  const handleCloseMonth = async () => {
+    setIsClosing(true);
+    try {
+      const historyRecords: ProHistoryRecord[] = [];
+      const unitStaff = proStaff.filter(s => s.unit === unit && (!s.leftAt || s.leftAt >= new Date(selectedMonth).getTime()));
+      const sectorsById = new Map(proSectors.map(s => [cleanID(s.id), s]));
+      const groupsById = new Map(proGroups.map(g => [cleanID(g.id), g]));
+      
+      // Mapear membros atuais (Colaboradores)
+      const staffToGroup = new Map<string, string>();
+      proGroupMembers.forEach(m => {
+        if (!m.leftAt || m.leftAt >= new Date(selectedMonth).getTime()) {
+          staffToGroup.set(cleanID(m.staffId), cleanID(m.groupId));
+        }
+      });
+
+      unitStaff.forEach(staff => {
+        const groupId = staffToGroup.get(cleanID(staff.id));
+        const group = groupId ? groupsById.get(groupId) : null;
+        const sector = sectorsById.get(cleanID(staff.sectorId));
+
+        historyRecords.push({
+          id: crypto.randomUUID(),
+          month: selectedMonth,
+          unit,
+          staffId: staff.id,
+          staffName: staff.name,
+          sectorId: staff.sectorId,
+          sectorName: sector?.name || 'Sem Setor',
+          groupId: groupId || '',
+          groupName: group?.name || '',
+          status: groupId ? 'Matriculado' : 'Não Matriculado',
+          isEnrolled: !!groupId,
+          createdAt: Date.now()
+        });
+      });
+
+      // Salvar em lote
+      for (const record of historyRecords) {
+        await saveRecord('proHistoryRecords', record);
+      }
+
+      setIsCloseModalOpen(false);
+      alert('Mês fechado com sucesso! O histórico foi gerado para o B.I.');
+    } catch (error) {
+      console.error('Erro ao fechar mês:', error);
+      alert('Erro ao processar o fechamento do mês.');
+    } finally {
+      setIsClosing(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+      <CloseMonthModal 
+        isOpen={isCloseModalOpen}
+        isClosing={isClosing}
+        selectedMonth={selectedMonth}
+        onCancel={() => setIsCloseModalOpen(false)}
+        onConfirm={handleCloseMonth}
+      />
       
       {/* Filtro de Competência */}
       <div className="flex justify-center md:justify-end">
@@ -271,6 +413,20 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
+          {isAdmin && (
+            <button 
+              onClick={() => setIsCloseModalOpen(true)}
+              disabled={metrics.displaySectors[0]?.isSnapshot}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                metrics.displaySectors[0]?.isSnapshot 
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                  : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-100'
+              }`}
+            >
+              <i className="fas fa-lock"></i>
+              {metrics.displaySectors[0]?.isSnapshot ? 'Mês Fechado' : 'Fechar Mês'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -290,7 +446,14 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Colaboradores matriculados em Pequenos Grupos</p>
         </div>
 
-        <div className="flex items-center gap-8 z-10">
+        <div className="flex items-center gap-6 md:gap-8 z-10">
+          <div className="text-right">
+            <span className="block text-4xl font-black text-slate-800">{metrics.activePGCount}</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PGs Ativos</span>
+          </div>
+
+          <div className="w-px h-12 bg-slate-100 hidden sm:block"></div>
+
           <div className="text-right">
             <span className="block text-4xl font-black text-slate-800">{metrics.enrolledStaff} <span className="text-lg text-slate-400">/ {metrics.totalStaff}</span></span>
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vidas Alcançadas</span>

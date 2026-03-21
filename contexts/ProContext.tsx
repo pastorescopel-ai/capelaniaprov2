@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider as ProProviderModel, ProMonthlyStats, ProGroupLocation } from '../types';
+import { ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider as ProProviderModel, ProMonthlyStats, ProGroupLocation, ProHistoryRecord } from '../types';
 
 interface ProContextType {
   proStaff: ProStaff[];
@@ -11,6 +11,7 @@ interface ProContextType {
   proPatients: ProPatient[];
   proProviders: ProProviderModel[];
   proMonthlyStats: ProMonthlyStats[];
+  proHistoryRecords: ProHistoryRecord[];
   setProStaff: React.Dispatch<React.SetStateAction<ProStaff[]>>;
   setProSectors: React.Dispatch<React.SetStateAction<ProSector[]>>;
   setProGroups: React.Dispatch<React.SetStateAction<ProGroup[]>>;
@@ -20,6 +21,7 @@ interface ProContextType {
   setProPatients: React.Dispatch<React.SetStateAction<ProPatient[]>>;
   setProProviders: React.Dispatch<React.SetStateAction<ProProviderModel[]>>;
   setProMonthlyStats: React.Dispatch<React.SetStateAction<ProMonthlyStats[]>>;
+  setProHistoryRecords: React.Dispatch<React.SetStateAction<ProHistoryRecord[]>>;
 }
 
 export const ProContext = createContext<ProContextType | undefined>(undefined);

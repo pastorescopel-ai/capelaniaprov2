@@ -89,7 +89,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
           
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do {formData.participantType}</label><Autocomplete options={studentOptions} value={formData.name} onChange={handleChangeName} onSelectOption={handleSelectStudent} placeholder="Buscar..." isStrict={isStaff} /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do {formData.participantType}</label><Autocomplete options={studentOptions} value={formData.name} onChange={handleChangeName} onSelectOption={handleSelectStudent} placeholder="Buscar..." isStrict={false} /></div>
           
           <div className="space-y-1">
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>Setor / Local {isStaff ? '(Obrigatório)' : '(Opcional)'}</label>
@@ -100,7 +100,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
                       <span className="absolute -top-2 right-2 bg-blue-100 text-blue-600 text-[8px] font-black px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wider">RH Link</span>
                   </div>
               ) : (
-                  <Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local..." isStrict={isStaff} />
+                  <Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local..." isStrict={false} />
               )}
           </div>
           

@@ -38,11 +38,11 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   const headerActions = React.useMemo(() => (
     <>
-      <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start">
-        <button type="button" onClick={() => { setFormData({...defaultState, date: formData.date, participantType: ParticipantType.STAFF}); setIsSectorLocked(false); }} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === ParticipantType.STAFF ? 'bg-white shadow-lg text-rose-600' : 'text-slate-400 hover:text-slate-600'}`}>Colaborador</button>
-        <button type="button" onClick={() => { setFormData({...defaultState, date: formData.date, participantType: ParticipantType.PROVIDER}); setIsSectorLocked(false); }} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === ParticipantType.PROVIDER ? 'bg-white shadow-lg text-rose-600' : 'text-slate-400 hover:text-slate-600'}`}>Prestador</button>
+      <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 self-start">
+        <button type="button" onClick={() => { setFormData({...defaultState, date: formData.date, participantType: ParticipantType.STAFF}); setIsSectorLocked(false); }} className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase transition-all ${formData.participantType === ParticipantType.STAFF ? 'bg-white shadow-sm text-rose-600' : 'text-slate-400 hover:text-slate-600'}`}>Colaborador</button>
+        <button type="button" onClick={() => { setFormData({...defaultState, date: formData.date, participantType: ParticipantType.PROVIDER}); setIsSectorLocked(false); }} className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase transition-all ${formData.participantType === ParticipantType.PROVIDER ? 'bg-white shadow-sm text-rose-600' : 'text-slate-400 hover:text-slate-600'}`}>Prestador</button>
       </div>
-      <button type="button" onClick={handleClear} className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 hover:text-pink-700 transition-all flex items-center justify-center text-lg shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>
+      <button type="button" onClick={handleClear} className="w-9 h-9 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 active:scale-95 transition-all flex items-center justify-center text-base shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>
     </>
   ), [formData.date, formData.participantType, defaultState, handleClear, setFormData, setIsSectorLocked]);
 
@@ -191,38 +191,38 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   return (
     <FormScaffold title="Visita Pastoral" subtitle={`Unidade ${unit}`} headerActions={headerActions} history={historySection}>
-      <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-6">
-        <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data da Visita *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>
+      <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
+        <div className="grid md:grid-cols-2 gap-4 md:gap-5">
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data da Visita *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>
           
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{isStaff ? 'Colaborador Atendido *' : 'Nome do Prestador *'}</label><Autocomplete options={nameOptions} value={formData.staffName} onChange={handleChangeName} onSelectOption={handleSelectName} placeholder={isStaff ? "Busque por nome ou matrícula..." : "Busque ou digite o nome..."} isStrict={isStaff} /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{isStaff ? 'Colaborador Atendido *' : 'Nome do Prestador *'}</label><Autocomplete options={nameOptions} value={formData.staffName} onChange={handleChangeName} onSelectOption={handleSelectName} placeholder={isStaff ? "Busque por nome ou matrícula..." : "Busque ou digite o nome..."} isStrict={false} /></div>
 
           {!isStaff && (
-              <div className="space-y-1 md:col-span-2 animate-in slide-in-from-top-2 duration-300"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Função / Especialidade</label><input placeholder="Ex: Médico Cardiologista, Técnico de TI..." value={formData.providerRole} onChange={e => setFormData({...formData, providerRole: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-700 focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>
+              <div className="space-y-1 md:col-span-2 animate-in slide-in-from-top-2 duration-300"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Função / Especialidade</label><input placeholder="Ex: Médico Cardiologista, Técnico de TI..." value={formData.providerRole} onChange={e => setFormData({...formData, providerRole: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-slate-700 focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>
           )}
 
-          <div className="space-y-1"><label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-rose-600' : 'text-slate-400'}`}>WhatsApp {!isStaff ? '(Obrigatório)' : '(Opcional)'}</label><input placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className={`w-full p-3 md:p-4 rounded-2xl border-none font-bold transition-all focus:ring-2 focus:ring-rose-500/20 ${!isStaff ? 'bg-rose-50 text-rose-900 ring-2 ring-rose-100 focus:ring-rose-300' : 'bg-slate-50'}`} /></div>
+          <div className="space-y-1"><label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-rose-600' : 'text-slate-400'}`}>WhatsApp {!isStaff ? '(Obrigatório)' : '(Opcional)'}</label><input placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className={`w-full p-3 md:p-3.5 rounded-2xl border-none font-bold transition-all focus:ring-2 focus:ring-rose-500/20 ${!isStaff ? 'bg-rose-50 text-rose-900 ring-2 ring-rose-100 focus:ring-rose-300' : 'bg-slate-50'}`} /></div>
 
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Motivo da Visita *</label><select value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value as VisitReason})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-rose-500/20 transition-all">{Object.values(VisitReason).map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Motivo da Visita *</label><select value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value as VisitReason})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-rose-500/20 transition-all">{Object.values(VisitReason).map(r => <option key={r} value={r}>{r}</option>)}</select></div>
           
           <div className="space-y-1 md:col-span-2">
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>Setor / Local {isStaff ? '(Obrigatório)' : '(Opcional)'}</label>
               {isSectorLocked ? (
-                  <div className="w-full p-3 md:p-4 rounded-2xl bg-slate-100 border border-slate-200 font-bold text-slate-500 cursor-not-allowed flex justify-between items-center group relative" title="Vínculo oficial do RH"><span>{formData.sector}</span><i className="fas fa-lock text-slate-400"></i><span className="absolute -top-2 right-2 bg-blue-100 text-blue-600 text-[8px] font-black px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wider">RH Link</span></div>
+                  <div className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-100 border border-slate-200 font-bold text-slate-500 cursor-not-allowed flex justify-between items-center group relative" title="Vínculo oficial do RH"><span>{formData.sector}</span><i className="fas fa-lock text-slate-400"></i><span className="absolute -top-2 right-2 bg-blue-100 text-blue-600 text-[8px] font-black px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wider">RH Link</span></div>
               ) : (
-                  <Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local da visita..." isStrict={isStaff} />
+                  <Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Local da visita..." isStrict={false} />
               )}
           </div>
           
-          <div className="space-y-1 md:col-span-2"><div className="flex items-center gap-4 p-4 md:p-5 bg-slate-50 rounded-2xl border-2 border-transparent hover:border-rose-100 transition-all cursor-pointer active:scale-[0.99]" onClick={() => setFormData({...formData, requiresReturn: !formData.requiresReturn})}><input type="checkbox" checked={formData.requiresReturn} readOnly className="w-6 h-6 rounded-lg text-rose-600 cursor-pointer" /><div><label className="font-black text-slate-700 text-xs uppercase tracking-widest cursor-pointer block">Necessita Retorno?</label></div></div></div>
-          {formData.requiresReturn && (<div className="space-y-1 md:col-span-2 animate-in slide-in-from-left duration-300"><label className="text-[10px] font-black text-rose-500 ml-2 uppercase tracking-widest">Agendar Retorno para *</label><input type="date" value={formData.returnDate} onChange={e => setFormData({...formData, returnDate: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl border-2 border-rose-100 text-rose-700 font-black text-lg focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>)}
-          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Observações da Visita</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>
+          <div className="space-y-1 md:col-span-2"><div className="flex items-center gap-4 p-4 md:p-4 bg-slate-50 rounded-2xl border-2 border-transparent hover:border-rose-100 transition-all cursor-pointer active:scale-[0.99]" onClick={() => setFormData({...formData, requiresReturn: !formData.requiresReturn})}><input type="checkbox" checked={formData.requiresReturn} readOnly className="w-6 h-6 rounded-lg text-rose-600 cursor-pointer" /><div><label className="font-black text-slate-700 text-xs uppercase tracking-widest cursor-pointer block">Necessita Retorno?</label></div></div></div>
+          {formData.requiresReturn && (<div className="space-y-1 md:col-span-2 animate-in slide-in-from-left duration-300"><label className="text-[10px] font-black text-rose-500 ml-2 uppercase tracking-widest">Agendar Retorno para *</label><input type="date" value={formData.returnDate} onChange={e => setFormData({...formData, returnDate: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl border-2 border-rose-100 text-rose-700 font-black text-lg focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>)}
+          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Observações da Visita</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>
         </div>
         <Button 
           type="submit" 
           variant="danger"
           isLoading={isSubmitting}
-          className="w-full py-4 md:py-6 text-xs"
+          className="w-full py-4 md:py-5 text-xs"
         >
           Salvar Registro
         </Button>

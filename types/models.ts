@@ -321,3 +321,18 @@ export interface EditAuthorization {
   createdAt: number;
   createdBy: string;
 }
+
+export interface ProHistoryRecord {
+  id: string;
+  month: string; // YYYY-MM-DD
+  unit: Unit;
+  staffId: string; // Matrícula
+  staffName: string;
+  sectorId: string;
+  sectorName: string;
+  groupId?: string;
+  groupName?: string;
+  status: string; // 'Matriculado' | 'Não Matriculado'
+  isEnrolled: boolean;
+  createdAt?: number;
+}

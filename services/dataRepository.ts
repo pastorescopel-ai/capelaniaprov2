@@ -30,11 +30,12 @@ export const DataRepository = {
         supabase.from('activity_schedules').select('*').range(0, MAX_ROWS),
         supabase.from('daily_activity_reports').select('*').range(0, MAX_ROWS),
         supabase.from('pro_monthly_stats').select('*').range(0, MAX_ROWS),
+        supabase.from('pro_history_records').select('*').range(0, MAX_ROWS),
         supabase.from('ambassadors').select('*').range(0, MAX_ROWS),
         supabase.from('edit_authorizations').select('*').range(0, MAX_ROWS)
       ]);
 
-      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar, pms, amb, ea] = results;
+      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar, pms, phr, amb, ea] = results;
 
       // Log de erros para debug (invisível ao usuário)
       results.forEach((res, idx) => {
@@ -74,6 +75,7 @@ export const DataRepository = {
         dailyActivityReports: toCamel(dar.data || []),
         bibleClassAttendees: attendees,
         proMonthlyStats: toCamel(pms.data || []),
+        proHistoryRecords: toCamel(phr.data || []),
         ambassadors: toCamel(amb.data || []),
         editAuthorizations: toCamel(ea.data || [])
       };

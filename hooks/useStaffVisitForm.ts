@@ -199,8 +199,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
 
     if (isStaff) {
         if (!formData.sector) { showToast("Setor é obrigatório para colaboradores.", "warning"); return; }
-        if (!proSectors.some(s => s.name === formData.sector && s.unit === unit)) { showToast("Setor inválido.", "warning"); return; }
-        if (!proStaff.some(s => normalizeString(s.name) === normalizeString(formData.staffName) && s.unit === unit)) { showToast("Colaborador não encontrado no RH.", "warning"); return; }
+        // FLEXIBILIZAR: Removido bloqueio de existência no Banco de RH e Setores Oficiais
     } else {
         if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast("WhatsApp é obrigatório para prestadores.", "warning"); return; }
     }

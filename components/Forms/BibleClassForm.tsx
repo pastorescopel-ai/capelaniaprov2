@@ -42,12 +42,12 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
   const headerActions = React.useMemo(() => (
     <>
-      <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start">
+      <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 self-start">
           {[ParticipantType.STAFF, ParticipantType.PATIENT, ParticipantType.PROVIDER].map(type => (
-          <button key={type} type="button" onClick={() => setFormData({...formData, participantType: type, students: [], sector: '', representativePhone: ''})} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all ${formData.participantType === type ? 'bg-white shadow-lg text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>{type}</button>
+          <button key={type} type="button" onClick={() => setFormData({...formData, participantType: type, students: [], sector: '', representativePhone: ''})} className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase transition-all ${formData.participantType === type ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>{type}</button>
           ))}
       </div>
-      <button type="button" onClick={handleClear} className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 hover:text-pink-700 transition-all flex items-center justify-center text-lg shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>
+      <button type="button" onClick={handleClear} className="w-9 h-9 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 active:scale-95 transition-all flex items-center justify-center text-base shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>
     </>
   ), [formData, handleClear, setFormData]);
 
@@ -84,36 +84,36 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
         </div>
       )}
       <FormScaffold title="Classe Bíblica" headerActions={headerActions} history={historySection}>
-      <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-6">
-        <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date || ''} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-indigo-500/20 transition-all" /></div>
+      <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
+        <div className="grid md:grid-cols-2 gap-4 md:gap-5">
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date || ''} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-indigo-500/20 transition-all" /></div>
           
           <div className="space-y-1">
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>Setor / Local {isStaff ? '(Obrigatório)' : '(Opcional)'}</label>
-              <Autocomplete options={sectorOptions} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} placeholder={isStaff ? "Selecione o setor..." : "Leito, Quarto ou Área (Opcional)..."} isStrict={isStaff} />
+              <Autocomplete options={sectorOptions} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} placeholder={isStaff ? "Selecione o setor..." : "Leito, Quarto ou Área (Opcional)..."} isStrict={false} />
           </div>
 
           <div className={`space-y-1 ${!isStaff ? 'order-first md:order-none col-span-2 md:col-span-2 animate-in slide-in-from-top-2' : ''}`}>
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-indigo-600' : 'text-slate-400'}`}>WhatsApp do Representante {!isStaff ? '*' : '(Opcional)'}</label>
-              <input type="text" placeholder="(00) 00000-0000" value={formData.representativePhone || ''} onChange={e => setFormData({...formData, representativePhone: formatWhatsApp(e.target.value)})} className={`w-full p-3 md:p-4 rounded-2xl border-none font-bold transition-all focus:ring-2 focus:ring-indigo-500/20 ${!isStaff ? 'bg-indigo-50 text-indigo-900 ring-2 ring-indigo-100 focus:ring-indigo-300' : 'bg-slate-50'}`}/>
+              <input type="text" placeholder="(00) 00000-0000" value={formData.representativePhone || ''} onChange={e => setFormData({...formData, representativePhone: formatWhatsApp(e.target.value)})} className={`w-full p-3 md:p-3.5 rounded-2xl border-none font-bold transition-all focus:ring-2 focus:ring-indigo-500/20 ${!isStaff ? 'bg-indigo-50 text-indigo-900 ring-2 ring-indigo-100 focus:ring-indigo-300' : 'bg-slate-50'}`}/>
           </div>
           
           <div className="space-y-1 md:col-span-2">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Chamada de Presença {isStaff ? '' : '(Imã de Histórico Ativo 🧲)'}</label>
             <div className="flex gap-2">
-              <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent || ''} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={isStaff ? "Buscar colaborador..." : "Digite o nome e clique + (busca grupos anteriores)..."} isStrict={isStaff} /></div>
+              <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent || ''} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={isStaff ? "Buscar colaborador..." : "Digite o nome e clique + (busca grupos anteriores)..."} isStrict={false} /></div>
               <button type="button" onClick={() => addStudent()} className="w-12 h-12 md:w-14 md:h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all"><i className="fas fa-plus"></i></button>
             </div>
             
-            <div className="mt-4 md:mt-6 border border-slate-200 rounded-[1.5rem] overflow-hidden bg-white shadow-sm">
-              <div className="bg-slate-50 p-3 md:p-4 border-b border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-2 flex items-center gap-2"><i className="fas fa-clipboard-list text-indigo-400"></i> Lista de Alunos ({formData.students.length})</span></div>
+            <div className="mt-4 md:mt-5 border border-slate-200 rounded-[1.5rem] overflow-hidden bg-white shadow-sm">
+              <div className="bg-slate-50 p-3 md:p-3.5 border-b border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-2 flex items-center gap-2"><i className="fas fa-clipboard-list text-indigo-400"></i> Lista de Alunos ({formData.students.length})</span></div>
               <div className="max-h-[15rem] md:max-h-[20rem] overflow-y-auto custom-scrollbar">
                  {callList.map((s, i) => {
                     const isPresent = formData.students.includes(s);
                     const isFromLastClass = lastClassStudents.includes(s);
                     
                     return (
-                      <div key={`${s}-${i}`} className={`flex items-center justify-between p-3 md:p-4 border-b border-slate-100 last:border-none transition-colors group ${isPresent ? 'bg-emerald-50/50' : isFromLastClass ? 'bg-amber-50/80 border-l-4 border-l-amber-400' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
+                      <div key={`${s}-${i}`} className={`flex items-center justify-between p-3 md:p-3.5 border-b border-slate-100 last:border-none transition-colors group ${isPresent ? 'bg-emerald-50/50' : isFromLastClass ? 'bg-amber-50/80 border-l-4 border-l-amber-400' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
                           <div className="flex items-center gap-3 md:gap-4">
                               <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${isPresent ? 'bg-emerald-500 text-white' : isFromLastClass ? 'bg-amber-200 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>
                                 {isPresent ? <i className="fas fa-check"></i> : i + 1}
@@ -149,14 +149,14 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           </div>
 
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome da Classe</label><Autocomplete options={guideOptions} value={formData.guide || ''} onChange={v => setFormData({...formData, guide: v})} placeholder="Ex: Classe Sábado" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Lição nº</label><input type="number" value={formData.lesson || ''} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-3 md:p-4 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-indigo-500/20 transition-all" /></div>
-          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-3 md:py-4 rounded-2xl font-black text-[10px] uppercase border-2 transition-all active:scale-95 ${formData.status === opt ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-100 text-slate-400 bg-slate-50 hover:bg-slate-100'}`}>{opt}</button>))}</div></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Lição nº</label><input type="number" value={formData.lesson || ''} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-indigo-500/20 transition-all" /></div>
+          <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-3 md:py-3.5 rounded-2xl font-black text-[10px] uppercase border-2 transition-all active:scale-95 ${formData.status === opt ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-100 text-slate-400 bg-slate-50 hover:bg-slate-100'}`}>{opt}</button>))}</div></div>
         </div>
         <Button 
           type="submit" 
           variant="dark"
           isLoading={isSubmitting}
-          className="w-full py-4 md:py-6 text-xs"
+          className="w-full py-4 md:py-5 text-xs"
         >
           Salvar Registro
         </Button>

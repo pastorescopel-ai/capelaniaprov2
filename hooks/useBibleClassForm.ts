@@ -287,10 +287,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   const addStudent = (val?: string) => { 
     const inputVal = val || newStudent;
     const nameToAdd = inputVal.split(' (')[0].trim();
-    if (formData.participantType === ParticipantType.STAFF) {
-        const staffExists = proStaff.some(s => normalizeString(s.name) === normalizeString(nameToAdd) && s.unit === unit);
-        if (!staffExists) { showToast("Aluno não encontrado no banco de colaboradores.", "warning"); setNewStudent(''); return; }
-    }
+    // FLEXIBILIZAR: Removido bloqueio de aluno não encontrado no Banco de RH
     const fullLabel = studentSearchOptions.find(o => o.value === nameToAdd || o.label === inputVal)?.label;
     const finalString = fullLabel || nameToAdd;
 
@@ -419,7 +416,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
     if (formData.participantType === ParticipantType.STAFF) {
         if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
-        if (!proSectors.some(s => s.name === formData.sector && s.unit === unit)) { showToast("Selecione um setor oficial válido da lista.", "warning"); return; }
+        // FLEXIBILIZAR: Removido bloqueio de setor oficial
     } else {
         if (!formData.representativePhone || formData.representativePhone.length < 10) { showToast("O WhatsApp do Representante é obrigatório para este grupo.", "warning"); return; }
     }

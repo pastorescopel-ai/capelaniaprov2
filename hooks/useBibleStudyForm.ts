@@ -282,10 +282,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
     if (isStaff) {
         if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
-        const staffExists = proStaff.some(s => normalizeString(s.name) === normalizeString(formData.name) && s.unit === unit);
-        if (!staffExists) { showToast("O colaborador informado não consta no Banco de RH.", "warning"); return; }
-        const sectorExists = proSectors.some(s => s.name === formData.sector && s.unit === unit);
-        if (!sectorExists) { showToast("O setor informado não consta na lista oficial.", "warning"); return; }
+        // FLEXIBILIZAR: Removido bloqueio de existência no Banco de RH e Setores Oficiais
     } else {
         if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast(`O WhatsApp é obrigatório para ${formData.participantType}.`, "warning"); return; }
     }

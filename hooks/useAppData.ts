@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ParticipantType, Unit, ActivitySchedule, DailyActivityReport, ProMonthlyStats, EditAuthorization } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ParticipantType, Unit, ActivitySchedule, DailyActivityReport, ProMonthlyStats, EditAuthorization, ProHistoryRecord } from '../types';
 import { DataRepository } from '../services/dataRepository';
 import { INITIAL_CONFIG } from '../constants';
 import { supabase } from '../services/supabaseClient';
@@ -24,6 +24,7 @@ export const useAppData = () => {
   const [proGroupMembers, setProGroupMembers] = useState<ProGroupMember[]>([]);
   const [proGroupProviderMembers, setProGroupProviderMembers] = useState<ProGroupProviderMember[]>([]);
   const [proMonthlyStats, setProMonthlyStats] = useState<ProMonthlyStats[]>([]);
+  const [proHistoryRecords, setProHistoryRecords] = useState<ProHistoryRecord[]>([]);
   const [ambassadors, setAmbassadors] = useState<any[]>([]);
   const [activitySchedules, setActivitySchedules] = useState<ActivitySchedule[]>([]);
   const [dailyActivityReports, setDailyActivityReports] = useState<DailyActivityReport[]>([]);
@@ -62,6 +63,7 @@ export const useAppData = () => {
         setProGroupMembers(data.proGroupMembers || []);
         setProGroupProviderMembers(data.proGroupProviderMembers || []);
         setProMonthlyStats(data.proMonthlyStats || []);
+        setProHistoryRecords(data.proHistoryRecords || []);
         setAmbassadors(data.ambassadors || []);
         setActivitySchedules(data.activitySchedules || []);
         setDailyActivityReports(data.dailyActivityReports || []);
@@ -101,6 +103,7 @@ export const useAppData = () => {
         'pro_group_members': 'proGroupMembers',
         'pro_group_provider_members': 'proGroupProviderMembers',
         'pro_monthly_stats': 'proMonthlyStats',
+        'pro_history_records': 'proHistoryRecords',
         'ambassadors': 'ambassadors',
         'activity_schedules': 'activitySchedules',
         'daily_activity_reports': 'dailyActivityReports',
@@ -147,6 +150,7 @@ export const useAppData = () => {
         else if (collection === 'proGroupMembers') updateState(setProGroupMembers);
         else if (collection === 'proGroupProviderMembers') updateState(setProGroupProviderMembers);
         else if (collection === 'proMonthlyStats') updateState(setProMonthlyStats);
+        else if (collection === 'proHistoryRecords') updateState(setProHistoryRecords);
         else if (collection === 'ambassadors') updateState(setAmbassadors);
         else if (collection === 'activitySchedules') updateState(setActivitySchedules);
         else if (collection === 'dailyActivityReports') updateState(setDailyActivityReports);
@@ -229,6 +233,7 @@ export const useAppData = () => {
       else if (collection === 'proGroupMembers') updateState(setProGroupMembers);
       else if (collection === 'proGroupProviderMembers') updateState(setProGroupProviderMembers);
       else if (collection === 'proMonthlyStats') updateState(setProMonthlyStats);
+      else if (collection === 'proHistoryRecords') updateState(setProHistoryRecords);
       else if (collection === 'ambassadors') updateState(setAmbassadors);
       else if (collection === 'activitySchedules') updateState(setActivitySchedules);
       else if (collection === 'dailyActivityReports') updateState(setDailyActivityReports);
@@ -340,6 +345,7 @@ export const useAppData = () => {
       else if (collection === 'proGroupMembers') removeState(setProGroupMembers);
       else if (collection === 'proGroupProviderMembers') removeState(setProGroupProviderMembers);
       else if (collection === 'proMonthlyStats') removeState(setProMonthlyStats);
+      else if (collection === 'proHistoryRecords') removeState(setProHistoryRecords);
       else if (collection === 'ambassadors') removeState(setAmbassadors);
       else if (collection === 'users') removeState(setUsers);
       else if (collection === 'activitySchedules') removeState(setActivitySchedules);
@@ -364,6 +370,7 @@ export const useAppData = () => {
       if (overrides?.proGroupMembers) await saveRecord('proGroupMembers', overrides.proGroupMembers);
       if (overrides?.proGroupProviderMembers) await saveRecord('proGroupProviderMembers', overrides.proGroupProviderMembers);
       if (overrides?.proMonthlyStats) await saveRecord('proMonthlyStats', overrides.proMonthlyStats);
+      if (overrides?.proHistoryRecords) await saveRecord('proHistoryRecords', overrides.proHistoryRecords);
       if (overrides?.ambassadors) await saveRecord('ambassadors', overrides.ambassadors);
       return true;
     } finally {
@@ -404,7 +411,7 @@ export const useAppData = () => {
 
   return {
     users, setUsers, bibleStudies, setBibleStudies, bibleClasses, setBibleClasses, smallGroups, setSmallGroups, staffVisits, setStaffVisits, visitRequests, setVisitRequests,
-    proStaff, setProStaff, proPatients, setProPatients, proProviders, setProProviders, proSectors, setProSectors, proGroups, setProGroups, proGroupLocations, setProGroupLocations, proGroupMembers, setProGroupMembers, proGroupProviderMembers, setProGroupProviderMembers, proMonthlyStats, setProMonthlyStats, ambassadors, setAmbassadors,
+    proStaff, setProStaff, proPatients, setProPatients, proProviders, setProProviders, proSectors, setProSectors, proGroups, setProGroups, proGroupLocations, setProGroupLocations, proGroupMembers, setProGroupMembers, proGroupProviderMembers, setProGroupProviderMembers, proMonthlyStats, setProMonthlyStats, proHistoryRecords, setProHistoryRecords, ambassadors, setAmbassadors,
     activitySchedules, setActivitySchedules, dailyActivityReports, setDailyActivityReports, bibleClassAttendees, setBibleClassAttendees,
     editAuthorizations, setEditAuthorizations,
     config, setConfig, isSyncing, isConnected, isInitialized,
