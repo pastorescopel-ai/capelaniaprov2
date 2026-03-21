@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { StaffService } from '../../services/staff.service';
-import { useAppData } from '../../hooks/useAppData';
+import { useApp } from '../../contexts/AppProvider';
 import { useToast } from '../../contexts/ToastProvider';
 import { toSafeDateISO } from '../../utils/formatters';
 import { isRecordLocked } from '../../utils/validators';
@@ -8,7 +8,7 @@ import { User } from '../../types';
 
 export const useStaff = (currentUser: User | null) => {
   const { showToast } = useToast();
-  const { saveRecord, deleteRecord } = useAppData();
+  const { saveRecord, deleteRecord } = useApp();
   const [isSaving, setIsSaving] = useState(false);
 
   const saveVisit = useCallback(async (data: any) => {

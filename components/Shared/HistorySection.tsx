@@ -59,6 +59,8 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
   const filteredHistory = useMemo(() => {
     const normQuery = normalizeString(debouncedSearchQuery);
     const searchTerms = normQuery.split(' ').filter(t => t.trim() !== '');
+    // eslint-disable-next-line react-hooks/purity
+    const now = Date.now();
 
     const filtered = data.filter(item => {
       if (!item.date) return false;
@@ -71,6 +73,11 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
 
       const isBypassed = bypassFilter?.(item);
       if (isBypassed) return true;
+
+      // Bypass para itens recém-criados (últimos 5 minutos) do próprio usuário
+      // Isso garante feedback imediato após o salvamento, ignorando filtros de data.
+      const isRecent = item.createdAt && (now - Number(item.createdAt)) < 300000;
+      if (isRecent && item.userId === currentUser.id) return true;
 
       const itemDate = ensureISODate(item.date);
       if (!itemDate) return false;

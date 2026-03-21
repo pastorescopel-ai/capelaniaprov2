@@ -126,7 +126,20 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
   useEffect(() => {
     if (editingItem) {
-      setFormData({ ...editingItem, participantType: editingItem.participantType || ParticipantType.STAFF, date: ensureISODate(editingItem.date) || getToday() });
+      setFormData({ 
+        id: editingItem.id || '',
+        date: ensureISODate(editingItem.date) || getToday(),
+        sector: editingItem.sector || '',
+        sectorId: editingItem.sectorId || '',
+        name: editingItem.name || '',
+        staffId: editingItem.staffId || '',
+        whatsapp: editingItem.whatsapp || '',
+        status: editingItem.status || RecordStatus.INICIO,
+        participantType: editingItem.participantType || ParticipantType.STAFF,
+        guide: editingItem.guide || '',
+        lesson: editingItem.lesson || '',
+        observations: editingItem.observations || ''
+      });
       if (editingItem.participantType === ParticipantType.STAFF) {
           const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(editingItem.name) && s.unit === unit);
           setIsSectorLocked(!!staff);
@@ -219,13 +232,13 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     setFormData(prev => ({ 
         ...prev, 
         name: targetName, 
-        sector: targetSector, 
-        sectorId: targetSectorId, 
-        staffId: targetStaffId, 
-        whatsapp: targetWhatsApp, 
-        guide: targetGuide, 
-        lesson: targetLesson, 
-        status: targetStatus
+        sector: targetSector || '', 
+        sectorId: targetSectorId || '', 
+        staffId: targetStaffId || '', 
+        whatsapp: targetWhatsApp || '', 
+        guide: targetGuide || '', 
+        lesson: targetLesson || '', 
+        status: targetStatus || RecordStatus.INICIO
     }));
     setIsSectorLocked(lockSector);
     if (lockSector) showToast("Setor vinculado ao cadastro oficial.", "info");

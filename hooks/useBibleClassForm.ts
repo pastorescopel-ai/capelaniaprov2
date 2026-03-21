@@ -270,9 +270,15 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   useEffect(() => {
     if (editingItem) {
       setFormData({ 
-        ...editingItem, 
-        participantType: editingItem.participantType || ParticipantType.STAFF, 
-        date: ensureISODate(editingItem.date) || getToday(), 
+        id: editingItem.id || '',
+        date: ensureISODate(editingItem.date) || getToday(),
+        sector: editingItem.sector || '',
+        students: editingItem.students || [],
+        guide: editingItem.guide || '',
+        lesson: editingItem.lesson || '',
+        status: editingItem.status || RecordStatus.INICIO,
+        participantType: editingItem.participantType || ParticipantType.STAFF,
+        observations: editingItem.observations || '',
         representativePhone: editingItem.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || '' 
       });
     }
@@ -468,11 +474,11 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         setFormData(prev => ({
             ...prev,
             id: '', // CRITICAL: Clear ID to ensure a new record is created
-            sector: baseItem.sector,
+            sector: baseItem.sector || '',
             participantType: baseItem.participantType || ParticipantType.STAFF,
             students: baseItem.students || [],
-            guide: baseItem.guide,
-            lesson: !isNaN(parseInt(baseItem.lesson)) ? (parseInt(baseItem.lesson) + 1).toString() : baseItem.lesson,
+            guide: baseItem.guide || '',
+            lesson: !isNaN(parseInt(baseItem.lesson)) ? (parseInt(baseItem.lesson) + 1).toString() : (baseItem.lesson || ''),
             status: RecordStatus.CONTINUACAO,
             representativePhone: baseItem.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || ''
         }));

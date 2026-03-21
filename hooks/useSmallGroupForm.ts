@@ -61,19 +61,31 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
         }
 
         setFormData({
-          ...defaultState,
+          id: '',
           date: mission.date || getToday(),
-          groupName: mission.groupName,
-          leader: mission.leader || details.leaderName,
+          groupName: mission.groupName || '',
+          leader: mission.leader || details.leaderName || '',
           leaderPhone: mission.leaderPhone ? formatWhatsApp(mission.leaderPhone) : (details.leaderPhone ? formatWhatsApp(details.leaderPhone) : ''),
           sector: mission.sectorName || details.sectorName || '',
-          shift: shift
+          shift: shift,
+          participantsCount: 0,
+          observations: ''
         });
         
         setIsSectorLocked(!!mission.sectorId || !!details.sectorId);
         showToast(`Missão carregada: ${mission.groupName}`, "success");
       } else {
-        setFormData({ ...editingItem, date: ensureISODate(editingItem.date) || getToday(), observations: editingItem.observations || '', leaderPhone: editingItem.leaderPhone || '' });
+        setFormData({ 
+          id: editingItem.id || '',
+          date: ensureISODate(editingItem.date) || getToday(), 
+          groupName: editingItem.groupName || '',
+          leader: editingItem.leader || '',
+          leaderPhone: editingItem.leaderPhone || '',
+          sector: editingItem.sector || '',
+          shift: editingItem.shift || 'Manhã',
+          participantsCount: editingItem.participantsCount || 0,
+          observations: editingItem.observations || '' 
+        });
         const details = inferPGDetails(editingItem.groupName);
         setIsSectorLocked(!!details.sectorId);
       }
@@ -86,9 +98,9 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       setFormData(prev => ({ 
         ...prev, 
         groupName: pgName, 
-        leader: details.leaderName, 
+        leader: details.leaderName || '', 
         leaderPhone: details.leaderPhone ? formatWhatsApp(details.leaderPhone) : '', 
-        sector: details.sectorName 
+        sector: details.sectorName || '' 
       }));
       if(details.leaderName || details.sectorName) showToast("Dados oficiais do líder carregados.", "info");
   };
@@ -100,8 +112,8 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       setFormData(prev => ({ 
         ...prev, 
         leader: nameOnly, 
-        leaderPhone: details.leaderPhone ? formatWhatsApp(details.leaderPhone) : prev.leaderPhone, 
-        sector: details.sectorName || prev.sector 
+        leaderPhone: details.leaderPhone ? formatWhatsApp(details.leaderPhone) : (prev.leaderPhone || ''), 
+        sector: details.sectorName || prev.sector || '' 
       }));
       setIsSectorLocked(!!details.sectorId);
       if (details.sectorId) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useAppData } from '../../hooks/useAppData';
+import { useApp } from '../../contexts/AppProvider';
 import { useToast } from '../../contexts/ToastProvider';
 import { toSafeDateISO } from '../../utils/formatters';
 import { isRecordLocked } from '../../utils/validators';
@@ -7,7 +7,7 @@ import { User } from '../../types';
 
 export const useBibleModule = (currentUser: User | null) => {
   const { showToast } = useToast();
-  const { saveRecord } = useAppData();
+  const { saveRecord } = useApp();
   const [isSaving, setIsSaving] = useState(false);
 
   const saveStudy = useCallback(async (data: any) => {

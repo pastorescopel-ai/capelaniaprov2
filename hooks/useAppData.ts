@@ -191,9 +191,12 @@ export const useAppData = () => {
 
   const saveRecord = useCallback(async (collection: string, item: any) => {
     const result = await DataRepository.upsertRecord(collection, item);
+    console.log(`[saveRecord] Upsert result for ${collection}:`, result);
+
     if (result.success && result.data) {
       // Atualização Incremental do Estado Local
       const updatedItems = result.data;
+      console.log(`[saveRecord] Updating local state for ${collection} with ${updatedItems.length} items.`);
       
       const updateState = (setter: any) => {
         setter((prev: any[]) => {
@@ -201,8 +204,10 @@ export const useAppData = () => {
           updatedItems.forEach(newItem => {
             const index = newState.findIndex(i => i.id === newItem.id);
             if (index !== -1) {
+              console.log(`[saveRecord] Replacing existing item in ${collection}:`, newItem.id);
               newState[index] = { ...newState[index], ...newItem };
             } else {
+              console.log(`[saveRecord] Adding new item to ${collection}:`, newItem.id);
               newState.push(newItem);
             }
           });
@@ -232,13 +237,10 @@ export const useAppData = () => {
       else if (collection === 'users') updateState(setUsers);
       else if (collection === 'config' && updatedItems[0]) setConfig(updatedItems[0]);
 
-      // Sincronização centralizada forçada
-      await loadFromCloud(false);
-
       return true;
     }
     return false;
-  }, [loadFromCloud]);
+  }, []);
 
   /**
    * ULTIMATE_ENTITY_SYNC_ENGINE (V4.1 - Enhanced Sector Healing)

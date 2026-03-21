@@ -80,16 +80,20 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       if ((editingItem as any).isReturn) {
         // É um agendamento de retorno vindo do Dashboard
         setFormData({
-          ...defaultState,
+          id: '',
           date: getToday(),
-          staffName: editingItem.staffName,
-          sector: editingItem.sector,
+          staffName: editingItem.staffName || '',
+          sector: editingItem.sector || '',
           participantType: (editingItem as any).participantType || ParticipantType.STAFF,
           providerRole: (editingItem as any).providerRole || '',
           whatsapp: (editingItem as any).whatsapp || '',
           reason: VisitReason.ACOMPANHAMENTO,
           requiresReturn: false,
-          returnDate: getToday()
+          returnDate: getToday(),
+          staffId: editingItem.staffId || '',
+          providerId: editingItem.providerId || '',
+          returnCompleted: false,
+          observations: ''
         });
         if ((editingItem as any).participantType === ParticipantType.STAFF || !(editingItem as any).participantType) {
           const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(editingItem.staffName) && s.unit === unit);
@@ -100,12 +104,19 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       } else {
         // Edição normal de um registro existente
         setFormData({ 
-          ...editingItem, 
+          id: editingItem.id || '',
+          date: ensureISODate(editingItem.date) || getToday(),
+          sector: editingItem.sector || '',
+          reason: editingItem.reason || VisitReason.ROTINA,
+          staffName: editingItem.staffName || '',
+          staffId: editingItem.staffId || '',
+          providerId: editingItem.providerId || '',
           whatsapp: (editingItem as any).whatsapp || '', 
           participantType: (editingItem as any).participantType || ParticipantType.STAFF, 
           providerRole: (editingItem as any).providerRole || '', 
-          date: ensureISODate(editingItem.date) || getToday(), 
+          requiresReturn: editingItem.requiresReturn || false,
           returnDate: ensureISODate(editingItem.returnDate) || getToday(), 
+          returnCompleted: editingItem.returnCompleted || false,
           observations: editingItem.observations || '' 
         });
         if (editingItem.participantType === ParticipantType.STAFF || !editingItem.participantType) {
@@ -151,10 +162,10 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       setFormData(prev => ({ 
         ...prev, 
         staffName: nameOnly, 
-        staffId: foundStaffId, 
-        providerId: foundProviderId, 
-        whatsapp: foundWhatsapp, 
-        sector: foundSector 
+        staffId: foundStaffId || '', 
+        providerId: foundProviderId || '', 
+        whatsapp: foundWhatsapp || '', 
+        sector: foundSector || '' 
       }));
       setIsSectorLocked(lockSector);
       if (lockSector) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
@@ -219,18 +230,20 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
 
   const handlePerformReturn = (item: StaffVisit) => {
     setFormData({
-      ...defaultState,
+      id: '',
       date: getToday(),
-      staffName: item.staffName,
+      staffName: item.staffName || '',
       staffId: item.staffId || '',
       providerId: item.providerId || '',
-      sector: item.sector,
+      sector: item.sector || '',
       participantType: (item as any).participantType || ParticipantType.STAFF,
       providerRole: (item as any).providerRole || '',
       whatsapp: item.whatsapp || '',
       reason: VisitReason.ACOMPANHAMENTO,
       requiresReturn: false,
-      returnDate: ensureISODate(item.returnDate) || getToday()
+      returnDate: ensureISODate(item.returnDate) || getToday(),
+      returnCompleted: false,
+      observations: ''
     });
     if ((item as any).participantType === ParticipantType.STAFF || !(item as any).participantType) {
       const match = proStaff.find(s => normalizeString(s.name) === normalizeString(item.staffName));
