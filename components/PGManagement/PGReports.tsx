@@ -18,19 +18,27 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
   const { generatePdf, generateZipOfPdfs, isGenerating, progress } = useDocumentGenerator();
   
   // Filtros
+  const [selectedTarget, setSelectedTarget] = useState<{type: 'sector' | 'pg' | 'leader', id: string, label: string} | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'sector' | 'pg'>('sector');
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterCritical, setFilterCritical] = useState(false);
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [searchTerm]);
+  const searchOptions = useMemo(() => {
+    const options: {type: 'sector' | 'pg' | 'leader', id: string, label: string}[] = [];
+    proSectors.filter(s => s.unit === unit).forEach(s => options.push({type: 'sector', id: s.id, label: `Setor: ${s.name}`}));
+    proGroups.filter(g => g.unit === unit).forEach(g => options.push({type: 'pg', id: g.id, label: `PG: ${g.name}`}));
+    proStaff.filter(s => s.unit === unit).forEach(s => {
+        const group = proGroups.find(g => g.currentLeader === s.id || g.leader === s.id);
+        const sector = proSectors.find(sec => sec.id === s.sectorId);
+        options.push({type: 'leader', id: s.id, label: `Líder: ${s.name} (${sector?.name || 'Sem Setor'}) - ${s.whatsapp || 'Sem WhatsApp'}`});
+    });
+    return options;
+  }, [proSectors, proGroups, proStaff, unit]);
+
+  const filteredOptions = useMemo(() => {
+    return searchOptions.filter(o => normalizeString(o.label).includes(normalizeString(searchTerm)));
+  }, [searchOptions, searchTerm]);
 
   const reportHeaderInfo = useMemo(() => {
     const s = new Date(startDate + 'T12:00:00');
@@ -173,7 +181,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
         return { sector, totalStaff: staff.length, enrolledCount: enrolledStaff.length, coverage, pgs, notEnrolledList: notEnrolled, enrolledList: enrolledStaff, enrolledByPG };
     });
 
-    const normSearch = normalizeString(debouncedSearchTerm);
+    const normSearch = normalizeString(searchTerm);
     const searchTerms = normSearch.split(' ').filter(t => t);
 
     return data.filter(d => {
@@ -182,16 +190,20 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
         // Filtro de Gargalo (< 80%)
         if (filterCritical && d.coverage >= 80) return false;
 
+        if (selectedTarget) {
+            if (selectedTarget.type === 'sector') return d.sector.id === selectedTarget.id;
+            if (selectedTarget.type === 'pg') return d.pgs.some(pg => pg?.id === selectedTarget.id);
+            if (selectedTarget.type === 'leader') return d.enrolledByPG.some(group => group.leaderName === selectedTarget.label.split('Líder: ')[1].split(' (')[0]);
+        }
+        
         if (searchTerms.length === 0) return true;
         
-        const targetText = filterType === 'sector' 
-            ? d.sector.name 
-            : d.pgs.map(pg => pg?.name || '').join(' ');
+        const targetText = d.sector.name + ' ' + d.pgs.map(pg => pg?.name || '').join(' ');
             
         const normTarget = normalizeString(targetText);
         return searchTerms.every(term => normTarget.includes(term));
     });
-  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, unit, debouncedSearchTerm, filterType, startDate, endDate, filterCritical]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, unit, searchTerm, selectedTarget, startDate, endDate, filterCritical]);
 
   const generateSectorHtml = (data: any) => {
     return `
@@ -311,21 +323,22 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-4 rounded-xl bg-white border-none font-bold text-xs shadow-sm" />
             </div>
             
-            <div className="lg:col-span-2 space-y-1">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Filtrar por {filterType === 'sector' ? 'Setor' : 'PG'}</label>
-                <div className="flex gap-2">
-                  <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-200">
-                    <button onClick={() => setFilterType('sector')} className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${filterType === 'sector' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>Setor</button>
-                    <button onClick={() => setFilterType('pg')} className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${filterType === 'pg' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>PG</button>
-                  </div>
-                  <input 
-                      type="text" 
-                      placeholder={`Buscar...`} 
-                      value={searchTerm}
-                      onChange={e => setSearchTerm(e.target.value)}
-                      className="flex-1 p-4 rounded-xl bg-white border-none font-bold text-xs shadow-sm outline-none focus:ring-2 focus:ring-blue-500" 
-                  />
-                </div>
+            <div className="lg:col-span-2 space-y-1 relative">
+                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Filtrar por Setor, PG ou Líder</label>
+                <input 
+                    type="text" 
+                    placeholder="Buscar..." 
+                    value={searchTerm}
+                    onChange={e => { setSearchTerm(e.target.value); setSelectedTarget(null); }}
+                    className="w-full p-4 rounded-xl bg-white border-none font-bold text-xs shadow-sm outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+                {searchTerm && (
+                    <div className="absolute z-10 w-full bg-white mt-1 rounded-xl shadow-lg border border-slate-100 max-h-60 overflow-y-auto">
+                        {filteredOptions.map(o => (
+                            <button key={o.id} onClick={() => { setSelectedTarget(o); setSearchTerm(o.label); }} className="w-full text-left p-3 text-xs hover:bg-slate-50 border-b border-slate-50">{o.label}</button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className="md:col-span-2 lg:col-span-4 flex justify-end">

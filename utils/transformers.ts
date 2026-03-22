@@ -147,10 +147,7 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
              const valStr = String(val);
              
              if (isValidUUID(valStr)) {
-                const isEntityTable = ['pro_staff', 'pro_sectors', 'pro_groups'].includes(tableName);
-                if (snakeKey === 'id' && isEntityTable) {
-                    continue; 
-                } else if (snakeKey !== 'id') {
+                if (snakeKey !== 'id') {
                     val = null;
                 }
              } else {

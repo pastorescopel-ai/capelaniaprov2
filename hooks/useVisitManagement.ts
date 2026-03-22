@@ -48,11 +48,21 @@ export const useVisitManagement = (
   const handleSaveVisit = useCallback(async (
     unit: Unit,
     pgDetails: { leaderName: string; leaderPhone: string; sectorId: string | null; staffId: string | null },
-    proStaff: any[]
+    proStaff: any[],
+    activeCompetenceMonth?: string
   ) => {
     if (!selectedPG || !selectedChaplainId || !visitDate || !visitTime || !leaderPhone) {
       showToast("Preencha todos os campos, incluindo WhatsApp do Líder.", "warning");
       return false;
+    }
+
+    // Bloqueio de Mês Fechado
+    if (activeCompetenceMonth) {
+      const visitMonth = visitDate.substring(0, 7) + '-01';
+      if (visitMonth < activeCompetenceMonth) {
+        showToast("Não é possível agendar visitas em meses já fechados.", "warning");
+        return false;
+      }
     }
 
     setIsProcessing(true);

@@ -15,6 +15,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const isAuthenticatedRef = React.useRef(isAuthenticated);
+
+  useEffect(() => {
+    isAuthenticatedRef.current = isAuthenticated;
+  }, [isAuthenticated]);
 
   // Função para atualizar o carimbo de última atividade
   const updateActivity = () => {
@@ -43,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Monitor de eventos para resetar o timer de inatividade
     const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
     const handleUserActivity = () => {
-      if (isAuthenticated) updateActivity();
+      if (isAuthenticatedRef.current) updateActivity();
     };
 
     events.forEach(event => window.addEventListener(event, handleUserActivity));
@@ -103,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Intervalo para verificar inatividade periodicamente enquanto o app está aberto
     const inactivityInterval = setInterval(() => {
-      if (isAuthenticated && checkInactivity()) {
+      if (isAuthenticatedRef.current && checkInactivity()) {
         logout();
       }
     }, 60000); // Verifica a cada minuto

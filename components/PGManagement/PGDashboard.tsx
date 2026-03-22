@@ -13,7 +13,7 @@ interface PGDashboardProps {
 
 const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
   const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, proMonthlyStats, proHistoryRecords } = usePro();
-  const { saveRecord } = useApp();
+  const { config, saveRecord, deleteRecord } = useApp();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -23,11 +23,17 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
   const isAdmin = currentUser?.role === 'admin';
   
-  // Estado para o mês de competência selecionado (Padrão: Mês Atual)
+  // Estado para o mês de competência selecionado
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    return config.activeCompetenceMonth || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   });
+
+  // Sincronizar selectedMonth com config.activeCompetenceMonth se mudar externamente
+  useEffect(() => {
+    if (config.activeCompetenceMonth) {
+      setSelectedMonth(config.activeCompetenceMonth);
+    }
+  }, [config.activeCompetenceMonth]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -380,11 +386,59 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         await saveRecord('proHistoryRecords', record);
       }
 
+      // ATUALIZAR MÊS DE COMPETÊNCIA NO CONFIG (CASCATA)
+      const current = new Date(selectedMonth + 'T12:00:00');
+      const next = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+      const nextMonthStr = next.toISOString().split('T')[0];
+      
+      await saveRecord('config', {
+        ...config,
+        activeCompetenceMonth: nextMonthStr
+      });
+
       setIsCloseModalOpen(false);
-      alert('Mês fechado com sucesso! O histórico foi gerado para o B.I.');
+      alert(`Mês fechado com sucesso! O sistema agora está em ${new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(next)}.`);
     } catch (error) {
       console.error('Erro ao fechar mês:', error);
       alert('Erro ao processar o fechamento do mês.');
+    } finally {
+      setIsClosing(false);
+    }
+  };
+
+  const handleReopenMonth = async () => {
+    const current = new Date(selectedMonth + 'T12:00:00');
+    const next = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+    const nextMonthStr = next.toISOString().split('T')[0];
+
+    // Verificar se o mês seguinte já tem histórico (está fechado)
+    const nextMonthClosed = proHistoryRecords.some(r => r.month === nextMonthStr && r.unit === unit);
+    if (nextMonthClosed) {
+      alert('Não é possível reabrir este mês porque o mês seguinte já foi fechado.');
+      return;
+    }
+
+    if (!window.confirm(`Tem certeza que deseja REABRIR o mês de ${new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(current)}? Isso apagará o histórico gerado para este mês e voltará o sistema para esta competência.`)) {
+      return;
+    }
+
+    setIsClosing(true);
+    try {
+      const recordsToDelete = proHistoryRecords.filter(r => r.month === selectedMonth && r.unit === unit);
+      for (const record of recordsToDelete) {
+        await deleteRecord('proHistoryRecords', record.id);
+      }
+
+      // Voltar o mês de competência no config
+      await saveRecord('config', {
+        ...config,
+        activeCompetenceMonth: selectedMonth
+      });
+
+      alert('Mês reaberto com sucesso!');
+    } catch (error) {
+      console.error('Erro ao reabrir mês:', error);
+      alert('Erro ao reabrir o mês.');
     } finally {
       setIsClosing(false);
     }
@@ -414,18 +468,27 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
             ))}
           </select>
           {isAdmin && (
-            <button 
-              onClick={() => setIsCloseModalOpen(true)}
-              disabled={metrics.displaySectors[0]?.isSnapshot}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
-                metrics.displaySectors[0]?.isSnapshot 
-                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-                  : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-100'
-              }`}
-            >
-              <i className="fas fa-lock"></i>
-              {metrics.displaySectors[0]?.isSnapshot ? 'Mês Fechado' : 'Fechar Mês'}
-            </button>
+            <div className="flex items-center gap-2">
+              {metrics.displaySectors[0]?.isSnapshot ? (
+                <button 
+                  onClick={handleReopenMonth}
+                  disabled={isClosing}
+                  className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center gap-2"
+                >
+                  <i className="fas fa-unlock"></i>
+                  Reabrir Mês
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setIsCloseModalOpen(true)}
+                  disabled={isClosing}
+                  className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-100 transition-all flex items-center gap-2"
+                >
+                  <i className="fas fa-lock"></i>
+                  Fechar Mês
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

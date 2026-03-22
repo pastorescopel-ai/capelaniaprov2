@@ -71,6 +71,7 @@ export const INITIAL_CONFIG: Config = {
   headerPaddingTop: 30,
   headerTextAlign: 'left',
   primaryColor: '#005a9c',
+  activeCompetenceMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
   headerProfiles: {
     ambassadors: {
       id: 'ambassadors',

@@ -11,7 +11,7 @@ interface UsePGMembershipProps {
 
 export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   const { proSectors, proStaff, proProviders, proGroups, proGroupMembers, proGroupProviderMembers, proGroupLocations, proMonthlyStats } = usePro();
-  const { saveRecord } = useApp();
+  const { config, saveRecord } = useApp();
   const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState<'staff' | 'providers'>('staff');
@@ -39,11 +39,19 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
 
   // --- CICLO DE COMPETÊNCIA ---
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    return config.activeCompetenceMonth || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   });
+
+  // Sincronizar selectedMonth com config.activeCompetenceMonth se mudar externamente
+  useEffect(() => {
+    if (config.activeCompetenceMonth) {
+      setSelectedMonth(config.activeCompetenceMonth);
+    }
+  }, [config.activeCompetenceMonth]);
   
-  const isMonthClosed = proMonthlyStats?.some(s => s.month === selectedMonth);
+  const isMonthClosed = selectedMonth < (config.activeCompetenceMonth || '');
+  const isFutureMonth = selectedMonth > (config.activeCompetenceMonth || '');
+  const isOpenMonth = selectedMonth === (config.activeCompetenceMonth || '');
 
   // --- ESTADOS OTIMISTAS (UI Instantânea) ---
   const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());
@@ -363,6 +371,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     selectedPGName, setSelectedPGName,
     providerSearch, setProviderSearch,
     selectedMonth, setSelectedMonth,
+    isMonthClosed, isFutureMonth, isOpenMonth,
     isProcessing,
     removalType, setRemovalType,
     memberToRemove, setMemberToRemove,

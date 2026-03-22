@@ -107,30 +107,57 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
 
   const handleSelectLeader = (label: string) => {
       const nameOnly = label.split(' (')[0].trim();
-      const details = inferLeaderDetails(label);
       
-      setFormData(prev => ({ 
-        ...prev, 
-        leader: nameOnly, 
-        leaderPhone: details.leaderPhone ? formatWhatsApp(details.leaderPhone) : (prev.leaderPhone || ''), 
-        sector: details.sectorName || prev.sector || '' 
-      }));
-      setIsSectorLocked(!!details.sectorId);
-      if (details.sectorId) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
+      // Check if leader is in RH (proStaff)
+      const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(nameOnly));
+      
+      if (staff) {
+          // Found in RH: Update sector, update phone if exists, else clear phone
+          const sectorName = staff.sectorId ? (proSectors.find(s => s.id === staff.sectorId)?.name || '') : '';
+          setFormData(prev => ({ 
+              ...prev, 
+              leader: nameOnly, 
+              leaderPhone: staff.whatsapp ? formatWhatsApp(staff.whatsapp) : '', 
+              sector: sectorName || prev.sector 
+          }));
+          setIsSectorLocked(!!staff.sectorId);
+          if (staff.sectorId) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
+      } else {
+          // Not in RH: Clear both
+          setFormData(prev => ({ 
+              ...prev, 
+              leader: nameOnly, 
+              leaderPhone: '', 
+              sector: '' 
+          }));
+          setIsSectorLocked(false);
+      }
   };
 
   const handleLeaderChange = (name: string) => {
       setFormData(prev => ({ ...prev, leader: name }));
-      if (!name) setIsSectorLocked(false);
-      // Opcional: tentar inferir se o nome digitado for exato
-      const details = inferLeaderDetails(name);
-      if (details.sectorId) {
+      if (!name) {
+          setIsSectorLocked(false);
+          setFormData(prev => ({ ...prev, leaderPhone: '', sector: '' }));
+          return;
+      }
+      
+      // Check if leader is in RH (proStaff)
+      const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(name));
+      
+      if (staff) {
+          // Found in RH: Update sector, update phone if exists, else clear phone
+          const sectorName = staff.sectorId ? (proSectors.find(s => s.id === staff.sectorId)?.name || '') : '';
           setFormData(prev => ({ 
               ...prev, 
-              leaderPhone: details.leaderPhone ? formatWhatsApp(details.leaderPhone) : prev.leaderPhone, 
-              sector: details.sectorName || prev.sector 
+              leaderPhone: staff.whatsapp ? formatWhatsApp(staff.whatsapp) : '', 
+              sector: sectorName || prev.sector 
           }));
-          setIsSectorLocked(true);
+          setIsSectorLocked(!!staff.sectorId);
+      } else {
+          // Not in RH: Clear both
+          setFormData(prev => ({ ...prev, leaderPhone: '', sector: '' }));
+          setIsSectorLocked(false);
       }
   };
 
@@ -163,6 +190,9 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
     try {
       await syncMasterContact(formData.leader, formData.leaderPhone, unit, ParticipantType.STAFF, formData.sector);
       const pgMaster = proGroups.find(g => g.name === formData.groupName && g.unit === unit);
+      
+      console.log(`[DEBUG] handleFormSubmit - PG: ${formData.groupName}, Current Leader in DB: ${pgMaster?.leader}, Form Leader: ${formData.leader}`);
+      
       if (pgMaster) {
           const cleanPhone = formData.leaderPhone.replace(/\D/g, '');
           const targetSector = proSectors.find(s => s.name === formData.sector && s.unit === unit);
@@ -171,14 +201,20 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
           const phoneChanged = cleanPhone !== (pgMaster.leaderPhone || '');
           const sectorChanged = targetSector && pgMaster.sectorId !== targetSector.id;
           
+          console.log(`[DEBUG] leaderChanged: ${leaderChanged}, phoneChanged: ${phoneChanged}, sectorChanged: ${!!sectorChanged}`);
+          
           if (leaderChanged || phoneChanged || sectorChanged) {
+              console.log(`[DEBUG] Saving changes to proGroups for PG: ${pgMaster.id}`);
               await saveRecord('proGroups', { 
                   ...pgMaster, 
                   leader: formData.leader,
+                  currentLeader: formData.leader,
                   leaderPhone: cleanPhone,
                   ...(targetSector ? { sectorId: targetSector.id } : {})
               });
           }
+      } else {
+          console.log(`[DEBUG] PG Master not found for: ${formData.groupName}`);
       }
 
       const pendingAgenda = visitRequests

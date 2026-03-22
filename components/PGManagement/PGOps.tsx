@@ -16,7 +16,7 @@ interface PGOpsProps {
 
 const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
   const { proGroups, proStaff, proGroupLocations, proSectors } = usePro();
-  const { users, saveRecord, visitRequests, deleteRecord } = useApp();
+  const { config, users, saveRecord, visitRequests, deleteRecord } = useApp();
   const { currentUser } = useAuth();
   
   const { inferPGDetails } = usePGInference(unit, proGroups, proSectors, proGroupLocations, proStaff);
@@ -60,7 +60,7 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
       sectorId: details.sectorId,
       sectorName: details.sectorName,
       staffId: details.staffId
-    }, proStaff);
+    }, proStaff, config.activeCompetenceMonth);
   };
 
   return (

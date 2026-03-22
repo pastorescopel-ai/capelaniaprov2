@@ -160,6 +160,7 @@ export interface Config {
   lastModifiedBy?: string;
   lastModifiedAt?: number;
   headerProfiles?: Record<string, HeaderProfile>;
+  activeCompetenceMonth?: string; // YYYY-MM-01 (Mês de competência ativo para o sistema)
 }
 
 export interface User {

@@ -28,6 +28,7 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
     handleEnroll, handleCreateAndEnrollProvider, confirmRemoval, handleSetLeader,
     handleBulkUpdateCycleMonth,
     selectedMonth, setSelectedMonth,
+    isMonthClosed, isFutureMonth, isOpenMonth,
     proSectors, proGroups
   } = usePGMembership({ unit });
 
@@ -48,6 +49,7 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
   };
 
   const handleNextMonth = () => {
+    if (isOpenMonth) return; // Bloqueia avançar se o mês atual estiver aberto
     startTransition(() => {
       const d = new Date(selectedMonth + 'T12:00:00');
       d.setMonth(d.getMonth() + 1);
@@ -73,7 +75,9 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
           </div>
           <div>
             <h2 className="text-sm font-black text-slate-800 uppercase tracking-tighter">Ciclo de Competência</h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase">Define o mês de entrada/saída no BI</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase">
+              {isMonthClosed ? 'Mês Fechado (Somente Leitura)' : isFutureMonth ? 'Mês Bloqueado (Aguardando Fechamento)' : 'Mês Aberto para Lançamentos'}
+            </p>
           </div>
         </div>
 
@@ -89,7 +93,8 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
           </span>
           <button 
             onClick={handleNextMonth} 
-            className="text-lg hover:scale-125 active:scale-90 transition-transform filter drop-shadow-sm"
+            disabled={isOpenMonth}
+            className={`text-lg transition-transform filter drop-shadow-sm ${isOpenMonth ? 'opacity-20 cursor-not-allowed' : 'hover:scale-125 active:scale-90'}`}
           >
             ➡️
           </button>

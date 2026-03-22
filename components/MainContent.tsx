@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useMemo } from 'react';
+import ErrorBoundary from './ErrorBoundary';
 import { Unit, User } from '../types';
 import { useAppOperations } from '../hooks/useAppOperations';
 import { useApp } from '../contexts/AppProvider';
@@ -210,9 +211,11 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         
         return (
           <div key={tabId} className={`${getTabClass(tabId)} ${isVisible ? 'block' : 'hidden'} ${isVisible ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}>
-            <Suspense fallback={<TabLoading />}>
-              {renderTab(tabId)}
-            </Suspense>
+            <ErrorBoundary>
+              <Suspense fallback={<TabLoading />}>
+                {renderTab(tabId)}
+              </Suspense>
+            </ErrorBoundary>
           </div>
         );
       })}

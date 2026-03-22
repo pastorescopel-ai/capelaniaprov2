@@ -5,9 +5,10 @@ import PGDashboard from './PGDashboard';
 import PGMembership from './PGMembership';
 import PGReports from './PGReports';
 import PGOps from './PGOps';
+import PGLeaders from './PGLeaders';
 
 const PGManagerLayout: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'ops' | 'reports'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'ops' | 'reports' | 'leaders'>('dashboard');
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
   const [isPending, startTransition] = useTransition();
 
@@ -18,7 +19,7 @@ const PGManagerLayout: React.FC = () => {
     }
   }, [activeSubTab, currentUnit]);
 
-  const handleTabChange = (tabId: 'dashboard' | 'membership' | 'ops' | 'reports') => {
+  const handleTabChange = (tabId: 'dashboard' | 'membership' | 'ops' | 'reports' | 'leaders') => {
     startTransition(() => {
       setActiveSubTab(tabId);
     });
@@ -33,6 +34,7 @@ const PGManagerLayout: React.FC = () => {
   const tabs = [
     { id: 'dashboard', label: 'Visão Geral', icon: 'fas fa-chart-pie' },
     { id: 'membership', label: 'Matrícula', icon: 'fas fa-user-plus' },
+    { id: 'leaders', label: 'Líderes', icon: 'fas fa-users' },
     { id: 'ops', label: 'Agenda PG', icon: 'fas fa-calendar-check' },
     { id: 'reports', label: 'Relatórios', icon: 'fas fa-print' },
   ];
@@ -100,6 +102,7 @@ const PGManagerLayout: React.FC = () => {
           {activeSubTab === 'membership' && <PGMembership unit={currentUnit} />}
           {activeSubTab === 'ops' && <PGOps unit={currentUnit} />}
           {activeSubTab === 'reports' && <PGReports unit={currentUnit} />}
+          {activeSubTab === 'leaders' && <PGLeaders unit={currentUnit} />}
         </main>
       </div>
     </div>
