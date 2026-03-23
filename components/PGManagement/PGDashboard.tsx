@@ -382,9 +382,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       });
 
       // Salvar em lote
-      for (const record of historyRecords) {
-        await saveRecord('proHistoryRecords', record);
-      }
+      await saveRecord('proHistoryRecords', historyRecords);
 
       // ATUALIZAR MÊS DE COMPETÊNCIA NO CONFIG (CASCATA)
       const current = new Date(selectedMonth + 'T12:00:00');

@@ -221,9 +221,7 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
             });
         }
 
-        for (const snap of snapshots) {
-            await saveRecord('proMonthlyStats', snap);
-        }
+        await saveRecord('proMonthlyStats', snapshots);
 
         setSyncState({ isOpen: true, status: 'success', title: 'Mês Atualizado', message: `Sucesso! ${snapshots.length} registros de histórico gravados/atualizados para ${formatMonthLabel(selectedCloseMonth)} (HAB + HABA).` });
         await onRefreshData();
