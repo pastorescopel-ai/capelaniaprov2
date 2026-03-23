@@ -32,7 +32,6 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   const [newStudent, setNewStudent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ownershipConflict, setOwnershipConflict] = useState<{show: boolean, message: string}>({show: false, message: ''});
-  const lastSectorRef = useRef<string>('');
 
   const lastClassStudents = useMemo(() => {
     if (!formData.sector || !unit) return [];
@@ -188,84 +187,49 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     return options;
   }, [proStaff, proSectors, unit, allHistory, currentUser.id, formData.participantType]);
 
-  useEffect(() => {
-    if (formData.sector && !editingItem) {
-        const sectorChanged = formData.sector !== lastSectorRef.current;
-        const sectorObj = proSectors.find(s => s.name === formData.sector && s.unit === unit);
-        
-        // Filtra o histórico para pegar a última classe deste setor e deste tipo de participante
-        const lastClass = [...allHistory]
-            .filter(c => c.sector === formData.sector && c.unit === unit && (c.participantType || ParticipantType.STAFF) === formData.participantType)
-            .sort((a, b) => {
-                const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
-                if (dateDiff !== 0) return dateDiff;
-                return (b.createdAt || 0) - (a.createdAt || 0);
-            })[0];
-        
-        if (sectorObj && formData.participantType === ParticipantType.STAFF) {
-            // STRICT OWNERSHIP CHECK: Verifica se a classe do setor pertence a outro
-            const ownership = checkOwnershipConflict(formData.sector, 'class', unit, currentUser.id, currentUser.role);
-            if (ownership.hasConflict) {
-                setOwnershipConflict({ show: true, message: ownership.message });
-                setFormData(prev => ({ ...prev, sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO }));
-                lastSectorRef.current = '';
-                return;
-            }
+  const handleSelectSector = useCallback((sectorName: string) => {
+    if (!sectorName) return;
 
-            let nextLesson = '';
-            let nextGuide = '';
-            let nextStatus = RecordStatus.INICIO; 
-            
-            if (lastClass) {
-                nextGuide = lastClass.guide;
-                const lastNum = parseInt(lastClass.lesson);
-                nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
-                nextStatus = RecordStatus.CONTINUACAO;
-            }
-            
-            setFormData(prev => {
-                const newGuide = nextGuide || prev.guide;
-                const newLesson = nextLesson || prev.lesson;
-                // Só limpa os alunos se o setor MUDOU. Se for apenas um update do histórico, mantém os alunos atuais.
-                if (!sectorChanged) {
-                    if (prev.guide === newGuide && prev.lesson === newLesson && prev.status === nextStatus) return prev;
-                    return { ...prev, guide: newGuide, lesson: newLesson, status: nextStatus };
-                }
-                return { ...prev, students: [], guide: newGuide, lesson: newLesson, status: nextStatus };
-            });
-        } else if (lastClass) {
-            // Se achou no histórico, puxa os dados (sem mudar a aba)
-            let nextLesson = '';
-            let nextGuide = '';
-            let nextStatus = RecordStatus.INICIO; 
-            
-            nextGuide = lastClass.guide;
-            const lastNum = parseInt(lastClass.lesson);
-            nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
-            nextStatus = RecordStatus.CONTINUACAO;
-            
-            setFormData(prev => {
-                const newGuide = nextGuide || prev.guide;
-                const newLesson = nextLesson || prev.lesson;
-                // Só limpa os alunos se o setor MUDOU.
-                if (!sectorChanged) {
-                    if (prev.guide === newGuide && prev.lesson === newLesson && prev.status === nextStatus) return prev;
-                    return { ...prev, guide: newGuide, lesson: newLesson, status: nextStatus };
-                }
-                return { 
-                    ...prev, 
-                    students: [], 
-                    guide: newGuide, 
-                    lesson: newLesson, 
-                    status: nextStatus
-                };
-            });
+    // 1. Ownership Check (Apenas para Staff/Setores Oficiais)
+    const sectorObj = proSectors.find(s => s.name === sectorName && s.unit === unit);
+    if (sectorObj && formData.participantType === ParticipantType.STAFF) {
+        const ownership = checkOwnershipConflict(sectorName, 'class', unit, currentUser.id, currentUser.role);
+        if (ownership.hasConflict) {
+            setOwnershipConflict({ show: true, message: ownership.message });
+            setFormData(prev => ({ ...prev, sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO }));
+            return;
         }
-        lastSectorRef.current = formData.sector;
-    } else if (!formData.sector) {
-        lastSectorRef.current = '';
     }
-  }, [formData.sector, proSectors, proStaff, unit, allHistory, editingItem, formData.participantType, currentUser.id, currentUser.role, checkOwnershipConflict]);
+
+    // 2. Auto-fill logic
+    const lastClass = [...allHistory]
+        .filter(c => c.sector === sectorName && c.unit === unit && (c.participantType || ParticipantType.STAFF) === formData.participantType)
+        .sort((a, b) => {
+            const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+            if (dateDiff !== 0) return dateDiff;
+            return (b.createdAt || 0) - (a.createdAt || 0);
+        })[0];
+
+    let nextLesson = '';
+    let nextGuide = '';
+    let nextStatus = RecordStatus.INICIO;
+
+    if (lastClass) {
+        nextGuide = lastClass.guide;
+        const lastNum = parseInt(lastClass.lesson);
+        nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
+        nextStatus = RecordStatus.CONTINUACAO;
+    }
+
+    setFormData(prev => ({
+        ...prev,
+        sector: sectorName,
+        students: [], // Limpa alunos ao trocar de setor manualmente
+        guide: nextGuide || prev.guide,
+        lesson: nextLesson || prev.lesson,
+        status: nextStatus
+    }));
+  }, [formData.participantType, allHistory, unit, currentUser.id, currentUser.role, proSectors, checkOwnershipConflict]);
 
   useEffect(() => {
     if (editingItem) {
@@ -376,6 +340,12 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     if (isSubmitting) return;
     if (formData.students.length < 2) { showToast("É necessário pelo menos 2 alunos presentes para salvar a classe.", "warning"); return; }
     if (!formData.guide || !formData.lesson) { showToast("Preencha Guia e Lição."); return; }
+    
+    const lessonNum = parseInt(formData.lesson);
+    if (isNaN(lessonNum) || lessonNum < 1) { 
+        showToast("O número da lição deve ser pelo menos 1.", "warning"); 
+        return; 
+    }
 
     // Validação de Tipo de Participante (Evitar misturar Colaboradores/Prestadores/Pacientes)
     const currentType = formData.participantType;
@@ -456,6 +426,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     lastClassStudents, callList,
     guideOptions, studentSearchOptions, sectorOptions,
     editAuthorizations,
+    handleSelectSector,
     addStudent, handleClear, handleFormSubmit,
     handleContinueClass: (item: BibleClass) => {
         // Busca a última classe DESTE SETOR e DESTE TIPO DE PARTICIPANTE para garantir que pegamos a mais recente

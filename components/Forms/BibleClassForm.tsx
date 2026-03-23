@@ -34,6 +34,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     lastClassStudents, callList,
     guideOptions, studentSearchOptions, sectorOptions,
     editAuthorizations,
+    handleSelectSector,
     addStudent, handleClear, handleFormSubmit,
     handleContinueClass, defaultState, ownershipConflict, setOwnershipConflict
   } = useBibleClassForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
@@ -104,7 +105,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           
           <div className="space-y-1">
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>Setor / Local {isStaff ? '(Obrigatório)' : '(Opcional)'}</label>
-              <Autocomplete options={sectorOptions} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} placeholder={isStaff ? "Selecione o setor..." : "Leito, Quarto ou Área (Opcional)..."} isStrict={false} />
+              <Autocomplete options={sectorOptions} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} onSelectOption={handleSelectSector} placeholder={isStaff ? "Selecione o setor..." : "Leito, Quarto ou Área (Opcional)..."} isStrict={false} />
           </div>
 
           <div className={`space-y-1 ${!isStaff ? 'order-first md:order-none col-span-2 md:col-span-2 animate-in slide-in-from-top-2' : ''}`}>
@@ -162,8 +163,12 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
             </div>
           </div>
 
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome da Classe</label><Autocomplete options={guideOptions} value={formData.guide || ''} onChange={v => setFormData({...formData, guide: v})} placeholder="Ex: Classe Sábado" /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Lição nº</label><input type="number" value={formData.lesson || ''} onChange={e => setFormData({...formData, lesson: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-indigo-500/20 transition-all" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Guia de Estudo</label><Autocomplete options={guideOptions} value={formData.guide || ''} onChange={v => setFormData({...formData, guide: v})} placeholder="Ex: O Grande Conflito" /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Lição nº</label><input type="number" value={formData.lesson || ''} onChange={e => {
+              const val = e.target.value;
+              const num = parseInt(val);
+              setFormData({...formData, lesson: val, status: (!isNaN(num) && num > 1) ? RecordStatus.CONTINUACAO : formData.status});
+          }} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-black focus:ring-2 focus:ring-indigo-500/20 transition-all" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-3 md:py-3.5 rounded-2xl font-black text-[10px] uppercase border-2 transition-all active:scale-95 ${formData.status === opt ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-100 text-slate-400 bg-slate-50 hover:bg-slate-100'}`}>{opt}</button>))}</div></div>
         </div>
         <Button 
