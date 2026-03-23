@@ -38,9 +38,9 @@ export const isRecordLocked = (
       const isSameMonth = recordDate.getUTCFullYear() === unlockMonth.getUTCFullYear() && 
                           recordDate.getUTCMonth() === unlockMonth.getUTCMonth();
       
-      console.log(`[DEBUG] isRecordLocked: Checking auth for ${auth.monthToUnlock}, isSameMonth=${isSameMonth}, allowedTabs=${auth.allowedTabs}`);
+      console.log(`[DEBUG] isRecordLocked: Comparing auth month=${auth.monthToUnlock} (isSameMonth=${isSameMonth}) with record month=${recordDate.getUTCMonth() + 1}/${recordDate.getUTCFullYear()}. Allowed tabs=${JSON.stringify(auth.allowedTabs)}, Current tab=${tab}`);
       
-      return isSameMonth && auth.allowedTabs.includes(tab);
+      return isSameMonth && auth.allowedTabs.includes(tab || '');
     });
 
     if (activeAuth) {
