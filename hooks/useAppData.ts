@@ -69,6 +69,7 @@ export const useAppData = () => {
         setDailyActivityReports(data.dailyActivityReports || []);
         setBibleClassAttendees(data.bibleClassAttendees || []);
         setEditAuthorizations(data.editAuthorizations || []);
+        console.log(`[DEBUG] useAppData: Loaded ${data.editAuthorizations?.length || 0} editAuthorizations`);
         if (data.config) {
           setConfig(data.config);
           applySystemOverrides(data.config);
