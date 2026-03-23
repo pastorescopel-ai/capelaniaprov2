@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Unit, StaffVisit, User, VisitReason, ParticipantType } from '../../types';
+import { Unit, StaffVisit, User, UserRole, VisitReason, ParticipantType } from '../../types';
 import Autocomplete from '../Shared/Autocomplete';
 import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
@@ -33,6 +33,8 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     handleSelectName, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
     sortedHistory, defaultState
   } = useStaffVisitForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
+
+  const isAdmin = currentUser.role === UserRole.ADMIN;
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
 
@@ -193,6 +195,18 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     <FormScaffold title="Visita Pastoral" subtitle={`Unidade ${unit}`} headerActions={headerActions} history={historySection}>
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
+          {isAdmin && (
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Capelão Responsável</label>
+              <select 
+                value={formData.userId} 
+                onChange={e => setFormData({...formData, userId: e.target.value})} 
+                className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-blue-500/20 transition-all"
+              >
+                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data da Visita *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>
           
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{isStaff ? 'Colaborador Atendido *' : 'Nome do Prestador *'}</label><Autocomplete options={nameOptions} value={formData.staffName} onChange={handleChangeName} onSelectOption={handleSelectName} placeholder={isStaff ? "Busque por nome ou matrícula..." : "Busque ou digite o nome..."} isStrict={false} /></div>

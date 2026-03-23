@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { Unit, SmallGroup, User } from '../../types';
+import { Unit, SmallGroup, User, UserRole } from '../../types';
 import Autocomplete from '../Shared/Autocomplete';
 import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
@@ -33,6 +33,8 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
     handleSelectPG, handleSelectLeader, handleLeaderChange, handleClear, handleFormSubmit
   } = useSmallGroupForm({ unit, history, editingItem, currentUser, onSubmit });
 
+  const isAdmin = currentUser.role === UserRole.ADMIN;
+
   // Refs para controle de foco
   const phoneInputRef = React.useRef<HTMLInputElement>(null);
   const participantsInputRef = React.useRef<HTMLInputElement>(null);
@@ -63,6 +65,18 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
     <FormScaffold title="Pequeno Grupo" subtitle={`Unidade ${unit}`} headerActions={headerActions} history={historySection}>
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
+          {isAdmin && (
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Capelão Responsável</label>
+              <select 
+                value={formData.userId} 
+                onChange={e => setFormData({...formData, userId: e.target.value})} 
+                className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-blue-500/20 transition-all"
+              >
+                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data do Encontro *</label><input type="date" value={formData.date || ''} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-emerald-500/20 transition-all" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do Grupo *</label><Autocomplete options={pgOptions} value={formData.groupName || ''} onChange={v => setFormData({...formData, groupName: v})} onSelectOption={handleSelectPG} placeholder="Selecione o PG..." isStrict={true} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Líder Atual *</label><Autocomplete options={staffOptions} value={formData.leader || ''} onChange={handleLeaderChange} onSelectOption={handleSelectLeader} placeholder="Busque o líder no banco..." /></div>

@@ -23,11 +23,11 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
 
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
-    id: '', date: getToday(), sector: '', reason: VisitReason.ROTINA, 
+    id: '', userId: currentUser.id, date: getToday(), sector: '', reason: VisitReason.ROTINA, 
     staffName: '', staffId: '', providerId: '', whatsapp: '', participantType: ParticipantType.STAFF, 
     providerRole: '', requiresReturn: false, returnDate: getToday(), 
     returnCompleted: false, observations: '' 
-  }), [getToday]);
+  }), [getToday, currentUser.id]);
   
   const [formData, setFormData] = useState(defaultState);
   const [isSectorLocked, setIsSectorLocked] = useState(false);
@@ -35,10 +35,10 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
 
   useEffect(() => {
     if (!editingItem) {
-      setFormData(prev => ({ ...defaultState, date: prev.date || getToday(), participantType: prev.participantType }));
+      setFormData(prev => ({ ...defaultState, userId: currentUser.id, date: prev.date || getToday(), participantType: prev.participantType }));
       setIsSectorLocked(false);
     }
-  }, [editingItem, defaultState, getToday]);
+  }, [editingItem, defaultState, getToday, currentUser.id]);
 
   const sectorOptions = useMemo(() => 
     proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name})).sort((a,b) => a.label.localeCompare(b.label)), 
@@ -81,6 +81,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
         // É um agendamento de retorno vindo do Dashboard
         setFormData({
           id: '',
+          userId: currentUser.id,
           date: getToday(),
           staffName: editingItem.staffName || '',
           sector: editingItem.sector || '',
@@ -105,6 +106,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
         // Edição normal de um registro existente
         setFormData({ 
           id: editingItem.id || '',
+          userId: editingItem.userId || currentUser.id,
           date: ensureISODate(editingItem.date) || getToday(),
           sector: editingItem.sector || '',
           reason: editingItem.reason || VisitReason.ROTINA,
@@ -127,7 +129,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
         }
       }
     }
-  }, [editingItem, unit, proStaff, getToday, defaultState]);
+  }, [editingItem, unit, proStaff, getToday, currentUser.id]);
 
   const handleSelectName = (label: string) => {
       const nameOnly = label.split(' (')[0].trim();

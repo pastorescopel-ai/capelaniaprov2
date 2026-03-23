@@ -23,10 +23,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
-    id: '', date: getToday(), sector: '', students: [] as string[], 
+    id: '', userId: currentUser.id, date: getToday(), sector: '', students: [] as string[], 
     guide: '', lesson: '', status: RecordStatus.INICIO, 
     participantType: ParticipantType.STAFF, observations: '', representativePhone: '' 
-  }), [getToday]);
+  }), [getToday, currentUser.id]);
   
   const [formData, setFormData] = useState(defaultState);
   const [newStudent, setNewStudent] = useState('');
@@ -76,9 +76,9 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
   useEffect(() => {
     if (!editingItem) {
-      setFormData(prev => ({ ...defaultState, date: prev.date || getToday() }));
+      setFormData(prev => ({ ...defaultState, userId: currentUser.id, date: prev.date || getToday() }));
     }
-  }, [editingItem, defaultState, getToday]);
+  }, [editingItem, defaultState, getToday, currentUser.id]);
 
   const guideOptions = useMemo(() => {
     const uniqueGuides = new Set<string>();
@@ -271,6 +271,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     if (editingItem) {
       setFormData({ 
         id: editingItem.id || '',
+        userId: editingItem.userId || currentUser.id,
         date: ensureISODate(editingItem.date) || getToday(),
         sector: editingItem.sector || '',
         students: editingItem.students || [],
@@ -282,7 +283,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         representativePhone: editingItem.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || '' 
       });
     }
-  }, [editingItem, getToday]);
+  }, [editingItem, getToday, currentUser.id]);
 
   const addStudent = (val?: string) => { 
     const inputVal = val || newStudent;

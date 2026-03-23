@@ -21,9 +21,9 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
-    id: '', date: getToday(), sector: '', groupName: '', leader: '', 
+    id: '', userId: currentUser.id, date: getToday(), sector: '', groupName: '', leader: '', 
     leaderPhone: '', shift: 'Manhã', participantsCount: 0, observations: '' 
-  }), [getToday]);
+  }), [getToday, currentUser.id]);
   
   const [formData, setFormData] = useState(defaultState);
   const [isSectorLocked, setIsSectorLocked] = useState(false);
@@ -31,10 +31,10 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
 
   useEffect(() => {
     if (!editingItem) {
-      setFormData(prev => ({ ...defaultState, date: prev.date || getToday() }));
+      setFormData(prev => ({ ...defaultState, userId: currentUser.id, date: prev.date || getToday() }));
       setIsSectorLocked(false);
     }
-  }, [editingItem, defaultState, getToday]);
+  }, [editingItem, defaultState, getToday, currentUser.id]);
 
   useEffect(() => {
     if (!formData.groupName && !editingItem) {
@@ -62,6 +62,7 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
 
         setFormData({
           id: '',
+          userId: currentUser.id,
           date: mission.date || getToday(),
           groupName: mission.groupName || '',
           leader: mission.leader || details.leaderName || '',
@@ -77,6 +78,7 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       } else {
         setFormData({ 
           id: editingItem.id || '',
+          userId: editingItem.userId || currentUser.id,
           date: ensureISODate(editingItem.date) || getToday(), 
           groupName: editingItem.groupName || '',
           leader: editingItem.leader || '',
@@ -90,7 +92,7 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
         setIsSectorLocked(!!details.sectorId);
       }
     }
-  }, [editingItem, inferPGDetails, unit, getToday, defaultState, showToast]);
+  }, [editingItem, inferPGDetails, unit, getToday, currentUser.id, showToast]);
 
   const handleSelectPG = (pgName: string) => {
       const details = inferPGDetails(pgName);
