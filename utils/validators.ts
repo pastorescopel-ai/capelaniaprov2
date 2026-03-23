@@ -28,8 +28,9 @@ export const isRecordLocked = (
   }
 
   // Verifica autorizações especiais
+  let isAuthorized = false;
   if (tab && authorizations.length > 0) {
-    console.log(`[DEBUG] isRecordLocked: Checking authorizations. tab=${tab}, authorizations=`, authorizations);
+    console.log(`[DEBUG] isRecordLocked: Checking authorizations. tab=${tab}, authorizations.length=${authorizations.length}`);
     const activeAuth = authorizations.find(auth => {
       const expiry = new Date(auth.expiryDate);
       if (now > expiry) return false;
@@ -38,34 +39,32 @@ export const isRecordLocked = (
       const isSameMonth = recordDate.getUTCFullYear() === unlockMonth.getUTCFullYear() && 
                           recordDate.getUTCMonth() === unlockMonth.getUTCMonth();
       
-      console.log(`[DEBUG] isRecordLocked: Comparing auth month=${auth.monthToUnlock} (isSameMonth=${isSameMonth}) with record month=${recordDate.getUTCMonth() + 1}/${recordDate.getUTCFullYear()}. Allowed tabs=${JSON.stringify(auth.allowedTabs)}, Current tab=${tab}`);
-      
       return isSameMonth && auth.allowedTabs.includes(tab || '');
     });
 
     if (activeAuth) {
-        console.log(`[DEBUG] isRecordLocked: Not locked (authorized)`);
-        return false;
+        console.log(`[DEBUG] isRecordLocked: Authorized`);
+        isAuthorized = true;
     }
   }
+
+  if (isAuthorized) return false;
 
   // Verifica se estamos dentro do prazo do 5º dia útil do mês atual
   const fifthBusinessDay = getFifthBusinessDay(now.getFullYear(), now.getMonth());
   const isGracePeriod = now <= fifthBusinessDay;
   
-  console.log(`[DEBUG] isRecordLocked: fifthBusinessDay=${fifthBusinessDay}, isGracePeriod=${isGracePeriod}`);
-
-  // Se já passou do 5º dia útil, bloqueia tudo que não for do mês atual
-  if (!isGracePeriod) {
-      console.log(`[DEBUG] isRecordLocked: Locked (past grace period)`);
-      return true;
-  }
-
   // Se ainda estivermos no prazo, permitimos editar o mês IMEDIATAMENTE anterior
   const isPreviousMonth = (
     (recordDate.getFullYear() === now.getFullYear() && recordDate.getMonth() === now.getMonth() - 1) ||
     (recordDate.getFullYear() === now.getFullYear() - 1 && recordDate.getMonth() === 11 && now.getMonth() === 0)
   );
 
-  return !isPreviousMonth;
+  if (isGracePeriod && isPreviousMonth) {
+      console.log(`[DEBUG] isRecordLocked: Not locked (grace period)`);
+      return false;
+  }
+
+  console.log(`[DEBUG] isRecordLocked: Locked (past grace period and not authorized)`);
+  return true;
 };
