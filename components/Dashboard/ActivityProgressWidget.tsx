@@ -69,7 +69,7 @@ const ActivityProgressWidget: React.FC<ActivityProgressWidgetProps> = ({
             <i className="fas fa-tasks"></i>
           </div>
           <div>
-            <h4 className="font-black text-indigo-900 text-base uppercase tracking-tight">Progresso de Atividades</h4>
+            <h4 className="font-black text-indigo-900 text-sm uppercase tracking-tight">Progresso de Atividades</h4>
             <p className="text-indigo-700 font-bold text-[10px] uppercase tracking-widest">
               {stats.completed} de {stats.total} atividades concluídas hoje
             </p>

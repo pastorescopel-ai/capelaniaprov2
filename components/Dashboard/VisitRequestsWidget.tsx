@@ -33,7 +33,7 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
       <div className="flex items-center gap-3 mb-5">
         <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><i className="fas fa-calendar-alt text-lg"></i></div>
         <div>
-          <h3 className="text-base md:text-lg font-black text-slate-800 uppercase tracking-tight">
+          <h3 className="text-sm md:text-lg font-black text-slate-800 uppercase tracking-tight">
             {currentUser.role === UserRole.ADMIN ? 'Escala de Visitas PG' : 'Minha Escala de Visitas'}
           </h3>
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{myRequests.length} visita(s) programada(s)</p>

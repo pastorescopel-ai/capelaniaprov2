@@ -37,7 +37,7 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig }) => {
             <textarea 
               value={muralDraft} 
               onChange={e => setMuralDraft(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-2xl p-3 text-white text-sm focus:ring-2 focus:ring-amber-400/50 outline-none placeholder-white/40 transition-all"
+              className="w-full bg-white/10 border border-white/20 rounded-2xl p-3 text-white focus:ring-2 focus:ring-amber-400/50 outline-none placeholder-white/40 transition-all"
               rows={2}
               placeholder="Escreva um comunicado..."
             />

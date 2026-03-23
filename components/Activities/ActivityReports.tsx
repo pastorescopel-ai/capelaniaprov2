@@ -138,7 +138,7 @@ const ActivityReports: React.FC = () => {
               type="date"
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-slate-100 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+              className="w-full pl-12 pr-4 py-3 bg-slate-100 border-none rounded-xl font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
             />
           </div>
         </div>
@@ -150,7 +150,7 @@ const ActivityReports: React.FC = () => {
               value={selectedUser}
               onChange={e => setSelectedUser(e.target.value)}
               disabled={!isAdmin}
-              className="flex-1 p-3 bg-slate-100 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none disabled:opacity-50"
+              className="flex-1 p-3 bg-slate-100 border-none rounded-xl font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none disabled:opacity-50"
             >
               {isAdmin && <option value="">Todos os Capelães</option>}
               {chaplains.map(c => (

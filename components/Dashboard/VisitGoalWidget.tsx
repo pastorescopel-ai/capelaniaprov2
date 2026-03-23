@@ -73,7 +73,7 @@ const VisitGoalWidget: React.FC<VisitGoalWidgetProps> = ({ goals, accumulated, c
             <i className="fas fa-hands-helping"></i>
           </div>
           <div>
-            <h3 className="text-base md:text-lg font-black text-slate-800 uppercase tracking-tight">Visitas a Colaboradores</h3>
+            <h3 className="text-sm md:text-lg font-black text-slate-800 uppercase tracking-tight">Visitas a Colaboradores</h3>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Acompanhamento de Metas</p>
           </div>
         </div>

@@ -12,7 +12,7 @@ const ImpactCharts: React.FC<ImpactChartsProps> = ({ individualData, globalData 
     <div className="space-y-8">
       {/* Gráfico Individual */}
       <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <h3 className="text-base md:text-lg font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-tighter">
+        <h3 className="text-sm md:text-lg font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-tighter">
           <i className="fas fa-chart-bar text-blue-600"></i> Desempenho Individual
         </h3>
         <div className="h-[200px] w-full min-h-[200px] min-w-0 min-h-0">
@@ -32,7 +32,7 @@ const ImpactCharts: React.FC<ImpactChartsProps> = ({ individualData, globalData 
       <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
           <div>
-            <h3 className="text-base md:text-lg font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter">
+            <h3 className="text-sm md:text-lg font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter">
               <i className="fas fa-globe-americas text-[#005a9c]"></i> Impacto Global (Equipe)
             </h3>
             <p className="text-slate-500 text-[8px] font-black uppercase tracking-[0.2em] mt-1">

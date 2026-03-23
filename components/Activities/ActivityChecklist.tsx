@@ -234,7 +234,7 @@ const ActivityChecklist: React.FC = () => {
               type="date"
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
-              className="flex-1 p-2 bg-transparent border-none text-xs font-bold focus:ring-0 outline-none"
+              className="flex-1 p-2 bg-transparent border-none font-bold focus:ring-0 outline-none"
             />
           </div>
         </div>
@@ -246,7 +246,7 @@ const ActivityChecklist: React.FC = () => {
               value={selectedUser}
               onChange={e => setSelectedUser(e.target.value)}
               disabled={!isAdmin}
-              className="flex-1 p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none disabled:opacity-50"
+              className="flex-1 p-3 bg-slate-100 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none disabled:opacity-50"
             >
               {chaplains.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -271,7 +271,7 @@ const ActivityChecklist: React.FC = () => {
               <i className="fas fa-tasks"></i>
             </div>
             <div>
-              <h4 className="font-black text-indigo-900 text-base uppercase tracking-tight">Lançar Atividades</h4>
+              <h4 className="font-black text-indigo-900 text-sm uppercase tracking-tight">Lançar Atividades</h4>
               <p className="text-indigo-700 font-bold text-[10px] uppercase tracking-widest">
                 Checklist Diário
               </p>
@@ -486,7 +486,7 @@ const ActivityChecklist: React.FC = () => {
                   value={report.observations || ''}
                   onChange={e => setReport({ ...report, observations: e.target.value })}
                   placeholder="Anotações sobre as atividades de hoje..."
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none h-24"
+                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none h-24"
                 />
               </div>
 

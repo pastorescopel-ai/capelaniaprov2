@@ -62,7 +62,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
               </div>
             )}
           </div>
-          <span className="font-black text-base md:text-xl text-slate-800 tracking-tighter uppercase whitespace-nowrap">
+          <span className="font-black text-sm md:text-xl text-slate-800 tracking-tighter uppercase whitespace-nowrap">
             Capelania <span className="text-[#005a9c]">HAB</span>
           </span>
         </div>

@@ -80,7 +80,7 @@ const SmallGroupVisitWidget: React.FC<SmallGroupVisitWidgetProps> = ({ requests,
           <i className="fas fa-calendar-check text-lg"></i>
         </div>
         <div>
-          <h3 className="text-base md:text-lg font-black text-slate-800 uppercase tracking-tight">Painel de Missões - PG</h3>
+          <h3 className="text-sm md:text-lg font-black text-slate-800 uppercase tracking-tight">Painel de Missões - PG</h3>
           <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest">
             {todaysVisits.length} missão(ões) para hoje
           </p>
