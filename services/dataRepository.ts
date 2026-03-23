@@ -40,7 +40,9 @@ export const DataRepository = {
       // Log de erros para debug (invisível ao usuário)
       results.forEach((res, idx) => {
         if (res.error) {
-          console.warn(`Query ${idx} falhou:`, res.error.message);
+          console.error(`[DEBUG] Query ${idx} falhou:`, res.error.message);
+        } else {
+          console.log(`[DEBUG] Query ${idx} sucesso, retornou ${res.data?.length || 0} linhas`);
         }
       });
 
