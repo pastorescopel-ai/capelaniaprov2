@@ -42,9 +42,9 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
   const guideOptions = useMemo(() => {
     const uniqueGuides = new Set<string>();
-    allHistory.forEach(s => { if (s.guide) uniqueGuides.add(s.guide); });
+    allHistory.forEach(s => { if (s.guide && s.unit === unit) uniqueGuides.add(s.guide); });
     return Array.from(uniqueGuides).sort().map(g => ({ value: g, label: g }));
-  }, [allHistory]);
+  }, [allHistory, unit]);
 
   const sectorOptions = useMemo(() => {
     if (formData.participantType === ParticipantType.PATIENT || formData.participantType === ParticipantType.STAFF) {
@@ -82,8 +82,8 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         });
     }
     
-    const filteredHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) === formData.participantType);
-    const otherHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) !== formData.participantType);
+    const filteredHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) === formData.participantType && s.unit === unit);
+    const otherHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) !== formData.participantType && s.unit === unit);
     
     const personalHistory = filteredHistory.filter(s => s.userId === currentUser.id);
     const uniqueHistoryNames = new Set<string>();

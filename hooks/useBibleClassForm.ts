@@ -82,18 +82,18 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
   const guideOptions = useMemo(() => {
     const uniqueGuides = new Set<string>();
-    allHistory.forEach(c => { if (c.guide) uniqueGuides.add(c.guide); });
+    allHistory.forEach(c => { if (c.guide && c.unit === unit) uniqueGuides.add(c.guide); });
     return Array.from(uniqueGuides).sort().map(g => ({ value: g, label: g }));
-  }, [allHistory]);
+  }, [allHistory, unit]);
 
   const sectorOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
     const myClasses = new Set<string>();
     
-    const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType);
+    const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit);
 
     // 1. Setores onde o capelão logado deu classe (Destaque Amarelo)
-    filteredHistory.filter(c => c.userId === currentUser.id && c.unit === unit).forEach(c => {
+    filteredHistory.filter(c => c.userId === currentUser.id).forEach(c => {
       if (c.sector && !myClasses.has(c.sector)) {
         myClasses.add(c.sector);
         options.push({
@@ -137,8 +137,8 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     }
 
     const uniqueHistoryNames = new Set<string>();
-    const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType);
-    const otherHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) !== formData.participantType);
+    const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit);
+    const otherHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) !== formData.participantType && c.unit === unit);
     
     // 1. Alunos das classes do capelão logado (Destaque Amarelo)
     filteredHistory.filter(c => c.userId === currentUser.id).forEach(c => {
@@ -323,7 +323,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
       if (formData.participantType !== ParticipantType.STAFF) {
           let lastClassWithStudent = [...allHistory]
-              .filter(c => c.students && c.students.includes(finalString) && (c.participantType || ParticipantType.STAFF) === formData.participantType)
+              .filter(c => c.students && c.students.includes(finalString) && (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit)
               .sort((a, b) => {
                   const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
                   if (dateDiff !== 0) return dateDiff;
@@ -333,7 +333,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
           if (!lastClassWithStudent) {
               // Se não achou na aba atual, busca em qualquer aba (Migração)
               lastClassWithStudent = [...allHistory]
-                  .filter(c => c.students && c.students.includes(finalString))
+                  .filter(c => c.students && c.students.includes(finalString) && c.unit === unit)
                   .sort((a, b) => {
                       const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
                       if (dateDiff !== 0) return dateDiff;
