@@ -135,10 +135,10 @@ export const DataRepository = {
           });
           return false;
         }
+        console.log(`[DataRepo] Sucesso no UPSERT em ${tableName}. Resposta:`, data);
         if (data) {
           allUpsertedData.push(...toCamel(data));
         }
-        console.log(`[DataRepo] Sucesso no UPSERT em ${tableName}. Resposta:`, data);
       }
       return true;
     };
