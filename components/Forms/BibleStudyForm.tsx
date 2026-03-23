@@ -37,6 +37,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   } = useBibleStudyForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
+  const isAdmin = currentUser.role === UserRole.ADMIN;
 
   const headerActions = React.useMemo(() => (
     <>
@@ -54,7 +55,21 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   const historySection = React.useMemo(() => (
     <HistorySection<BibleStudy> data={history} users={users} currentUser={currentUser} isLoading={isLoading} searchFields={['name']} onContinue={handleContinueStudy} renderItem={(item) => (
-      <HistoryCard key={item.id} icon="📖" color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-blue-600"} title={item.name} subtitle={`${item.sector} • ${item.status}`} chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} isLocked={isRecordLocked(item.date, currentUser.role, 'bibleStudies', editAuthorizations, isLoading)} isAdmin={currentUser.role === UserRole.ADMIN} users={users} onTransfer={(newUid) => onTransfer?.('study', item.id, newUid)} onEdit={() => onEdit?.(item)} onDelete={() => onDelete(item.id)} onContinue={() => handleContinueStudy(item)} middle={item.participantType && item.participantType !== ParticipantType.STAFF && (<span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${item.participantType === ParticipantType.PATIENT ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{item.participantType}</span>)}/>
+      <HistoryCard 
+        key={item.id} 
+        icon="📖" 
+        color={item.status === RecordStatus.TERMINO ? "text-rose-600" : "text-blue-600"} 
+        title={item.name} 
+        subtitle={`${item.sector} • ${item.status}`} 
+        chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} 
+        isLocked={isLoading ? false : isRecordLocked(item.date, currentUser.role, 'bibleStudies', editAuthorizations)} 
+        isAdmin={currentUser.role === UserRole.ADMIN} 
+        users={users} 
+        onTransfer={(newUid) => onTransfer?.('study', item.id, newUid)} 
+        onEdit={() => onEdit?.(item)} 
+        onDelete={() => onDelete(item.id)} 
+        onContinue={() => handleContinueStudy(item)} 
+        middle={item.participantType && item.participantType !== ParticipantType.STAFF && (<span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${item.participantType === ParticipantType.PATIENT ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{item.participantType}</span>)}/>
     )} />
   ), [history, users, currentUser, isLoading, onTransfer, onEdit, onDelete, handleContinueStudy, editAuthorizations]);
 
@@ -87,6 +102,18 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       <FormScaffold title="Estudo Bíblico" headerActions={headerActions} history={historySection}>
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
+          {isAdmin && (
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Capelão Responsável</label>
+              <select 
+                value={formData.userId} 
+                onChange={e => setFormData({...formData, userId: e.target.value})} 
+                className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-blue-500/20 transition-all"
+              >
+                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
           
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do {formData.participantType}</label><Autocomplete options={studentOptions} value={formData.name} onChange={handleChangeName} onSelectOption={handleSelectStudent} placeholder="Buscar..." isStrict={false} /></div>

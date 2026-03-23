@@ -23,10 +23,10 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
-    id: '', date: getToday(), sector: '', sectorId: '', name: '', staffId: '', 
+    id: '', userId: currentUser.id, date: getToday(), sector: '', sectorId: '', name: '', staffId: '', 
     whatsapp: '', status: RecordStatus.INICIO, participantType: ParticipantType.STAFF, 
     guide: '', lesson: '', observations: '' 
-  }), [getToday]);
+  }), [getToday, currentUser.id]);
   
   const [formData, setFormData] = useState(defaultState);
   const [isSectorLocked, setIsSectorLocked] = useState(false);
@@ -35,10 +35,10 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
   useEffect(() => {
     if (!editingItem) {
-      setFormData(prev => ({ ...defaultState, date: prev.date || getToday() }));
+      setFormData(prev => ({ ...defaultState, userId: currentUser.id, date: prev.date || getToday() }));
       setIsSectorLocked(false);
     }
-  }, [editingItem, defaultState, getToday]); 
+  }, [editingItem, defaultState, getToday, currentUser.id]);
 
   const guideOptions = useMemo(() => {
     const uniqueGuides = new Set<string>();
@@ -128,6 +128,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     if (editingItem) {
       setFormData({ 
         id: editingItem.id || '',
+        userId: editingItem.userId || currentUser.id,
         date: ensureISODate(editingItem.date) || getToday(),
         sector: editingItem.sector || '',
         sectorId: editingItem.sectorId || '',
@@ -147,7 +148,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
           setIsSectorLocked(false);
       }
     }
-  }, [editingItem, unit, proStaff, getToday]);
+  }, [editingItem, unit, proStaff, getToday, currentUser.id]);
 
   const handleSelectStudent = (selectedLabel: string) => {
     const targetName = selectedLabel.split(' (')[0].trim();
@@ -260,13 +261,10 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     if (isSubmitting) return;
     if (!formData.name || !formData.guide || !formData.lesson) { showToast("Preencha Nome, Guia e Lição."); return; }
     
-    console.log(`[DEBUG] handleFormSubmit: formData.date=${formData.date}, currentUser.role=${currentUser.role}, editAuthorizations.length=${editAuthorizations.length}`);
-    if (isRecordLocked(formData.date, currentUser.role, 'bibleStudies', editAuthorizations, false)) {
-        console.log(`[DEBUG] handleFormSubmit: Blocked!`);
+    if (isRecordLocked(formData.date, currentUser.role, 'bibleStudies', editAuthorizations)) {
         showToast("Este período está bloqueado para lançamentos.", "error");
         return;
     }
-    console.log(`[DEBUG] handleFormSubmit: Not blocked, proceeding.`);
 
     const conflict = checkIdentityConflict(formData.name, formData.participantType, unit);
     if (conflict.hasConflict) {
