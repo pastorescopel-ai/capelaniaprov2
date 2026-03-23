@@ -18,7 +18,7 @@ export const isRecordLocked = (
   const now = new Date();
   const recordDate = new Date(dateStr);
   
-  console.log(`[DEBUG] isRecordLocked: dateStr=${dateStr}, recordDate=${recordDate}, now=${now}, userRole=${userRole}, tab=${tab}`);
+  console.log(`[DEBUG] isRecordLocked: dateStr=${dateStr}, recordDate=${recordDate}, now=${now}, userRole=${userRole}, tab=${tab}, authorizations.length=${authorizations.length}`);
 
   // Se a data do registro for futura ou do mês atual, não está bloqueado
   if (recordDate.getFullYear() > now.getFullYear() || 
