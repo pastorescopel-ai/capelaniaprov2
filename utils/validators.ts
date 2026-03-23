@@ -29,6 +29,7 @@ export const isRecordLocked = (
 
   // Verifica autorizações especiais
   if (tab && authorizations.length > 0) {
+    console.log(`[DEBUG] isRecordLocked: Checking authorizations. tab=${tab}, authorizations=`, authorizations);
     const activeAuth = authorizations.find(auth => {
       const expiry = new Date(auth.expiryDate);
       if (now > expiry) return false;
@@ -37,7 +38,7 @@ export const isRecordLocked = (
       const isSameMonth = recordDate.getUTCFullYear() === unlockMonth.getUTCFullYear() && 
                           recordDate.getUTCMonth() === unlockMonth.getUTCMonth();
       
-      console.log(`[DEBUG] isRecordLocked: Checking auth for ${auth.monthToUnlock}, isSameMonth=${isSameMonth}`);
+      console.log(`[DEBUG] isRecordLocked: Checking auth for ${auth.monthToUnlock}, isSameMonth=${isSameMonth}, allowedTabs=${auth.allowedTabs}`);
       
       return isSameMonth && auth.allowedTabs.includes(tab);
     });

@@ -31,7 +31,7 @@ const ActivityReports: React.FC = () => {
   const filteredReports = useMemo(() => 
     dailyActivityReports.filter(r => 
       r.unit === selectedUnit && 
-      r.date === selectedDate && 
+      (r.date ? r.date.split('T')[0] : '') === selectedDate && 
       (selectedUser ? r.userId === selectedUser : true)
     ),
     [dailyActivityReports, selectedUnit, selectedDate, selectedUser]
