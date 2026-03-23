@@ -261,7 +261,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     if (!formData.name || !formData.guide || !formData.lesson) { showToast("Preencha Nome, Guia e Lição."); return; }
     
     console.log(`[DEBUG] handleFormSubmit: formData.date=${formData.date}, currentUser.role=${currentUser.role}, editAuthorizations.length=${editAuthorizations.length}`);
-    if (isRecordLocked(formData.date, currentUser.role, 'bibleStudies', editAuthorizations)) {
+    if (isRecordLocked(formData.date, currentUser.role, 'bibleStudies', editAuthorizations, false)) {
         console.log(`[DEBUG] handleFormSubmit: Blocked!`);
         showToast("Este período está bloqueado para lançamentos.", "error");
         return;

@@ -11,10 +11,14 @@ export const isRecordLocked = (
   dateStr: string, 
   userRole: UserRole, 
   tab?: string, 
-  authorizations: EditAuthorization[] = []
+  authorizations: EditAuthorization[] = [],
+  isLoading: boolean = false
 ) => {
   if (userRole === UserRole.ADMIN) return false;
   
+  // Se os dados ainda estão carregando, não bloqueamos para evitar falsos positivos
+  if (isLoading) return false;
+
   const now = new Date();
   const recordDate = new Date(dateStr);
   
