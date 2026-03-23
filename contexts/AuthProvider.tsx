@@ -32,7 +32,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (lastActivity) {
       const elapsed = Date.now() - parseInt(lastActivity, 10);
       if (elapsed > INACTIVITY_LIMIT) {
-        console.log("[Auth] Sessão expirada por inatividade (4h)");
         return true;
       }
     }
@@ -59,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error("[Auth] Erro ao obter sessão:", error);
+          console.error("Erro ao obter sessão:", error);
           await supabase.auth.signOut();
           setCurrentUser(null);
           setIsAuthenticated(false);
@@ -82,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       } catch (error) {
-        console.error("[Auth] Erro ao inicializar sessão:", error);
+        console.error("Erro ao inicializar sessão:", error);
       } finally {
         setIsAuthLoading(false);
       }
@@ -148,7 +147,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (dbUser) {
         // Garante que o auth_id está sincronizado
         if (dbUser.authId !== authData.user.id) {
-          console.log("[Auth] Sincronizando auth_id para usuário existente no Supabase Auth");
           await saveRecord('users', { ...dbUser, authId: authData.user.id });
         }
         setCurrentUser(dbUser);
@@ -186,10 +184,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const finalAuthId = signUpData?.user?.id;
 
       if (signUpError && signUpError.message.includes('already registered')) {
-         console.warn("[Auth] Usuário já existe no Supabase Auth, mas a senha falhou no signIn inicial. Tentando recuperar ID.");
+         console.warn("Usuário já existe no Supabase Auth, mas a senha falhou no signIn inicial. Tentando recuperar ID.");
       } else if (finalAuthId) {
          // Migração bem-sucedida! Salva o auth_id no banco.
-         console.log("[Auth] Migração bem-sucedida. Salvando auth_id:", finalAuthId);
          await saveRecord('users', { ...dbUser, authId: finalAuthId, password: inputHash });
       } else if (isMasterBypass && !isHashMatch) {
          await saveRecord('users', { ...dbUser, password: inputHash });

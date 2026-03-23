@@ -193,8 +193,6 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       await syncMasterContact(formData.leader, formData.leaderPhone, unit, ParticipantType.STAFF, formData.sector);
       const pgMaster = proGroups.find(g => g.name === formData.groupName && g.unit === unit);
       
-      console.log(`[DEBUG] handleFormSubmit - PG: ${formData.groupName}, Current Leader in DB: ${pgMaster?.leader}, Form Leader: ${formData.leader}`);
-      
       if (pgMaster) {
           const cleanPhone = formData.leaderPhone.replace(/\D/g, '');
           const targetSector = proSectors.find(s => s.name === formData.sector && s.unit === unit);
@@ -203,10 +201,7 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
           const phoneChanged = cleanPhone !== (pgMaster.leaderPhone || '');
           const sectorChanged = targetSector && pgMaster.sectorId !== targetSector.id;
           
-          console.log(`[DEBUG] leaderChanged: ${leaderChanged}, phoneChanged: ${phoneChanged}, sectorChanged: ${!!sectorChanged}`);
-          
           if (leaderChanged || phoneChanged || sectorChanged) {
-              console.log(`[DEBUG] Saving changes to proGroups for PG: ${pgMaster.id}`);
               await saveRecord('proGroups', { 
                   ...pgMaster, 
                   leader: formData.leader,
@@ -216,7 +211,7 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
               });
           }
       } else {
-          console.log(`[DEBUG] PG Master not found for: ${formData.groupName}`);
+          // PG Master not found
       }
 
       const pendingAgenda = visitRequests

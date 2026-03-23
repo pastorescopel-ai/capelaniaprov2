@@ -117,7 +117,6 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
 
   const handleEnroll = async (personId: string, type: 'staff' | 'provider' = 'staff') => {
     if (!currentPG) { showToast("Selecione um PG de destino primeiro.", "warning"); return; }
-    console.log(`[Protocolo] Iniciando matrícula: ${type} ${personId} -> PG ${currentPG.id}`);
     
     setPendingTransfers(prev => new Set(prev).add(personId));
     setIsProcessing(true);
@@ -132,7 +131,6 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       const errorRecord = membersList.find(m => cleanId((m as any)[idField]) === cleanId(personId) && m.isError);
       
       if (errorRecord) {
-        console.log(`[Protocolo] Destravando registro de erro encontrado...`);
         const update = { 
           ...errorRecord, 
           groupId: currentPG.id,
@@ -155,13 +153,11 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       if (activeMembership) {
         if (activeMembership.cycleMonth === selectedMonth) {
           // MESMO MÊS: Apenas atualiza o PG (Ajuste Direto)
-          console.log(`[Protocolo] Movimentação no mesmo mês. Atualizando registro...`);
           const update = { ...activeMembership, groupId: currentPG.id, joinedAt: firstDayMs };
           const success = await saveRecord(collection, [update]);
           if (success) showToast("Matrícula atualizada!", "success");
         } else {
           // MÊS DIFERENTE: Encerra o antigo (Histórico) e cria novo
-          console.log(`[Protocolo] Movimentação entre meses. Gerando histórico...`);
           const { lastDayMs: oldLastDay } = getCycleDates(activeMembership.cycleMonth);
           
           const closeOld = { ...activeMembership, leftAt: oldLastDay };
@@ -180,7 +176,6 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
         if (type === 'provider') setProviderSearch('');
       } else {
         // 3. NOVA MATRÍCULA: Sem histórico prévio
-        console.log(`[Protocolo] Criando nova matrícula (sem histórico)...`);
         const newMember: any = {
           groupId: currentPG.id,
           [idField]: personId,
@@ -197,7 +192,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
         }
       }
     } catch (e: any) {
-      console.error(`[Protocolo] Falha na matrícula:`, e);
+      console.error(`Falha na matrícula:`, e);
       setPendingTransfers(prev => { const newSet = new Set(prev); newSet.delete(personId); return newSet; });
       showToast(e.message || "Erro ao processar matrícula.", "warning");
     } finally { setIsProcessing(false); }
@@ -242,8 +237,6 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     const idField = isProvider ? 'providerId' : 'staffId';
     const membersList = isProvider ? proGroupProviderMembers : proGroupMembers;
     
-    console.log(`[Protocolo] Iniciando remoção: Membro ${memberId} (Pessoa ${personId}) de ${collection}`);
-    
     setPendingRemovals(prev => new Set(prev).add(memberId));
     
     // Busca todas as matrículas ativas deste colaborador neste PG (para limpar duplicatas)
@@ -254,12 +247,10 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     );
     
     if (activeMemberships.length === 0 && memberId) {
-        console.warn(`[Protocolo] Nenhuma matrícula por ID. Tentando por ID direto: ${memberId}`);
         const byId = membersList.find(m => m.id === memberId && !m.leftAt);
         if (byId) activeMemberships.push(byId);
     }
     
-    console.log(`[Protocolo] Matrículas ativas para fechar:`, activeMemberships.map(m => m.id));
     activeMemberships.forEach(m => setPendingRemovals(prev => new Set(prev).add(m.id)));
     
     setMemberToRemove(null);
@@ -277,20 +268,18 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
             isError: removalType === 'error'
           }));
           
-          console.log(`[Protocolo] Executando SOFT DELETE (BI-Ready)...`);
           const success = await saveRecord(collection, updates);
           
           if (success) {
-            console.log(`[Protocolo] Movimentação registrada com sucesso.`);
             showToast(removalType === 'error' ? "Erro registrado no histórico." : "Saída registrada no histórico.", "success");
           } else {
             throw new Error("O servidor não confirmou a saída. Verifique o console.");
           }
       } else {
-        console.warn(`[Protocolo] Nenhuma matrícula ativa encontrada para remover.`);
+        console.warn(`Nenhuma matrícula ativa encontrada para remover.`);
       }
     } catch (e: any) {
-      console.error(`[Protocolo] Falha na remoção:`, e);
+      console.error(`Falha na remoção:`, e);
       activeMemberships.forEach(m => {
         setPendingRemovals(prev => { const newSet = new Set(prev); newSet.delete(m.id); return newSet; });
       });

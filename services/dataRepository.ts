@@ -40,9 +40,7 @@ export const DataRepository = {
       // Log de erros para debug (invisível ao usuário)
       results.forEach((res, idx) => {
         if (res.error) {
-          console.error(`[DEBUG] Query ${idx} falhou:`, res.error.message);
-        } else {
-          console.log(`[DEBUG] Query ${idx} sucesso, retornou ${res.data?.length || 0} linhas`);
+          console.error(`Query ${idx} falhou:`, res.error.message);
         }
       });
 
@@ -124,11 +122,10 @@ export const DataRepository = {
            }
         }
 
-        console.log(`[DataRepo] Tentando UPSERT em ${tableName}:`, chunk);
         const { data, error } = await supabase.from(tableName).upsert(chunk).select();
         
         if (error) {
-          console.error(`[DataRepo] ERRO CRÍTICO no Supabase (${tableName}):`, {
+          console.error(`ERRO CRÍTICO no Supabase (${tableName}):`, {
             message: error.message,
             details: error.details,
             hint: error.hint,
@@ -137,7 +134,6 @@ export const DataRepository = {
           });
           return false;
         }
-        console.log(`[DataRepo] Sucesso no UPSERT em ${tableName}. Resposta:`, data);
         if (data) {
           allUpsertedData.push(...toCamel(data));
         }

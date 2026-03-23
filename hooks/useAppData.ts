@@ -69,7 +69,6 @@ export const useAppData = () => {
         setDailyActivityReports(data.dailyActivityReports || []);
         setBibleClassAttendees(data.bibleClassAttendees || []);
         setEditAuthorizations(data.editAuthorizations || []);
-        console.log(`[DEBUG] useAppData: Loaded ${data.editAuthorizations?.length || 0} editAuthorizations`);
         if (data.config) {
           setConfig(data.config);
           applySystemOverrides(data.config);
@@ -196,12 +195,10 @@ export const useAppData = () => {
 
   const saveRecord = useCallback(async (collection: string, item: any) => {
     const result = await DataRepository.upsertRecord(collection, item);
-    console.log(`[saveRecord] Upsert result for ${collection}:`, result);
 
     if (result.success && result.data) {
       // Atualização Incremental do Estado Local
       const updatedItems = result.data;
-      console.log(`[saveRecord] Updating local state for ${collection} with ${updatedItems.length} items.`);
       
       const updateState = (setter: any) => {
         setter((prev: any[]) => {
@@ -209,10 +206,8 @@ export const useAppData = () => {
           updatedItems.forEach(newItem => {
             const index = newState.findIndex(i => i.id === newItem.id);
             if (index !== -1) {
-              console.log(`[saveRecord] Replacing existing item in ${collection}:`, newItem.id);
               newState[index] = { ...newState[index], ...newItem };
             } else {
-              console.log(`[saveRecord] Adding new item to ${collection}:`, newItem.id);
               newState.push(newItem);
             }
           });
@@ -280,7 +275,6 @@ export const useAppData = () => {
                     updates.sectorId = targetSector.id;
                     updates.updatedAt = Date.now();
                     hasUpdates = true;
-                    console.log(`[DataHealing] Movendo ${staff.name} para o setor ${extra}`);
                 }
             }
 
@@ -300,7 +294,6 @@ export const useAppData = () => {
                     
                     for (const req of pendingRequests) {
                         await saveRecord('visitRequests', { ...req, leaderPhone: updates.whatsapp });
-                        console.log(`[DataHealing] Atualizando telefone na escala futura do PG ${req.pgName}`);
                     }
                 }
             }

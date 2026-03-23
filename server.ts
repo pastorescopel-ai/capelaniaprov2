@@ -8,13 +8,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
-  console.log("DEBUG: NODE_ENV =", process.env.NODE_ENV);
   const app = express();
   const PORT = 3000;
 
   // Log de todas as requisições
   app.use((req, res, next) => {
-    console.log(`DEBUG: Request received: ${req.url}`);
     next();
   });
 
@@ -53,16 +51,8 @@ async function startServer() {
           const config = getConfig();
           const injection = `<script>
             window.__SUPABASE_CONFIG__ = ${JSON.stringify(config)};
-            console.log("DEBUG: Injected Supabase Config:", {
-              hasUrl: !!window.__SUPABASE_CONFIG__.supabaseUrl,
-              hasKey: !!window.__SUPABASE_CONFIG__.supabaseKey,
-              urlLength: window.__SUPABASE_CONFIG__.supabaseUrl?.length,
-              keyLength: window.__SUPABASE_CONFIG__.supabaseKey?.length
-            });
           </script>`;
           html = html.replace(/<!--\s*CONFIG_INJECTION\s*-->/, injection);
-          
-          console.log("DEBUG: HTML being sent to browser (first 500 chars):", html.substring(0, 500));
           
           return res.status(200).set({ "Content-Type": "text/html" }).end(html);
         } catch (e) {
@@ -85,10 +75,6 @@ async function startServer() {
           const config = getConfig();
           const injection = `<script>
             window.__SUPABASE_CONFIG__ = ${JSON.stringify(config)};
-            console.log("DEBUG PROD: Injected Supabase Config:", {
-              hasUrl: !!window.__SUPABASE_CONFIG__.supabaseUrl,
-              hasKey: !!window.__SUPABASE_CONFIG__.supabaseKey
-            });
           </script>`;
           const replaced = html.replace(/<!--\s*CONFIG_INJECTION\s*-->/, injection);
           if (replaced === html) {
