@@ -18,9 +18,12 @@ export const isRecordLocked = (
   const now = new Date();
   const recordDate = new Date(dateStr);
   
+  console.log(`[DEBUG] isRecordLocked: dateStr=${dateStr}, recordDate=${recordDate}, now=${now}, userRole=${userRole}, tab=${tab}`);
+
   // Se a data do registro for futura ou do mês atual, não está bloqueado
   if (recordDate.getFullYear() > now.getFullYear() || 
      (recordDate.getFullYear() === now.getFullYear() && recordDate.getMonth() >= now.getMonth())) {
+    console.log(`[DEBUG] isRecordLocked: Not locked (current or future month)`);
     return false;
   }
 
@@ -34,18 +37,28 @@ export const isRecordLocked = (
       const isSameMonth = recordDate.getUTCFullYear() === unlockMonth.getUTCFullYear() && 
                           recordDate.getUTCMonth() === unlockMonth.getUTCMonth();
       
+      console.log(`[DEBUG] isRecordLocked: Checking auth for ${auth.monthToUnlock}, isSameMonth=${isSameMonth}`);
+      
       return isSameMonth && auth.allowedTabs.includes(tab);
     });
 
-    if (activeAuth) return false;
+    if (activeAuth) {
+        console.log(`[DEBUG] isRecordLocked: Not locked (authorized)`);
+        return false;
+    }
   }
 
   // Verifica se estamos dentro do prazo do 5º dia útil do mês atual
   const fifthBusinessDay = getFifthBusinessDay(now.getFullYear(), now.getMonth());
   const isGracePeriod = now <= fifthBusinessDay;
+  
+  console.log(`[DEBUG] isRecordLocked: fifthBusinessDay=${fifthBusinessDay}, isGracePeriod=${isGracePeriod}`);
 
   // Se já passou do 5º dia útil, bloqueia tudo que não for do mês atual
-  if (!isGracePeriod) return true;
+  if (!isGracePeriod) {
+      console.log(`[DEBUG] isRecordLocked: Locked (past grace period)`);
+      return true;
+  }
 
   // Se ainda estivermos no prazo, permitimos editar o mês IMEDIATAMENTE anterior
   const isPreviousMonth = (
