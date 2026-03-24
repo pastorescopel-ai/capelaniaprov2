@@ -75,13 +75,14 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
             options.push({ value: p.name, label: p.name, subLabel: "Paciente", category: "RH" as const });
             officialSet.add(normalizeString(p.name));
         });
-    } else {
+    } else if (formData.participantType === ParticipantType.PROVIDER) {
         proProviders.filter(p => p.unit === unit).forEach(p => {
             options.push({ value: p.name, label: p.name, subLabel: p.sector || "Prestador", category: "RH" as const });
             officialSet.add(normalizeString(p.name));
         });
     }
     
+    // Filtra histórico APENAS da categoria atual (Integridade Categórica)
     const filteredHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) === formData.participantType && s.unit === unit);
     const otherHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) !== formData.participantType && s.unit === unit);
     

@@ -104,8 +104,8 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date || ''} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all" /></div>
           
           <div className="space-y-1">
-              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>Setor / Local {isStaff ? '(Obrigatório)' : '(Opcional)'}</label>
-              <Autocomplete options={sectorOptions} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} onSelectOption={handleSelectSector} placeholder={isStaff ? "Selecione o setor..." : "Leito, Quarto ou Área (Opcional)..."} isStrict={false} />
+              <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Local da Classe (Obrigatório)</label>
+              <Autocomplete options={sectorOptions} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} onSelectOption={handleSelectSector} placeholder="Selecione ou digite o local..." isStrict={false} />
           </div>
 
           <div className={`space-y-1 ${!isStaff ? 'order-first md:order-none col-span-2 md:col-span-2 animate-in slide-in-from-top-2' : ''}`}>
@@ -114,9 +114,9 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           </div>
           
           <div className="space-y-1 md:col-span-2">
-            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Chamada de Presença {isStaff ? '' : '(Imã de Histórico Ativo 🧲)'}</label>
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Chamada de Presença (Filtro: {formData.participantType})</label>
             <div className="flex gap-2">
-              <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent || ''} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={isStaff ? "Buscar colaborador..." : "Digite o nome e clique + (busca grupos anteriores)..."} isStrict={false} /></div>
+              <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent || ''} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={`Buscar ${formData.participantType.toLowerCase()}...`} isStrict={false} /></div>
               <button type="button" onClick={() => addStudent()} className="w-12 h-12 md:w-14 md:h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all"><i className="fas fa-plus"></i></button>
             </div>
             

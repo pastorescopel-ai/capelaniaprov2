@@ -122,35 +122,64 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   const studentSearchOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
     const officialSet = new Set<string>();
+    const currentSector = formData.sector;
     
+    // 1. Pool de Dados Categórico (Pool de Origem)
     if (formData.participantType === ParticipantType.STAFF) {
         proStaff.filter(s => s.unit === unit).forEach(staff => {
           const sector = proSectors.find(sec => sec.id === staff.sectorId);
-          options.push({ value: staff.name, label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, subLabel: sector ? sector.name : 'Setor não informado', category: 'RH' });
+          const isFromCurrentSector = sector?.name === currentSector;
+          
+          options.push({ 
+            value: staff.name, 
+            label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, 
+            subLabel: sector ? sector.name : 'Setor não informado', 
+            category: isFromCurrentSector ? 'Setor Atual' : 'RH',
+            highlight: isFromCurrentSector
+          });
           officialSet.add(normalizeString(staff.name));
         });
     } else if (formData.participantType === ParticipantType.PATIENT) {
-        // Se houver proPatients no AppContext, poderia usar aqui
-    } else {
-        // Se houver proProviders no AppContext, poderia usar aqui
+        proPatients.filter(p => p.unit === unit).forEach(patient => {
+          options.push({ 
+            value: patient.name, 
+            label: patient.name, 
+            subLabel: 'Paciente', 
+            category: 'Pacientes' 
+          });
+          officialSet.add(normalizeString(patient.name));
+        });
+    } else if (formData.participantType === ParticipantType.PROVIDER) {
+        proProviders.filter(p => p.unit === unit).forEach(provider => {
+          const isFromCurrentSector = provider.sector === currentSector;
+          options.push({ 
+            value: provider.name, 
+            label: provider.name, 
+            subLabel: provider.sector || 'Prestador', 
+            category: isFromCurrentSector ? 'Setor Atual' : 'Prestadores',
+            highlight: isFromCurrentSector
+          });
+          officialSet.add(normalizeString(provider.name));
+        });
     }
 
     const uniqueHistoryNames = new Set<string>();
+    // Filtra histórico APENAS da categoria atual (Integridade Categórica)
     const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit);
-    const otherHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) !== formData.participantType && c.unit === unit);
     
-    // 1. Alunos das classes do capelão logado (Destaque Amarelo)
+    // 2. Alunos das classes do capelão logado (Destaque Amarelo)
     filteredHistory.filter(c => c.userId === currentUser.id).forEach(c => {
        if (Array.isArray(c.students)) {
          c.students.forEach(s => {
            const norm = normalizeString(s);
            if (!uniqueHistoryNames.has(norm)) {
              uniqueHistoryNames.add(norm);
+             const isFromCurrentSector = c.sector === currentSector;
              options.push({ 
                value: s.trim(), 
                label: s.trim(), 
                subLabel: c.sector, 
-               category: 'MyStudents',
+               category: isFromCurrentSector ? 'Setor Atual' : 'Meus Alunos',
                highlight: true 
              });
            }
@@ -158,50 +187,42 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
        }
     });
 
-    // 2. Resto do histórico geral
+    // 3. Resto do histórico geral da categoria
     filteredHistory.forEach(c => {
        if (Array.isArray(c.students)) {
          c.students.forEach(s => {
            const norm = normalizeString(s);
            if (!uniqueHistoryNames.has(norm) && !officialSet.has(norm)) {
              uniqueHistoryNames.add(norm);
-             options.push({ value: s.trim(), label: s.trim(), subLabel: c.sector, category: 'History' });
+             const isFromCurrentSector = c.sector === currentSector;
+             options.push({ 
+               value: s.trim(), 
+               label: s.trim(), 
+               subLabel: c.sector, 
+               category: isFromCurrentSector ? 'Setor Atual' : 'Histórico' 
+             });
            }
          });
        }
     });
 
-    // 3. Alunos de outras abas (Migração)
-    otherHistory.forEach(c => {
-       if (Array.isArray(c.students)) {
-         c.students.forEach(s => {
-           const norm = normalizeString(s);
-           if (!uniqueHistoryNames.has(norm) && !officialSet.has(norm)) {
-             uniqueHistoryNames.add(norm);
-             options.push({ value: s.trim(), label: s.trim(), subLabel: `${c.sector || 'Sem setor'} (Migrar)`, category: 'Migration' });
-           }
-         });
-       }
+    // Ordenação Híbrida: Prioriza Setor Atual > Meus Alunos > Resto
+    return options.sort((a, b) => {
+      if (a.category === 'Setor Atual' && b.category !== 'Setor Atual') return -1;
+      if (a.category !== 'Setor Atual' && b.category === 'Setor Atual') return 1;
+      if (a.category === 'Meus Alunos' && b.category !== 'Meus Alunos') return -1;
+      if (a.category !== 'Meus Alunos' && b.category === 'Meus Alunos') return 1;
+      return a.label.localeCompare(b.label);
     });
-
-    return options;
-  }, [proStaff, proSectors, unit, allHistory, currentUser.id, formData.participantType]);
+  }, [proStaff, proPatients, proProviders, proSectors, unit, allHistory, currentUser.id, formData.participantType, formData.sector]);
 
   const handleSelectSector = useCallback((sectorName: string) => {
     if (!sectorName) return;
 
-    // 1. Ownership Check (Apenas para Staff/Setores Oficiais)
-    const sectorObj = proSectors.find(s => s.name === sectorName && s.unit === unit);
-    if (sectorObj && formData.participantType === ParticipantType.STAFF) {
-        const ownership = checkOwnershipConflict(sectorName, 'class', unit, currentUser.id, currentUser.role);
-        if (ownership.hasConflict) {
-            setOwnershipConflict({ show: true, message: ownership.message });
-            setFormData(prev => ({ ...prev, sector: '', students: [], guide: '', lesson: '', status: RecordStatus.INICIO }));
-            return;
-        }
-    }
+    // 1. Desbloqueio de Concorrência: Removido checkOwnershipConflict para setores.
+    // O setor agora é apenas o local da reunião, permitindo múltiplos capelães no mesmo local.
 
-    // 2. Auto-fill logic
+    // 2. Auto-fill logic baseado no histórico da categoria selecionada
     const lastClass = [...allHistory]
         .filter(c => c.sector === sectorName && c.unit === unit && (c.participantType || ParticipantType.STAFF) === formData.participantType)
         .sort((a, b) => {
