@@ -54,57 +54,56 @@ export const useReportLogic = (
     return result;
   }, [studies, classes, groups, visits, filters]);
 
-  // 2. DADOS ACUMULADOS DO ANO (Ignora data de início do filtro, usa 01/01 do ano corrente)
-  // Isso resolve o problema dos números "sumindo" quando muda o mês.
-  const accumulatedStats = useMemo(() => {
+  // 2. CÁLCULO DE MÉDIA MENSAL ANUAL (MÉTRICA-FIDELIDADE V2)
+  // Calcula a média de alunos únicos atendidos por mês, considerando apenas os meses que tiveram registros.
+  // Esta métrica ignora o filtro de data e foca no desempenho real do ano corrente.
+  const averageStats = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const startOfYear = `${currentYear}-01-01`;
-    // Usa a data fim do filtro para não pegar futuro, mas começa em Jan 01
-    const endOfFilter = filters.endDate; 
-
-    const uniqueStudentsYTD = new Set<string>();
-
-    const isYTD = (dateStr: string) => {
-        const d = dateStr.split('T')[0];
-        return d >= startOfYear && d <= endOfFilter;
-    };
-
-    const addUniqueName = (rawName: string) => {
-      if (!rawName) return;
+    const monthlyUnique = new Map<string, Set<string>>();
+    
+    const addMonthlyName = (dateStr: string, rawName: string) => {
+      if (!rawName || !dateStr) return;
+      const d = new Date(dateStr);
+      if (d.getFullYear() !== currentYear) return; // Garante que é do ano atual
+      
+      const monthKey = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      if (!monthlyUnique.has(monthKey)) monthlyUnique.set(monthKey, new Set());
       const nameOnly = rawName.split(' (')[0].trim();
-      uniqueStudentsYTD.add(normalizeString(nameOnly));
+      monthlyUnique.get(monthKey)!.add(normalizeString(nameOnly));
     };
 
-    // Varre Estudos do Ano
-    for (let i = 0; i < studies.length; i++) {
-        const s = studies[i];
-        if (s.date && isYTD(s.date)) {
-             // Aplica filtros de unidade/capelão se selecionados, mas ignora data inicial
-             const unitMatch = filters.selectedUnit === 'all' || s.unit === filters.selectedUnit;
-             const chaplainMatch = filters.selectedChaplain === 'all' || s.userId === filters.selectedChaplain;
-             if (unitMatch && chaplainMatch) {
-                 if (s.name) addUniqueName(s.name);
-             }
-        }
-    }
+    // Varre TODO o histórico para o cálculo anual (ignora filteredData)
+    studies.forEach(s => {
+      const chaplainMatch = filters.selectedChaplain === 'all' || s.userId === filters.selectedChaplain;
+      const unitMatch = filters.selectedUnit === 'all' || s.unit === filters.selectedUnit;
+      if (chaplainMatch && unitMatch) addMonthlyName(s.date, s.name);
+    });
 
-    // Varre Classes do Ano
-    for (let i = 0; i < classes.length; i++) {
-        const c = classes[i];
-        if (c.date && isYTD(c.date)) {
-             const unitMatch = filters.selectedUnit === 'all' || c.unit === filters.selectedUnit;
-             const chaplainMatch = filters.selectedChaplain === 'all' || c.userId === filters.selectedChaplain;
-             if (unitMatch && chaplainMatch) {
-                 if (Array.isArray(c.students)) c.students.forEach(n => addUniqueName(n));
-             }
-        }
-    }
+    classes.forEach(c => {
+      const chaplainMatch = filters.selectedChaplain === 'all' || c.userId === filters.selectedChaplain;
+      const unitMatch = filters.selectedUnit === 'all' || c.unit === filters.selectedUnit;
+      if (chaplainMatch && unitMatch && Array.isArray(c.students)) {
+        c.students.forEach(n => addMonthlyName(c.date!, n));
+      }
+    });
 
-    const result = {
-        uniqueStudentsYTD: uniqueStudentsYTD.size
+    // Conta quantos meses tiveram atividade (registros de alunos)
+    const activeMonthsCount = monthlyUnique.size;
+    
+    // Soma os totais de cada mês ativo
+    let totalMonthlySum = 0;
+    monthlyUnique.forEach(set => {
+      totalMonthlySum += set.size;
+    });
+
+    // A média é a soma dos mensais dividida pelo número de meses ATIVOS
+    const average = activeMonthsCount > 0 ? totalMonthlySum / activeMonthsCount : 0;
+
+    return {
+      averageStudents: Number(average.toFixed(1))
     };
-    return result;
-  }, [studies, classes, filters.selectedUnit, filters.selectedChaplain, filters.endDate]);
+  }, [studies, classes, filters.selectedChaplain, filters.selectedUnit]);
 
   const auditList = useMemo(() => {
     const list: any[] = [];
@@ -138,9 +137,9 @@ export const useReportLogic = (
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,
       totalStudentsPeriod: uniqueStudentsPeriod.size,
-      totalStudentsYTD: accumulatedStats.uniqueStudentsYTD // Total acumulado do ano
+      averageStudentsMonthly: averageStats.averageStudents
     };
-  }, [filteredData, accumulatedStats]);
+  }, [filteredData, averageStats]);
 
   return { filteredData, auditList, totalStats };
 };

@@ -67,7 +67,7 @@ export const generateExecutiveHTML = (data: PDFTemplateData) => {
         
         <div style="margin-top: 20px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding-top: 20px; border-top: 2px solid #f1f5f9;">
           ${[
-            {l: 'Total de Estudantes da Bíblia', v: totalStats.totalStudentsPeriod, c: '#dc2626'},
+            {l: 'Média de Alunos (Mensal)', v: totalStats.averageStudentsMonthly, c: '#dc2626'},
             {l: 'Estudos Bíblicos Individuais', v: totalStats.studies, c: '#3b82f6'},
             {l: 'Classes Bíblicas', v: totalStats.classes, c: '#6366f1'},
             {l: 'PGs', v: totalStats.groups, c: '#10b981'},

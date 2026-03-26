@@ -4,7 +4,7 @@ import React from 'react';
 interface StatsProps {
   totalStats: {
     totalStudentsPeriod: number;
-    totalStudentsYTD: number;
+    averageStudentsMonthly: number;
     studies: number;
     classes: number;
     groups: number;
@@ -15,10 +15,10 @@ interface StatsProps {
 const ReportStats: React.FC<StatsProps> = ({ totalStats }) => {
   const cards = [
     { 
-        label: 'Total de Estudantes da Bíblia (Ano)', 
-        value: totalStats.totalStudentsYTD, 
+        label: 'Média de Alunos (Mensal)', 
+        value: totalStats.averageStudentsMonthly, 
         color: 'bg-slate-800 shadow-slate-200', 
-        sub: 'Acumulado 2025' 
+        sub: 'Meses Ativos (Ano)' 
     },
     { 
         label: 'Total de Estudantes da Bíblia (Período)', 
