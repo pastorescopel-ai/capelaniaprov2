@@ -25,6 +25,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [statusModalConfig, setStatusModalConfig] = useState<{ title: string, message: string, type: 'success' | 'error' | 'warning' }>({ title: '', message: '', type: 'success' });
   const [isClosing, setIsClosing] = useState(false);
+  const [technicalError, setTechnicalError] = useState<string | null>(null);
 
   const isAdmin = currentUser?.role === 'admin';
   
@@ -356,12 +357,13 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
   const handleCloseMonth = async () => {
     setIsClosing(true);
+    setTechnicalError(null);
     try {
       // 1. Limpar histórico existente para este mês/unidade para evitar duplicidade
       await deleteRecordsByFilter('proHistoryRecords', { month: selectedMonth, unit });
       await deleteRecordsByFilter('proMonthlyStats', { month: selectedMonth, unit });
 
-      const historyRecords: ProHistoryRecord[] = [];
+      const historyRecords: any[] = [];
       const targetDate = new Date(selectedMonth + 'T12:00:00').getTime();
       const unitStaff = proStaff.filter(s => s.unit === unit && (!s.leftAt || s.leftAt >= targetDate));
       
@@ -401,7 +403,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         }
 
         historyRecords.push({
-          id: crypto.randomUUID(),
+          // Removido id manual para deixar o banco gerar (BIGSERIAL)
           month: selectedMonth,
           unit,
           staffId: staff.id,
@@ -418,7 +420,10 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       });
 
       // 2. Salvar Histórico Detalhado
-      await saveRecord('proHistoryRecords', historyRecords);
+      const saveHistoryResult = await saveRecord('proHistoryRecords', historyRecords);
+      if (!saveHistoryResult) {
+        throw new Error('Falha ao salvar registros de histórico no banco de dados.');
+      }
 
       // 3. Salvar Estatísticas Mensais Agregadas (Snapshot de Segurança)
       const monthlyStats: any[] = [];
@@ -432,7 +437,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         stats.pgIds.forEach(id => allUnitPGIds.add(id));
 
         monthlyStats.push({
-          id: crypto.randomUUID(),
+          // Removido id manual para deixar o banco gerar
           month: selectedMonth,
           unit,
           type: 'sector',
@@ -447,7 +452,6 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
       // Registro Global da Unidade
       monthlyStats.push({
-        id: crypto.randomUUID(),
         month: selectedMonth,
         unit,
         type: 'pg',
@@ -459,17 +463,15 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         createdAt: Date.now()
       });
 
-      // Snapshots de PGs Individuais (opcional, mas bom para consistência)
+      // Snapshots de PGs Individuais
       allUnitPGIds.forEach(pgId => {
-        const pg = groupsById.get(pgId);
         const enrolledInPG = historyRecords.filter(r => r.groupId === pgId).length;
         monthlyStats.push({
-          id: crypto.randomUUID(),
           month: selectedMonth,
           unit,
           type: 'pg',
           targetId: pgId,
-          totalStaff: enrolledInPG, // Para PGs, totalStaff pode ser interpretado como membros
+          totalStaff: enrolledInPG,
           totalParticipants: enrolledInPG,
           percentage: 100,
           goal: 100,
@@ -477,7 +479,10 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         });
       });
 
-      await saveRecord('proMonthlyStats', monthlyStats);
+      const saveStatsResult = await saveRecord('proMonthlyStats', monthlyStats);
+      if (!saveStatsResult) {
+        throw new Error('Falha ao salvar estatísticas mensais no banco de dados.');
+      }
 
       // 4. ATUALIZAR MÊS DE COMPETÊNCIA NO CONFIG (CASCATA)
       const current = new Date(selectedMonth + 'T12:00:00');
@@ -491,9 +496,11 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
       setIsCloseModalOpen(false);
       showStatus('Sucesso', `Mês fechado com sucesso! O histórico foi preservado e o sistema agora está em ${new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(next)}.`, 'success');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao fechar mês:', error);
-      showStatus('Erro', 'Erro ao processar o fechamento do mês.', 'error');
+      const errorMsg = error?.message || 'Erro desconhecido ao salvar dados.';
+      setTechnicalError(errorMsg);
+      showStatus('Erro', 'Erro ao processar o fechamento do mês. Verifique o log técnico.', 'error');
     } finally {
       setIsClosing(false);
     }
@@ -564,6 +571,32 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         type={statusModalConfig.type}
       />
       
+      {/* Status Técnico (Log de Erros) */}
+      {technicalError && (
+        <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
+              <i className="fas fa-bug text-xs"></i>
+            </div>
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-800">Status Técnico (Depuração)</h4>
+            <button 
+              onClick={() => setTechnicalError(null)}
+              className="ml-auto text-rose-400 hover:text-rose-600 transition-colors"
+            >
+              <i className="fas fa-times text-xs"></i>
+            </button>
+          </div>
+          <div className="bg-white/50 p-3 rounded-xl border border-rose-100/50">
+            <code className="text-[10px] font-mono text-rose-600 break-all">
+              {technicalError}
+            </code>
+          </div>
+          <p className="mt-2 text-[9px] font-bold text-rose-400 uppercase tracking-tight">
+            Este erro ocorreu durante a comunicação com o banco de dados. Verifique os tipos de dados ou permissões.
+          </p>
+        </div>
+      )}
+
       {/* Filtro de Competência */}
       <div className="flex justify-center md:justify-end">
         <div className="bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-2">
