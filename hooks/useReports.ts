@@ -86,6 +86,15 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
   const handleGeneratePGReport = async () => {
     setLoadingAction('pg_report');
     
+    // Identificar se o período selecionado corresponde a um mês fechado (snapshot)
+    // Usamos a data de início como referência para buscar o histórico
+    const historyForPeriod = proHistoryRecords.filter(r => 
+      r.month === filters.startDate && 
+      (filters.selectedUnit === 'all' || r.unit === filters.selectedUnit)
+    );
+
+    const isUsingHistory = historyForPeriod.length > 0;
+
     const targetPGs = filters.selectedPG === 'all' 
       ? proGroups.filter(g => g.unit === filters.selectedUnit || filters.selectedUnit === 'all')
       : proGroups.filter(g => g.id === filters.selectedPG);
@@ -95,30 +104,44 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
     let html = `<div style="background: #f1f5f9; padding: 20px;">`;
 
     for (const pg of targetPGs) {
-      const activeStaffMembers = proGroupMembers.filter(m => m.groupId === pg.id && !m.leftAt);
-      const activeProviderMembers = proGroupProviderMembers.filter(m => m.groupId === pg.id && !m.leftAt);
+      let membersList: any[] = [];
 
-      const membersList = [
-        ...activeStaffMembers.map(m => {
-          const staff = proStaff.find(s => s.id === m.staffId);
-          const sector = proSectors.find(s => s.id === staff?.sectorId);
-          return {
-            name: staff?.name || 'Desconhecido',
-            sectorName: sector?.name || 'Sem Setor',
-            isLeader: normalizeString(staff?.name || '') === normalizeString(pg.currentLeader || ''),
-            type: 'Colaborador'
-          };
-        }),
-        ...activeProviderMembers.map(m => {
-          const provider = proProviders.find(p => p.id === m.providerId);
-          return {
-            name: provider?.name || 'Desconhecido',
-            sectorName: 'Prestador',
-            isLeader: normalizeString(provider?.name || '') === normalizeString(pg.currentLeader || ''),
-            type: 'Prestador'
-          };
-        })
-      ];
+      if (isUsingHistory) {
+        // Usar dados do histórico (Snapshot imutável)
+        const historyMembers = historyForPeriod.filter(r => r.groupId === pg.id);
+        membersList = historyMembers.map(r => ({
+          name: r.staffName,
+          sectorName: r.sectorName,
+          isLeader: normalizeString(r.staffName || '') === normalizeString(pg.currentLeader || ''),
+          type: 'Colaborador'
+        }));
+      } else {
+        // Usar dados atuais (Mês aberto)
+        const activeStaffMembers = proGroupMembers.filter(m => m.groupId === pg.id && !m.leftAt);
+        const activeProviderMembers = proGroupProviderMembers.filter(m => m.groupId === pg.id && !m.leftAt);
+
+        membersList = [
+          ...activeStaffMembers.map(m => {
+            const staff = proStaff.find(s => s.id === m.staffId);
+            const sector = proSectors.find(s => s.id === staff?.sectorId);
+            return {
+              name: staff?.name || 'Desconhecido',
+              sectorName: sector?.name || 'Sem Setor',
+              isLeader: normalizeString(staff?.name || '') === normalizeString(pg.currentLeader || ''),
+              type: 'Colaborador'
+            };
+          }),
+          ...activeProviderMembers.map(m => {
+            const provider = proProviders.find(p => p.id === m.providerId);
+            return {
+              name: provider?.name || 'Desconhecido',
+              sectorName: 'Prestador',
+              isLeader: normalizeString(provider?.name || '') === normalizeString(pg.currentLeader || ''),
+              type: 'Prestador'
+            };
+          })
+        ];
+      }
 
       membersList.sort((a, b) => {
         if (a.isLeader && !b.isLeader) return -1;
@@ -130,7 +153,7 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
 
       html += `
         <div class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 15mm; background: white; box-sizing: border-box; font-family: sans-serif; position: relative; margin-bottom: 20px;">
-          ${getBrandedHeaderByProfile(config, 'smallGroups', `Unidade: ${pg.unit || 'Todas'}`)}
+          ${getBrandedHeaderByProfile(config, 'smallGroups', `Unidade: ${pg.unit || 'Todas'} | Referência: ${isUsingHistory ? 'Histórico Fechado' : 'Dados Atuais'}`)}
           
           <div style="background: #f8fafc; padding: 20px; border-left: 8px solid ${pColor}; border-radius: 0 12px 12px 0; margin-bottom: 25px;">
             <h2 style="font-size: 24px; font-weight: 900; color: #1e293b; margin: 0 0 5px 0; text-transform: uppercase;">${pg.name}</h2>

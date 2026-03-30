@@ -206,6 +206,20 @@ export const DataRepository = {
     return !error;
   },
 
+  async deleteRecordsByFilter(collection: string, filters: Record<string, any>) {
+    if (!supabase) return false;
+    const tableName = COLLECTION_TO_TABLE[collection];
+    if (!tableName) return false;
+
+    let query = supabase.from(tableName).delete();
+    for (const [key, value] of Object.entries(filters)) {
+      query = query.eq(key, value);
+    }
+
+    const { error } = await query;
+    return !error;
+  },
+
   async closeMonth(month: string, unit: string, stats: any, membersList: any[]) {
     const record = {
       month,

@@ -13,7 +13,7 @@ interface PGDashboardProps {
 
 const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
   const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, proMonthlyStats, proHistoryRecords } = usePro();
-  const { config, saveRecord, deleteRecord } = useApp();
+  const { config, saveRecord, deleteRecord, deleteRecordsByFilter } = useApp();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -347,6 +347,10 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
   const handleCloseMonth = async () => {
     setIsClosing(true);
     try {
+      // 1. Limpar histórico existente para este mês/unidade para evitar duplicidade
+      await deleteRecordsByFilter('proHistoryRecords', { month: selectedMonth, unit });
+      await deleteRecordsByFilter('proMonthlyStats', { month: selectedMonth, unit });
+
       const historyRecords: ProHistoryRecord[] = [];
       const unitStaff = proStaff.filter(s => s.unit === unit && (!s.leftAt || s.leftAt >= new Date(selectedMonth).getTime()));
       const sectorsById = new Map(proSectors.map(s => [cleanID(s.id), s]));
@@ -360,10 +364,23 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         }
       });
 
+      const sectorStats = new Map<string, { total: number, enrolled: number, pgIds: Set<string> }>();
+
       unitStaff.forEach(staff => {
         const groupId = staffToGroup.get(cleanID(staff.id));
         const group = groupId ? groupsById.get(groupId) : null;
         const sector = sectorsById.get(cleanID(staff.sectorId));
+        const sId = cleanID(staff.sectorId) || 'unassigned';
+
+        if (!sectorStats.has(sId)) {
+          sectorStats.set(sId, { total: 0, enrolled: 0, pgIds: new Set() });
+        }
+        const stats = sectorStats.get(sId)!;
+        stats.total++;
+        if (groupId) {
+          stats.enrolled++;
+          stats.pgIds.add(groupId);
+        }
 
         historyRecords.push({
           id: crypto.randomUUID(),
@@ -381,10 +398,69 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         });
       });
 
-      // Salvar em lote
+      // 2. Salvar Histórico Detalhado
       await saveRecord('proHistoryRecords', historyRecords);
 
-      // ATUALIZAR MÊS DE COMPETÊNCIA NO CONFIG (CASCATA)
+      // 3. Salvar Estatísticas Mensais Agregadas (Snapshot de Segurança)
+      const monthlyStats: any[] = [];
+      let totalUnitStaff = 0;
+      let totalUnitEnrolled = 0;
+      const allUnitPGIds = new Set<string>();
+
+      sectorStats.forEach((stats, sId) => {
+        totalUnitStaff += stats.total;
+        totalUnitEnrolled += stats.enrolled;
+        stats.pgIds.forEach(id => allUnitPGIds.add(id));
+
+        monthlyStats.push({
+          id: crypto.randomUUID(),
+          month: selectedMonth,
+          unit,
+          type: 'sector',
+          targetId: sId,
+          totalStaff: stats.total,
+          totalParticipants: stats.enrolled,
+          percentage: stats.total > 0 ? (stats.enrolled / stats.total) * 100 : 0,
+          goal: 100,
+          createdAt: Date.now()
+        });
+      });
+
+      // Registro Global da Unidade
+      monthlyStats.push({
+        id: crypto.randomUUID(),
+        month: selectedMonth,
+        unit,
+        type: 'pg',
+        targetId: 'all',
+        totalStaff: totalUnitStaff,
+        totalParticipants: totalUnitEnrolled,
+        percentage: totalUnitStaff > 0 ? (totalUnitEnrolled / totalUnitStaff) * 100 : 0,
+        goal: 100,
+        createdAt: Date.now()
+      });
+
+      // Snapshots de PGs Individuais (opcional, mas bom para consistência)
+      allUnitPGIds.forEach(pgId => {
+        const pg = groupsById.get(pgId);
+        const enrolledInPG = historyRecords.filter(r => r.groupId === pgId).length;
+        monthlyStats.push({
+          id: crypto.randomUUID(),
+          month: selectedMonth,
+          unit,
+          type: 'pg',
+          targetId: pgId,
+          totalStaff: enrolledInPG, // Para PGs, totalStaff pode ser interpretado como membros
+          totalParticipants: enrolledInPG,
+          percentage: 100,
+          goal: 100,
+          createdAt: Date.now()
+        });
+      });
+
+      await saveRecord('proMonthlyStats', monthlyStats);
+
+      // 4. ATUALIZAR MÊS DE COMPETÊNCIA NO CONFIG (CASCATA)
       const current = new Date(selectedMonth + 'T12:00:00');
       const next = new Date(current.getFullYear(), current.getMonth() + 1, 1);
       const nextMonthStr = next.toISOString().split('T')[0];
@@ -395,7 +471,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       });
 
       setIsCloseModalOpen(false);
-      alert(`Mês fechado com sucesso! O sistema agora está em ${new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(next)}.`);
+      alert(`Mês fechado com sucesso! O histórico foi preservado e o sistema agora está em ${new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(next)}.`);
     } catch (error) {
       console.error('Erro ao fechar mês:', error);
       alert('Erro ao processar o fechamento do mês.');
@@ -422,10 +498,9 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
     setIsClosing(true);
     try {
-      const recordsToDelete = proHistoryRecords.filter(r => r.month === selectedMonth && r.unit === unit);
-      for (const record of recordsToDelete) {
-        await deleteRecord('proHistoryRecords', record.id);
-      }
+      // Apagar histórico e estatísticas do mês
+      await deleteRecordsByFilter('proHistoryRecords', { month: selectedMonth, unit });
+      await deleteRecordsByFilter('proMonthlyStats', { month: selectedMonth, unit });
 
       // Voltar o mês de competência no config
       await saveRecord('config', {
@@ -433,7 +508,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         activeCompetenceMonth: selectedMonth
       });
 
-      alert('Mês reaberto com sucesso!');
+      alert('Mês reaberto com sucesso. O histórico foi removido e a competência atualizada.');
     } catch (error) {
       console.error('Erro ao reabrir mês:', error);
       alert('Erro ao reabrir o mês.');

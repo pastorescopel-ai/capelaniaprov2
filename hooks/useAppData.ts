@@ -350,6 +350,46 @@ export const useAppData = () => {
     return success;
   };
 
+  const deleteRecordsByFilter = async (collection: string, filters: Record<string, any>) => {
+    const success = await DataRepository.deleteRecordsByFilter(collection, filters);
+    if (success) {
+      // Remoção Incremental do Estado Local
+      const removeState = (setter: any) => {
+        setter((prev: any[]) => prev.filter(i => {
+          return !Object.entries(filters).every(([key, value]) => {
+            // Convert snake_case filter key to camelCase for local state comparison
+            const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+                                .replace(/Haba/g, 'HABA').replace(/Hab/g, 'HAB');
+            return i[camelKey] === value;
+          });
+        }));
+      };
+
+      if (collection === 'bibleStudies') removeState(setBibleStudies);
+      else if (collection === 'bibleClasses') removeState(setBibleClasses);
+      else if (collection === 'smallGroups') removeState(setSmallGroups);
+      else if (collection === 'staffVisits') removeState(setStaffVisits);
+      else if (collection === 'visitRequests') removeState(setVisitRequests);
+      else if (collection === 'proStaff') removeState(setProStaff);
+      else if (collection === 'proPatients') removeState(setProPatients);
+      else if (collection === 'proProviders') removeState(setProProviders);
+      else if (collection === 'proSectors') removeState(setProSectors);
+      else if (collection === 'proGroups') removeState(setProGroups);
+      else if (collection === 'proGroupLocations') removeState(setProGroupLocations);
+      else if (collection === 'proGroupMembers') removeState(setProGroupMembers);
+      else if (collection === 'proGroupProviderMembers') removeState(setProGroupProviderMembers);
+      else if (collection === 'proMonthlyStats') removeState(setProMonthlyStats);
+      else if (collection === 'proHistoryRecords') removeState(setProHistoryRecords);
+      else if (collection === 'ambassadors') removeState(setAmbassadors);
+      else if (collection === 'users') removeState(setUsers);
+      else if (collection === 'activitySchedules') removeState(setActivitySchedules);
+      else if (collection === 'dailyActivityReports') removeState(setDailyActivityReports);
+      else if (collection === 'bibleClassAttendees') removeState(setBibleClassAttendees);
+      else if (collection === 'editAuthorizations') removeState(setEditAuthorizations);
+    }
+    return success;
+  };
+
   const saveToCloud = useCallback(async (overrides?: any, showLoader = false) => {
     if (showLoader) setIsSyncing(true);
     try {
@@ -409,6 +449,6 @@ export const useAppData = () => {
     activitySchedules, setActivitySchedules, dailyActivityReports, setDailyActivityReports, bibleClassAttendees, setBibleClassAttendees,
     editAuthorizations, setEditAuthorizations,
     config, setConfig, isSyncing, isConnected, isInitialized,
-    loadFromCloud, saveToCloud, saveRecord, deleteRecord, applySystemOverrides, syncMasterContact
+    loadFromCloud, saveToCloud, saveRecord, deleteRecord, deleteRecordsByFilter, applySystemOverrides, syncMasterContact
   };
 };
