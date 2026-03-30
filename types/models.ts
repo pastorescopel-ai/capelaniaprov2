@@ -12,6 +12,7 @@ export interface ProSector {
 
 export interface ProStaff {
   id: string;
+  registrationId?: string; // Matrícula
   name: string;
   sectorId: string;
   unit: Unit;
@@ -327,8 +328,9 @@ export interface ProHistoryRecord {
   id: string;
   month: string; // YYYY-MM-DD
   unit: Unit;
-  staffId: string; // Matrícula
+  staffId: string;
   staffName: string;
+  registrationId?: string; // Matrícula
   sectorId: string;
   sectorName: string;
   groupId?: string;

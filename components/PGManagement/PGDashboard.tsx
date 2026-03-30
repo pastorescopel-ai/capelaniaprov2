@@ -6,6 +6,8 @@ import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthProvider';
 import { normalizeString, cleanID } from '../../utils/formatters';
 import CloseMonthModal from './CloseMonthModal';
+import ReopenMonthModal from './ReopenMonthModal';
+import StatusModal from './StatusModal';
 
 interface PGDashboardProps {
   unit: Unit;
@@ -19,6 +21,9 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'sector' | 'pg'>('sector');
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+  const [isReopenModalOpen, setIsReopenModalOpen] = useState(false);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [statusModalConfig, setStatusModalConfig] = useState<{ title: string, message: string, type: 'success' | 'error' | 'warning' }>({ title: '', message: '', type: 'success' });
   const [isClosing, setIsClosing] = useState(false);
 
   const isAdmin = currentUser?.role === 'admin';
@@ -344,6 +349,11 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     return options;
   }, []);
 
+  const showStatus = (title: string, message: string, type: 'success' | 'error' | 'warning') => {
+    setStatusModalConfig({ title, message, type });
+    setIsStatusModalOpen(true);
+  };
+
   const handleCloseMonth = async () => {
     setIsClosing(true);
     try {
@@ -352,14 +362,22 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       await deleteRecordsByFilter('proMonthlyStats', { month: selectedMonth, unit });
 
       const historyRecords: ProHistoryRecord[] = [];
-      const unitStaff = proStaff.filter(s => s.unit === unit && (!s.leftAt || s.leftAt >= new Date(selectedMonth).getTime()));
+      const targetDate = new Date(selectedMonth + 'T12:00:00').getTime();
+      const unitStaff = proStaff.filter(s => s.unit === unit && (!s.leftAt || s.leftAt >= targetDate));
+      
+      if (unitStaff.length === 0) {
+        showStatus('Aviso', 'Nenhum colaborador ativo encontrado para este mês nesta unidade.', 'warning');
+        setIsClosing(false);
+        return;
+      }
+
       const sectorsById = new Map(proSectors.map(s => [cleanID(s.id), s]));
       const groupsById = new Map(proGroups.map(g => [cleanID(g.id), g]));
       
       // Mapear membros atuais (Colaboradores)
       const staffToGroup = new Map<string, string>();
       proGroupMembers.forEach(m => {
-        if (!m.leftAt || m.leftAt >= new Date(selectedMonth).getTime()) {
+        if (!m.leftAt || m.leftAt >= targetDate) {
           staffToGroup.set(cleanID(m.staffId), cleanID(m.groupId));
         }
       });
@@ -388,6 +406,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
           unit,
           staffId: staff.id,
           staffName: staff.name,
+          registrationId: staff.registrationId || '',
           sectorId: staff.sectorId,
           sectorName: sector?.name || 'Sem Setor',
           groupId: groupId || '',
@@ -471,10 +490,10 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       });
 
       setIsCloseModalOpen(false);
-      alert(`Mês fechado com sucesso! O histórico foi preservado e o sistema agora está em ${new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(next)}.`);
+      showStatus('Sucesso', `Mês fechado com sucesso! O histórico foi preservado e o sistema agora está em ${new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(next)}.`, 'success');
     } catch (error) {
       console.error('Erro ao fechar mês:', error);
-      alert('Erro ao processar o fechamento do mês.');
+      showStatus('Erro', 'Erro ao processar o fechamento do mês.', 'error');
     } finally {
       setIsClosing(false);
     }
@@ -488,14 +507,15 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     // Verificar se o mês seguinte já tem histórico (está fechado)
     const nextMonthClosed = proHistoryRecords.some(r => r.month === nextMonthStr && r.unit === unit);
     if (nextMonthClosed) {
-      alert('Não é possível reabrir este mês porque o mês seguinte já foi fechado.');
+      showStatus('Aviso', 'Não é possível reabrir este mês porque o mês seguinte já foi fechado.', 'warning');
       return;
     }
 
-    if (!window.confirm(`Tem certeza que deseja REABRIR o mês de ${new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(current)}? Isso apagará o histórico gerado para este mês e voltará o sistema para esta competência.`)) {
-      return;
-    }
+    setIsReopenModalOpen(true);
+  };
 
+  const confirmReopenMonth = async () => {
+    const current = new Date(selectedMonth + 'T12:00:00');
     setIsClosing(true);
     try {
       // Apagar histórico e estatísticas do mês
@@ -508,10 +528,11 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         activeCompetenceMonth: selectedMonth
       });
 
-      alert('Mês reaberto com sucesso. O histórico foi removido e a competência atualizada.');
+      setIsReopenModalOpen(false);
+      showStatus('Sucesso', 'Mês reaberto com sucesso. O histórico foi removido e a competência atualizada.', 'success');
     } catch (error) {
       console.error('Erro ao reabrir mês:', error);
-      alert('Erro ao reabrir o mês.');
+      showStatus('Erro', 'Erro ao reabrir o mês.', 'error');
     } finally {
       setIsClosing(false);
     }
@@ -525,6 +546,22 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         selectedMonth={selectedMonth}
         onCancel={() => setIsCloseModalOpen(false)}
         onConfirm={handleCloseMonth}
+      />
+
+      <ReopenMonthModal 
+        isOpen={isReopenModalOpen}
+        isClosing={isClosing}
+        selectedMonth={selectedMonth}
+        onCancel={() => setIsReopenModalOpen(false)}
+        onConfirm={confirmReopenMonth}
+      />
+
+      <StatusModal 
+        isOpen={isStatusModalOpen}
+        onClose={() => setIsStatusModalOpen(false)}
+        title={statusModalConfig.title}
+        message={statusModalConfig.message}
+        type={statusModalConfig.type}
       />
       
       {/* Filtro de Competência */}

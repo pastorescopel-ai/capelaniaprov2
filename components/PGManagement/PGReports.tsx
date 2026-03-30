@@ -107,8 +107,8 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
           enrolledCount: enrolledStaff.length, 
           coverage, 
           pgs, 
-          notEnrolledList: notEnrolled.map(r => ({ id: r.staffId, name: r.staffName })), 
-          enrolledList: enrolledStaff.map(r => ({ id: r.staffId, name: r.staffName })), 
+          notEnrolledList: notEnrolled.map(r => ({ id: r.staffId, name: r.staffName, registrationId: r.registrationId })), 
+          enrolledList: enrolledStaff.map(r => ({ id: r.staffId, name: r.staffName, registrationId: r.registrationId })), 
           enrolledByPG,
           isSnapshot: true
         };
