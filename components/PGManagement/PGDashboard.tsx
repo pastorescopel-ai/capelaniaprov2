@@ -403,15 +403,14 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         }
 
         historyRecords.push({
-          // Removido id manual para deixar o banco gerar (BIGSERIAL)
           month: selectedMonth,
           unit,
-          staffId: staff.id,
+          staffId: staff.id ? Number(staff.id) : null,
           staffName: staff.name,
-          registrationId: staff.registrationId || '',
-          sectorId: staff.sectorId,
+          registrationId: staff.registrationId || null,
+          sectorId: staff.sectorId ? Number(staff.sectorId) : null,
           sectorName: sector?.name || 'Sem Setor',
-          groupId: groupId || '',
+          groupId: groupId ? Number(groupId) : null,
           groupName: group?.name || '',
           status: groupId ? 'Matriculado' : 'Não Matriculado',
           isEnrolled: !!groupId,
@@ -465,7 +464,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
       // Snapshots de PGs Individuais
       allUnitPGIds.forEach(pgId => {
-        const enrolledInPG = historyRecords.filter(r => r.groupId === pgId).length;
+        const enrolledInPG = historyRecords.filter(r => r.groupId === Number(pgId)).length;
         monthlyStats.push({
           month: selectedMonth,
           unit,

@@ -149,20 +149,19 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
              const valStr = String(val);
              
              if (isValidUUID(valStr)) {
-                // Se for um UUID válido ou numérico puro, mantemos como está
                 val = valStr;
              } else {
-                // Se tiver caracteres extras (ex: "(123)"), limpamos para manter apenas números
                 const numericVal = valStr.replace(/\D/g, '');
                 if (numericVal) val = numericVal;
              }
 
-             // Se a tabela for pro_history_records, convertemos para número se estiver em NUMERIC_FIELDS
-             // Isso garante que BIGINT no banco receba um número
-             if (tableName === 'pro_history_records' && NUMERIC_FIELDS.includes(snakeKey) && snakeKey !== 'id') {
+             // Força conversão para número em campos BIGINT
+             if (NUMERIC_FIELDS.includes(snakeKey) && snakeKey !== 'id') {
                 const n = parseInt(String(val), 10);
                 if (!isNaN(n)) val = n;
              }
+          } else {
+             val = null; // Garante null em vez de string vazia para IDs numéricos
           }
       }
 
