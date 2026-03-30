@@ -50,6 +50,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
   const metrics = useMemo(() => {
     const targetDate = new Date(selectedMonth);
+    const isClosed = config.activeCompetenceMonth && selectedMonth < config.activeCompetenceMonth;
     const nextMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
 
     // 0. Verificar se existem registros de histórico para o mês selecionado
@@ -177,6 +178,16 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
           enrolledStaff, 
           activePGCount: pgSnaps.length,
           displaySectors: filteredData.sort((a, b) => a.percentage - b.percentage) 
+      };
+    }
+
+    if (isClosed) {
+      return {
+        globalPercentage: 0,
+        totalStaff: 0,
+        enrolledStaff: 0,
+        activePGCount: 0,
+        displaySectors: []
       };
     }
 
@@ -334,7 +345,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         activePGCount: activePGIds.size,
         displaySectors: filteredData.sort((a, b) => a.percentage - b.percentage) 
     };
-  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, proMonthlyStats, proHistoryRecords, unit, debouncedSearchTerm, filterType, selectedMonth]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, proMonthlyStats, proHistoryRecords, unit, debouncedSearchTerm, filterType, selectedMonth, config.activeCompetenceMonth]);
 
   // Gerar opções de meses (Últimos 6 meses)
   const monthOptions = useMemo(() => {

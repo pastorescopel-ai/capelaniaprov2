@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole, Config } from '../types';
 import { useApp } from '../hooks/useApp';
 import { useDashboardStats } from '../hooks/useDashboardStats';
@@ -28,7 +28,8 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ 
   studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onGoToReturnHistory, onUpdateConfig 
 }) => {
-  const { visitRequests, users, activitySchedules, dailyActivityReports, isInitialized } = useApp(); 
+  const { visitRequests, users, activitySchedules, dailyActivityReports, isInitialized, proMonthlyStats } = useApp(); 
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().split('T')[0].substring(0, 7));
   
   const {
     pendingReturns,
@@ -43,7 +44,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     monthName,
     goals,
     accumulated
-  } = useDashboardStats(studies, classes, groups, visits, currentUser);
+  } = useDashboardStats(studies, classes, groups, visits, currentUser, proMonthlyStats, selectedMonth);
 
   if (!isInitialized) {
     return <div className="p-8 text-center text-slate-500 font-bold">Carregando dashboard...</div>;
@@ -71,7 +72,15 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-24">
-      <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
+      <div className="flex justify-between items-center">
+        <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
+        <input 
+          type="month" 
+          value={selectedMonth} 
+          onChange={(e) => setSelectedMonth(e.target.value)}
+          className="p-2 border rounded-lg text-sm"
+        />
+      </div>
 
       {/* Missão de Atividades Diárias */}
       <ActivityProgressWidget 

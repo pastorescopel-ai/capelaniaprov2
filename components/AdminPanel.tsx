@@ -13,9 +13,9 @@ const AdminPanel: React.FC = () => {
   const { 
     config, 
     bibleStudies, bibleClasses, smallGroups, staffVisits, users,
-    proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, proMonthlyStats, ambassadors,
+    proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, proMonthlyStats, proHistoryRecords, ambassadors,
     editAuthorizations,
-    saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, saveRecord, deleteRecord
+    saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, saveRecord, deleteRecord, deleteRecordsByFilter
   } = useApp();
   
   const { currentUser } = useAuth();
@@ -210,15 +210,29 @@ const AdminPanel: React.FC = () => {
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <AdminDataTools 
               currentUser={currentUser} 
+              users={users}
               onRefreshData={() => loadFromCloud(true)} 
               onRestoreFullDNA={importFromDNA} 
               isRefreshing={isRefreshing} 
-              proData={{ staff: proStaff, sectors: proSectors, groups: proGroups, stats: proMonthlyStats }}
+              proData={{ 
+                staff: proStaff, 
+                sectors: proSectors, 
+                groups: proGroups, 
+                stats: proMonthlyStats,
+                history: proHistoryRecords 
+              }}
+              chaplaincyData={{
+                bibleStudies,
+                bibleClasses,
+                smallGroups,
+                staffVisits
+              }}
               ambassadors={ambassadors}
               proGroupMembers={proGroupMembers}
               proGroupProviderMembers={proGroupProviderMembers}
               saveRecord={saveRecord}
               deleteRecord={deleteRecord}
+              deleteRecordsByFilter={deleteRecordsByFilter}
             />
 
             {/* Cards de Ação Secundária */}

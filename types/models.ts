@@ -89,7 +89,7 @@ export interface ProGroupProviderMember {
 export interface ProMonthlyStats {
   id?: string;
   month: string; // YYYY-MM-DD
-  type: 'sector' | 'pg';
+  type: 'sector' | 'pg' | 'summary';
   targetId: string;
   totalStaff: number;
   totalParticipants: number;
@@ -104,6 +104,13 @@ export interface ProMonthlyStats {
     performanceMetrics: {
       pgPercentage: number;
       ambassadorPercentage: number;
+      // --- NOVOS CAMPOS PARA TRAVAMENTO DE RELATÓRIOS ---
+      totalBibleStudies?: number;
+      totalBibleClasses?: number;
+      totalSmallGroups?: number;
+      totalStaffVisits?: number;
+      totalUniqueStudents?: number;
+      chaplainStats?: any[];
     };
     membersList: any[]; // Lista de membros ativos no fechamento
   };

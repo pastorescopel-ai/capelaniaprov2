@@ -9,6 +9,8 @@ interface StatsProps {
     classes: number;
     groups: number;
     visits: number;
+    pgPercentage?: number;
+    isLocked?: boolean;
   };
 }
 
@@ -26,16 +28,26 @@ const ReportStats: React.FC<StatsProps> = ({ totalStats }) => {
         color: 'bg-blue-600 shadow-blue-100',
         sub: 'Neste Filtro'
     },
+    { 
+        label: 'Adesão aos PGs (%)', 
+        value: `${(totalStats.pgPercentage || 0).toFixed(1)}%`, 
+        color: 'bg-emerald-600 shadow-emerald-100',
+        sub: totalStats.isLocked ? 'DADO TRAVADO' : 'TEMPO REAL'
+    },
     { label: 'Estudos Bíblicos Individuais', value: totalStats.studies, color: 'bg-blue-500' },
     { label: 'Classes Bíblicas', value: totalStats.classes, color: 'bg-indigo-500' },
-    { label: 'PGs', value: totalStats.groups, color: 'bg-emerald-500' },
     { label: 'Total de visitas ao colaborador', value: totalStats.visits, color: 'bg-rose-500 shadow-rose-100' },
   ];
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
       {cards.map((card, i) => (
-        <div key={i} className={`${card.color} p-4 rounded-[2rem] text-white shadow-xl flex flex-col items-center justify-center hover:scale-105 transition-all group min-h-[110px]`}>
+        <div key={i} className={`${card.color} p-4 rounded-[2rem] text-white shadow-xl flex flex-col items-center justify-center hover:scale-105 transition-all group min-h-[110px] relative overflow-hidden`}>
+          {card.label === 'Adesão aos PGs (%)' && totalStats.isLocked && (
+            <div className="absolute top-2 right-2 text-[8px] bg-white/20 px-2 py-0.5 rounded-full font-black">
+              <i className="fas fa-lock mr-1"></i>
+            </div>
+          )}
           <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-1 group-hover:opacity-100 text-center leading-tight">{card.label}</p>
           <p className="text-2xl font-black leading-none">{card.value}</p>
           {card.sub && <p className="text-[7px] font-bold uppercase mt-1 opacity-60 bg-black/20 px-2 py-0.5 rounded-full">{card.sub}</p>}

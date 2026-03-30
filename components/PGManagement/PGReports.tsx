@@ -71,6 +71,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
     // Se o período for de um mês completo e houver histórico, usamos o histórico para garantir fidelidade ao fechamento
     const sDate = new Date(startDate + 'T12:00:00');
     const monthStr = new Date(sDate.getFullYear(), sDate.getMonth(), 1).toISOString().split('T')[0];
+    const isClosed = config.activeCompetenceMonth && monthStr < config.activeCompetenceMonth;
     const historyForMonth = proHistoryRecords.filter(r => r.month === monthStr && r.unit === unit);
 
     if (historyForMonth.length > 0) {
@@ -113,6 +114,10 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
           isSnapshot: true
         };
       }).filter(d => d.totalStaff > 0);
+    }
+
+    if (isClosed) {
+      return [];
     }
 
     // 1. Filtrar setores e staff da unidade (Dados em Tempo Real)
@@ -251,7 +256,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
         const normTarget = normalizeString(targetText);
         return searchTerms.every(term => normTarget.includes(term));
     });
-  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, proHistoryRecords, unit, searchTerm, selectedTarget, startDate, endDate, filterCritical]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, proHistoryRecords, unit, searchTerm, selectedTarget, startDate, endDate, filterCritical, config.activeCompetenceMonth]);
 
   const generateSectorHtml = (data: any) => {
     return `

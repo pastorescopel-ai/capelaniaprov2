@@ -1,13 +1,16 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, ProStaff, ProSector, ProGroup, ProGroupMember, Ambassador, Unit, ProMonthlyStats } from '../../types';
+import { User, ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, Ambassador, Unit, ProMonthlyStats, ProHistoryRecord } from '../../types';
 import { useToast } from '../../contexts/ToastProvider';
 import { supabase } from '../../services/supabaseClient';
 import ForceSyncModal from './ForceSyncModal';
 import SyncModal from '../Shared/SyncModal';
+import GlobalCloseMonthModal from './GlobalCloseMonthModal';
+import GlobalReopenMonthModal from './GlobalReopenMonthModal';
 
 interface AdminDataToolsProps {
   currentUser: User;
+  users: User[];
   onRefreshData: () => Promise<any>;
   onRestoreFullDNA: (dna: any) => Promise<{ success: boolean; message: string }>;
   isRefreshing: boolean;
@@ -16,22 +19,32 @@ interface AdminDataToolsProps {
     sectors: ProSector[];
     groups: ProGroup[];
     stats?: ProMonthlyStats[];
+    history?: ProHistoryRecord[];
+  };
+  chaplaincyData: {
+    bibleStudies: any[];
+    bibleClasses: any[];
+    smallGroups: any[];
+    staffVisits: any[];
   };
   ambassadors: Ambassador[];
   proGroupMembers: ProGroupMember[];
   proGroupProviderMembers: ProGroupProviderMember[];
   saveRecord: (collection: string, item: any) => Promise<any>;
   deleteRecord: (collection: string, id: string) => Promise<any>;
+  deleteRecordsByFilter: (collection: string, filters: Record<string, any>) => Promise<any>;
 }
 
 const AdminDataTools: React.FC<AdminDataToolsProps> = ({ 
-  currentUser, onRefreshData, onRestoreFullDNA, isRefreshing,
-  proData, ambassadors, proGroupMembers, proGroupProviderMembers, saveRecord, deleteRecord
+  currentUser, users, onRefreshData, onRestoreFullDNA, isRefreshing,
+  proData, chaplaincyData, ambassadors, proGroupMembers, proGroupProviderMembers, saveRecord, deleteRecord, deleteRecordsByFilter
 }) => {
   const { showToast } = useToast();
   const [showDNAConfirm, setShowDNAConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isForceSyncModalOpen, setIsForceSyncModalOpen] = useState(false);
+  const [isCloseConfirmModalOpen, setIsCloseConfirmModalOpen] = useState(false);
+  const [isReopenConfirmModalOpen, setIsReopenConfirmModalOpen] = useState(false);
   const [isSnapshotting, setIsSnapshotting] = useState(false);
   const [pendingDNA, setPendingDNA] = useState<any>(null);
   const [syncState, setSyncState] = useState<{isOpen: boolean; status: SyncStatus; title: string; message: string; error?: string;}>({ isOpen: false, status: 'idle', title: '', message: '' });
@@ -111,26 +124,27 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
   };
 
   const handleCloseMonth = async () => {
+    setIsCloseConfirmModalOpen(true);
+  };
+
+  const confirmCloseMonth = async () => {
+    setIsCloseConfirmModalOpen(false);
     const isAlreadyClosed = proData.stats?.some(s => s.month === selectedCloseMonth);
     const actionText = isAlreadyClosed ? 'ATUALIZAR' : 'FECHAR';
     
-    const confirm = window.confirm(`Deseja ${actionText} o mês de ${formatMonthLabel(selectedCloseMonth)} para TODAS as unidades (HAB e HABA)? ${isAlreadyClosed ? 'Os dados anteriores serão sobrescritos pelos atuais.' : 'Isso gravará os percentuais como definitivos.'}`);
-    if (!confirm) return;
-
     setSyncState({ isOpen: true, status: 'processing', title: `${actionText === 'FECHAR' ? 'Fechamento' : 'Atualização'} Global`, message: 'Processando HAB e HABA. Aguarde...' });
 
     try {
-        // Se já estiver fechado, precisamos limpar os registros antigos primeiro para evitar duplicidade
-        if (isAlreadyClosed && proData.stats) {
-            const recordsToDelete = proData.stats.filter(s => s.month === selectedCloseMonth);
-            for (const rec of recordsToDelete) {
-                if (rec.id) await deleteRecord('proMonthlyStats', rec.id);
-            }
+        // 1. LIMPAR REGISTROS ANTIGOS (Se for atualização)
+        if (isAlreadyClosed) {
+            await deleteRecordsByFilter('proMonthlyStats', { month: selectedCloseMonth });
+            await deleteRecordsByFilter('proHistoryRecords', { month: selectedCloseMonth });
         }
 
         const snapshots: ProMonthlyStats[] = [];
+        const historyRecords: any[] = [];
         const units = [Unit.HAB, Unit.HABA];
-        const targetDate = new Date(selectedCloseMonth);
+        const targetDate = new Date(selectedCloseMonth + 'T12:00:00');
 
         for (const unit of units) {
             const unitStaff = proData.staff.filter(s => {
@@ -219,36 +233,169 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
                     unit
                 });
             });
+
+            // 3. GERAR HISTÓRICO INDIVIDUAL (proHistoryRecords)
+            // CLT
+            proGroupMembers.forEach(m => {
+                const staff = proData.staff.find(s => String(s.id) === String(m.staffId));
+                if (!staff || staff.unit !== unit) return;
+                
+                const joinedAt = m.joinedAt ? new Date(m.joinedAt) : null;
+                const leftAt = m.leftAt ? new Date(m.leftAt) : null;
+                if (joinedAt && joinedAt > targetDate) return;
+                if (leftAt && leftAt < targetDate.getTime()) return;
+
+                const sector = proData.sectors.find(s => String(s.id) === String(m.sectorId));
+                const group = proData.groups.find(g => String(g.id) === String(m.groupId));
+
+                historyRecords.push({
+                    month: selectedCloseMonth,
+                    unit,
+                    staffId: m.staffId,
+                    staffName: staff.name,
+                    sectorId: m.sectorId,
+                    sectorName: sector?.name || 'Sem Setor',
+                    groupId: m.groupId,
+                    groupName: group?.name || 'Sem Grupo',
+                    role: 'CLT',
+                    joinedAt: m.joinedAt,
+                    leftAt: m.leftAt,
+                    createdAt: Date.now()
+                });
+            });
+
+            // Prestadores
+            proGroupProviderMembers.forEach(m => {
+                const staff = proData.staff.find(s => String(s.id) === String(m.staffId));
+                if (!staff || staff.unit !== unit) return;
+                
+                const joinedAt = m.joinedAt ? new Date(m.joinedAt) : null;
+                const leftAt = m.leftAt ? new Date(m.leftAt) : null;
+                if (joinedAt && joinedAt > targetDate) return;
+                if (leftAt && leftAt < targetDate.getTime()) return;
+
+                const sector = proData.sectors.find(s => String(s.id) === String(m.sectorId));
+                const group = proData.groups.find(g => String(g.id) === String(m.groupId));
+
+                historyRecords.push({
+                    month: selectedCloseMonth,
+                    unit,
+                    staffId: m.staffId,
+                    staffName: staff.name,
+                    sectorId: m.sectorId,
+                    sectorName: sector?.name || 'Sem Setor',
+                    groupId: m.groupId,
+                    groupName: group?.name || 'Sem Grupo',
+                    role: 'PRESTADOR',
+                    joinedAt: m.joinedAt,
+                    leftAt: m.leftAt,
+                    createdAt: Date.now()
+                });
+            });
         }
 
+        // 3.5 GERAR SNAPSHOT DE SUMÁRIO GLOBAL (Para Relatórios Travados)
+        for (const unit of units) {
+            const targetMonth = selectedCloseMonth.substring(0, 7); // YYYY-MM
+            
+            // Filtrar dados da capelania para o mês
+            const monthStudies = chaplaincyData.bibleStudies.filter(s => s.unit === unit && s.date?.startsWith(targetMonth));
+            const monthClasses = chaplaincyData.bibleClasses.filter(c => c.unit === unit && c.date?.startsWith(targetMonth));
+            const monthGroups = chaplaincyData.smallGroups.filter(g => g.unit === unit && g.date?.startsWith(targetMonth));
+            const monthVisits = chaplaincyData.staffVisits.filter(v => v.unit === unit && v.date?.startsWith(targetMonth));
+
+            // Calcular alunos únicos nas classes
+            const uniqueStudents = new Set();
+            monthClasses.forEach(c => {
+                if (Array.isArray(c.students)) {
+                    c.students.forEach((s: string) => uniqueStudents.add(s));
+                }
+            });
+
+            // Calcular estatísticas por capelão para este sumário
+            const unitChaplainStats = users.map(user => {
+                const uS = monthStudies.filter(s => s.userId === user.id);
+                const uC = monthClasses.filter(c => c.userId === user.id);
+                const uG = monthGroups.filter(g => g.userId === user.id);
+                const uV = monthVisits.filter(v => v.userId === user.id);
+                
+                const names = new Set<string>();
+                uS.forEach(s => s.name && names.add(s.name.toLowerCase().trim()));
+                uC.forEach(c => c.students?.forEach((n: string) => n && names.add(n.toLowerCase().trim())));
+
+                return {
+                    userId: user.id,
+                    userName: user.name,
+                    studies: uS.length,
+                    classes: uC.length,
+                    groups: uG.length,
+                    visits: uV.length,
+                    students: names.size,
+                    total: uS.length + uC.length + uG.length + uV.length
+                };
+            }).filter(s => s.total > 0 || s.students > 0);
+
+            // Calcular métricas PRO para o sumário
+            const unitStaff = proData.staff.filter(s => s.unit === unit && s.active !== false);
+            const enrolledStaff = proGroupMembers.filter(m => {
+                const staff = proData.staff.find(s => String(s.id) === String(m.staffId));
+                return staff && staff.unit === unit && !m.leftAt;
+            }).length;
+            
+            const pgPercentage = unitStaff.length > 0 ? (enrolledStaff / unitStaff.length) * 100 : 0;
+            const ambassadorPercentage = 0; // Placeholder ou calcular se necessário
+
+            snapshots.push({
+                month: selectedCloseMonth,
+                unit,
+                type: 'summary',
+                targetId: 'all',
+                totalStaff: unitStaff.length,
+                totalParticipants: enrolledStaff,
+                percentage: pgPercentage,
+                goal: 80,
+                snapshotData: {
+                    totalColaboradores: unitStaff.length,
+                    setorBreakdown: {}, // Opcional
+                    performanceMetrics: {
+                        pgPercentage,
+                        ambassadorPercentage,
+                        totalBibleStudies: monthStudies.length,
+                        totalBibleClasses: monthClasses.length,
+                        totalSmallGroups: monthGroups.length,
+                        totalStaffVisits: monthVisits.length,
+                        totalUniqueStudents: uniqueStudents.size,
+                        chaplainStats: unitChaplainStats
+                    },
+                    membersList: [] // Opcional
+                }
+            });
+        }
+
+        // 4. SALVAR TUDO
+        if (historyRecords.length > 0) {
+            await saveRecord('proHistoryRecords', historyRecords);
+        }
         await saveRecord('proMonthlyStats', snapshots);
 
-        setSyncState({ isOpen: true, status: 'success', title: 'Mês Atualizado', message: `Sucesso! ${snapshots.length} registros de histórico gravados/atualizados para ${formatMonthLabel(selectedCloseMonth)} (HAB + HABA).` });
+        setSyncState({ isOpen: true, status: 'success', title: 'Mês Atualizado', message: `Sucesso! ${snapshots.length} estatísticas e ${historyRecords.length} registros de histórico gravados para ${formatMonthLabel(selectedCloseMonth)} (HAB + HABA).` });
         await onRefreshData();
     } catch (e: any) {
-        setSyncState({ isOpen: true, status: 'error', title: 'Erro no Processo', message: "Falha ao gravar estatísticas globais.", error: e.message });
+        setSyncState({ isOpen: true, status: 'error', title: 'Erro no Processo', message: "Falha ao gravar dados globais.", error: e.message });
     }
   };
 
   const handleReopenMonth = async () => {
-    const confirm = window.confirm(`ATENÇÃO: Deseja REABRIR o mês de ${formatMonthLabel(selectedCloseMonth)}? Isso apagará o histórico definitivo e os relatórios voltarão a calcular os dados "ao vivo".`);
-    if (!confirm) return;
+    setIsReopenConfirmModalOpen(true);
+  };
 
+  const confirmReopenMonth = async () => {
+    setIsReopenConfirmModalOpen(false);
     setSyncState({ isOpen: true, status: 'processing', title: 'Reabrindo Mês', message: 'Removendo registros do histórico...' });
 
     try {
-        if (proData.stats) {
-            const recordsToDelete = proData.stats.filter(s => s.month === selectedCloseMonth);
-            if (recordsToDelete.length === 0) {
-                showToast("Não existem dados de fechamento para este mês.", "warning");
-                setSyncState(prev => ({ ...prev, isOpen: false }));
-                return;
-            }
-
-            for (const rec of recordsToDelete) {
-                if (rec.id) await deleteRecord('proMonthlyStats', rec.id);
-            }
-        }
+        await deleteRecordsByFilter('proMonthlyStats', { month: selectedCloseMonth });
+        await deleteRecordsByFilter('proHistoryRecords', { month: selectedCloseMonth });
 
         setSyncState({ isOpen: true, status: 'success', title: 'Mês Reaberto', message: `O mês de ${formatMonthLabel(selectedCloseMonth)} foi reaberto com sucesso. Os dados agora são calculados em tempo real.` });
         await onRefreshData();
@@ -310,6 +457,21 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
   return (
     <>
       <SyncModal isOpen={syncState.isOpen} status={syncState.status} title={syncState.title} message={syncState.message} errorDetails={syncState.error} onClose={() => setSyncState(prev => ({ ...prev, isOpen: false }))} />
+      <GlobalCloseMonthModal 
+        isOpen={isCloseConfirmModalOpen}
+        onCancel={() => setIsCloseConfirmModalOpen(false)}
+        onConfirm={confirmCloseMonth}
+        selectedMonth={selectedCloseMonth}
+        isProcessing={isProcessing}
+        isAlreadyClosed={isMonthClosed}
+      />
+      <GlobalReopenMonthModal 
+        isOpen={isReopenConfirmModalOpen}
+        onCancel={() => setIsReopenConfirmModalOpen(false)}
+        onConfirm={confirmReopenMonth}
+        selectedMonth={selectedCloseMonth}
+        isProcessing={isProcessing}
+      />
       <ForceSyncModal 
         isOpen={isForceSyncModalOpen} 
         onClose={() => setIsForceSyncModalOpen(false)} 

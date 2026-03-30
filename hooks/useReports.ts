@@ -37,10 +37,116 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
     selectedPG: 'all'
   });
 
-  const { filteredData, auditList, totalStats } = useReportLogic(studies, classes, groups, visits, users, filters as any);
+  const { filteredData, auditList, totalStats: liveStats } = useReportLogic(studies, classes, groups, visits, users, filters as any);
   const pColor = config.primaryColor || '#005a9c';
 
+  // --- LÓGICA DE TRAVAMENTO DE DADOS (SNAPSHOTS) ---
+  const finalStats = useMemo(() => {
+    // 1. Verificar se o período é um mês cheio (ex: 2024-03-01 até 2024-03-31)
+    const start = new Date(filters.startDate + 'T12:00:00');
+    const end = new Date(filters.endDate + 'T12:00:00');
+    
+    const isFullMonth = start.getDate() === 1 && 
+                       end.getDate() >= 28 && 
+                       start.getMonth() === end.getMonth() && 
+                       start.getFullYear() === end.getFullYear();
+
+    if (isFullMonth) {
+      const monthISO = filters.startDate;
+      // Buscar snapshots de sumário para o mês
+      const snapshots = proMonthlyStats.filter(s => s.month === monthISO && s.type === 'summary');
+      
+      // Filtrar pela unidade selecionada
+      const targetSnapshots = filters.selectedUnit === 'all' 
+        ? snapshots 
+        : snapshots.filter(s => s.unit === filters.selectedUnit);
+
+      if (targetSnapshots.length > 0) {
+        // Agregar dados dos snapshots (caso seja 'all units')
+        const aggregated = targetSnapshots.reduce((acc, s) => {
+          const metrics = s.snapshotData?.performanceMetrics;
+          if (metrics) {
+            acc.studies += metrics.totalBibleStudies || 0;
+            acc.classes += metrics.totalBibleClasses || 0;
+            acc.groups += metrics.totalSmallGroups || 0;
+            acc.visits += metrics.totalStaffVisits || 0;
+            acc.students += metrics.totalUniqueStudents || 0;
+            acc.pgPercentages.push(metrics.pgPercentage || 0);
+          }
+          return acc;
+        }, { studies: 0, classes: 0, groups: 0, visits: 0, students: 0, pgPercentages: [] as number[] });
+
+        const avgPgPercentage = aggregated.pgPercentages.length > 0 
+          ? aggregated.pgPercentages.reduce((a, b) => a + b, 0) / aggregated.pgPercentages.length 
+          : 0;
+
+        // Agregar estatísticas por capelão dos snapshots
+        const aggregatedChaplainStatsMap = new Map<string, any>();
+        targetSnapshots.forEach(s => {
+          s.snapshotData?.performanceMetrics.chaplainStats?.forEach((cs: any) => {
+            if (!aggregatedChaplainStatsMap.has(cs.userId)) {
+              aggregatedChaplainStatsMap.set(cs.userId, { ...cs, hab: { total: 0, students: 0 }, haba: { total: 0, students: 0 } });
+            }
+            const entry = aggregatedChaplainStatsMap.get(cs.userId);
+            if (s.unit === Unit.HAB) {
+              entry.hab = { total: cs.total, students: cs.students, studies: cs.studies, classes: cs.classes, groups: cs.groups, visits: cs.visits };
+            } else {
+              entry.haba = { total: cs.total, students: cs.students, studies: cs.studies, classes: cs.classes, groups: cs.groups, visits: cs.visits };
+            }
+          });
+        });
+
+        const finalChaplainStats = Array.from(aggregatedChaplainStatsMap.values())
+          .map(s => ({
+            ...s,
+            name: s.userName,
+            user: users.find(u => u.id === s.userId) || { id: s.userId, name: s.userName },
+            totalActions: (s.hab?.total || 0) + (s.haba?.total || 0),
+            students: (s.hab?.students || 0) + (s.haba?.students || 0),
+            maxVal: Math.max((s.hab?.total || 0) + (s.haba?.total || 0), 1)
+          }))
+          .filter(s => filters.selectedChaplain === 'all' || s.userId === filters.selectedChaplain)
+          .sort((a, b) => b.totalActions - a.totalActions);
+
+        return {
+          stats: {
+            ...liveStats,
+            studies: aggregated.studies,
+            classes: aggregated.classes,
+            groups: aggregated.groups,
+            visits: aggregated.visits,
+            totalStudentsPeriod: aggregated.students,
+            pgPercentage: avgPgPercentage,
+            isLocked: true
+          },
+          chaplainStats: finalChaplainStats
+        };
+      }
+    }
+
+    // Se não for mês cheio ou não houver snapshot, usa liveStats + cálculo de PG atual
+    const unitStaff = proStaff.filter(s => (filters.selectedUnit === 'all' || s.unit === filters.selectedUnit) && s.active !== false);
+    const enrolledStaff = proGroupMembers.filter(m => {
+        const staff = proStaff.find(s => String(s.id) === String(m.staffId));
+        return staff && (filters.selectedUnit === 'all' || staff.unit === filters.selectedUnit) && !m.leftAt;
+    }).length;
+    const currentPgPercentage = unitStaff.length > 0 ? (enrolledStaff / unitStaff.length) * 100 : 0;
+
+    return {
+      stats: {
+        ...liveStats,
+        pgPercentage: currentPgPercentage,
+        isLocked: false
+      },
+      chaplainStats: null // Indica que deve usar o cálculo live
+    };
+  }, [filters.startDate, filters.endDate, filters.selectedUnit, filters.selectedChaplain, proMonthlyStats, liveStats, proStaff, proGroupMembers, users]);
+
+  const totalStats = finalStats.stats;
+
   const chaplainStats = useMemo(() => {
+    if (finalStats.chaplainStats) return finalStats.chaplainStats;
+
     return users.map(userObj => {
       const uid = userObj.id;
       const filterByUid = (list: any[]) => list.filter(i => i.userId === uid);
@@ -59,7 +165,7 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
       return { user: userObj, name: userObj.name, totalActions: hab.total + haba.total, hab, haba, students: hab.students + haba.students, maxVal: Math.max(hab.total + haba.total, 1) };
     }).filter(s => filters.selectedChaplain === 'all' || s.user.id === filters.selectedChaplain)
       .filter(s => filters.selectedChaplain !== 'all' || s.totalActions > 0 || s.students > 0).sort((a, b) => b.totalActions - a.totalActions);
-  }, [users, filteredData, filters.selectedChaplain]);
+  }, [users, filteredData, filters.selectedChaplain, finalStats.chaplainStats]);
 
   const formatDate = (d: string) => d.split('T')[0].split('-').reverse().join('/');
 
@@ -243,7 +349,7 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
     isGenerating,
     pColor,
     proGroups,
-    totalStats,
+    totalStats: finalStats.stats,
     chaplainStats,
     handleExportExcel,
     handleGenerateOfficialReport,

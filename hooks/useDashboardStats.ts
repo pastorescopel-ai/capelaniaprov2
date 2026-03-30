@@ -8,7 +8,9 @@ export const useDashboardStats = (
   classes: BibleClass[],
   groups: SmallGroup[],
   visits: StaffVisit[],
-  currentUser: User
+  currentUser: User,
+  proMonthlyStats: any[] = [],
+  selectedMonth?: string
 ) => {
   
   // 1. Dados Históricos Completos
@@ -59,10 +61,26 @@ export const useDashboardStats = (
 
   // 3. Filtros e Cálculos Mensais
   const { monthlyStudies, monthlyClasses, monthlyGroups, monthlyVisits, uniqueStudentsMonth, monthName } = useMemo(() => {
-    const now = new Date();
+    const now = selectedMonth ? new Date(selectedMonth + 'T12:00:00') : new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     const mName = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(now);
+
+    // Verificar se há snapshot para o mês selecionado
+    const monthISO = selectedMonth || `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+    const snapshot = proMonthlyStats.find(s => s.month === monthISO && s.type === 'summary');
+
+    if (snapshot && snapshot.snapshotData) {
+      const metrics = snapshot.snapshotData.performanceMetrics;
+      return {
+        monthlyStudies: Array(metrics.totalBibleStudies || 0).fill({}),
+        monthlyClasses: Array(metrics.totalBibleClasses || 0).fill({}),
+        monthlyGroups: Array(metrics.totalSmallGroups || 0).fill({}),
+        monthlyVisits: Array(metrics.totalStaffVisits || 0).fill({}),
+        uniqueStudentsMonth: new Set(Array(metrics.totalUniqueStudents || 0).fill(0).map((_, i) => i.toString())),
+        monthName: mName
+      };
+    }
 
     const isCurrentMonth = (val: any) => {
       if (!val) return false;
@@ -88,7 +106,8 @@ export const useDashboardStats = (
       uniqueStudentsMonth: uStudents,
       monthName: mName
     };
-  }, [userStudies, userClasses, userGroups, userVisits]);
+  }, [userStudies, userClasses, userGroups, userVisits, selectedMonth, proMonthlyStats]);
+
 
   // 4. Impacto Global
   const globalImpact = useMemo(() => {
