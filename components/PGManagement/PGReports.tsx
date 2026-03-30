@@ -13,7 +13,7 @@ interface PGReportsProps {
 }
 
 const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
-  const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups } = usePro();
+  const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, proHistoryRecords } = usePro();
   const { config } = useApp();
   const { generatePdf, generateZipOfPdfs, isGenerating, progress } = useDocumentGenerator();
   
@@ -67,7 +67,55 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
     const startTimestamp = new Date(startDate + 'T00:00:00').getTime();
     const endTimestamp = new Date(endDate + 'T23:59:59').getTime();
 
-    // Otimização: Filtrar listas globais UMA VEZ antes do loop
+    // 0. Verificar se existe histórico para o mês selecionado (Snapshot de Fechamento)
+    // Se o período for de um mês completo e houver histórico, usamos o histórico para garantir fidelidade ao fechamento
+    const sDate = new Date(startDate + 'T12:00:00');
+    const monthStr = new Date(sDate.getFullYear(), sDate.getMonth(), 1).toISOString().split('T')[0];
+    const historyForMonth = proHistoryRecords.filter(r => r.month === monthStr && r.unit === unit);
+
+    if (historyForMonth.length > 0) {
+      const groupsById = new Map(proGroups.map(g => [cleanID(g.id), g]));
+      
+      return sectors.map(sector => {
+        const sectorIdClean = cleanID(sector.id);
+        const staffInHistory = historyForMonth.filter(r => cleanID(r.sectorId) === sectorIdClean || (r.sectorId === 'unassigned' && sectorIdClean === 'unassigned'));
+        
+        const enrolledStaff = staffInHistory.filter(r => r.isEnrolled);
+        const notEnrolled = staffInHistory.filter(r => !r.isEnrolled);
+
+        const enrolledByPGMap = new Map<string, { pgName: string, members: any[], leaderName: string | null }>();
+        
+        enrolledStaff.forEach(r => {
+          const pgName = r.groupName || 'Sem PG Definido';
+          const pg = groupsById.get(cleanID(r.groupId));
+          const leaderName = pg?.currentLeader || null;
+
+          if (!enrolledByPGMap.has(pgName)) {
+            enrolledByPGMap.set(pgName, { pgName, members: [], leaderName });
+          }
+          enrolledByPGMap.get(pgName)!.members.push({ id: r.staffId, name: r.staffName, type: 'staff' });
+        });
+
+        const enrolledByPG = Array.from(enrolledByPGMap.values()).sort((a, b) => a.pgName.localeCompare(b.pgName));
+        const pgsInSectorIds = new Set(enrolledStaff.map(r => r.groupId));
+        const pgs = Array.from(pgsInSectorIds).map(gid => groupsById.get(gid)).filter(g => !!g);
+        const coverage = staffInHistory.length > 0 ? (enrolledStaff.length / staffInHistory.length) * 100 : 0;
+
+        return { 
+          sector, 
+          totalStaff: staffInHistory.length, 
+          enrolledCount: enrolledStaff.length, 
+          coverage, 
+          pgs, 
+          notEnrolledList: notEnrolled.map(r => ({ id: r.staffId, name: r.staffName })), 
+          enrolledList: enrolledStaff.map(r => ({ id: r.staffId, name: r.staffName })), 
+          enrolledByPG,
+          isSnapshot: true
+        };
+      }).filter(d => d.totalStaff > 0);
+    }
+
+    // 1. Filtrar setores e staff da unidade (Dados em Tempo Real)
     const activeStaffMemberships = proGroupMembers.filter(m => 
         !m.isError &&
         (m.cycleMonth ? m.cycleMonth <= endDate : (m.joinedAt || 0) <= endTimestamp) &&
@@ -203,7 +251,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
         const normTarget = normalizeString(targetText);
         return searchTerms.every(term => normTarget.includes(term));
     });
-  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, unit, searchTerm, selectedTarget, startDate, endDate, filterCritical]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, proHistoryRecords, unit, searchTerm, selectedTarget, startDate, endDate, filterCritical]);
 
   const generateSectorHtml = (data: any) => {
     return `

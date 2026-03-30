@@ -147,9 +147,9 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
              const valStr = String(val);
              
              if (isValidUUID(valStr)) {
-                if (snakeKey !== 'id') {
-                    val = null;
-                }
+                // Se for um UUID válido, mantemos como está (não anulamos)
+                // A lógica anterior anulava se não fosse o campo 'id', o que quebrava FKs baseadas em UUID
+                val = valStr;
              } else {
                 const numericVal = valStr.replace(/\D/g, '');
                 if (numericVal) val = numericVal;
