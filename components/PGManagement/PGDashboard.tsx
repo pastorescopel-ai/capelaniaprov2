@@ -359,14 +359,22 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     setIsClosing(true);
     setTechnicalError(null);
     try {
+      console.log(`[FECHAMENTO] Iniciando fechamento para ${selectedMonth} na unidade ${unit}`);
+      
       // 1. Limpar histórico existente para este mês/unidade para evitar duplicidade
-      await deleteRecordsByFilter('proHistoryRecords', { month: selectedMonth, unit });
-      await deleteRecordsByFilter('proMonthlyStats', { month: selectedMonth, unit });
+      const delHistory = await deleteRecordsByFilter('proHistoryRecords', { month: selectedMonth, unit });
+      const delStats = await deleteRecordsByFilter('proMonthlyStats', { month: selectedMonth, unit });
+      console.log(`[FECHAMENTO] Limpeza prévia: Histórico=${delHistory}, Stats=${delStats}`);
 
       const historyRecords: any[] = [];
       const targetDate = new Date(selectedMonth + 'T12:00:00').getTime();
       const unitStaff = proStaff.filter(s => s.unit === unit && (!s.leftAt || s.leftAt >= targetDate));
       
+      console.log(`[FECHAMENTO] Colaboradores encontrados: ${unitStaff.length}`);
+      if (unitStaff.length > 0) {
+        console.log(`[FECHAMENTO] Exemplo de colaborador:`, unitStaff[0]);
+      }
+
       if (unitStaff.length === 0) {
         showStatus('Aviso', 'Nenhum colaborador ativo encontrado para este mês nesta unidade.', 'warning');
         setIsClosing(false);
@@ -402,15 +410,22 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
           stats.pgIds.add(groupId);
         }
 
+        // Tentar converter IDs para número apenas se forem numéricos, senão manter como string (UUID)
+        const safeToNumber = (val: any) => {
+          if (!val) return null;
+          const n = Number(val);
+          return isNaN(n) ? String(val) : n;
+        };
+
         historyRecords.push({
           month: selectedMonth,
           unit,
-          staffId: staff.id ? Number(staff.id) : null,
+          staffId: safeToNumber(staff.id),
           staffName: staff.name,
           registrationId: staff.registrationId || null,
-          sectorId: staff.sectorId ? Number(staff.sectorId) : null,
+          sectorId: safeToNumber(staff.sectorId),
           sectorName: sector?.name || 'Sem Setor',
-          groupId: groupId ? Number(groupId) : null,
+          groupId: safeToNumber(groupId),
           groupName: group?.name || '',
           status: groupId ? 'Matriculado' : 'Não Matriculado',
           isEnrolled: !!groupId,
@@ -418,10 +433,17 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         });
       });
 
+      console.log(`[FECHAMENTO] Gerados ${historyRecords.length} registros de histórico.`);
+      if (historyRecords.length > 0) {
+        console.log(`[FECHAMENTO] Exemplo de registro de histórico:`, historyRecords[0]);
+      }
+
       // 2. Salvar Histórico Detalhado
       const saveHistoryResult = await saveRecord('proHistoryRecords', historyRecords);
+      console.log(`[FECHAMENTO] Resultado do salvamento do histórico: ${saveHistoryResult}`);
+      
       if (!saveHistoryResult) {
-        throw new Error('Falha ao salvar registros de histórico no banco de dados.');
+        throw new Error('Falha ao salvar registros de histórico no banco de dados. Verifique o console para detalhes técnicos.');
       }
 
       // 3. Salvar Estatísticas Mensais Agregadas (Snapshot de Segurança)

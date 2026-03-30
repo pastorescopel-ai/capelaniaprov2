@@ -102,12 +102,13 @@ export const DataRepository = {
 
     const allUpsertedData: any[] = [];
 
-    const processBatch = async (batch: any[]) => {
+    const processBatch = async (batch: any[], isUpsert: boolean) => {
       if (batch.length === 0) return true;
       
       const CHUNK_SIZE = 100;
       for (let i = 0; i < batch.length; i += CHUNK_SIZE) {
         const chunk = batch.slice(i, i + CHUNK_SIZE);
+        console.log(`[DEBUG Supabase] Enviando chunk para ${tableName} (${isUpsert ? 'UPSERT' : 'INSERT'}):`, chunk);
         
         // Se for app_config, garantir o ID
         if (tableName === 'app_config' && chunk.length > 0) {
@@ -122,16 +123,25 @@ export const DataRepository = {
            }
         }
 
-        const { data, error } = await supabase.from(tableName).upsert(chunk).select();
+        const query = isUpsert ? supabase.from(tableName).upsert(chunk) : supabase.from(tableName).insert(chunk);
+        const { data, error } = await query.select();
         
         if (error) {
-          console.error(`ERRO CRÍTICO no Supabase (${tableName}):`, {
+          const errorDetails = {
             message: error.message,
             details: error.details,
             hint: error.hint,
             code: error.code,
+            tableName,
             payloadSent: chunk
-          });
+          };
+          console.error(`ERRO CRÍTICO no Supabase (${tableName}):`, errorDetails);
+          
+          // Tentar extrair mais informações se for erro de tipo ou constraint
+          if (error.code === '23502') { // NOT NULL violation
+             console.error(`DICA: Coluna obrigatória ausente em ${tableName}. Verifique o payload.`);
+          }
+          
           return false;
         }
         if (data) {
@@ -141,10 +151,10 @@ export const DataRepository = {
       return true;
     };
 
-    const successWithId = await processBatch(withId);
+    const successWithId = await processBatch(withId, true);
     if (!successWithId) return { success: false };
 
-    const successWithoutId = await processBatch(withoutId);
+    const successWithoutId = await processBatch(withoutId, false);
     if (!successWithoutId) return { success: false };
 
     if (collection === 'bibleClasses') {

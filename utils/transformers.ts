@@ -166,8 +166,8 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
       }
 
       if (NUMERIC_FIELDS.includes(snakeKey)) {
-        if (val === "" || val === null || val === undefined) continue;
-        if (!snakeKey.endsWith('_id') && snakeKey !== 'id') {
+        if (val === "" || val === undefined) continue;
+        if (val !== null && !snakeKey.endsWith('_id') && snakeKey !== 'id') {
             val = parseFloat(val);
             if (isNaN(val)) continue;
         }
