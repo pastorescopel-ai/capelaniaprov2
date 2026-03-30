@@ -93,7 +93,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
           if (!enrolledByPGMap.has(pgName)) {
             enrolledByPGMap.set(pgName, { pgName, members: [], leaderName });
           }
-          enrolledByPGMap.get(pgName)!.members.push({ id: r.staffId, name: r.staffName, type: 'staff' });
+          enrolledByPGMap.get(pgName)!.members.push({ id: r.staffId, name: r.staffName, registrationId: r.registrationId, type: 'staff' });
         });
 
         const enrolledByPG = Array.from(enrolledByPGMap.values()).sort((a, b) => a.pgName.localeCompare(b.pgName));

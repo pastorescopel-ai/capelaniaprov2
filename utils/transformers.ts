@@ -112,6 +112,8 @@ export const NUMERIC_DATE_COLUMNS_BY_TABLE: Record<string, string[]> = {
   daily_activity_reports: ['created_at', 'updated_at'],
   pro_group_locations: ['created_at'],
   pro_sectors: ['created_at'], // Note: updated_at é timestamptz, por isso não está aqui
+  pro_monthly_stats: ['created_at'],
+  pro_history_records: ['created_at'],
   small_groups: ['created_at', 'updated_at'],
   staff_visits: ['created_at', 'updated_at'],
   users: ['updated_at'],
@@ -146,20 +148,20 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
           if (val !== null && val !== undefined && val !== '') {
              const valStr = String(val);
              
-             // Special case for pro_history_records: id is UUID, others are numeric
-             if (tableName === 'pro_history_records') {
-                if (snakeKey === 'id') {
-                   val = valStr; // Keep UUID as string
-                } else {
-                   const numericVal = valStr.replace(/\D/g, '');
-                   if (numericVal) val = numericVal;
-                }
-             } else if (isValidUUID(valStr)) {
-                // Se for um UUID válido, mantemos como está (não anulamos)
+             if (isValidUUID(valStr)) {
+                // Se for um UUID válido ou numérico puro, mantemos como está
                 val = valStr;
              } else {
+                // Se tiver caracteres extras (ex: "(123)"), limpamos para manter apenas números
                 const numericVal = valStr.replace(/\D/g, '');
                 if (numericVal) val = numericVal;
+             }
+
+             // Se a tabela for pro_history_records, convertemos para número se estiver em NUMERIC_FIELDS
+             // Isso garante que BIGINT no banco receba um número
+             if (tableName === 'pro_history_records' && NUMERIC_FIELDS.includes(snakeKey) && snakeKey !== 'id') {
+                const n = parseInt(String(val), 10);
+                if (!isNaN(n)) val = n;
              }
           }
       }
