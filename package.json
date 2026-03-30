@@ -4,12 +4,13 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
+    "start": "node server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint ."
   },
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.1",
