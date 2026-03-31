@@ -219,7 +219,8 @@ const AdminPanel: React.FC = () => {
                 sectors: proSectors, 
                 groups: proGroups, 
                 stats: proMonthlyStats,
-                history: proHistoryRecords 
+                history: proHistoryRecords,
+                providers: proProviders
               }}
               chaplaincyData={{
                 bibleStudies,

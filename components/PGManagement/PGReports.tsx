@@ -63,7 +63,10 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
   }, [startDate, endDate]);
 
   const reportData = useMemo(() => {
-    const sectors = proSectors.filter(s => s.unit === unit).sort((a,b) => a.name.localeCompare(b.name));
+    const sectors = [
+      ...proSectors.filter(s => s.unit === unit).sort((a,b) => a.name.localeCompare(b.name)),
+      { id: 'unassigned', name: 'SEM SETOR DEFINIDO', unit } as any
+    ];
     const startTimestamp = new Date(startDate + 'T00:00:00').getTime();
     const endTimestamp = new Date(endDate + 'T23:59:59').getTime();
 
@@ -79,10 +82,13 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
       
       return sectors.map(sector => {
         const sectorIdClean = cleanID(sector.id);
-        const staffInHistory = historyForMonth.filter(r => cleanID(r.sectorId) === sectorIdClean || (r.sectorId === 'unassigned' && sectorIdClean === 'unassigned'));
+        const staffInHistory = historyForMonth.filter(r => {
+          const rSectorId = cleanID(r.sectorId) || 'unassigned';
+          return rSectorId === sectorIdClean;
+        });
         
-        const enrolledStaff = staffInHistory.filter(r => r.isEnrolled);
-        const notEnrolled = staffInHistory.filter(r => !r.isEnrolled);
+        const enrolledStaff = staffInHistory.filter(r => r.isEnrolled || !!r.groupId);
+        const notEnrolled = staffInHistory.filter(r => !(r.isEnrolled || !!r.groupId));
 
         const enrolledByPGMap = new Map<string, { pgName: string, members: any[], leaderName: string | null }>();
         
@@ -143,7 +149,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
     const staffBySector = new Map<string, any[]>();
     proStaff.forEach(s => {
       if (s.active !== false || (s.leftAt && s.leftAt >= startTimestamp)) {
-        const sId = cleanID(s.sectorId);
+        const sId = cleanID(s.sectorId) || 'unassigned';
         if (!staffBySector.has(sId)) staffBySector.set(sId, []);
         staffBySector.get(sId)?.push(s);
       }
@@ -151,7 +157,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
 
     const locsBySector = new Map<string, Set<string>>();
     proGroupLocations.forEach(loc => {
-      const sId = cleanID(loc.sectorId);
+      const sId = cleanID(loc.sectorId) || 'unassigned';
       if (!locsBySector.has(sId)) locsBySector.set(sId, new Set());
       locsBySector.get(sId)?.add(cleanID(loc.groupId));
     });

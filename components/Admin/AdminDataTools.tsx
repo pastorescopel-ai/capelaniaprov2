@@ -20,6 +20,7 @@ interface AdminDataToolsProps {
     groups: ProGroup[];
     stats?: ProMonthlyStats[];
     history?: ProHistoryRecord[];
+    providers?: any[];
   };
   chaplaincyData: {
     bibleStudies: any[];
@@ -132,13 +133,16 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
     const isAlreadyClosed = proData.stats?.some(s => s.month === selectedCloseMonth);
     const actionText = isAlreadyClosed ? 'ATUALIZAR' : 'FECHAR';
     
+    console.log(`[ADMIN FECHAMENTO] Iniciando processo para ${selectedCloseMonth}. Ação: ${actionText}`);
     setSyncState({ isOpen: true, status: 'processing', title: `${actionText === 'FECHAR' ? 'Fechamento' : 'Atualização'} Global`, message: 'Processando HAB e HABA. Aguarde...' });
 
     try {
         // 1. LIMPAR REGISTROS ANTIGOS (Se for atualização)
         if (isAlreadyClosed) {
+            console.log(`[ADMIN FECHAMENTO] Limpando registros antigos para ${selectedCloseMonth}...`);
             await deleteRecordsByFilter('proMonthlyStats', { month: selectedCloseMonth });
             await deleteRecordsByFilter('proHistoryRecords', { month: selectedCloseMonth });
+            console.log(`[ADMIN FECHAMENTO] Limpeza concluída.`);
         }
 
         const snapshots: ProMonthlyStats[] = [];
@@ -235,60 +239,82 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
             });
 
             // 3. GERAR HISTÓRICO INDIVIDUAL (proHistoryRecords)
-            // CLT
+            // Mapear membros atuais (Colaboradores)
+            const staffToGroup = new Map<string, string>();
             proGroupMembers.forEach(m => {
-                const staff = proData.staff.find(s => String(s.id) === String(m.staffId));
-                if (!staff || staff.unit !== unit) return;
-                
-                const joinedAt = m.joinedAt ? new Date(m.joinedAt) : null;
-                const leftAt = m.leftAt ? new Date(m.leftAt) : null;
-                if (joinedAt && joinedAt > targetDate) return;
-                if (leftAt && leftAt < targetDate.getTime()) return;
+                if (!m.leftAt || m.leftAt >= targetDate.getTime()) {
+                    staffToGroup.set(String(m.staffId), String(m.groupId));
+                }
+            });
 
-                const sector = proData.sectors.find(s => String(s.id) === String(m.sectorId));
-                const group = proData.groups.find(g => String(g.id) === String(m.groupId));
+            // Mapear membros atuais (Prestadores)
+            const providerToGroup = new Map<string, string>();
+            proGroupProviderMembers.forEach(m => {
+                if (!m.leftAt || m.leftAt >= targetDate.getTime()) {
+                    providerToGroup.set(String(m.staffId), String(m.groupId));
+                }
+            });
+
+            // Tentar converter IDs para número apenas se forem numéricos, senão manter como string (UUID)
+            const safeToNumber = (val: any) => {
+                if (!val) return null;
+                const n = Number(val);
+                return isNaN(n) ? String(val) : n;
+            };
+
+            // CLT (Todos os ativos no mês)
+            unitStaff.forEach(staff => {
+                const groupId = staffToGroup.get(String(staff.id));
+                const group = groupId ? proData.groups.find(g => String(g.id) === groupId) : null;
+                const sector = proData.sectors.find(s => String(s.id) === String(staff.sectorId));
 
                 historyRecords.push({
                     month: selectedCloseMonth,
                     unit,
-                    staffId: m.staffId,
+                    staffId: safeToNumber(staff.id),
                     staffName: staff.name,
-                    sectorId: m.sectorId,
+                    registrationId: staff.registrationId || null,
+                    sectorId: safeToNumber(staff.sectorId),
                     sectorName: sector?.name || 'Sem Setor',
-                    groupId: m.groupId,
-                    groupName: group?.name || 'Sem Grupo',
+                    groupId: safeToNumber(groupId),
+                    groupName: group?.name || '',
                     role: 'CLT',
-                    joinedAt: m.joinedAt,
-                    leftAt: m.leftAt,
+                    status: groupId ? 'Matriculado' : 'Não Matriculado',
+                    isEnrolled: !!groupId,
+                    joinedAt: staff.createdAt, // Or whatever makes sense, but PGDashboard doesn't set joinedAt
+                    leftAt: staff.leftAt,
                     createdAt: Date.now()
                 });
             });
 
-            // Prestadores
-            proGroupProviderMembers.forEach(m => {
-                const staff = proData.staff.find(s => String(s.id) === String(m.staffId));
-                if (!staff || staff.unit !== unit) return;
-                
-                const joinedAt = m.joinedAt ? new Date(m.joinedAt) : null;
-                const leftAt = m.leftAt ? new Date(m.leftAt) : null;
-                if (joinedAt && joinedAt > targetDate) return;
-                if (leftAt && leftAt < targetDate.getTime()) return;
+            // Prestadores (Todos os ativos no mês)
+            const unitProviders = (proData.providers || []).filter(p => {
+                if (p.unit !== unit) return false;
+                if (p.active === false) return false;
+                const leftDate = p.leftAt ? new Date(p.leftAt) : null;
+                return !leftDate || leftDate >= targetDate;
+            });
 
-                const sector = proData.sectors.find(s => String(s.id) === String(m.sectorId));
-                const group = proData.groups.find(g => String(g.id) === String(m.groupId));
+            unitProviders.forEach(provider => {
+                const groupId = providerToGroup.get(String(provider.id));
+                const group = groupId ? proData.groups.find(g => String(g.id) === groupId) : null;
+                const sector = proData.sectors.find(s => String(s.id) === String(provider.sectorId));
 
                 historyRecords.push({
                     month: selectedCloseMonth,
                     unit,
-                    staffId: m.staffId,
-                    staffName: staff.name,
-                    sectorId: m.sectorId,
+                    staffId: safeToNumber(provider.id),
+                    staffName: provider.name,
+                    registrationId: provider.registrationId || null,
+                    sectorId: safeToNumber(provider.sectorId),
                     sectorName: sector?.name || 'Sem Setor',
-                    groupId: m.groupId,
-                    groupName: group?.name || 'Sem Grupo',
+                    groupId: safeToNumber(groupId),
+                    groupName: group?.name || '',
                     role: 'PRESTADOR',
-                    joinedAt: m.joinedAt,
-                    leftAt: m.leftAt,
+                    status: groupId ? 'Matriculado' : 'Não Matriculado',
+                    isEnrolled: !!groupId,
+                    joinedAt: provider.createdAt,
+                    leftAt: provider.leftAt,
                     createdAt: Date.now()
                 });
             });
@@ -373,14 +399,24 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
         }
 
         // 4. SALVAR TUDO
+        console.log(`[ADMIN FECHAMENTO] Preparando para salvar ${historyRecords.length} registros de histórico e ${snapshots.length} snapshots.`);
+        
         if (historyRecords.length > 0) {
-            await saveRecord('proHistoryRecords', historyRecords);
+            console.log(`[ADMIN FECHAMENTO] Exemplo de payload de histórico:`, JSON.stringify(historyRecords[0]));
+            const saveHistoryResult = await saveRecord('proHistoryRecords', historyRecords);
+            console.log(`[ADMIN FECHAMENTO] Resultado do salvamento do histórico: ${saveHistoryResult}`);
         }
-        await saveRecord('proMonthlyStats', snapshots);
+        
+        const saveStatsResult = await saveRecord('proMonthlyStats', snapshots);
+        console.log(`[ADMIN FECHAMENTO] Resultado do salvamento das estatísticas: ${saveStatsResult}`);
 
-        setSyncState({ isOpen: true, status: 'success', title: 'Mês Atualizado', message: `Sucesso! ${snapshots.length} estatísticas e ${historyRecords.length} registros de histórico gravados para ${formatMonthLabel(selectedCloseMonth)} (HAB + HABA).` });
+        setSyncState({ isOpen: true, status: 'success', title: 'Mês Atualizado', message: `Sucesso! ${snapshots.length} estatísticas e ${historyRecords.length} registros de histórico gravados para ${formatMonthLabel(selectedCloseMonth)} (HAB + HABA). Os dados foram recarregados.` });
+        
+        console.log(`[ADMIN FECHAMENTO] Forçando recarregamento dos dados do banco...`);
         await onRefreshData();
+        console.log(`[ADMIN FECHAMENTO] Recarregamento concluído.`);
     } catch (e: any) {
+        console.error('[ADMIN FECHAMENTO] Erro crítico:', e);
         setSyncState({ isOpen: true, status: 'error', title: 'Erro no Processo', message: "Falha ao gravar dados globais.", error: e.message });
     }
   };

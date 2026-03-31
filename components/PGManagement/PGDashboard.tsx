@@ -15,7 +15,7 @@ interface PGDashboardProps {
 
 const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
   const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, proMonthlyStats, proHistoryRecords } = usePro();
-  const { config, saveRecord, deleteRecord, deleteRecordsByFilter } = useApp();
+  const { config, saveRecord, deleteRecord, deleteRecordsByFilter, loadFromCloud } = useApp();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -50,16 +50,18 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
   const metrics = useMemo(() => {
     const targetDate = new Date(selectedMonth);
-    const isClosed = config.activeCompetenceMonth && selectedMonth < config.activeCompetenceMonth;
+    const isClosed = config.activeCompetenceMonth ? selectedMonth < config.activeCompetenceMonth : false;
     const nextMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
 
     // 0. Verificar se existem registros de histórico para o mês selecionado
     const historyForMonth = proHistoryRecords.filter(r => r.month === selectedMonth && r.unit === unit);
     
+    console.log(`[DEBUG] PGDashboard - Histórico encontrado para ${selectedMonth} na unidade ${unit}: ${historyForMonth.length} registros`);
+
     if (historyForMonth.length > 0) {
-      const enrolledCount = historyForMonth.filter(r => r.isEnrolled).length;
+      const enrolledCount = historyForMonth.filter(r => r.isEnrolled || !!r.groupId).length;
       const totalStaff = historyForMonth.length;
-      const activePGIds = new Set(historyForMonth.filter(r => r.isEnrolled).map(r => r.groupId));
+      const activePGIds = new Set(historyForMonth.filter(r => r.isEnrolled || !!r.groupId).map(r => r.groupId));
       
       // Mapear setores para exibição baseada no histórico
       const sectorsById = new Map(proSectors.map(s => [cleanID(s.id), s]));
@@ -74,8 +76,8 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
       const sectorData = Array.from(staffBySector.entries()).map(([sId, staff]) => {
         const sector = sId === 'unassigned' ? { id: 'unassigned', name: 'SEM SETOR DEFINIDO', unit } as any : sectorsById.get(sId);
-        const enrolledInSector = staff.filter(r => r.isEnrolled).length;
-        const pgsInSectorIds = new Set(staff.filter(r => r.isEnrolled).map(r => r.groupId));
+        const enrolledInSector = staff.filter(r => r.isEnrolled || !!r.groupId).length;
+        const pgsInSectorIds = new Set(staff.filter(r => r.isEnrolled || !!r.groupId).map(r => r.groupId));
         const pgsInSector = Array.from(pgsInSectorIds).map(gid => groupsById.get(gid)).filter(g => !!g);
 
         return {
@@ -111,6 +113,8 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     // 0. Verificar se existem snapshots para o mês selecionado (Legado ou Agregado)
     const snapshots = proMonthlyStats.filter(s => s.month === selectedMonth && s.unit === unit);
     
+    console.log(`[DEBUG] PGDashboard - Snapshots encontrados para ${selectedMonth} na unidade ${unit}: ${snapshots.length} registros`);
+
     if (snapshots.length > 0) {
       const sectorSnaps = snapshots.filter(s => s.type === 'sector');
       const pgSnaps = snapshots.filter(s => s.type === 'pg');
@@ -121,7 +125,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       
       const locsBySector = new Map<string, Set<string>>();
       proGroupLocations.forEach(loc => {
-        const sId = cleanID(loc.sectorId);
+        const sId = cleanID(loc.sectorId) || 'unassigned';
         if (!locsBySector.has(sId)) locsBySector.set(sId, new Set());
         locsBySector.get(sId)?.add(cleanID(loc.groupId));
       });
@@ -181,6 +185,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       };
     }
 
+    console.log("[DEBUG] PGDashboard - Usando dados OPERACIONAIS (Tempo Real).");
     if (isClosed) {
       return {
         globalPercentage: 0,
@@ -373,21 +378,21 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       console.log(`[FECHAMENTO] Iniciando fechamento para ${selectedMonth} na unidade ${unit}`);
       
       // 1. Limpar histórico existente para este mês/unidade para evitar duplicidade
+      console.log(`[FECHAMENTO] Iniciando limpeza de registros antigos para ${selectedMonth} e unidade ${unit}...`);
       const delHistory = await deleteRecordsByFilter('proHistoryRecords', { month: selectedMonth, unit });
       const delStats = await deleteRecordsByFilter('proMonthlyStats', { month: selectedMonth, unit });
-      console.log(`[FECHAMENTO] Limpeza prévia: Histórico=${delHistory}, Stats=${delStats}`);
+      console.log(`[FECHAMENTO] Limpeza concluída: Histórico=${delHistory}, Stats=${delStats}`);
 
       const historyRecords: any[] = [];
       const targetDate = new Date(selectedMonth + 'T12:00:00').getTime();
       const unitStaff = proStaff.filter(s => s.unit === unit && (!s.leftAt || s.leftAt >= targetDate));
+      const unitProviders = proProviders.filter(p => p.unit === unit && p.active !== false && (!p.leftAt || p.leftAt >= targetDate));
       
-      console.log(`[FECHAMENTO] Colaboradores encontrados: ${unitStaff.length}`);
-      if (unitStaff.length > 0) {
-        console.log(`[FECHAMENTO] Exemplo de colaborador:`, unitStaff[0]);
-      }
-
-      if (unitStaff.length === 0) {
-        showStatus('Aviso', 'Nenhum colaborador ativo encontrado para este mês nesta unidade.', 'warning');
+      console.log(`[FECHAMENTO] Colaboradores encontrados para a unidade ${unit}: ${unitStaff.length}`);
+      console.log(`[FECHAMENTO] Prestadores encontrados para a unidade ${unit}: ${unitProviders.length}`);
+      
+      if (unitStaff.length === 0 && unitProviders.length === 0) {
+        showStatus('Aviso', 'Nenhum colaborador ou prestador ativo encontrado para este mês nesta unidade.', 'warning');
         setIsClosing(false);
         return;
       }
@@ -403,8 +408,26 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         }
       });
 
+      // Mapear membros atuais (Prestadores)
+      const providerToGroup = new Map<string, string>();
+      proGroupProviderMembers.forEach(m => {
+        if (!m.leftAt || m.leftAt >= targetDate) {
+          providerToGroup.set(cleanID(m.staffId), cleanID(m.groupId));
+        }
+      });
+
+      console.log(`[FECHAMENTO] Membros de PG mapeados: CLT=${staffToGroup.size}, Prestadores=${providerToGroup.size}`);
+
       const sectorStats = new Map<string, { total: number, enrolled: number, pgIds: Set<string> }>();
 
+      // Tentar converter IDs para número apenas se forem numéricos, senão manter como string (UUID)
+      const safeToNumber = (val: any) => {
+        if (!val) return null;
+        const n = Number(val);
+        return isNaN(n) ? String(val) : n;
+      };
+
+      // Processar CLT
       unitStaff.forEach(staff => {
         const groupId = staffToGroup.get(cleanID(staff.id));
         const group = groupId ? groupsById.get(groupId) : null;
@@ -421,13 +444,6 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
           stats.pgIds.add(groupId);
         }
 
-        // Tentar converter IDs para número apenas se forem numéricos, senão manter como string (UUID)
-        const safeToNumber = (val: any) => {
-          if (!val) return null;
-          const n = Number(val);
-          return isNaN(n) ? String(val) : n;
-        };
-
         historyRecords.push({
           month: selectedMonth,
           unit,
@@ -438,15 +454,50 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
           sectorName: sector?.name || 'Sem Setor',
           groupId: safeToNumber(groupId),
           groupName: group?.name || '',
+          role: 'CLT',
           status: groupId ? 'Matriculado' : 'Não Matriculado',
           isEnrolled: !!groupId,
           createdAt: Date.now()
         });
       });
 
-      console.log(`[FECHAMENTO] Gerados ${historyRecords.length} registros de histórico.`);
+      // Processar Prestadores
+      unitProviders.forEach(provider => {
+        const groupId = providerToGroup.get(cleanID(provider.id));
+        const group = groupId ? groupsById.get(groupId) : null;
+        const sector = sectorsById.get(cleanID(provider.sectorId));
+        const sId = cleanID(provider.sectorId) || 'unassigned';
+
+        if (!sectorStats.has(sId)) {
+          sectorStats.set(sId, { total: 0, enrolled: 0, pgIds: new Set() });
+        }
+        const stats = sectorStats.get(sId)!;
+        stats.total++;
+        if (groupId) {
+          stats.enrolled++;
+          stats.pgIds.add(groupId);
+        }
+
+        historyRecords.push({
+          month: selectedMonth,
+          unit,
+          staffId: safeToNumber(provider.id),
+          staffName: provider.name,
+          registrationId: provider.registrationId || null,
+          sectorId: safeToNumber(provider.sectorId),
+          sectorName: sector?.name || 'Sem Setor',
+          groupId: safeToNumber(groupId),
+          groupName: group?.name || '',
+          role: 'PRESTADOR',
+          status: groupId ? 'Matriculado' : 'Não Matriculado',
+          isEnrolled: !!groupId,
+          createdAt: Date.now()
+        });
+      });
+
+      console.log(`[FECHAMENTO] Gerados ${historyRecords.length} registros de histórico. Preparando para salvar...`);
       if (historyRecords.length > 0) {
-        console.log(`[FECHAMENTO] Exemplo de registro de histórico:`, historyRecords[0]);
+        console.log(`[FECHAMENTO] Exemplo de payload de histórico:`, JSON.stringify(historyRecords[0]));
       }
 
       // 2. Salvar Histórico Detalhado
@@ -497,7 +548,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
       // Snapshots de PGs Individuais
       allUnitPGIds.forEach(pgId => {
-        const enrolledInPG = historyRecords.filter(r => r.groupId === Number(pgId)).length;
+        const enrolledInPG = historyRecords.filter(r => r.groupId === Number(pgId) || String(r.groupId) === String(pgId)).length;
         monthlyStats.push({
           month: selectedMonth,
           unit,
@@ -511,7 +562,11 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         });
       });
 
+      console.log(`[FECHAMENTO] Gerados ${monthlyStats.length} snapshots de estatísticas. Preparando para salvar...`);
+
       const saveStatsResult = await saveRecord('proMonthlyStats', monthlyStats);
+      console.log(`[FECHAMENTO] Resultado do salvamento das estatísticas: ${saveStatsResult}`);
+
       if (!saveStatsResult) {
         throw new Error('Falha ao salvar estatísticas mensais no banco de dados.');
       }
@@ -526,8 +581,14 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         activeCompetenceMonth: nextMonthStr
       });
 
+      // Recarregar os dados do banco para garantir que o estado local esteja 100% sincronizado
+      // Isso evita o problema de "zerar" a tela após o fechamento
+      console.log(`[FECHAMENTO] Forçando recarregamento dos dados do banco...`);
+      await loadFromCloud(true);
+      console.log(`[FECHAMENTO] Recarregamento concluído.`);
+
       setIsCloseModalOpen(false);
-      showStatus('Sucesso', `Mês fechado com sucesso! O histórico foi preservado e o sistema agora está em ${new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(next)}.`, 'success');
+      showStatus('Sucesso', `Mês fechado com sucesso! Os dados foram atualizados.`, 'success');
     } catch (error: any) {
       console.error('Erro ao fechar mês:', error);
       const errorMsg = error?.message || 'Erro desconhecido ao salvar dados.';

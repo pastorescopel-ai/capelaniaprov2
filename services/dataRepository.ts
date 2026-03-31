@@ -4,35 +4,74 @@ import { TABLE_SCHEMAS, toCamel, cleanAndConvertToSnake, isValidUUID, COLLECTION
 const GLOBAL_ID_CACHE: Record<string, string> = {};
 
 export const DataRepository = {
+  async fetchFullTable(tableName: string, maxRows = 100000) {
+    if (!supabase) return { data: [], error: null };
+    
+    // Primeira busca para ver se precisamos paginar
+    const { data: firstBatch, error: firstError } = await supabase
+      .from(tableName)
+      .select('*')
+      .range(0, 999);
+      
+    if (firstError) return { data: [], error: firstError };
+    if (!firstBatch || firstBatch.length < 1000) return { data: firstBatch || [], error: null };
+    
+    // Se atingiu 1000, precisamos buscar mais
+    let allData = [...firstBatch];
+    let from = 1000;
+    const step = 1000;
+    let hasMore = true;
+    
+    while (hasMore && allData.length < maxRows) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .range(from, from + step - 1);
+        
+      if (error) {
+        console.error(`Erro ao paginar ${tableName}:`, error);
+        return { data: allData, error };
+      }
+      if (data) {
+        allData = [...allData, ...data];
+        if (data.length < step) hasMore = false;
+        else from += step;
+      } else {
+        hasMore = false;
+      }
+    }
+    return { data: allData, error: null };
+  },
+
   async syncAll() {
     if (!supabase) return null;
     try {
-      const MAX_ROWS = 9999;
+      const MAX_ROWS = 49999;
 
       // Executa as queries em paralelo, mas trata erros individualmente para não quebrar o app todo
       const results = await Promise.all([
-        supabase.from('users').select('*').range(0, MAX_ROWS),
-        supabase.from('bible_study_sessions').select('*').range(0, MAX_ROWS),
-        supabase.from('bible_classes').select('*').range(0, MAX_ROWS),
-        supabase.from('small_groups').select('*').range(0, MAX_ROWS),
-        supabase.from('staff_visits').select('*').range(0, MAX_ROWS),
-        supabase.from('visit_requests').select('*').range(0, MAX_ROWS),
+        DataRepository.fetchFullTable('users', MAX_ROWS),
+        DataRepository.fetchFullTable('bible_study_sessions', MAX_ROWS),
+        DataRepository.fetchFullTable('bible_classes', MAX_ROWS),
+        DataRepository.fetchFullTable('small_groups', MAX_ROWS),
+        DataRepository.fetchFullTable('staff_visits', MAX_ROWS),
+        DataRepository.fetchFullTable('visit_requests', MAX_ROWS),
         supabase.from('app_config').select('*').limit(1),
-        supabase.from('pro_sectors').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_staff').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_patients').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_providers').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_groups').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_group_locations').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_group_members').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_group_provider_members').select('*').range(0, MAX_ROWS),
-        supabase.from('bible_class_attendees').select('*').range(0, MAX_ROWS),
-        supabase.from('activity_schedules').select('*').range(0, MAX_ROWS),
-        supabase.from('daily_activity_reports').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_monthly_stats').select('*').range(0, MAX_ROWS),
-        supabase.from('pro_history_records').select('*').range(0, MAX_ROWS),
-        supabase.from('ambassadors').select('*').range(0, MAX_ROWS),
-        supabase.from('edit_authorizations').select('*').range(0, MAX_ROWS)
+        DataRepository.fetchFullTable('pro_sectors', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_staff', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_patients', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_providers', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_groups', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_group_locations', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_group_members', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_group_provider_members', MAX_ROWS),
+        DataRepository.fetchFullTable('bible_class_attendees', MAX_ROWS),
+        DataRepository.fetchFullTable('activity_schedules', MAX_ROWS),
+        DataRepository.fetchFullTable('daily_activity_reports', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_monthly_stats', 99999), // Limite maior para histórico
+        DataRepository.fetchFullTable('pro_history_records', 199999), // Limite muito maior para histórico detalhado
+        DataRepository.fetchFullTable('ambassadors', MAX_ROWS),
+        DataRepository.fetchFullTable('edit_authorizations', MAX_ROWS)
       ]);
 
       const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar, pms, phr, amb, ea] = results;

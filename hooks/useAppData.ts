@@ -228,8 +228,30 @@ export const useAppData = () => {
       else if (collection === 'proGroupLocations') updateState(setProGroupLocations);
       else if (collection === 'proGroupMembers') updateState(setProGroupMembers);
       else if (collection === 'proGroupProviderMembers') updateState(setProGroupProviderMembers);
-      else if (collection === 'proMonthlyStats') updateState(setProMonthlyStats);
-      else if (collection === 'proHistoryRecords') updateState(setProHistoryRecords);
+      else if (collection === 'proMonthlyStats') {
+        // Para estatísticas mensais, como apagamos antes de inserir, é mais seguro substituir ou adicionar
+        setProMonthlyStats(prev => {
+          const newStats = [...prev];
+          updatedItems.forEach(newItem => {
+            const idx = newStats.findIndex(s => s.id === newItem.id);
+            if (idx >= 0) newStats[idx] = newItem;
+            else newStats.push(newItem);
+          });
+          return newStats;
+        });
+      }
+      else if (collection === 'proHistoryRecords') {
+        // Para histórico, mesma lógica
+        setProHistoryRecords(prev => {
+          const newHistory = [...prev];
+          updatedItems.forEach(newItem => {
+            const idx = newHistory.findIndex(h => h.id === newItem.id);
+            if (idx >= 0) newHistory[idx] = newItem;
+            else newHistory.push(newItem);
+          });
+          return newHistory;
+        });
+      }
       else if (collection === 'ambassadors') updateState(setAmbassadors);
       else if (collection === 'activitySchedules') updateState(setActivitySchedules);
       else if (collection === 'dailyActivityReports') updateState(setDailyActivityReports);

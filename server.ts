@@ -67,7 +67,7 @@ async function startServer() {
     // Servir arquivos estáticos em produção
     app.use(express.static(path.join(__dirname, "dist"), { index: false }));
     
-    app.get("*", (req, res) => {
+    app.get("*all", (req, res) => {
       try {
         const indexPath = path.join(__dirname, "dist", "index.html");
         if (fs.existsSync(indexPath)) {
