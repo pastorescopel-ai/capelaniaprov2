@@ -193,6 +193,27 @@ export const useAppData = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  const refreshData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await DataRepository.syncAll();
+      setProGroups(data.proGroups);
+      setProStaff(data.proStaff);
+      setProSectors(data.proSectors);
+      setProGroupMembers(data.proGroupMembers);
+      setProGroupLocations(data.proGroupLocations);
+      setProMonthlyStats(data.proMonthlyStats);
+      setProHistoryRecords(data.proHistoryRecords);
+      setAppConfig(data.appConfig);
+      return { success: true };
+    } catch (err) {
+      console.error("Erro ao recarregar dados:", err);
+      return { success: false, error: err };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const saveRecord = useCallback(async (collection: string, item: any) => {
     const result = await DataRepository.upsertRecord(collection, item);
 
@@ -471,6 +492,6 @@ export const useAppData = () => {
     activitySchedules, setActivitySchedules, dailyActivityReports, setDailyActivityReports, bibleClassAttendees, setBibleClassAttendees,
     editAuthorizations, setEditAuthorizations,
     config, setConfig, isSyncing, isConnected, isInitialized,
-    loadFromCloud, saveToCloud, saveRecord, deleteRecord, deleteRecordsByFilter, applySystemOverrides, syncMasterContact
+    loadFromCloud, saveToCloud, saveRecord, deleteRecord, deleteRecordsByFilter, refreshData, applySystemOverrides, syncMasterContact
   };
 };

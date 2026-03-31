@@ -43,12 +43,12 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   ambassadors: ['id', 'registration_id', 'name', 'sector_id', 'unit', 'completion_date', 'cycle_month', 'created_at', 'updated_at'],
   activity_schedules: ['id', 'user_id', 'unit', 'month', 'day_of_week', 'activity_type', 'location', 'time', 'created_at'],
   daily_activity_reports: ['id', 'user_id', 'date', 'unit', 'completed_blueprints', 'completed_cults', 'completed_encontro', 'completed_visite_cantando', 'palliative_count', 'surgical_count', 'pediatric_count', 'uti_count', 'observations', 'created_at', 'updated_at'],
-  pro_monthly_stats: ['id', 'month', 'type', 'target_id', 'total_staff', 'total_participants', 'percentage', 'goal', 'unit', 'created_at', 'snapshot_data'],
+  pro_monthly_stats: ['id', 'month', 'type', 'target_id', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'unit', 'created_at', 'snapshot_data'],
   edit_authorizations: ['id', 'user_id', 'user_name', 'allowed_tabs', 'month_to_unlock', 'expiry_date', 'created_at', 'created_by'],
-  pro_history_records: ['id', 'month', 'unit', 'staff_id', 'staff_name', 'registration_id', 'sector_id', 'sector_name', 'group_id', 'group_name', 'status', 'is_enrolled', 'created_at']
+  pro_history_records: ['id', 'month', 'unit', 'staff_id', 'staff_name', 'registration_id', 'sector_id', 'sector_name', 'group_id', 'group_name', 'leader_name', 'role', 'is_enrolled', 'joined_at', 'left_at', 'created_at']
 };
 
-export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'staff_id', 'provider_id', 'sector_id', 'group_id', 'day_of_week', 'total_staff', 'total_participants', 'percentage', 'goal'];
+export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'staff_id', 'provider_id', 'sector_id', 'group_id', 'day_of_week', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal'];
 
 export const DATE_FIELDS = ['joined_at', 'left_at', 'updated_at', 'created_at', 'completion_date', 'return_date', 'scheduled_time', 'last_modified_at', 'expiry_date', 'month_to_unlock'];
 
@@ -113,7 +113,7 @@ export const NUMERIC_DATE_COLUMNS_BY_TABLE: Record<string, string[]> = {
   pro_group_locations: ['created_at'],
   pro_sectors: ['created_at'], // Note: updated_at é timestamptz, por isso não está aqui
   pro_monthly_stats: ['created_at'],
-  pro_history_records: ['created_at'],
+  pro_history_records: ['created_at', 'joined_at', 'left_at'],
   small_groups: ['created_at', 'updated_at'],
   staff_visits: ['created_at', 'updated_at'],
   users: ['updated_at'],

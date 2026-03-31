@@ -20,7 +20,6 @@ interface AdminDataToolsProps {
     groups: ProGroup[];
     stats?: ProMonthlyStats[];
     history?: ProHistoryRecord[];
-    providers?: any[];
   };
   chaplaincyData: {
     bibleStudies: any[];
@@ -133,16 +132,13 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
     const isAlreadyClosed = proData.stats?.some(s => s.month === selectedCloseMonth);
     const actionText = isAlreadyClosed ? 'ATUALIZAR' : 'FECHAR';
     
-    console.log(`[ADMIN FECHAMENTO] Iniciando processo para ${selectedCloseMonth}. Ação: ${actionText}`);
     setSyncState({ isOpen: true, status: 'processing', title: `${actionText === 'FECHAR' ? 'Fechamento' : 'Atualização'} Global`, message: 'Processando HAB e HABA. Aguarde...' });
 
     try {
         // 1. LIMPAR REGISTROS ANTIGOS (Se for atualização)
         if (isAlreadyClosed) {
-            console.log(`[ADMIN FECHAMENTO] Limpando registros antigos para ${selectedCloseMonth}...`);
             await deleteRecordsByFilter('proMonthlyStats', { month: selectedCloseMonth });
             await deleteRecordsByFilter('proHistoryRecords', { month: selectedCloseMonth });
-            console.log(`[ADMIN FECHAMENTO] Limpeza concluída.`);
         }
 
         const snapshots: ProMonthlyStats[] = [];
@@ -238,185 +234,122 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
                 });
             });
 
-            // 3. GERAR HISTÓRICO INDIVIDUAL (proHistoryRecords)
-            // Mapear membros atuais (Colaboradores)
-            const staffToGroup = new Map<string, string>();
-            proGroupMembers.forEach(m => {
-                if (!m.leftAt || m.leftAt >= targetDate.getTime()) {
-                    staffToGroup.set(String(m.staffId), String(m.groupId));
-                }
-            });
-
-            // Mapear membros atuais (Prestadores)
-            const providerToGroup = new Map<string, string>();
-            proGroupProviderMembers.forEach(m => {
-                if (!m.leftAt || m.leftAt >= targetDate.getTime()) {
-                    providerToGroup.set(String(m.staffId), String(m.groupId));
-                }
-            });
-
-            // Tentar converter IDs para número apenas se forem numéricos, senão manter como string (UUID)
-            const safeToNumber = (val: any) => {
-                if (!val) return null;
-                const n = Number(val);
-                return isNaN(n) ? String(val) : n;
-            };
-
-            // CLT (Todos os ativos no mês)
-            unitStaff.forEach(staff => {
-                const groupId = staffToGroup.get(String(staff.id));
-                const group = groupId ? proData.groups.find(g => String(g.id) === groupId) : null;
-                const sector = proData.sectors.find(s => String(s.id) === String(staff.sectorId));
-
-                historyRecords.push({
-                    month: selectedCloseMonth,
-                    unit,
-                    staffId: safeToNumber(staff.id),
-                    staffName: staff.name,
-                    registrationId: staff.registrationId || null,
-                    sectorId: safeToNumber(staff.sectorId),
-                    sectorName: sector?.name || 'Sem Setor',
-                    groupId: safeToNumber(groupId),
-                    groupName: group?.name || '',
-                    role: 'CLT',
-                    status: groupId ? 'Matriculado' : 'Não Matriculado',
-                    isEnrolled: !!groupId,
-                    joinedAt: staff.createdAt, // Or whatever makes sense, but PGDashboard doesn't set joinedAt
-                    leftAt: staff.leftAt,
-                    createdAt: Date.now()
-                });
-            });
-
-            // Prestadores (Todos os ativos no mês)
-            const unitProviders = (proData.providers || []).filter(p => {
-                if (p.unit !== unit) return false;
-                if (p.active === false) return false;
-                const leftDate = p.leftAt ? new Date(p.leftAt) : null;
-                return !leftDate || leftDate >= targetDate;
-            });
-
-            unitProviders.forEach(provider => {
-                const groupId = providerToGroup.get(String(provider.id));
-                const group = groupId ? proData.groups.find(g => String(g.id) === groupId) : null;
-                const sector = proData.sectors.find(s => String(s.id) === String(provider.sectorId));
-
-                historyRecords.push({
-                    month: selectedCloseMonth,
-                    unit,
-                    staffId: safeToNumber(provider.id),
-                    staffName: provider.name,
-                    registrationId: provider.registrationId || null,
-                    sectorId: safeToNumber(provider.sectorId),
-                    sectorName: sector?.name || 'Sem Setor',
-                    groupId: safeToNumber(groupId),
-                    groupName: group?.name || '',
-                    role: 'PRESTADOR',
-                    status: groupId ? 'Matriculado' : 'Não Matriculado',
-                    isEnrolled: !!groupId,
-                    joinedAt: provider.createdAt,
-                    leftAt: provider.leftAt,
-                    createdAt: Date.now()
-                });
-            });
-        }
-
-        // 3.5 GERAR SNAPSHOT DE SUMÁRIO GLOBAL (Para Relatórios Travados)
-        for (const unit of units) {
-            const targetMonth = selectedCloseMonth.substring(0, 7); // YYYY-MM
+        // 3. GERAR HISTÓRICO INDIVIDUAL COMPLETO (proHistoryRecords)
+        // Captura TODOS os colaboradores da unidade, matriculados ou não
+        unitStaff.forEach(staff => {
+            const staffId = String(staff.id);
             
-            // Filtrar dados da capelania para o mês
-            const monthStudies = chaplaincyData.bibleStudies.filter(s => s.unit === unit && s.date?.startsWith(targetMonth));
-            const monthClasses = chaplaincyData.bibleClasses.filter(c => c.unit === unit && c.date?.startsWith(targetMonth));
-            const monthGroups = chaplaincyData.smallGroups.filter(g => g.unit === unit && g.date?.startsWith(targetMonth));
-            const monthVisits = chaplaincyData.staffVisits.filter(v => v.unit === unit && v.date?.startsWith(targetMonth));
-
-            // Calcular alunos únicos nas classes
-            const uniqueStudents = new Set();
-            monthClasses.forEach(c => {
-                if (Array.isArray(c.students)) {
-                    c.students.forEach((s: string) => uniqueStudents.add(s));
-                }
-            });
-
-            // Calcular estatísticas por capelão para este sumário
-            const unitChaplainStats = users.map(user => {
-                const uS = monthStudies.filter(s => s.userId === user.id);
-                const uC = monthClasses.filter(c => c.userId === user.id);
-                const uG = monthGroups.filter(g => g.userId === user.id);
-                const uV = monthVisits.filter(v => v.userId === user.id);
-                
-                const names = new Set<string>();
-                uS.forEach(s => s.name && names.add(s.name.toLowerCase().trim()));
-                uC.forEach(c => c.students?.forEach((n: string) => n && names.add(n.toLowerCase().trim())));
-
-                return {
-                    userId: user.id,
-                    userName: user.name,
-                    studies: uS.length,
-                    classes: uC.length,
-                    groups: uG.length,
-                    visits: uV.length,
-                    students: names.size,
-                    total: uS.length + uC.length + uG.length + uV.length
-                };
-            }).filter(s => s.total > 0 || s.students > 0);
-
-            // Calcular métricas PRO para o sumário
-            const unitStaff = proData.staff.filter(s => s.unit === unit && s.active !== false);
-            const enrolledStaff = proGroupMembers.filter(m => {
-                const staff = proData.staff.find(s => String(s.id) === String(m.staffId));
-                return staff && staff.unit === unit && !m.leftAt;
-            }).length;
+            // Buscar matrícula ativa (CLT ou Prestador)
+            const membership = proGroupMembers.find(m => String(m.staffId) === staffId && !m.leftAt) || 
+                               proGroupProviderMembers.find(m => String(m.staffId) === staffId && !m.leftAt);
             
-            const pgPercentage = unitStaff.length > 0 ? (enrolledStaff / unitStaff.length) * 100 : 0;
-            const ambassadorPercentage = 0; // Placeholder ou calcular se necessário
+            const sector = proData.sectors.find(s => String(s.id) === String(staff.sectorId || membership?.sectorId));
+            const group = membership ? proData.groups.find(g => String(g.id) === String(membership.groupId)) : null;
 
-            snapshots.push({
+            historyRecords.push({
                 month: selectedCloseMonth,
                 unit,
-                type: 'summary',
-                targetId: 'all',
-                totalStaff: unitStaff.length,
-                totalParticipants: enrolledStaff,
-                percentage: pgPercentage,
-                goal: 80,
-                snapshotData: {
-                    totalColaboradores: unitStaff.length,
-                    setorBreakdown: {}, // Opcional
-                    performanceMetrics: {
-                        pgPercentage,
-                        ambassadorPercentage,
-                        totalBibleStudies: monthStudies.length,
-                        totalBibleClasses: monthClasses.length,
-                        totalSmallGroups: monthGroups.length,
-                        totalStaffVisits: monthVisits.length,
-                        totalUniqueStudents: uniqueStudents.size,
-                        chaplainStats: unitChaplainStats
-                    },
-                    membersList: [] // Opcional
-                }
+                staffId: staff.id,
+                staffName: staff.name,
+                registrationId: staff.registrationId || '',
+                sectorId: staff.sectorId || membership?.sectorId || 'unassigned',
+                sectorName: sector?.name || 'Sem Setor',
+                groupId: membership?.groupId || '',
+                groupName: group?.name || '',
+                leaderName: group?.currentLeader || null,
+                role: membership ? (proGroupMembers.some(m => String(m.staffId) === staffId) ? 'CLT' : 'PRESTADOR') : 'N/A',
+                isEnrolled: !!membership,
+                joinedAt: membership?.joinedAt ? (typeof membership.joinedAt === 'string' ? new Date(membership.joinedAt).getTime() : membership.joinedAt) : null,
+                leftAt: membership?.leftAt ? (typeof membership.leftAt === 'string' ? new Date(membership.leftAt).getTime() : membership.leftAt) : null,
+                createdAt: Date.now()
             });
-        }
+        });
+    }
+
+    // 3.5 GERAR SNAPSHOT DE SUMÁRIO GLOBAL (Para Relatórios Travados)
+    for (const unit of units) {
+        const targetMonth = selectedCloseMonth.substring(0, 7); // YYYY-MM
+        
+        // Filtrar dados da capelania para o mês
+        const monthStudies = chaplaincyData.bibleStudies.filter(s => s.unit === unit && s.date?.startsWith(targetMonth));
+        const monthClasses = chaplaincyData.bibleClasses.filter(c => c.unit === unit && c.date?.startsWith(targetMonth));
+        const monthGroups = chaplaincyData.smallGroups.filter(g => g.unit === unit && g.date?.startsWith(targetMonth));
+        const monthVisits = chaplaincyData.staffVisits.filter(v => v.unit === unit && v.date?.startsWith(targetMonth));
+
+        // Calcular alunos únicos nas classes
+        const uniqueStudents = new Set();
+        monthClasses.forEach(c => {
+            if (Array.isArray(c.students)) {
+                c.students.forEach((s: string) => uniqueStudents.add(s));
+            }
+        });
+
+        // Calcular estatísticas por capelão para este sumário
+        const unitChaplainStats = users.map(user => {
+            const uS = monthStudies.filter(s => s.userId === user.id);
+            const uC = monthClasses.filter(c => c.userId === user.id);
+            const uG = monthGroups.filter(g => g.userId === user.id);
+            const uV = monthVisits.filter(v => v.userId === user.id);
+            
+            const names = new Set<string>();
+            uS.forEach(s => s.name && names.add(s.name.toLowerCase().trim()));
+            uC.forEach(c => c.students?.forEach((n: string) => n && names.add(n.toLowerCase().trim())));
+
+            return {
+                userId: user.id,
+                userName: user.name,
+                studies: uS.length,
+                classes: uC.length,
+                groups: uG.length,
+                visits: uV.length,
+                students: names.size,
+                total: uS.length + uC.length + uG.length + uV.length
+            };
+        }).filter(s => s.total > 0 || s.students > 0);
+
+        // Calcular métricas PRO para o sumário baseadas no snapshot que acabamos de criar
+        const unitHistory = historyRecords.filter(r => r.unit === unit);
+        const enrolledStaffCount = unitHistory.filter(r => r.isEnrolled).length;
+        const totalStaffCount = unitHistory.length;
+        
+        const pgPercentage = totalStaffCount > 0 ? (enrolledStaffCount / totalStaffCount) * 100 : 0;
+        const activeGroupsCount = new Set(unitHistory.filter(r => r.isEnrolled).map(r => r.groupId)).size;
+
+        snapshots.push({
+            month: selectedCloseMonth,
+            unit,
+            type: 'pg',
+            targetId: 'all',
+            totalStaff: totalStaffCount,
+            totalParticipants: enrolledStaffCount,
+            activeGroups: activeGroupsCount,
+            percentage: pgPercentage,
+            goal: 80,
+            snapshotData: {
+                totalColaboradores: totalStaffCount,
+                performanceMetrics: {
+                    pgPercentage,
+                    totalBibleStudies: monthStudies.length,
+                    totalBibleClasses: monthClasses.length,
+                    totalSmallGroups: monthGroups.length,
+                    totalStaffVisits: monthVisits.length,
+                    totalUniqueStudents: uniqueStudents.size,
+                    chaplainStats: unitChaplainStats
+                }
+            }
+        });
+    }
 
         // 4. SALVAR TUDO
-        console.log(`[ADMIN FECHAMENTO] Preparando para salvar ${historyRecords.length} registros de histórico e ${snapshots.length} snapshots.`);
-        
         if (historyRecords.length > 0) {
-            console.log(`[ADMIN FECHAMENTO] Exemplo de payload de histórico:`, JSON.stringify(historyRecords[0]));
-            const saveHistoryResult = await saveRecord('proHistoryRecords', historyRecords);
-            console.log(`[ADMIN FECHAMENTO] Resultado do salvamento do histórico: ${saveHistoryResult}`);
+            await saveRecord('proHistoryRecords', historyRecords);
         }
         
-        const saveStatsResult = await saveRecord('proMonthlyStats', snapshots);
-        console.log(`[ADMIN FECHAMENTO] Resultado do salvamento das estatísticas: ${saveStatsResult}`);
+        await saveRecord('proMonthlyStats', snapshots);
 
-        setSyncState({ isOpen: true, status: 'success', title: 'Mês Atualizado', message: `Sucesso! ${snapshots.length} estatísticas e ${historyRecords.length} registros de histórico gravados para ${formatMonthLabel(selectedCloseMonth)} (HAB + HABA). Os dados foram recarregados.` });
-        
-        console.log(`[ADMIN FECHAMENTO] Forçando recarregamento dos dados do banco...`);
+        setSyncState({ isOpen: true, status: 'success', title: 'Mês Atualizado', message: `Sucesso! ${snapshots.length} estatísticas e ${historyRecords.length} registros de histórico gravados para ${formatMonthLabel(selectedCloseMonth)} (HAB + HABA).` });
         await onRefreshData();
-        console.log(`[ADMIN FECHAMENTO] Recarregamento concluído.`);
     } catch (e: any) {
-        console.error('[ADMIN FECHAMENTO] Erro crítico:', e);
         setSyncState({ isOpen: true, status: 'error', title: 'Erro no Processo', message: "Falha ao gravar dados globais.", error: e.message });
     }
   };
