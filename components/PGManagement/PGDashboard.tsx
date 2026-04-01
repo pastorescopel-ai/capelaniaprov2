@@ -11,9 +11,11 @@ import StatusModal from './StatusModal';
 
 interface PGDashboardProps {
   unit: Unit;
+  selectedMonth: string;
+  setSelectedMonth: (month: string) => void;
 }
 
-const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
+const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit, selectedMonth, setSelectedMonth }) => {
   const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, proMonthlyStats, proHistoryRecords } = usePro();
   const { config, saveRecord, deleteRecord, deleteRecordsByFilter, refreshData } = useApp();
   const { currentUser } = useAuth();
@@ -29,21 +31,9 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
   const isAdmin = currentUser?.role === 'admin';
   
-  // Estado para o mês de competência selecionado
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    return config.activeCompetenceMonth || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-  });
-
   const isMonthClosed = useMemo(() => {
     return config.activeCompetenceMonth ? selectedMonth < config.activeCompetenceMonth : false;
   }, [selectedMonth, config.activeCompetenceMonth]);
-
-  // Sincronizar selectedMonth com config.activeCompetenceMonth se mudar externamente
-  useEffect(() => {
-    if (config.activeCompetenceMonth) {
-      setSelectedMonth(config.activeCompetenceMonth);
-    }
-  }, [config.activeCompetenceMonth]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -604,24 +594,14 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
         </div>
       )}
 
-      {/* Filtro de Competência */}
+      {/* Filtro de Competência - Removido pois agora está no Layout Global */}
       <div className="flex justify-center md:justify-end">
         <div className="bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-2">
-          <i className="fas fa-calendar-alt text-slate-400 ml-3 text-xs"></i>
-          <select 
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="bg-transparent border-none font-black text-[10px] uppercase tracking-widest text-slate-600 focus:ring-0 cursor-pointer pr-8"
-          >
-            {monthOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
           {isAdmin && (
             <div className="flex items-center gap-2">
-              {metrics.displaySectors[0]?.isSnapshot ? (
+              {isMonthClosed ? (
                 <button 
-                  onClick={handleReopenMonth}
+                  onClick={() => setIsReopenModalOpen(true)}
                   disabled={isClosing}
                   className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center gap-2"
                 >

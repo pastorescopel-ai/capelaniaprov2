@@ -9,9 +9,11 @@ import { usePGMembership } from '../../hooks/usePGMembership';
 
 interface PGMembershipProps {
   unit: Unit;
+  selectedMonth: string;
+  setSelectedMonth: (month: string) => void;
 }
 
-const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
+const PGMembership: React.FC<PGMembershipProps> = memo(({ unit, selectedMonth, setSelectedMonth }) => {
   const {
     activeTab, setActiveTab,
     selectedSectorName, setSelectedSectorName,
@@ -27,10 +29,9 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
     isNewProvider,
     handleEnroll, handleCreateAndEnrollProvider, confirmRemoval, handleSetLeader,
     handleBulkUpdateCycleMonth,
-    selectedMonth, setSelectedMonth,
     isMonthClosed, isFutureMonth, isOpenMonth,
     proSectors, proGroups
-  } = usePGMembership({ unit });
+  } = usePGMembership({ unit, selectedMonth, setSelectedMonth });
 
   const [isPending, startTransition] = useTransition();
 
@@ -69,45 +70,17 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
       
       {/* Seletor de Ciclo de Competência - Design Azul Elétrico */}
       <div className="relative bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-        {isMonthClosed && (
-          <div className="absolute top-0 right-0 left-0 bg-amber-500/10 border-b border-amber-500/20 py-2 px-8 flex items-center gap-2 z-20">
-            <i className="fas fa-lock text-amber-600 text-[10px]"></i>
-            <span className="text-[9px] font-black uppercase tracking-widest text-amber-700">
-              Mês Fechado: Somente Leitura. Não é possível realizar novas matrículas ou alterações.
-            </span>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 border border-slate-100">
+            <i className="fas fa-user-plus text-xl"></i>
           </div>
-        )}
-        
-        <div className={`flex flex-col md:flex-row items-center justify-between gap-4 ${isMonthClosed ? 'mt-6' : ''}`}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-              <i className="fas fa-calendar-alt"></i>
-            </div>
-            <div>
-              <h2 className="text-sm font-black text-slate-800 uppercase tracking-tighter">Ciclo de Competência</h2>
-              <p className="text-[10px] text-slate-400 font-bold uppercase">
-                {isMonthClosed ? 'Mês Fechado (Somente Leitura)' : isFutureMonth ? 'Mês Bloqueado (Aguardando Fechamento)' : 'Mês Aberto para Lançamentos'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 bg-blue-600 px-6 py-3 rounded-2xl shadow-lg shadow-blue-500/40 border border-blue-400/30 transition-all hover:shadow-blue-500/60">
-            <button 
-              onClick={handlePrevMonth} 
-              className="text-lg hover:scale-125 active:scale-90 transition-transform filter drop-shadow-sm"
-            >
-              ⬅️
-            </button>
-            <span className="text-xs font-black text-white uppercase tracking-tighter min-w-[140px] text-center drop-shadow-md">
-              {formatMonthLabel(selectedMonth)}
-            </span>
-            <button 
-              onClick={handleNextMonth} 
-              disabled={isOpenMonth}
-              className={`text-lg transition-transform filter drop-shadow-sm ${isOpenMonth ? 'opacity-20 cursor-not-allowed' : 'hover:scale-125 active:scale-90'}`}
-            >
-              ➡️
-            </button>
+          <div>
+            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter leading-none">
+              Gestão de Matrícula
+            </h2>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">
+              Alocação de Colaboradores em PGs
+            </p>
           </div>
         </div>
       </div>

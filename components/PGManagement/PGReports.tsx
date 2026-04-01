@@ -10,9 +10,11 @@ import { getBrandedHeaderByProfile, getBrandedFooter } from '../../utils/reportT
 
 interface PGReportsProps {
   unit: Unit;
+  selectedMonth: string;
+  setSelectedMonth: (month: string) => void;
 }
 
-const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
+const PGReports: React.FC<PGReportsProps> = memo(({ unit, selectedMonth, setSelectedMonth }) => {
   const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, proHistoryRecords } = usePro();
   const { config } = useApp();
   const { generatePdf, generateZipOfPdfs, isGenerating, progress } = useDocumentGenerator();
@@ -20,9 +22,20 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
   // Filtros
   const [selectedTarget, setSelectedTarget] = useState<{type: 'sector' | 'pg' | 'leader', id: string, label: string} | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(selectedMonth);
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date(selectedMonth + 'T12:00:00');
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
   const [filterCritical, setFilterCritical] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStartDate(selectedMonth);
+    const d = new Date(selectedMonth + 'T12:00:00');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEndDate(new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]);
+  }, [selectedMonth]);
 
   const searchOptions = useMemo(() => {
     const options: {type: 'sector' | 'pg' | 'leader', id: string, label: string}[] = [];

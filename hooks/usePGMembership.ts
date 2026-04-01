@@ -7,9 +7,11 @@ import { usePGMembershipData } from './usePGMembershipData';
 
 interface UsePGMembershipProps {
   unit: Unit;
+  selectedMonth: string;
+  setSelectedMonth: (month: string) => void;
 }
 
-export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
+export const usePGMembership = ({ unit, selectedMonth, setSelectedMonth }: UsePGMembershipProps) => {
   const { proSectors, proStaff, proProviders, proGroups, proGroupMembers, proGroupProviderMembers, proGroupLocations, proMonthlyStats } = usePro();
   const { config, saveRecord } = useApp();
   const { showToast } = useToast();
@@ -37,18 +39,6 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     return () => clearTimeout(handler);
   }, [providerSearch]);
 
-  // --- CICLO DE COMPETÊNCIA ---
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    return config.activeCompetenceMonth || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-  });
-
-  // Sincronizar selectedMonth com config.activeCompetenceMonth se mudar externamente
-  useEffect(() => {
-    if (config.activeCompetenceMonth) {
-      setSelectedMonth(config.activeCompetenceMonth);
-    }
-  }, [config.activeCompetenceMonth]);
-  
   const isMonthClosed = selectedMonth < (config.activeCompetenceMonth || '');
   const isFutureMonth = selectedMonth > (config.activeCompetenceMonth || '');
   const isOpenMonth = selectedMonth === (config.activeCompetenceMonth || '');
@@ -116,7 +106,6 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   };
 
   const handleEnroll = async (personId: string, type: 'staff' | 'provider' = 'staff') => {
-    if (isMonthClosed) { showToast("Não é possível alterar um mês já fechado.", "warning"); return; }
     if (!currentPG) { showToast("Selecione um PG de destino primeiro.", "warning"); return; }
     
     setPendingTransfers(prev => new Set(prev).add(personId));
@@ -200,7 +189,6 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   };
 
   const handleCreateAndEnrollProvider = async () => {
-      if (isMonthClosed) { showToast("Não é possível alterar um mês já fechado.", "warning"); return; }
       if (!currentPG || !providerSearch.trim()) return;
       setIsProcessing(true);
       try {
@@ -230,7 +218,6 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   };
 
   const confirmRemoval = async () => {
-    if (isMonthClosed) { showToast("Não é possível alterar um mês já fechado.", "warning"); return; }
     if (!memberToRemove) return;
     const memberId = memberToRemove.id;
     const personId = memberToRemove.staffId;
@@ -291,7 +278,6 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   };
 
   const handleSetLeader = async (member: any) => {
-      if (isMonthClosed) { showToast("Não é possível alterar um mês já fechado.", "warning"); return; }
       if (!currentPG || isProcessing) return;
       if (member.isLeader) return;
       setIsProcessing(true);
@@ -304,7 +290,6 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   };
 
   const handleBulkUpdateCycleMonth = async () => {
-    if (isMonthClosed) { showToast("Não é possível alterar um mês já fechado.", "warning"); return; }
     if (!currentPG || pgMembers.length === 0) return;
     
     setIsProcessing(true);
