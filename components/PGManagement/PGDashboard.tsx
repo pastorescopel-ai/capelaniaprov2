@@ -34,6 +34,10 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     return config.activeCompetenceMonth || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   });
 
+  const isMonthClosed = useMemo(() => {
+    return config.activeCompetenceMonth ? selectedMonth < config.activeCompetenceMonth : false;
+  }, [selectedMonth, config.activeCompetenceMonth]);
+
   // Sincronizar selectedMonth com config.activeCompetenceMonth se mudar externamente
   useEffect(() => {
     if (config.activeCompetenceMonth) {
@@ -643,7 +647,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-2 h-full bg-[#005a9c]"></div>
         
-        {metrics.displaySectors[0]?.isSnapshot && (
+        {isMonthClosed && (
           <div className="absolute top-0 right-0 left-0 bg-amber-500/10 border-b border-amber-500/20 py-2 px-8 flex items-center gap-2 z-20">
             <i className="fas fa-lock text-amber-600 text-[10px]"></i>
             <span className="text-[9px] font-black uppercase tracking-widest text-amber-700">
@@ -652,7 +656,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
           </div>
         )}
         
-        <div className={`space-y-2 z-10 ${metrics.displaySectors[0]?.isSnapshot ? 'mt-6' : ''}`}>
+        <div className={`space-y-2 z-10 ${isMonthClosed ? 'mt-6' : ''}`}>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Cobertura de Discipulado ({unit})</h2>
           </div>
