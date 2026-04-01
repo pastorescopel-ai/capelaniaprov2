@@ -16,21 +16,35 @@ interface CoreModuleProps {
   onUpdateUsers?: (users: any[]) => void;
 }
 
+const ProfileWrapper: React.FC<{ 
+  currentUser: any; 
+  isLoading: boolean; 
+  onUpdateUser?: (user: any) => void;
+}> = ({ currentUser, isLoading, onUpdateUser }) => {
+  const { saveUser } = useCore(currentUser);
+  
+  return (
+    <Profile 
+      user={currentUser} 
+      isSyncing={isLoading} 
+      onUpdateUser={(u) => {
+        if (onUpdateUser) onUpdateUser(u);
+        saveUser(u);
+      }} 
+    />
+  );
+};
+
 const CoreModule: React.FC<CoreModuleProps> = ({
   type, currentUser, users, isLoading, onUpdateUser, onUpdateUsers
 }) => {
-  const { saveUser } = useCore(currentUser);
-
   return (
     <Suspense fallback={<div className="p-8 animate-pulse bg-slate-100 rounded-3xl h-64" />}>
       {type === 'profile' && (
-        <Profile 
-          user={currentUser} 
-          isSyncing={isLoading} 
-          onUpdateUser={u => {
-            if (onUpdateUser) onUpdateUser(u);
-            saveUser(u);
-          }} 
+        <ProfileWrapper 
+          currentUser={currentUser} 
+          isLoading={isLoading} 
+          onUpdateUser={onUpdateUser} 
         />
       )}
       {type === 'users' && (

@@ -120,17 +120,29 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
     }
 
     // 1. Filtrar setores e staff da unidade (Dados em Tempo Real)
-    const activeStaffMemberships = proGroupMembers.filter(m => 
-        !m.isError &&
-        (m.cycleMonth ? m.cycleMonth <= endDate : (m.joinedAt || 0) <= endTimestamp) &&
-        (!m.leftAt || m.leftAt >= startTimestamp)
-    );
+    const activeStaffMemberships = proGroupMembers.filter(m => {
+        if (m.isError) return false;
+        
+        // Se tem ciclo, deve estar dentro do período (ou ser o ciclo exato se for mês cheio)
+        if (m.cycleMonth) {
+            return m.cycleMonth >= startDate && m.cycleMonth <= endDate;
+        }
+        
+        // Se não tem ciclo, usamos datas
+        const joined = m.joinedAt || m.createdAt || 0;
+        const left = m.leftAt || Infinity;
+        return joined <= endTimestamp && left >= startTimestamp;
+    });
 
-    const activeProviderMemberships = proGroupProviderMembers.filter(m => 
-        !m.isError &&
-        (m.cycleMonth ? m.cycleMonth <= endDate : (m.joinedAt || 0) <= endTimestamp) &&
-        (!m.leftAt || m.leftAt >= startTimestamp)
-    );
+    const activeProviderMemberships = proGroupProviderMembers.filter(m => {
+        if (m.isError) return false;
+        if (m.cycleMonth) {
+            return m.cycleMonth >= startDate && m.cycleMonth <= endDate;
+        }
+        const joined = m.joinedAt || m.createdAt || 0;
+        const left = m.leftAt || Infinity;
+        return joined <= endTimestamp && left >= startTimestamp;
+    });
 
     // Otimização: Dicionários para buscas O(1)
     const activeStaffMembershipsByStaffId = new Map<string, any>();
@@ -141,7 +153,13 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
 
     const staffBySector = new Map<string, any[]>();
     proStaff.forEach(s => {
-      if (s.active !== false || (s.leftAt && s.leftAt >= startTimestamp)) {
+      if (s.unit !== unit) return false;
+      
+      const joined = s.joinedAt || s.createdAt || 0;
+      const left = s.leftAt || Infinity;
+      
+      const wasActive = joined <= endTimestamp && left >= startTimestamp;
+      if (wasActive && (s.active !== false || (s.leftAt && s.leftAt >= startTimestamp))) {
         const sId = cleanID(s.sectorId);
         if (!staffBySector.has(sId)) staffBySector.set(sId, []);
         staffBySector.get(sId)?.push(s);

@@ -1,5 +1,5 @@
 
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Unit, ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProProvider, ProGroupLocation } from '../types';
 import { normalizeString, tokenMatch } from '../utils/formatters';
 
@@ -48,6 +48,35 @@ export const usePGMembershipData = ({
   const groupMap = useMemo(() => new Map(proGroups.map(g => [g.id, g])), [proGroups]);
   const sectorMap = useMemo(() => new Map(proSectors.map(s => [s.id, s])), [proSectors]);
 
+  // Limites temporais do mês selecionado para filtragem estrita
+  const monthBoundaries = useMemo(() => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const start = new Date(year, month - 1, 1, 0, 0, 0).getTime();
+    const end = new Date(year, month, 0, 23, 59, 59).getTime();
+    return { start, end };
+  }, [selectedMonth]);
+
+  // Função auxiliar para verificar se um registro de matrícula era ativo no mês selecionado
+  const isActiveInMonth = useCallback((m: any) => {
+    // 1. Se o registro tem um ciclo específico, ele é o critério principal
+    if (m.cycleMonth) {
+      return m.cycleMonth === selectedMonth;
+    }
+
+    // 2. Se o mês está fechado e não tem o ciclo correto, não está ativo
+    if (isMonthClosed) return false;
+    
+    // 3. Se o mês está aberto, usamos as datas de entrada/saída (fallback)
+    const joined = m.joinedAt || m.createdAt || 0;
+    const left = m.leftAt || Infinity;
+    
+    // Se não tem nenhuma data de início, não podemos validar retroativamente
+    // mas para meses abertos, assumimos que se não saiu, está ativo
+    if (!joined && !m.leftAt) return true;
+
+    return joined <= monthBoundaries.end && left >= monthBoundaries.start;
+  }, [isMonthClosed, selectedMonth, monthBoundaries]);
+
   const currentSector = useMemo(() => 
     proSectors.find(s => s.name === selectedSectorName && s.unit === unit && s.active !== false), 
     [proSectors, selectedSectorName, unit]
@@ -67,7 +96,7 @@ export const usePGMembershipData = ({
     
     const activeProviderMembershipsMap = new Map();
     proGroupProviderMembers.forEach(m => {
-        if ((isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && !pendingRemovals.has(m.id)) {
+        if (isActiveInMonth(m) && !pendingRemovals.has(m.id)) {
             activeProviderMembershipsMap.set(cleanId(m.providerId), m);
         }
     });
@@ -75,7 +104,7 @@ export const usePGMembershipData = ({
     const currentPGProviderIds = new Set();
     if (currentPG) {
         proGroupProviderMembers.forEach(m => {
-            if (m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id)) {
+            if (m.groupId === currentPG.id && isActiveInMonth(m) && !pendingRemovals.has(m.id)) {
                 currentPGProviderIds.add(cleanId(m.providerId));
             }
         });
@@ -97,7 +126,7 @@ export const usePGMembershipData = ({
         return String(a.name || "").localeCompare(String(b.name || ""));
     });
     return result;
-  }, [proProviders, unit, providerSearch, proGroupProviderMembers, groupMap, currentPG, pendingRemovals, pendingTransfers, isMonthClosed, selectedMonth]);
+  }, [proProviders, unit, providerSearch, proGroupProviderMembers, groupMap, currentPG, pendingRemovals, pendingTransfers, isMonthClosed, selectedMonth, isActiveInMonth]);
 
   const coverageGaps = useMemo(() => {
     const sectors = proSectors.filter(s => s.unit === unit && s.active !== false);
@@ -105,7 +134,7 @@ export const usePGMembershipData = ({
 
     const enrolledStaffIds = new Set();
     proGroupMembers.forEach(m => {
-        if (!m.leftAt) enrolledStaffIds.add(cleanId(m.staffId));
+        if (isActiveInMonth(m)) enrolledStaffIds.add(cleanId(m.staffId));
     });
 
     const staffBySector = new Map<string, any[]>();
@@ -135,12 +164,12 @@ export const usePGMembershipData = ({
       };
     }).filter(item => item !== null).sort((a, b) => a!.percentage - b!.percentage);
     return result;
-  }, [proSectors, proStaff, proGroupMembers, unit]);
+  }, [proSectors, proStaff, proGroupMembers, unit, isActiveInMonth]);
 
   const emptyPGs = useMemo(() => {
     const activeGroupIds = new Set();
     proGroupMembers.forEach(m => {
-        if (!m.leftAt) activeGroupIds.add(m.groupId);
+        if (isActiveInMonth(m)) activeGroupIds.add(m.groupId);
     });
 
     const result = proGroups
@@ -148,7 +177,7 @@ export const usePGMembershipData = ({
       .filter(g => !activeGroupIds.has(g.id))
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
     return result;
-  }, [proGroups, proGroupMembers, unit]);
+  }, [proGroups, proGroupMembers, unit, isActiveInMonth]);
 
   const availableStaff = useMemo(() => {
     let filtered = proStaff.filter(s => s.unit === unit && s.active !== false);
@@ -169,7 +198,7 @@ export const usePGMembershipData = ({
     // Mapa de membros ativos para busca rápida
     const activeMembersMap = new Map();
     proGroupMembers.forEach(m => {
-        if ((isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && !pendingRemovals.has(m.id)) {
+        if (isActiveInMonth(m) && !pendingRemovals.has(m.id)) {
             activeMembersMap.set(cleanId(m.staffId), m);
         }
     });
@@ -177,7 +206,7 @@ export const usePGMembershipData = ({
     const currentPGStaffIds = new Set();
     if (currentPG) {
         proGroupMembers.forEach(m => {
-            if (m.groupId === currentPG.id && !m.leftAt && !pendingRemovals.has(m.id)) {
+            if (m.groupId === currentPG.id && isActiveInMonth(m) && !pendingRemovals.has(m.id)) {
                 currentPGStaffIds.add(cleanId(m.staffId));
             }
         });
@@ -205,7 +234,7 @@ export const usePGMembershipData = ({
         return String(a.name || "").localeCompare(String(b.name || ""));
       });
     return result;
-  }, [proStaff, currentSector, staffSearch, proGroupMembers, groupMap, currentPG, pendingTransfers, pendingRemovals, unit, sectorMap, isMonthClosed, selectedMonth]);
+  }, [proStaff, currentSector, staffSearch, proGroupMembers, groupMap, currentPG, pendingTransfers, pendingRemovals, unit, sectorMap, isMonthClosed, selectedMonth, isActiveInMonth]);
 
   const pgMembers = useMemo(() => {
     if (!currentPG) {
@@ -215,7 +244,7 @@ export const usePGMembershipData = ({
     // Filtra membros ativos para o PG atual
     const staffMembers = proGroupMembers.filter(m => 
         m.groupId === currentPG.id && 
-        (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && 
+        isActiveInMonth(m) && 
         !pendingRemovals.has(m.id)
     );
 
@@ -237,7 +266,7 @@ export const usePGMembershipData = ({
 
     const providerMembers = proGroupProviderMembers.filter(m => 
         m.groupId === currentPG.id && 
-        (isMonthClosed ? m.cycleMonth === selectedMonth : !m.leftAt) && 
+        isActiveInMonth(m) && 
         !pendingRemovals.has(m.id)
     );
 
@@ -282,7 +311,7 @@ export const usePGMembershipData = ({
         return String(a.staffName || "").localeCompare(String(b.staffName || ""));
     });
     return result;
-  }, [proGroupMembers, proGroupProviderMembers, currentPG, staffMap, providerMap, pendingTransfers, pendingRemovals, sectorMap, isMonthClosed, selectedMonth]);
+  }, [proGroupMembers, proGroupProviderMembers, currentPG, staffMap, providerMap, pendingTransfers, pendingRemovals, sectorMap, isMonthClosed, selectedMonth, isActiveInMonth]);
 
   return {
     currentSector,

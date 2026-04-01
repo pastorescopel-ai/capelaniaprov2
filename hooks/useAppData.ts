@@ -194,7 +194,7 @@ export const useAppData = () => {
   }, []);
 
   const refreshData = useCallback(async () => {
-    setIsLoading(true);
+    setIsSyncing(true);
     try {
       const data = await DataRepository.syncAll();
       setProGroups(data.proGroups);
@@ -204,13 +204,13 @@ export const useAppData = () => {
       setProGroupLocations(data.proGroupLocations);
       setProMonthlyStats(data.proMonthlyStats);
       setProHistoryRecords(data.proHistoryRecords);
-      setAppConfig(data.appConfig);
+      setConfig(data.config);
       return { success: true };
     } catch (err) {
       console.error("Erro ao recarregar dados:", err);
       return { success: false, error: err };
     } finally {
-      setIsLoading(false);
+      setIsSyncing(false);
     }
   }, []);
 

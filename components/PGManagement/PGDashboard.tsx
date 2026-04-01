@@ -54,9 +54,10 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     const nextMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
 
     // 0. Verificar se existem registros de histórico para o mês selecionado
+    // SÓ usamos o histórico se o mês estiver fechado (ou se o usuário explicitamente quiser ver o passado)
     const historyForMonth = proHistoryRecords.filter(r => r.month === selectedMonth && r.unit === unit);
     
-    if (historyForMonth.length > 0) {
+    if (historyForMonth.length > 0 && isClosed) {
       console.log(`[DEBUG] PGDashboard - Usando HISTÓRICO COMPLETO (${historyForMonth.length} registros).`);
       const enrolledCount = historyForMonth.filter(r => r.isEnrolled).length;
       const totalStaff = historyForMonth.length;
@@ -112,7 +113,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     // 0. Verificar se existem snapshots para o mês selecionado (Legado ou Agregado)
     const snapshots = proMonthlyStats.filter(s => s.month === selectedMonth && s.unit === unit);
     
-    if (snapshots.length > 0) {
+    if (snapshots.length > 0 && isClosed) {
       const sectorSnaps = snapshots.filter(s => s.type === 'sector');
       const globalSnap = snapshots.find(s => s.type === 'pg' && s.targetId === 'all');
 
@@ -178,11 +179,29 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     }
 
     // 1. Filtrar setores e staff da unidade
-    const isCurrentMonth = selectedMonth === new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const [selYear, selMonthNum] = selectedMonth.split('-').map(Number);
+    const selMonthStart = new Date(selYear, selMonthNum - 1, 1).getTime();
+    const selMonthEnd = new Date(selYear, selMonthNum, 0, 23, 59, 59).getTime();
     
-    // Pegamos TODOS os colaboradores da unidade para o cálculo global
-    const unitStaff = proStaff.filter(s => s.unit === unit && (isCurrentMonth ? s.active !== false : true));
-    const unitSectors = proSectors.filter(s => s.unit === unit && (isCurrentMonth ? s.active !== false : true));
+    // Pegamos os colaboradores que estavam ativos no mês selecionado
+    const unitStaff = proStaff.filter(s => {
+      if (s.unit !== unit) return false;
+      
+      const joined = s.joinedAt || s.createdAt || 0;
+      const left = s.leftAt || Infinity;
+      
+      // Ativo se entrou antes do fim do mês e não saiu antes do início do mês
+      const wasActive = joined <= selMonthEnd && left >= selMonthStart;
+      
+      // Se o mês selecionado for o mês de competência ativa, usamos o status 'active' como filtro adicional
+      if (selectedMonth === config.activeCompetenceMonth) {
+        return wasActive && s.active !== false;
+      }
+      
+      return wasActive;
+    });
+
+    const unitSectors = proSectors.filter(s => s.unit === unit && s.active !== false);
 
     // Otimização: Dicionários para buscas O(1)
     const validSectorIds = new Set(unitSectors.map(s => cleanID(s.id)));
@@ -409,6 +428,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
           sectorName: sector?.name || 'Sem Setor',
           groupId: groupId || null,
           groupName: group?.name || '',
+          leaderName: group?.currentLeader || group?.leader || null,
           status: groupId ? 'Matriculado' : 'Não Matriculado',
           isEnrolled: !!groupId,
           createdAt: Date.now()
