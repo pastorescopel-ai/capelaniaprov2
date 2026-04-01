@@ -115,17 +115,24 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
       }).filter(d => d.totalStaff > 0);
     }
 
-    if (isClosed) {
-      return [];
-    }
-
     // 1. Filtrar setores e staff da unidade (Dados em Tempo Real)
     const activeStaffMemberships = proGroupMembers.filter(m => {
         if (m.isError) return false;
         
-        // Se tem ciclo, deve estar dentro do período (ou ser o ciclo exato se for mês cheio)
+        // Verificar se o colaborador ainda existe e estava ativo no período selecionado
+        const staff = proStaff.find(s => cleanID(s.id) === cleanID(m.staffId));
+        if (!staff) return false;
+        
+        const sJoined = staff.joinedAt || staff.createdAt || 0;
+        const sLeft = staff.leftAt || Infinity;
+        const sWasActive = sJoined <= endTimestamp && sLeft >= startTimestamp;
+        
+        // Se o colaborador não estava ativo no período, a matrícula não conta
+        if (!sWasActive) return false;
+        
+        // Se tem ciclo, deve ter começado antes ou durante o período e não ter saído antes do início do período
         if (m.cycleMonth) {
-            return m.cycleMonth >= startDate && m.cycleMonth <= endDate;
+            return m.cycleMonth <= endDate && (!m.leftAt || m.leftAt >= startTimestamp);
         }
         
         // Se não tem ciclo, usamos datas
@@ -136,8 +143,13 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
 
     const activeProviderMemberships = proGroupProviderMembers.filter(m => {
         if (m.isError) return false;
+        
+        // Verificar se o prestador ainda existe e estava ativo no período selecionado
+        const provider = proProviders.find(p => cleanID(p.id) === cleanID(m.providerId));
+        if (!provider) return false;
+        
         if (m.cycleMonth) {
-            return m.cycleMonth >= startDate && m.cycleMonth <= endDate;
+            return m.cycleMonth <= endDate && (!m.leftAt || m.leftAt >= startTimestamp);
         }
         const joined = m.joinedAt || m.createdAt || 0;
         const left = m.leftAt || Infinity;
@@ -248,7 +260,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
         const pgs = Array.from(allGroupIdsInSector).map(gid => groupsById.get(gid)).filter(g => !!g);
         const coverage = staff.length > 0 ? (enrolledStaff.length / staff.length) * 100 : 0;
 
-        return { sector, totalStaff: staff.length, enrolledCount: enrolledStaff.length, coverage, pgs, notEnrolledList: notEnrolled, enrolledList: enrolledStaff, enrolledByPG };
+        return { sector, totalStaff: staff.length, enrolledCount: enrolledStaff.length, coverage, pgs, notEnrolledList: notEnrolled, enrolledList: enrolledStaff, enrolledByPG, isSnapshot: false };
     });
 
     const normSearch = normalizeString(searchTerm);
@@ -281,8 +293,11 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
           ${getBrandedHeaderByProfile(config, 'smallGroups', reportHeaderInfo.periodLabel)}
           
           <div style="padding: 0 15mm 15mm 15mm; flex: 1;">
-            <div style="background: #f8fafc; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-radius: 0 15px 15px 0; border-left: 10px solid ${config.primaryColor};">
-                <span style="font-size: 24px; font-weight: 900; text-transform: uppercase;">${data.sector.name}</span>
+            <div style="background: #f8fafc; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-radius: 0 15px 15px 0; border-left: 10px solid ${config.primaryColor}; position: relative;">
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 24px; font-weight: 900; text-transform: uppercase;">${data.sector.name}</span>
+                    ${data.isSnapshot ? '<span style="font-size: 8px; font-weight: 900; color: #f59e0b; text-transform: uppercase; margin-top: 4px;"><i class="fas fa-lock"></i> Snapshot Histórico (Fiel ao Fechamento)</span>' : ''}
+                </div>
                 <span style="font-size: 16px; font-weight: bold; padding: 8px 20px; border-radius: 12px; color: white; background: ${data.coverage >= 80 ? '#10b981' : data.coverage >= 50 ? '#f59e0b' : '#f43f5e'};">
                     ${Math.round(data.coverage)}% Cobertura
                 </span>

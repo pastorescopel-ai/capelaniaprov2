@@ -13,7 +13,7 @@ const AdminPanel: React.FC = () => {
   const { 
     config, 
     bibleStudies, bibleClasses, smallGroups, staffVisits, users,
-    proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, proMonthlyStats, proHistoryRecords, ambassadors,
+    proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, proMonthlyStats, proHistoryRecords, ambassadors, proProviders,
     editAuthorizations,
     saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, saveRecord, deleteRecord, deleteRecordsByFilter
   } = useApp();

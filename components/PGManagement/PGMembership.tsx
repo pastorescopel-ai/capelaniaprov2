@@ -68,36 +68,47 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
     <div className={`space-y-8 animate-in slide-in-from-right duration-500 transition-opacity duration-200 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
       
       {/* Seletor de Ciclo de Competência - Design Azul Elétrico */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-            <i className="fas fa-calendar-alt"></i>
+      <div className="relative bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+        {isMonthClosed && (
+          <div className="absolute top-0 right-0 left-0 bg-amber-500/10 border-b border-amber-500/20 py-2 px-8 flex items-center gap-2 z-20">
+            <i className="fas fa-lock text-amber-600 text-[10px]"></i>
+            <span className="text-[9px] font-black uppercase tracking-widest text-amber-700">
+              Mês Fechado: Somente Leitura. Não é possível realizar novas matrículas ou alterações.
+            </span>
           </div>
-          <div>
-            <h2 className="text-sm font-black text-slate-800 uppercase tracking-tighter">Ciclo de Competência</h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase">
-              {isMonthClosed ? 'Mês Fechado (Somente Leitura)' : isFutureMonth ? 'Mês Bloqueado (Aguardando Fechamento)' : 'Mês Aberto para Lançamentos'}
-            </p>
+        )}
+        
+        <div className={`flex flex-col md:flex-row items-center justify-between gap-4 ${isMonthClosed ? 'mt-6' : ''}`}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+              <i className="fas fa-calendar-alt"></i>
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-slate-800 uppercase tracking-tighter">Ciclo de Competência</h2>
+              <p className="text-[10px] text-slate-400 font-bold uppercase">
+                {isMonthClosed ? 'Mês Fechado (Somente Leitura)' : isFutureMonth ? 'Mês Bloqueado (Aguardando Fechamento)' : 'Mês Aberto para Lançamentos'}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-3 bg-blue-600 px-6 py-3 rounded-2xl shadow-lg shadow-blue-500/40 border border-blue-400/30 transition-all hover:shadow-blue-500/60">
-          <button 
-            onClick={handlePrevMonth} 
-            className="text-lg hover:scale-125 active:scale-90 transition-transform filter drop-shadow-sm"
-          >
-            ⬅️
-          </button>
-          <span className="text-xs font-black text-white uppercase tracking-tighter min-w-[140px] text-center drop-shadow-md">
-            {formatMonthLabel(selectedMonth)}
-          </span>
-          <button 
-            onClick={handleNextMonth} 
-            disabled={isOpenMonth}
-            className={`text-lg transition-transform filter drop-shadow-sm ${isOpenMonth ? 'opacity-20 cursor-not-allowed' : 'hover:scale-125 active:scale-90'}`}
-          >
-            ➡️
-          </button>
+          <div className="flex items-center gap-3 bg-blue-600 px-6 py-3 rounded-2xl shadow-lg shadow-blue-500/40 border border-blue-400/30 transition-all hover:shadow-blue-500/60">
+            <button 
+              onClick={handlePrevMonth} 
+              className="text-lg hover:scale-125 active:scale-90 transition-transform filter drop-shadow-sm"
+            >
+              ⬅️
+            </button>
+            <span className="text-xs font-black text-white uppercase tracking-tighter min-w-[140px] text-center drop-shadow-md">
+              {formatMonthLabel(selectedMonth)}
+            </span>
+            <button 
+              onClick={handleNextMonth} 
+              disabled={isOpenMonth}
+              className={`text-lg transition-transform filter drop-shadow-sm ${isOpenMonth ? 'opacity-20 cursor-not-allowed' : 'hover:scale-125 active:scale-90'}`}
+            >
+              ➡️
+            </button>
+          </div>
         </div>
       </div>
       
@@ -224,7 +235,13 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
                             </p>
                           </div>
                         </div>
-                        <button onClick={() => handleEnroll(staff.id, 'staff')} disabled={!currentPG || isProcessing} className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${staff.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}><i className={`fas ${staff.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i></button>
+                        <button 
+                          onClick={() => handleEnroll(staff.id, 'staff')} 
+                          disabled={!currentPG || isProcessing || isMonthClosed} 
+                          className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${staff.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'} ${isMonthClosed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <i className={`fas ${staff.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i>
+                        </button>
                       </div>
                     ))}
                 </>
@@ -261,7 +278,13 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
                               ) : 'Não Matriculado'}
                           </p>
                         </div>
-                        <button onClick={() => handleEnroll(provider.id, 'provider')} disabled={!currentPG || isProcessing} className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${provider.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}><i className={`fas ${provider.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i></button>
+                        <button 
+                          onClick={() => handleEnroll(provider.id, 'provider')} 
+                          disabled={!currentPG || isProcessing || isMonthClosed} 
+                          className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${provider.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'} ${isMonthClosed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <i className={`fas ${provider.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i>
+                        </button>
                       </div>
                     ))}
                 </>
@@ -278,7 +301,7 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
               <p className="text-[10px] text-emerald-700/60 font-bold uppercase mt-1">{currentPG ? `${pgMembers.length} Matriculados` : 'Selecione um PG'}</p>
             </div>
             
-            {currentPG && pgMembers.length > 0 && (
+            {currentPG && pgMembers.length > 0 && !isMonthClosed && (
               <button 
                 onClick={() => setIsCycleModalOpen(true)}
                 disabled={isProcessing}
@@ -312,7 +335,7 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
                         </div>
                     </div>
                 </div>
-                {!member.isOptimistic && (
+                {!member.isOptimistic && !isMonthClosed && (
                     <div className="flex gap-1 flex-shrink-0 ml-2">
                         <button onClick={() => handleSetLeader(member)} disabled={isProcessing || member.isLeader} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${member.isLeader ? 'bg-amber-100 text-amber-500 cursor-default' : 'bg-slate-50 text-slate-300 hover:text-amber-400 hover:bg-amber-50'}`}><i className="fas fa-crown text-[10px]"></i></button>
                         <button onClick={() => setMemberToRemove({ id: member.id, name: member.staffName, staffId: member.staffId })} disabled={isProcessing} className="w-7 h-7 rounded-lg bg-rose-50 text-rose-300 hover:text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-all"><i className="fas fa-trash text-[10px]"></i></button>

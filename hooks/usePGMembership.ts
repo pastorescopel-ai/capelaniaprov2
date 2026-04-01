@@ -116,6 +116,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   };
 
   const handleEnroll = async (personId: string, type: 'staff' | 'provider' = 'staff') => {
+    if (isMonthClosed) { showToast("Não é possível alterar um mês já fechado.", "warning"); return; }
     if (!currentPG) { showToast("Selecione um PG de destino primeiro.", "warning"); return; }
     
     setPendingTransfers(prev => new Set(prev).add(personId));
@@ -199,6 +200,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   };
 
   const handleCreateAndEnrollProvider = async () => {
+      if (isMonthClosed) { showToast("Não é possível alterar um mês já fechado.", "warning"); return; }
       if (!currentPG || !providerSearch.trim()) return;
       setIsProcessing(true);
       try {
@@ -228,6 +230,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   };
 
   const confirmRemoval = async () => {
+    if (isMonthClosed) { showToast("Não é possível alterar um mês já fechado.", "warning"); return; }
     if (!memberToRemove) return;
     const memberId = memberToRemove.id;
     const personId = memberToRemove.staffId;
@@ -288,6 +291,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   };
 
   const handleSetLeader = async (member: any) => {
+      if (isMonthClosed) { showToast("Não é possível alterar um mês já fechado.", "warning"); return; }
       if (!currentPG || isProcessing) return;
       if (member.isLeader) return;
       setIsProcessing(true);
@@ -300,6 +304,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   };
 
   const handleBulkUpdateCycleMonth = async () => {
+    if (isMonthClosed) { showToast("Não é possível alterar um mês já fechado.", "warning"); return; }
     if (!currentPG || pgMembers.length === 0) return;
     
     setIsProcessing(true);

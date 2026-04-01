@@ -168,16 +168,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     }
 
     console.log("[DEBUG] PGDashboard - Usando dados OPERACIONAIS (Tempo Real).");
-    if (isClosed) {
-      return {
-        globalPercentage: 0,
-        totalStaff: 0,
-        enrolledStaff: 0,
-        activePGCount: 0,
-        displaySectors: []
-      };
-    }
-
+    
     // 1. Filtrar setores e staff da unidade
     const [selYear, selMonthNum] = selectedMonth.split('-').map(Number);
     const selMonthStart = new Date(selYear, selMonthNum - 1, 1).getTime();
@@ -193,8 +184,9 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       // Ativo se entrou antes do fim do mês e não saiu antes do início do mês
       const wasActive = joined <= selMonthEnd && left >= selMonthStart;
       
-      // Se o mês selecionado NÃO estiver fechado, usamos o status 'active' como filtro adicional
-      if (!isClosed) {
+      // Se o mês selecionado for o de competência ativa ou futuro, filtramos por 'active'
+      // Se for um mês passado (fechado), confiamos nas datas de entrada/saída para manter o histórico
+      if (selectedMonth >= (config.activeCompetenceMonth || '')) {
         return wasActive && s.active !== false;
       }
       
@@ -258,7 +250,7 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     });
 
     proGroupMembers.forEach(m => {
-      if (!m.leftAt || m.leftAt >= targetDate.getTime()) {
+      if ((!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && (!m.leftAt || m.leftAt >= targetDate.getTime())) {
         const staffIdClean = cleanID(m.staffId);
         const sId = sectorIdByStaffId.get(staffIdClean);
         if (sId) {
@@ -394,7 +386,8 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       // Mapear membros atuais (Colaboradores)
       const staffToGroup = new Map<string, string>();
       proGroupMembers.forEach(m => {
-        if (!m.leftAt || m.leftAt >= targetDate) {
+        const mCycle = m.cycleMonth ? new Date(m.cycleMonth + 'T12:00:00').getTime() : 0;
+        if (mCycle <= targetDate && (!m.leftAt || m.leftAt >= targetDate)) {
           staffToGroup.set(cleanID(m.staffId), cleanID(m.groupId));
         }
       });
@@ -650,14 +643,18 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-2 h-full bg-[#005a9c]"></div>
         
-        <div className="space-y-2 z-10">
+        {metrics.displaySectors[0]?.isSnapshot && (
+          <div className="absolute top-0 right-0 left-0 bg-amber-500/10 border-b border-amber-500/20 py-2 px-8 flex items-center gap-2 z-20">
+            <i className="fas fa-lock text-amber-600 text-[10px]"></i>
+            <span className="text-[9px] font-black uppercase tracking-widest text-amber-700">
+              Mês Fechado: Estes dados são um snapshot histórico e não podem ser alterados.
+            </span>
+          </div>
+        )}
+        
+        <div className={`space-y-2 z-10 ${metrics.displaySectors[0]?.isSnapshot ? 'mt-6' : ''}`}>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Cobertura de Discipulado ({unit})</h2>
-            {metrics.displaySectors[0]?.isSnapshot && (
-              <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-amber-200">
-                <i className="fas fa-lock mr-1"></i> Mês Fechado
-              </span>
-            )}
           </div>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Colaboradores matriculados em Pequenos Grupos</p>
         </div>
