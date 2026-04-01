@@ -193,8 +193,8 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       // Ativo se entrou antes do fim do mês e não saiu antes do início do mês
       const wasActive = joined <= selMonthEnd && left >= selMonthStart;
       
-      // Se o mês selecionado for o mês de competência ativa, usamos o status 'active' como filtro adicional
-      if (selectedMonth === config.activeCompetenceMonth) {
+      // Se o mês selecionado NÃO estiver fechado, usamos o status 'active' como filtro adicional
+      if (!isClosed) {
         return wasActive && s.active !== false;
       }
       
