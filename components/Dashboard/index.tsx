@@ -1,15 +1,13 @@
 
 import React, { useState } from 'react';
-import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, UserRole, Config } from '../types';
-import { useApp } from '../hooks/useApp';
-import { useDashboardStats } from '../hooks/useDashboardStats';
-import { getMonthStartISO } from '../utils/formatters';
-import Mural from './Dashboard/Mural';
-import StatCards from './Dashboard/StatCards';
-import ImpactCharts from './Dashboard/ImpactCharts';
-import VisitGoalWidget from './Dashboard/VisitGoalWidget';
-import VisitRequestsWidget from './Dashboard/VisitRequestsWidget';
-import ActivityProgressWidget from './Dashboard/ActivityProgressWidget';
+import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Config } from '../../types';
+import { useApp } from '../../hooks/useApp';
+import { useDashboardStats } from '../../hooks/useDashboardStats';
+import Mural from './Mural';
+import StatCards from './StatCards';
+import ImpactCharts from './ImpactCharts';
+import VisitGoalWidget from './VisitGoalWidget';
+import VisitRequestsWidget from './VisitRequestsWidget';
 
 interface DashboardProps {
   studies: BibleStudy[];
@@ -28,7 +26,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ 
   studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onGoToReturnHistory, onUpdateConfig 
 }) => {
-  const { visitRequests, users, activitySchedules, dailyActivityReports, isInitialized, proMonthlyStats } = useApp(); 
+  const { visitRequests, users, isInitialized, proMonthlyStats } = useApp(); 
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().split('T')[0].substring(0, 7));
   
   const {
@@ -50,47 +48,23 @@ const Dashboard: React.FC<DashboardProps> = ({
     return <div className="p-8 text-center text-slate-500 font-bold">Carregando dashboard...</div>;
   }
 
-  const today = new Date().toISOString().split('T')[0];
-  const d = new Date().getDay();
-  const dayOfWeek = d === 0 ? 7 : d;
-  const monthStart = getMonthStartISO();
-  
-  const todaysSchedules = activitySchedules.filter(s => 
-    s.userId === currentUser.id && 
-    s.month === monthStart && 
-    (s.date === today || (!s.date && Number(s.dayOfWeek) === dayOfWeek))
-  );
-
   if (!currentUser) return null;
 
   const stats = [
-    { label: `Alunos Ativos (${monthName})`, value: uniqueStudentsMonth.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-50' },
-    { label: `Meus PGs (${monthName})`, value: monthlyGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-50' },
-    { label: `Minhas Ações (${monthName})`, value: totalActionsMonth, icon: <i className="fas fa-bolt"></i>, color: 'bg-amber-50' },
-    { label: `Minhas Visitas (${monthName})`, value: monthlyVisits.length, icon: <i className="fas fa-hands-helping"></i>, color: 'bg-rose-50' },
+    { label: `Alunos Ativos (${monthName})`, value: uniqueStudentsMonth.size, icon: <i className="fas fa-user-graduate"></i>, color: 'bg-blue-500' },
+    { label: `Meus PGs (${monthName})`, value: monthlyGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-500' },
+    { label: `Minhas Ações (${monthName})`, value: totalActionsMonth, icon: <i className="fas fa-bolt"></i>, color: 'bg-amber-500' },
+    { label: `Minhas Visitas (${monthName})`, value: monthlyVisits.length, icon: <i className="fas fa-hands-helping"></i>, color: 'bg-rose-500' },
   ];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-24">
-      <div className="flex justify-between items-center">
+      {/* Header Row: Mural */}
+      <div className="w-full">
         <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
-        <input 
-          type="month" 
-          value={selectedMonth} 
-          onChange={(e) => setSelectedMonth(e.target.value)}
-          className="p-2 border rounded-lg text-sm"
-        />
       </div>
 
-      {/* Missão de Atividades Diárias */}
-      <ActivityProgressWidget 
-        schedules={activitySchedules} 
-        reports={dailyActivityReports} 
-        currentUser={currentUser} 
-        onGoToActivities={() => onGoToTab('activities', 'checklist')} 
-      />
-
-      {/* Notificações de Retorno (Movido para baixo do Mural) */}
+      {/* Notificações de Retorno */}
       {todaysReturns.length > 0 ? (
         <div onClick={() => onGoToReturnHistory(todaysReturns[0])} className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-amber-100 transition-all animate-bounce-subtle">
           <div className="flex items-center gap-3">
@@ -128,11 +102,21 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       ) : null}
 
-      <VisitRequestsWidget requests={visitRequests} currentUser={currentUser} users={users} onRegisterMission={onRegisterMission} />
+      {/* Escala de Visitas PG (VisitRequestsWidget) */}
+      <VisitRequestsWidget 
+        requests={visitRequests} 
+        currentUser={currentUser} 
+        users={users} 
+        onRegisterMission={onRegisterMission} 
+      />
 
+      {/* Metas de Visitas (VisitGoalWidget) */}
       <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
 
+      {/* Cartões de Estatísticas */}
       <StatCards stats={stats} />
+
+      {/* Gráficos de Impacto */}
       <ImpactCharts individualData={[
         { name: 'Estudos', val: monthlyStudies.length },
         { name: 'Classes', val: monthlyClasses.length },

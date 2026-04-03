@@ -262,10 +262,18 @@ export const DataRepository = {
 
     let query = supabase.from(tableName).delete();
     for (const [key, value] of Object.entries(filters)) {
-      query = query.eq(key, value);
+      if (typeof value === 'object' && value !== null) {
+        if (value.gt) query = query.gt(key, value.gt);
+        else if (value.lt) query = query.lt(key, value.lt);
+        else if (value.neq) query = query.neq(key, value.neq);
+        else query = query.eq(key, value);
+      } else {
+        query = query.eq(key, value);
+      }
     }
 
     const { error } = await query;
+    if (error) console.error(`Erro ao deletar registros filtrados em ${tableName}:`, error);
     return !error;
   },
 

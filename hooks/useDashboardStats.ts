@@ -166,19 +166,19 @@ export const useDashboardStats = (
   const { goals, accumulated } = useVisitGoals(userVisits, currentUser);
 
   const totalActionsMonth = monthlyStudies.length + monthlyClasses.length + monthlyGroups.length + monthlyVisits.length;
-
-  return {
-    pendingReturns,
-    todaysReturns,
-    monthlyStudies,
-    monthlyClasses,
-    monthlyGroups,
-    monthlyVisits,
-    uniqueStudentsMonth,
-    totalActionsMonth,
-    globalImpact,
-    monthName,
-    goals,
-    accumulated
-  };
-};
+ 
+   return {
+     pendingReturns,
+     todaysReturns,
+     monthlyStudies,
+     monthlyClasses,
+     monthlyGroups,
+     monthlyVisits,
+     uniqueStudentsMonth,
+     totalActionsMonth,
+     globalImpact,
+     monthName,
+     goals,
+     accumulated
+   };
+ };

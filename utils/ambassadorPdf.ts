@@ -73,16 +73,16 @@ export const generateAmbassadorReportHtml = (ambassadors: Ambassador[], options:
         ]);
 
       return `
-        <div class="pdf-page" style="width: 210mm; min-height: 297mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; display: flex; flex-direction: column; overflow: hidden;">
+        <div class="pdf-page" style="width: 210mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; display: block; overflow: visible; line-height: 1.6; page-break-after: always;">
           ${getBrandedHeaderByProfile(config, 'ambassadors', periodLabel)}
           
-          <div style="padding: 0 15mm 15mm 15mm; flex: 1;">
-            <div style="background: #f8fafc; padding: 15px 20px; border-radius: 0 15px 15px 0; border-left: 10px solid ${config.primaryColor}; margin-bottom: 20px;">
-              <h2 style="font-size: 20px; font-weight: 900; text-transform: uppercase; margin: 0;">${sectorName}</h2>
-              <p style="font-size: 10px; font-weight: bold; color: #64748b; margin: 5px 0 0 0;">TOTAL: ${tableData.length} EMBAIXADORES CAPACITADOS</p>
+          <div style="padding: 0 20mm 20mm 20mm;">
+            <div style="background: #f8fafc; padding: 25px 30px; border-radius: 0 20px 20px 0; border-left: 12px solid ${config.primaryColor}; margin-bottom: 35px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); page-break-inside: avoid;">
+              <h2 style="font-size: 28px; font-weight: 900; text-transform: uppercase; margin: 0; color: #0f172a; letter-spacing: -0.025em;">${sectorName}</h2>
+              <p style="font-size: 12px; font-weight: 800; color: #64748b; margin: 8px 0 0 0; text-transform: uppercase; letter-spacing: 0.05em;">TOTAL: ${tableData.length} EMBAIXADORES CAPACITADOS</p>
             </div>
 
-            <div style="flex: 1;">
+            <div style="margin-bottom: 40px;">
               ${getStandardTable(['Matrícula', 'Nome Completo', 'Data Capacitação'], tableData)}
             </div>
 
@@ -92,39 +92,52 @@ export const generateAmbassadorReportHtml = (ambassadors: Ambassador[], options:
       `;
     }).join('');
   } else {
-    // Retorna uma única string com todos os setores (contínuo)
-    let combinedHtml = `
-      <div class="pdf-page" style="width: 210mm; min-height: 297mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; display: flex; flex-direction: column; overflow: hidden;">
-        ${getBrandedHeaderByProfile(config, 'ambassadors', periodLabel)}
-        <div style="padding: 0 15mm 15mm 15mm; flex: 1;">
-    `;
+    // Retorna uma única string com todos os setores (contínuo, mas paginado)
+    let html = '';
+    const SECTORS_PER_PAGE = 3; // Ajuste conforme necessário
+    
+    const sectorChunks = [];
+    for (let i = 0; i < sortedSectors.length; i += SECTORS_PER_PAGE) {
+      sectorChunks.push(sortedSectors.slice(i, i + SECTORS_PER_PAGE));
+    }
 
-    sortedSectors.forEach(sectorName => {
-      const tableData = sectorsMap[sectorName]
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map(amb => [
-          amb.registrationId || '-',
-          amb.name.toUpperCase(),
-          new Date(amb.completionDate).toLocaleDateString()
-        ]);
+    sectorChunks.forEach((chunk, idx) => {
+      html += `
+        <div class="pdf-page" style="width: 210mm; min-height: 297mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; display: block; overflow: hidden; line-height: 1.6; page-break-after: always;">
+          ${getBrandedHeaderByProfile(config, 'ambassadors', `${periodLabel} ${idx > 0 ? '(Cont.)' : ''}`)}
+          <div style="padding: 0 20mm 20mm 20mm;">
+            ${chunk.map(sectorName => {
+              const tableData = sectorsMap[sectorName]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(amb => [
+                  amb.registrationId || '-',
+                  amb.name.toUpperCase(),
+                  new Date(amb.completionDate).toLocaleDateString()
+                ]);
 
-      combinedHtml += `
-        <div style="margin-top: 30px;">
-          <h3 style="font-size: 14px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; color: #475569;">${sectorName} (${tableData.length})</h3>
-          ${getStandardTable(['Matrícula', 'Nome Completo', 'Data Capacitação'], tableData)}
+              return `
+                <div style="margin-top: 35px; page-break-inside: avoid;">
+                  <h3 style="font-size: 18px; font-weight: 900; text-transform: uppercase; border-bottom: 4px solid #f1f5f9; padding-bottom: 10px; color: #334155; margin-bottom: 15px; letter-spacing: 0.025em;">${sectorName} (${tableData.length})</h3>
+                  ${getStandardTable(['Matrícula', 'Nome Completo', 'Data Capacitação'], tableData)}
+                </div>
+              `;
+            }).join('')}
+            
+            ${idx === sectorChunks.length - 1 ? `
+              <div style="margin-top: 40px; padding: 20px; background: #f8fafc; border-radius: 20px; text-align: right; border: 1px solid #e2e8f0;">
+                <span style="font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a; letter-spacing: 0.05em;">Total Geral: ${filtered.length} Embaixadores</span>
+              </div>
+            ` : ''}
+
+            <div style="position: absolute; bottom: 20mm; left: 20mm; right: 20mm;">
+              ${getBrandedFooter()}
+            </div>
+          </div>
         </div>
       `;
     });
-
-    combinedHtml += `
-          <div style="margin-top: 30px; padding: 15px; background: #f8fafc; border-radius: 10px; text-align: right;">
-            <span style="font-size: 12px; font-weight: 900; text-transform: uppercase;">Total Geral: ${filtered.length} Embaixadores</span>
-          </div>
-          ${getBrandedFooter()}
-        </div>
-      </div>
-    `;
-    return combinedHtml;
+    
+    return html;
   }
 };
 

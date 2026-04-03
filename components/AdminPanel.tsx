@@ -13,7 +13,7 @@ const AdminPanel: React.FC = () => {
   const { 
     config, 
     bibleStudies, bibleClasses, smallGroups, staffVisits, users,
-    proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, proMonthlyStats, proHistoryRecords, ambassadors, proProviders,
+    proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, proProviders, proMonthlyStats, proHistoryRecords, ambassadors,
     editAuthorizations,
     saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, saveRecord, deleteRecord, deleteRecordsByFilter
   } = useApp();
@@ -34,10 +34,18 @@ const AdminPanel: React.FC = () => {
   const handleSaveProData = async (
     newProStaff: any[], 
     newProSectors: any[], 
-    newProGroups: any[]
+    newProGroups: any[],
+    options?: { deleteFutureCycleMonth?: string; unit?: Unit }
   ) => {
     setIsSaving(true);
     try {
+      // Se solicitado, removemos registros de meses futuros para evitar duplicidade/erro de lançamento
+      if (options?.deleteFutureCycleMonth && options.unit) {
+        // Removemos qualquer registro daquela unidade que tenha cycleMonth > mes_selecionado
+        // Isso limpa lançamentos errados feitos em meses posteriores (ex: lançou em Abril mas era Março)
+        await deleteRecordsByFilter('proStaff', { unit: options.unit, cycle_month: { gt: options.deleteFutureCycleMonth } });
+      }
+
       // Salvar apenas no Supabase (Tabelas Relacionais)
       await saveToCloud({
         proStaff: newProStaff,
@@ -94,44 +102,11 @@ const AdminPanel: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'config' | 'identity' | 'lists' | 'tools' | 'permissions'>('config');
 
-  // Lógica para notificação de fechamento de mês
-  const previousMonthClosed = useCallback(() => {
-    const now = new Date();
-    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevISO = prev.toISOString().split('T')[0];
-    return proMonthlyStats.some(s => s.month === prevISO);
-  }, [proMonthlyStats]);
-
-  const getPreviousMonthLabel = () => {
-    const now = new Date();
-    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return prev.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  };
-
   if (!currentUser) return null;
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-32 animate-in fade-in duration-700">
       
-      {/* Notificação de Fechamento Pendente */}
-      {!previousMonthClosed() && (
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between gap-4 animate-bounce-subtle">
-          <div className="flex items-center gap-3 text-amber-800">
-            <i className="fas fa-exclamation-triangle text-xl"></i>
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-tight">Fechamento Pendente</p>
-              <p className="text-[10px] font-bold opacity-80">O mês de <span className="uppercase">{getPreviousMonthLabel()}</span> ainda não foi encerrado oficialmente.</p>
-            </div>
-          </div>
-          <button 
-            onClick={() => setActiveTab('tools')}
-            className="px-4 py-2 bg-amber-600 text-white text-[9px] font-black uppercase rounded-xl hover:bg-amber-700 transition-all shadow-sm"
-          >
-            Resolver Agora
-          </button>
-        </div>
-      )}
-
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-4xl font-black text-slate-800 tracking-tight uppercase">Administração</h1>

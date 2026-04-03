@@ -4,8 +4,16 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let _filename: string;
+let _dirname: string;
+
+if (typeof __filename !== 'undefined') {
+  _filename = __filename;
+  _dirname = __dirname;
+} else {
+  _filename = fileURLToPath(import.meta.url);
+  _dirname = path.dirname(_filename);
+}
 
 async function startServer() {
   const app = express();
@@ -45,7 +53,7 @@ async function startServer() {
     app.use(async (req, res, next) => {
       if (req.url === '/' || req.url.endsWith('.html')) {
         try {
-          let html = fs.readFileSync(path.join(__dirname, "index.html"), "utf-8");
+          let html = fs.readFileSync(path.join(_dirname, "index.html"), "utf-8");
           html = await vite.transformIndexHtml(req.url, html);
           
           const config = getConfig();
@@ -65,11 +73,11 @@ async function startServer() {
     });
   } else {
     // Servir arquivos estáticos em produção
-    app.use(express.static(path.join(__dirname, "dist"), { index: false }));
+    app.use(express.static(_dirname, { index: false }));
     
     app.get("*all", (req, res) => {
       try {
-        const indexPath = path.join(__dirname, "dist", "index.html");
+        const indexPath = path.join(_dirname, "index.html");
         if (fs.existsSync(indexPath)) {
           const html = fs.readFileSync(indexPath, "utf-8");
           const config = getConfig();

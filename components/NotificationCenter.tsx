@@ -28,17 +28,17 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
   );
 
   // Calcula metas para o lembrete
-  const { goals, pendingReturns, todaysReturns } = useDashboardStats(bibleStudies, bibleClasses, smallGroups, staffVisits, currentUser!);
+  const { goals = [], pendingReturns = [], todaysReturns = [] } = useDashboardStats(bibleStudies, bibleClasses, smallGroups, staffVisits, currentUser as any);
 
   const goalReminders = useMemo(() => {
-    return goals.filter(g => g.current < g.target);
+    return (goals || []).filter(g => g.current < g.target);
   }, [goals]);
 
-  const returnCount = pendingReturns.length;
+  const returnCount = (pendingReturns || []).length;
 
   const filteredRequests = useMemo(() => {
-    if (!currentUser) return [];
-    return visitRequests.filter(req => {
+    if (!currentUser || !visitRequests) return [];
+    return (visitRequests || []).filter(req => {
       if (req.status === 'confirmed' || req.status === 'declined') return false;
       if (currentUser.role === UserRole.ADMIN) return true;
       return req.assignedChaplainId === currentUser.id;
@@ -81,7 +81,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
   }, [proGroups, proSectors, proGroupLocations]);
 
   const unreadCount = useMemo(() => {
-    return filteredRequests.filter(req => !req.isRead).length + goalReminders.length + returnCount;
+    return (filteredRequests || []).filter(req => !req.isRead).length + (goalReminders || []).length + returnCount;
   }, [filteredRequests, goalReminders, returnCount]);
 
   useEffect(() => {
@@ -95,7 +95,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
   }, []);
 
   const handleMarkAllAsRead = async () => {
-    const unread = filteredRequests.filter(req => !req.isRead);
+    const unread = (filteredRequests || []).filter(req => !req.isRead);
     if (unread.length === 0) return;
     try {
       const updates = unread.map(req => ({ ...req, isRead: true }));

@@ -5,7 +5,7 @@ import { ProStaff, ProSector, ProGroup, Unit, ProGroupMember, ProGroupProviderMe
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 import Autocomplete from '../Shared/Autocomplete';
 import { cleanID, normalizeString } from '../../utils/formatters';
-import { useExcelProcessor, ProcessedRow } from '../../hooks/useExcelProcessor';
+import { useExcelProcessor, ProcessedRow, SkippedRow } from '../../hooks/useExcelProcessor';
 import { useApp } from '../../hooks/useApp';
 
 interface AdminListsProps {
@@ -17,13 +17,13 @@ interface AdminListsProps {
     providerMemberships?: ProGroupProviderMember[];
     stats?: ProMonthlyStats[];
   };
-  onSavePro?: (staff: ProStaff[], sectors: ProSector[], groups: ProGroup[]) => Promise<boolean>;
+  onSavePro?: (staff: ProStaff[], sectors: ProSector[], groups: ProGroup[], options?: { deleteFutureCycleMonth?: string; unit?: Unit }) => Promise<boolean>;
   activeUnit: Unit;
   setActiveUnit: (unit: Unit) => void;
 }
 
 const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit, setActiveUnit }) => {
-  const { saveRecord, proGroupMembers, proGroupProviderMembers, ambassadors, proMonthlyStats } = useApp();
+  const { config, saveRecord, proGroupMembers, proGroupProviderMembers, ambassadors, proMonthlyStats } = useApp();
   const { showToast } = useToast();
   const { processExcelFile, isProcessing: isReadingFile } = useExcelProcessor();
 
@@ -37,12 +37,12 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   const [activeTab, setActiveTab] = useState<'staff' | 'sectors' | 'pgs'>('staff');
   const [importMode, setImportMode] = useState<'sync' | 'incremental'>('sync');
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    return config.activeCompetenceMonth || new Date().toISOString().split('T')[0];
   });
   const [syncState, setSyncState] = useState<{isOpen: boolean; status: SyncStatus; title: string; message: string; error?: string;}>({ isOpen: false, status: 'idle', title: '', message: '' });
   
   const [previewData, setPreviewData] = useState<ProcessedRow[]>([]);
+  const [skippedRows, setSkippedRows] = useState<SkippedRow[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20; 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,11 +53,32 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   }, [proData, activeUnit]);
 
   const handleProcessFile = async (file: File) => {
+      // Avisos de Mês (Sem bloqueio conforme solicitação do usuário)
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+      const selectedMonthStart = new Date(selectedMonth + 'T12:00:00').getTime();
+
+      if (selectedMonthStart > currentMonthStart) {
+          showToast("AVISO: Você está importando dados para um mês futuro.", "info");
+      }
+
+      // Verificar se o mês já está fechado
+      const isClosed = proMonthlyStats?.some(s => s.month === selectedMonth);
+      if (isClosed) {
+          showToast(`AVISO: O mês de ${formatMonthLabel(selectedMonth)} já possui fechamento oficial. A importação atualizará o banco ativo, mas não o histórico já gravado.`, "warning");
+      }
+
       try {
-          const results = await processExcelFile(file, activeTab, activeUnit, proData);
-          setPreviewData(results);
+          const { rows, skippedRows: newSkippedRows } = await processExcelFile(file, activeTab, activeUnit, proData);
+          setPreviewData(rows);
+          setSkippedRows(newSkippedRows);
           setCurrentPage(1);
-          showToast(`${results.length} registros válidos lidos.`, "success");
+          
+          if (newSkippedRows.length > 0) {
+              showToast(`${rows.length} registros lidos. ${newSkippedRows.length} problemas detectados (veja o log abaixo).`, "warning");
+          } else {
+              showToast(`${rows.length} registros lidos com sucesso.`, "success");
+          }
       } catch (e: any) {
           showToast(e.message, "warning");
       } finally {
@@ -73,35 +94,61 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
         const stats = { updated: 0, deactivated: 0, new: 0 };
         const mergeData = (currentDB: any[], incomingList: ProcessedRow[], type: 'staff'|'sector'|'pg') => {
             const map = new Map<string, any>();
-            currentDB.forEach(item => { const key = cleanID(item.id); map.set(key, item); });
+            const duplicatesToDeactivate: any[] = [];
+
+            // Usar chave composta unit|id para evitar colisões entre unidades
+            currentDB.forEach(item => { 
+                const key = `${item.unit}|${cleanID(item.id)}`; 
+                
+                if (map.has(key) && item.unit === activeUnit) {
+                    // Se já existe um registro que limpa para o mesmo ID nesta unidade,
+                    // marcamos este como duplicata para ser desativado no banco.
+                    const existing = map.get(key);
+                    // Mantemos o que for "mais ativo" ou o primeiro encontrado
+                    if (!existing.active && item.active) {
+                        duplicatesToDeactivate.push({ ...existing, active: false, leftAt: Date.now(), updatedAt: Date.now() });
+                        map.set(key, item);
+                    } else {
+                        duplicatesToDeactivate.push({ ...item, active: false, leftAt: Date.now(), updatedAt: Date.now() });
+                    }
+                } else {
+                    map.set(key, item); 
+                }
+            });
 
             incomingList.forEach(incoming => {
-                const key = incoming.id; 
+                const key = `${activeUnit}|${incoming.id}`; 
                 const existing = map.get(key);
                 const importTimestamp = new Date(selectedMonth + 'T12:00:00').getTime();
 
                 if (existing) {
-                    if (existing.unit === activeUnit) {
-                        const updated = { 
-                            ...existing, 
-                            name: incoming.name, 
-                            active: true, 
-                            cycleMonth: selectedMonth,
-                            updatedAt: Date.now(),
-                            // Se estava inativo, removemos a data de saída
-                            leftAt: null
-                        };
-                        if (type === 'staff') updated.sectorId = incoming.sectorIdLinked || existing.sectorId || "";
-                        map.set(key, updated);
-                        stats.updated++;
-                    } 
+                    const updated = { 
+                        ...existing, 
+                        name: incoming.name, 
+                        active: true, 
+                        registrationId: incoming.id, // Garante que registrationId seja preenchido
+                        cycleMonth: selectedMonth,
+                        updatedAt: Date.now(),
+                        // Se estava inativo, removemos a data de saída
+                        leftAt: null
+                    };
+                    // Se não tem createdAt ou se o existente é no futuro (erro de lançamento), setamos para o mês atual
+                    if (!updated.createdAt || updated.createdAt > importTimestamp) {
+                        updated.createdAt = importTimestamp;
+                    }
+                    
+                    if (type === 'staff') updated.sectorId = incoming.sectorIdLinked || existing.sectorId || "";
+                    map.set(key, updated);
+                    stats.updated++;
                 } else {
                     const newItem: any = { 
-                        id: key, 
+                        id: incoming.id, 
+                        registrationId: incoming.id, // Garante que registrationId seja preenchido
                         name: incoming.name, 
                         unit: activeUnit, 
                         active: true, 
                         cycleMonth: selectedMonth,
+                        createdAt: importTimestamp, // Importante: Setar para o mês de referência
                         updatedAt: Date.now() 
                     };
                     if (type === 'staff') newItem.sectorId = incoming.sectorIdLinked || "";
@@ -110,15 +157,17 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                 }
             });
 
-            const incomingKeys = new Set(incomingList.map(i => i.id));
+            const incomingKeys = new Set(incomingList.map(i => `${activeUnit}|${i.id}`));
             const resultList: any[] = [];
-            const previousMonthEnd = new Date(new Date(selectedMonth + 'T12:00:00').getTime() - 86400000).getTime();
+            const importMonthStart = new Date(selectedMonth + 'T12:00:00').getTime();
+            const previousMonthEnd = new Date(importMonthStart - 86400000).getTime();
+            const monthEnd = new Date(new Date(selectedMonth + 'T00:00:00').getFullYear(), new Date(selectedMonth + 'T00:00:00').getMonth() + 1, 0, 23, 59, 59).getTime();
 
             map.forEach((value, key) => {
+                // Apenas processamos registros da unidade ativa para sincronização
                 if (value.unit === activeUnit) {
                     if (!incomingKeys.has(key)) {
                         // No modo 'sync', desativamos quem não está na planilha
-                        // No modo 'incremental', mantemos como está
                         if (importMode === 'sync' && value.active !== false) { 
                             value.active = false; 
                             value.leftAt = previousMonthEnd;
@@ -127,7 +176,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
 
                             // Cascata: Inativar matrículas em PGs
                             if (type === 'staff') {
-                                const memberships = proGroupMembers.filter(m => m.staffId === key && !m.leftAt);
+                                const memberships = proGroupMembers.filter(m => cleanID(m.staffId) === cleanID(value.id) && !m.leftAt);
                                 memberships.forEach(m => {
                                     saveRecord('proGroupMembers', { ...m, leftAt: previousMonthEnd });
                                 });
@@ -137,21 +186,23 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                 }
                 resultList.push(value);
             });
-            return resultList;
+            return [...resultList, ...duplicatesToDeactivate];
         };
+
+        const saveOptions = importMode === 'sync' ? { deleteFutureCycleMonth: selectedMonth, unit: activeUnit } : undefined;
 
         if (activeTab === 'staff') {
             const finalStaff = mergeData(proData.staff, previewData, 'staff');
-            await onSavePro(finalStaff, proData.sectors, proData.groups);
+            await onSavePro(finalStaff, proData.sectors, proData.groups, saveOptions);
         } else if (activeTab === 'sectors') {
             const finalSectors = mergeData(proData.sectors, previewData, 'sector');
-            await onSavePro(proData.staff, finalSectors, proData.groups);
+            await onSavePro(proData.staff, finalSectors, proData.groups, saveOptions);
         } else if (activeTab === 'pgs') {
             const finalGroups = mergeData(proData.groups, previewData, 'pg');
-            await onSavePro(proData.staff, proData.sectors, finalGroups);
+            await onSavePro(proData.staff, proData.sectors, finalGroups, saveOptions);
         }
 
-        setSyncState({ isOpen: true, status: 'success', title: 'Sincronização Blindada', message: `Sucesso!\n\nNovos/Atualizados: ${stats.updated + stats.new}\nRemovidos da lista (Inativos): ${stats.deactivated}` });
+        setSyncState({ isOpen: true, status: 'success', title: 'Sincronização Blindada', message: `Sucesso!\n\nNovos/Atualizados: ${stats.updated + stats.new}\nRemovidos da lista (Inativos): ${stats.deactivated}\nIgnorados (Divergências): ${skippedRows.length}` });
         setPreviewData([]); 
     } catch (e: any) {
         setSyncState({ isOpen: true, status: 'error', title: 'Erro ao Salvar', message: "Falha na sincronização.", error: e.message });
@@ -262,20 +313,18 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                 <input type="file" ref={fileInputRef} accept=".xlsx,.csv" className="hidden" onChange={(e) => e.target.files?.[0] && handleProcessFile(e.target.files[0])} />
                 <button onClick={() => fileInputRef.current?.click()} disabled={isReadingFile} className="px-6 py-3 bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 shadow-lg hover:bg-black transition-all"><i className={`fas ${isReadingFile ? 'fa-spinner fa-spin' : 'fa-file-excel'}`}></i> {isReadingFile ? 'Lendo...' : 'Carregar Planilha'}</button>
                 
-                {previewData.length > 0 && (
-                  <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-                    <label className="text-[9px] font-black text-slate-400 uppercase px-2">Mês de Referência:</label>
-                    <input 
-                      type="month" 
-                      value={selectedMonth.substring(0, 7)} 
-                      onChange={(e) => setSelectedMonth(e.target.value + '-01')}
-                      className="bg-slate-50 border-none rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-700 focus:ring-0"
-                    />
-                    <span className="text-[9px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
-                      {formatMonthLabel(selectedMonth)}
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                  <label className="text-[9px] font-black text-slate-400 uppercase px-2">Mês de Referência:</label>
+                  <input 
+                    type="month" 
+                    value={selectedMonth.substring(0, 7)} 
+                    onChange={(e) => setSelectedMonth(e.target.value + '-01')}
+                    className="bg-slate-50 border-none rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-700 focus:ring-0"
+                  />
+                  <span className="text-[9px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
+                    {formatMonthLabel(selectedMonth)}
+                  </span>
+                </div>
 
                 <div className="text-xs font-bold text-slate-400">{previewData.length > 0 ? <span className="text-blue-600">{previewData.length} registros lidos.</span> : <span>Banco Atual: {displayData.length} ativos</span>}</div>
             </div>
@@ -304,6 +353,49 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
             </table>
         </div>
         {totalPages > 1 && (<div className="flex items-center justify-center gap-2 pt-6"><button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600"><i className="fas fa-chevron-left"></i></button><button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600"><i className="fas fa-chevron-right"></i></button></div>)}
+
+        {/* Log de Divergências */}
+        {skippedRows.length > 0 && (
+          <div className="mt-12 p-8 bg-rose-50 border border-rose-100 rounded-[2.5rem] space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center justify-between border-b border-rose-200 pb-4">
+              <div className="flex items-center gap-3 text-rose-800">
+                <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center">
+                  <i className="fas fa-exclamation-circle text-lg"></i>
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-tight">Log de Divergências ({skippedRows.length})</h3>
+                  <p className="text-[10px] font-bold opacity-70 uppercase">Registros ignorados para garantir a integridade do banco</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSkippedRows([])}
+                className="text-rose-400 hover:text-rose-600 transition-colors"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto no-scrollbar pr-2">
+              {skippedRows.map((row, idx) => (
+                <div key={idx} className="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">{row.id}</span>
+                    <span className="text-[8px] font-black bg-rose-50 text-rose-500 px-2 py-0.5 rounded-full uppercase">Ignorado</span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-800 truncate">{row.name}</h4>
+                  <p className="text-[9px] font-medium text-slate-400 leading-tight italic">{row.reason}</p>
+                </div>
+              ))}
+            </div>
+            
+            <div className="bg-white/50 p-4 rounded-2xl border border-rose-100/50">
+              <p className="text-[9px] font-bold text-rose-800 leading-relaxed uppercase tracking-wide">
+                <i className="fas fa-info-circle mr-1"></i>
+                Dica: Verifique se existem matrículas duplicadas ou linhas em branco no seu arquivo Excel. O sistema exige IDs únicos para evitar sobreposição de dados.
+              </p>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

@@ -12,6 +12,7 @@ interface UsePGMembershipDataProps {
   proGroupProviderMembers: ProGroupProviderMember[];
   proGroupLocations: ProGroupLocation[];
   proProviders: ProProvider[];
+  proHistoryRecords: ProHistoryRecord[];
   staffSearch: string;
   providerSearch: string;
   selectedSectorName: string;
@@ -31,6 +32,7 @@ export const usePGMembershipData = ({
   proGroupProviderMembers,
   proGroupLocations,
   proProviders,
+  proHistoryRecords,
   staffSearch,
   providerSearch,
   selectedSectorName,
@@ -43,10 +45,26 @@ export const usePGMembershipData = ({
   const cleanId = (id: any) => String(id || '').replace(/\D/g, '');
 
   // --- MAPAS DE ÍNDICE (Otimização de Performance) ---
-  const staffMap = useMemo(() => new Map(proStaff.map(s => [cleanId(s.id), s])), [proStaff]);
-  const providerMap = useMemo(() => new Map(proProviders.map(p => [cleanId(p.id), p])), [proProviders]);
-  const groupMap = useMemo(() => new Map(proGroups.map(g => [g.id, g])), [proGroups]);
-  const sectorMap = useMemo(() => new Map(proSectors.map(s => [s.id, s])), [proSectors]);
+  // Filtrar por unidade antes de criar o mapa para evitar colisões de ID entre HAB/HABA
+  const staffMap = useMemo(() => {
+    const filtered = proStaff.filter(s => s.unit === unit);
+    return new Map(filtered.map(s => [cleanId(s.id), s]));
+  }, [proStaff, unit]);
+
+  const providerMap = useMemo(() => {
+    const filtered = proProviders.filter(p => p.unit === unit);
+    return new Map(filtered.map(p => [cleanId(p.id), p]));
+  }, [proProviders, unit]);
+
+  const groupMap = useMemo(() => {
+    const filtered = proGroups.filter(g => g.unit === unit);
+    return new Map(filtered.map(g => [g.id, g]));
+  }, [proGroups, unit]);
+
+  const sectorMap = useMemo(() => {
+    const filtered = proSectors.filter(s => s.unit === unit);
+    return new Map(filtered.map(s => [s.id, s]));
+  }, [proSectors, unit]);
 
   // Limites temporais do mês selecionado para filtragem estrita
   const monthBoundaries = useMemo(() => {
@@ -66,7 +84,13 @@ export const usePGMembershipData = ({
 
     // 2. Se o mês está fechado e não tem o ciclo correto, não está ativo
     // (Isso é para compatibilidade com snapshots antigos que não tinham cycleMonth)
-    if (isMonthClosed) return false;
+    // No entanto, se estivermos em um mês fechado, deveríamos estar usando proHistoryRecords preferencialmente
+    if (isMonthClosed) {
+      // Fallback para registros que não tem cycleMonth mas estão no período
+      const joined = m.joinedAt || m.createdAt || 0;
+      const left = m.leftAt || Infinity;
+      return joined <= monthBoundaries.end && left >= monthBoundaries.start;
+    }
     
     // 3. Se o mês está aberto, usamos as datas de entrada/saída (fallback)
     const joined = m.joinedAt || m.createdAt || 0;
@@ -255,6 +279,28 @@ export const usePGMembershipData = ({
         return [];
     }
     
+    // --- MODO HISTÓRICO (Mês Fechado) ---
+    const historyForMonth = proHistoryRecords.filter((r: any) => r.month === selectedMonth && r.unit === unit && r.groupId === currentPG.id && r.isEnrolled);
+
+    if (isMonthClosed && historyForMonth.length > 0) {
+      return historyForMonth.map((r: any) => ({
+        id: r.id,
+        staffName: r.staffName,
+        staffId: r.staffId,
+        sectorName: r.sectorName || 'Sem Setor',
+        joinedDate: r.joinedAt ? new Date(r.joinedAt).toLocaleDateString('pt-BR') : '',
+        cycleMonth: r.cycleMonth,
+        isOptimistic: false,
+        isLeader: r.leaderName === r.staffName || currentPG.currentLeader === r.staffName,
+        type: 'staff'
+      })).sort((a: any, b: any) => {
+        if (a.isLeader && !b.isLeader) return -1;
+        if (!a.isLeader && b.isLeader) return 1;
+        return String(a.staffName || "").localeCompare(String(b.staffName || ""));
+      });
+    }
+    
+    // --- MODO OPERACIONAL (Tempo Real) ---
     // Filtra membros ativos para o PG atual
     const staffMembers = proGroupMembers.filter(m => 
         m.groupId === currentPG.id && 
@@ -344,7 +390,7 @@ export const usePGMembershipData = ({
         return String(a.staffName || "").localeCompare(String(b.staffName || ""));
     });
     return result;
-  }, [proGroupMembers, proGroupProviderMembers, currentPG, staffMap, providerMap, pendingTransfers, pendingRemovals, sectorMap, isMonthClosed, selectedMonth, isActiveInMonth, monthBoundaries]);
+  }, [proGroupMembers, proGroupProviderMembers, currentPG, staffMap, providerMap, pendingTransfers, pendingRemovals, sectorMap, isMonthClosed, selectedMonth, isActiveInMonth, monthBoundaries, proHistoryRecords, unit]);
 
   return {
     currentSector,

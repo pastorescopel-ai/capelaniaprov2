@@ -4,6 +4,12 @@ import * as Xlsx from 'xlsx';
 import { cleanID, normalizeString } from '../utils/formatters';
 import { Unit } from '../types';
 
+export interface SkippedRow {
+  name: string;
+  id: string;
+  reason: string;
+}
+
 export interface ProcessedRow {
   id: string;
   name: string;
@@ -23,21 +29,29 @@ export const useExcelProcessor = () => {
     String(h || '').trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,º°ª#]/g, "").replace(/[\s_]+/g, " ");
 
   const findColumnIndex = (headers: string[], synonyms: string[]) => {
-      const idx = headers.findIndex(h => synonyms.some(s => h === s));
-      if (idx !== -1) return idx;
-      return headers.findIndex(h => synonyms.some(s => h.includes(s)));
+      // Prioridade 1: Correspondência exata na ordem dos sinônimos (Garante que MATRICULA venha antes de ID)
+      for (const s of synonyms) {
+          const idx = headers.findIndex(h => h === s);
+          if (idx !== -1) return idx;
+      }
+      // Prioridade 2: Correspondência parcial na ordem dos sinônimos
+      for (const s of synonyms) {
+          const idx = headers.findIndex(h => h.includes(s));
+          if (idx !== -1) return idx;
+      }
+      return -1;
   };
 
   const validateSheetType = (headers: string[], tab: string): { valid: boolean; error?: string } => {
       const hasStaffCols = headers.some(h => h.includes('MATRICULA') || h.includes('CRACHA') || h.includes('FUNCIONARIO') || h.includes('COLABORADOR'));
-      const hasSectorCols = headers.some(h => h.includes('DEPARTAMENTO') || (h.includes('SETOR') && !h.includes('ID')) || h.includes('CENTRO DE CUSTO') || h.includes('ID_SETOR'));
+      const hasSectorCols = headers.some(h => h.includes('DEPARTAMENTO') || (h.includes('SETOR') && !h.includes('ID')) || h.includes('CENTRO DE CUSTO') || h.includes('ID SETOR'));
       const hasID = headers.some(h => h.includes('ID') || h.includes('COD'));
       const hasPGIdentifier = headers.some(h => h.includes('PG') || h.includes('GRUPO') || h.includes('NOME') || h.includes('LIDER'));
 
       if (tab === 'staff') {
-          const hasMatricula = headers.some(h => h.includes('MATRICULA') || h.includes('CRACHA'));
+          const hasMatricula = headers.some(h => h.includes('MATRICULA') || h.includes('CRACHA') || h.includes('REGISTRO'));
           const hasNome = headers.some(h => h.includes('NOME') || h.includes('COLABORADOR') || h.includes('FUNCIONARIO'));
-          const hasIdSetor = headers.some(h => h.includes('ID SETOR') || h.includes('ID_SETOR') || h.includes('COD SETOR'));
+          const hasIdSetor = headers.some(h => h.includes('ID SETOR') || h.includes('COD SETOR') || h.includes('CENTRO CUSTO'));
           const hasSetor = headers.some(h => h === 'SETOR' || h.includes('NOME SETOR') || h.includes('DEPARTAMENTO'));
 
           if (!hasMatricula || !hasNome || !hasIdSetor || !hasSetor) {
@@ -64,7 +78,7 @@ export const useExcelProcessor = () => {
     activeTab: 'staff' | 'sectors' | 'pgs', 
     activeUnit: Unit,
     proData: any
-  ): Promise<ProcessedRow[]> => {
+  ): Promise<{ rows: ProcessedRow[], skippedRows: SkippedRow[] }> => {
     return new Promise((resolve, reject) => {
       setIsProcessing(true);
       const reader = new FileReader();
@@ -94,7 +108,7 @@ export const useExcelProcessor = () => {
 
           const idxId = findColumnIndex(headers, ['MATRICULA', 'MAT', 'CRACHA', 'REGISTRO', 'ID', 'COD']);
           const idxName = findColumnIndex(headers, ['NOME', 'COLABORADOR', 'FUNCIONARIO', 'DESCRIÇÃO']);
-          const idxSecId = findColumnIndex(headers, ['ID SETOR', 'ID_SETOR', 'COD SETOR', 'COD DEPARTAMENTO', 'CODIGO SETOR']);
+          const idxSecId = findColumnIndex(headers, ['ID SETOR', 'COD SETOR', 'COD DEPARTAMENTO', 'CODIGO SETOR', 'CENTRO CUSTO']);
           const idxSecName = findColumnIndex(headers, ['SETOR', 'NOME SETOR', 'DEPARTAMENTO']);
 
           if (idxId === -1 || idxName === -1) {
@@ -115,6 +129,7 @@ export const useExcelProcessor = () => {
 
           const seenIds = new Set<string>();
           const res: ProcessedRow[] = [];
+          const skippedRows: SkippedRow[] = [];
 
           dataRows.forEach(row => {
               if (!row || row.length === 0) return;
@@ -122,7 +137,18 @@ export const useExcelProcessor = () => {
               const name = String(row[idxName]||'').trim();
               const finalId = rawId || (activeTab === 'pgs' ? cleanID(name) : ''); 
 
-              if(!finalId || seenIds.has(finalId)) return;
+              if(!finalId) {
+                  if (name) {
+                      skippedRows.push({ name, id: 'AUSENTE', reason: 'ID/Matrícula não encontrado na linha.' });
+                  }
+                  return;
+              }
+
+              if(seenIds.has(finalId)) {
+                  skippedRows.push({ name, id: finalId, reason: 'ID/Matrícula duplicado dentro da planilha.' });
+                  return;
+              }
+
               seenIds.add(finalId);
 
               const item: ProcessedRow = { id: finalId, name, unit: activeUnit, sectorStatus: 'ok' };
@@ -151,7 +177,7 @@ export const useExcelProcessor = () => {
               res.push(item);
           });
 
-          resolve(res);
+          resolve({ rows: res, skippedRows });
         } catch (err: any) {
           reject(err);
         } finally {
