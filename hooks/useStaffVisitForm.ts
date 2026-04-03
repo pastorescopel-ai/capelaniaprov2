@@ -199,11 +199,13 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
 
     const isStaff = formData.participantType === ParticipantType.STAFF;
 
+    let dataToSubmit = { ...formData, unit };
+
     if (isStaff) {
         if (!formData.sector) { showToast("Setor é obrigatório para colaboradores.", "warning"); return; }
-        // FLEXIBILIZAR: Removido bloqueio de existência no Banco de RH e Setores Oficiais
     } else {
         if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast("WhatsApp é obrigatório para prestadores.", "warning"); return; }
+        dataToSubmit.sector = '';
     }
 
     if (isRecordLocked(formData.date, currentUser.role, 'staffVisits', editAuthorizations)) {
@@ -214,13 +216,13 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     setIsSubmitting(true);
     try {
       if (isStaff) {
-          if (formData.whatsapp) await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.STAFF);
+          if (dataToSubmit.whatsapp) await syncMasterContact(dataToSubmit.staffName, dataToSubmit.whatsapp, unit, ParticipantType.STAFF);
       } else {
-          await syncMasterContact(formData.staffName, formData.whatsapp, unit, ParticipantType.PROVIDER, formData.sector);
+          await syncMasterContact(dataToSubmit.staffName, dataToSubmit.whatsapp, unit, ParticipantType.PROVIDER, dataToSubmit.sector);
       }
       
-      await onSubmit({...formData, unit});
-      setFormData({ ...defaultState, date: getToday(), returnDate: getToday(), participantType: formData.participantType });
+      await onSubmit({...dataToSubmit, unit});
+      setFormData({ ...defaultState, date: getToday(), returnDate: getToday(), participantType: dataToSubmit.participantType });
       setIsSectorLocked(false);
     } catch (error) {
       console.error("Erro ao salvar:", error);

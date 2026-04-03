@@ -408,9 +408,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
     if (formData.participantType === ParticipantType.STAFF) {
         if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
-        // FLEXIBILIZAR: Removido bloqueio de setor oficial
     } else {
         if (!formData.representativePhone || formData.representativePhone.length < 10) { showToast("O WhatsApp do Representante é obrigatório para este grupo.", "warning"); return; }
+        // Clear sector info for non-staff
+        formData.sector = '';
     }
 
     if (isRecordLocked(formData.date, currentUser.role, 'bibleClasses', editAuthorizations)) {

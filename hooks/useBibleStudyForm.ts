@@ -282,17 +282,20 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
     const isStaff = formData.participantType === ParticipantType.STAFF;
 
+    let dataToSubmit = { ...formData, unit, participantType: formData.participantType };
+
     if (isStaff) {
         if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
-        // FLEXIBILIZAR: Removido bloqueio de existência no Banco de RH e Setores Oficiais
     } else {
         if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast(`O WhatsApp é obrigatório para ${formData.participantType}.`, "warning"); return; }
+        dataToSubmit.sector = '';
+        dataToSubmit.sectorId = '';
     }
 
     setIsSubmitting(true);
     try {
-      await syncMasterContact(formData.name, formData.whatsapp, unit, formData.participantType!, formData.sector);
-      await onSubmit({ ...formData, unit, participantType: formData.participantType });
+      await syncMasterContact(dataToSubmit.name, dataToSubmit.whatsapp, unit, dataToSubmit.participantType!, dataToSubmit.sector);
+      await onSubmit({ ...dataToSubmit, unit, participantType: dataToSubmit.participantType });
       setFormData({ ...defaultState, date: getToday() });
       setIsSectorLocked(false);
     } catch (error) {

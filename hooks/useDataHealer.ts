@@ -2,6 +2,7 @@ import { useApp } from '../hooks/useApp';
 import { useHealerState } from './healer/useHealerState';
 import { useHealerCalculations } from './healer/useHealerCalculations';
 import { useHealerActions } from './healer/useHealerActions';
+import { useDataMaintenance } from './useDataMaintenance';
 
 export type HealerTab = 'people' | 'sectors' | 'attendees' | 'studies' | 'pgs' | 'merge' | 'ambassadors' | 'memberships';
 export type PersonType = 'Colaborador' | 'Ex-Colaborador' | 'Paciente' | 'Prestador';
@@ -16,7 +17,8 @@ export const useDataHealer = () => {
   const calculations = useHealerCalculations(appData, state);
 
   // 3. Data Mutations (Process, Heal, Delete)
-  const actions = useHealerActions(appData, state);
+  const maintenanceActions = useDataMaintenance(appData.loadFromCloud);
+  const actions = useHealerActions({ ...appData, ...maintenanceActions }, state);
 
   // Combine everything to return the exact same interface as before
   return {
