@@ -23,7 +23,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
-    id: '', userId: currentUser.id, date: getToday(), sector: '', students: [] as string[], 
+    id: '', userId: currentUser.id, date: getToday(), sector: '', location: '', students: [] as string[], 
     guide: '', lesson: '', status: RecordStatus.INICIO, 
     participantType: ParticipantType.STAFF, observations: '', representativePhone: '' 
   }), [getToday, currentUser.id]);
@@ -259,6 +259,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         userId: editingItem.userId || currentUser.id,
         date: ensureISODate(editingItem.date) || getToday(),
         sector: editingItem.sector || '',
+        location: editingItem.location || '',
         students: editingItem.students || [],
         guide: editingItem.guide || '',
         lesson: editingItem.lesson || '',

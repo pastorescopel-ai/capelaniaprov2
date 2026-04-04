@@ -4,7 +4,7 @@ import { cleanAndConvertToSnake, TABLE_SCHEMAS } from '../utils/transformers';
 export const PGService = {
   async fetchSmallGroups() {
     const { data, error } = await supabase
-      .from('small_groups')
+      .from('small_group_sessions')
       .select('*')
       .order('date', { ascending: false });
     
@@ -13,9 +13,9 @@ export const PGService = {
   },
 
   async saveSmallGroup(pg: any) {
-    const snakePG = cleanAndConvertToSnake(pg, TABLE_SCHEMAS.small_groups, 'small_groups');
+    const snakePG = cleanAndConvertToSnake(pg, TABLE_SCHEMAS.small_group_sessions, 'small_group_sessions');
     const { data, error } = await supabase
-      .from('small_groups')
+      .from('small_group_sessions')
       .upsert(snakePG)
       .select()
       .single();
@@ -26,7 +26,7 @@ export const PGService = {
 
   async deleteSmallGroup(id: string) {
     const { error } = await supabase
-      .from('small_groups')
+      .from('small_group_sessions')
       .delete()
       .eq('id', id);
     

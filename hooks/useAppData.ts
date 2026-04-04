@@ -91,7 +91,7 @@ export const useAppData = () => {
       const tableToCollection: Record<string, string> = {
         'bible_study_sessions': 'bibleStudies',
         'bible_classes': 'bibleClasses',
-        'small_groups': 'smallGroups',
+        'small_group_sessions': 'smallGroups',
         'staff_visits': 'staffVisits',
         'visit_requests': 'visitRequests',
         'pro_sectors': 'proSectors',

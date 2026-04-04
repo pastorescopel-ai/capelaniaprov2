@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthProvider';
 const AdminPanel: React.FC = () => {
   const { 
     config, 
-    bibleStudies, bibleClasses, smallGroups, staffVisits, users,
+    bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests, bibleClassAttendees, users,
     proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, proProviders, proMonthlyStats, proHistoryRecords, ambassadors,
     editAuthorizations,
     saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, saveRecord, deleteRecord, deleteRecordsByFilter
@@ -201,7 +201,9 @@ const AdminPanel: React.FC = () => {
                 bibleStudies,
                 bibleClasses,
                 smallGroups,
-                staffVisits
+                staffVisits,
+                visitRequests,
+                bibleClassAttendees
               }}
               ambassadors={ambassadors}
               proGroupMembers={proGroupMembers}

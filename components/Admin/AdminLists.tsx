@@ -126,7 +126,6 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                         ...existing, 
                         name: incoming.name, 
                         active: true, 
-                        registrationId: incoming.id, // Garante que registrationId seja preenchido
                         cycleMonth: selectedMonth,
                         updatedAt: Date.now(),
                         // Se estava inativo, removemos a data de saída
@@ -143,7 +142,6 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                 } else {
                     const newItem: any = { 
                         id: incoming.id, 
-                        registrationId: incoming.id, // Garante que registrationId seja preenchido
                         name: incoming.name, 
                         unit: activeUnit, 
                         active: true, 

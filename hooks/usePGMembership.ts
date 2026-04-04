@@ -58,7 +58,11 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     setPendingRemovals(new Set());
   }, [proGroupMembers]);
 
-  const cleanId = (id: any) => String(id || '').replace(/\D/g, '');
+  const cleanId = (id: any) => {
+    const str = String(id || '');
+    if (str.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) return str;
+    return str.replace(/\D/g, '');
+  };
 
   // --- DADOS (Hook Customizado) ---
   const {

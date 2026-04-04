@@ -53,7 +53,7 @@ export const DataRepository = {
         DataRepository.fetchFullTable('users', MAX_ROWS),
         DataRepository.fetchFullTable('bible_study_sessions', MAX_ROWS),
         DataRepository.fetchFullTable('bible_classes', MAX_ROWS),
-        DataRepository.fetchFullTable('small_groups', MAX_ROWS),
+        DataRepository.fetchFullTable('small_group_sessions', MAX_ROWS),
         DataRepository.fetchFullTable('staff_visits', MAX_ROWS),
         DataRepository.fetchFullTable('visit_requests', MAX_ROWS),
         supabase.from('app_config').select('*').limit(1),

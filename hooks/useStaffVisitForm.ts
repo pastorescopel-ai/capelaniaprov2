@@ -23,7 +23,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
 
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
-    id: '', userId: currentUser.id, date: getToday(), sector: '', reason: VisitReason.ROTINA, 
+    id: '', userId: currentUser.id, date: getToday(), sector: '', location: '', reason: VisitReason.ROTINA, 
     staffName: '', staffId: '', providerId: '', whatsapp: '', participantType: ParticipantType.STAFF, 
     providerRole: '', requiresReturn: false, returnDate: getToday(), 
     returnCompleted: false, observations: '' 
@@ -109,6 +109,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
           userId: editingItem.userId || currentUser.id,
           date: ensureISODate(editingItem.date) || getToday(),
           sector: editingItem.sector || '',
+          location: editingItem.location || '',
           reason: editingItem.reason || VisitReason.ROTINA,
           staffName: editingItem.staffName || '',
           staffId: editingItem.staffId || '',

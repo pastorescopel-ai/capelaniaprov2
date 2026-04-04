@@ -10,6 +10,12 @@ export const useDataMaintenance = (
 ) => {
   const [isMaintenanceRunning, setIsMaintenanceRunning] = useState(false);
 
+  const cleanId = (id: any) => {
+    const str = String(id || '');
+    if (str.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) return str;
+    return str.replace(/\D/g, '');
+  };
+
   const unifyNumericIdsAndCleanPrefixes = async (): Promise<{ success: boolean; message: string }> => {
     if (!supabase) return { success: false, message: "Offline mode." };
     setIsMaintenanceRunning(true);
@@ -35,12 +41,12 @@ export const useDataMaintenance = (
     if (!supabase) return { success: false, message: "Offline mode." };
     try {
       // Garante que os IDs sejam tratados como números para o BIGINT do Postgres
-      const numericSourceId = sourceId.replace(/\D/g, '');
-      const numericTargetId = targetId.replace(/\D/g, '');
+      const numericSourceId = cleanId(sourceId);
+      const numericTargetId = cleanId(targetId);
 
       const { data, error } = await supabase.rpc('merge_pro_group', { 
-        old_id: numericSourceId ? parseInt(numericSourceId) : 0, 
-        new_id: numericTargetId ? parseInt(numericTargetId) : 0 
+        old_id: numericSourceId, 
+        new_id: numericTargetId 
       });
 
       if (error) throw new Error(error.message);
@@ -97,7 +103,7 @@ export const useDataMaintenance = (
   const unifyStudentIdentity = async (orphanName: string, targetStaffId: string): Promise<string> => {
     if (!supabase) return "Erro Conexão";
     // Garante que o ID seja numérico para o BIGINT do SQL
-    const numericId = targetStaffId.replace(/\D/g, ''); 
+    const numericId = cleanId(targetStaffId); 
     // ATUALIZADO: Chama a função V5 que faz deduplicação
     const { data, error } = await supabase.rpc('unify_and_deduplicate_identity', { 
         orphan_name: orphanName, 
@@ -122,7 +128,7 @@ export const useDataMaintenance = (
 
   const unifyIdentityV6 = async (orphanName: string, targetId: string, targetType: string): Promise<string> => {
     if (!supabase) return "Erro Conexão";
-    const numericId = targetId.replace(/\D/g, '');
+    const numericId = cleanId(targetId);
     const { data, error } = await supabase.rpc('unify_identity_v6', { 
         orphan_name: orphanName, 
         target_id: numericId,
@@ -136,9 +142,9 @@ export const useDataMaintenance = (
   const mergeIdentitiesV6 = async (sourceId: string, sourceType: string, targetId: string, targetType: string): Promise<string> => {
     if (!supabase) return "Erro Conexão";
     const { data, error } = await supabase.rpc('merge_identities_v6', { 
-        source_id: sourceId.replace(/\D/g, ''), 
+        source_id: cleanId(sourceId), 
         source_type: sourceType,
-        target_id: targetId.replace(/\D/g, ''),
+        target_id: cleanId(targetId),
         target_type: targetType
     });
     if (error) throw new Error(error.message);
@@ -148,7 +154,7 @@ export const useDataMaintenance = (
 
   const healSectorConnection = async (badName: string, targetSectorId: string): Promise<string> => {
     if (!supabase) return "Erro Conexão";
-    const numericId = targetSectorId.replace(/\D/g, '');
+    const numericId = cleanId(targetSectorId);
     const { data, error } = await supabase.rpc('heal_sector_global', {
         bad_name: badName,
         target_sector_id: numericId
@@ -161,11 +167,11 @@ export const useDataMaintenance = (
   const linkStudySessionIdentity = async (orphanName: string, targetStaffId: string, targetSectorId: string | null, participantType: string): Promise<string> => {
     if (!supabase) return "Erro Conexão";
     
-    const numericStaffId = targetStaffId.replace(/\D/g, '');
-    const numericSectorId = targetSectorId ? targetSectorId.replace(/\D/g, '') : null;
+    const numericStaffId = cleanId(targetStaffId);
+    const numericSectorId = targetSectorId ? cleanId(targetSectorId) : null;
 
     const updates: any = { 
-        staff_id: numericStaffId ? parseInt(numericStaffId) : null,
+        staff_id: numericStaffId ? numericStaffId : null,
         participant_type: participantType
     };
     

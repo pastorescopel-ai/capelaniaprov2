@@ -4,7 +4,7 @@ import { toCamel, cleanAndConvertToSnake, TABLE_SCHEMAS } from '../../utils/tran
 export const PGService = {
   async getSmallGroups() {
     if (!supabase) return [];
-    const { data, error } = await supabase.from('small_groups').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('small_group_sessions').select('*').order('created_at', { ascending: false });
     if (error) {
       console.error('Error fetching small groups:', error);
       return [];
@@ -14,8 +14,8 @@ export const PGService = {
 
   async saveSmallGroup(group: any) {
     if (!supabase) return { success: false };
-    const payload = cleanAndConvertToSnake(group, TABLE_SCHEMAS['small_groups'], 'small_groups');
-    const { data, error } = await supabase.from('small_groups').upsert(payload).select();
+    const payload = cleanAndConvertToSnake(group, TABLE_SCHEMAS['small_group_sessions'], 'small_group_sessions');
+    const { data, error } = await supabase.from('small_group_sessions').upsert(payload).select();
     if (error) {
       console.error('Error saving small group:', error);
       return { success: false, error };
@@ -25,7 +25,7 @@ export const PGService = {
 
   async deleteSmallGroup(id: string) {
     if (!supabase) return false;
-    const { error } = await supabase.from('small_groups').delete().eq('id', id);
+    const { error } = await supabase.from('small_group_sessions').delete().eq('id', id);
     return !error;
   },
 

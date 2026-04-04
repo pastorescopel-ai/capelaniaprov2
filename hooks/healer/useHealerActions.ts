@@ -41,9 +41,9 @@ export const useHealerActions = (
                       
                       const groupsToUpdate = proGroups.filter((g: any) => normalizeString(g.leader) === normOrphan || normalizeString(g.currentLeader) === normOrphan);
                       for (const g of groupsToUpdate) {
+                          const { leader, ...groupWithoutLeader } = g;
                           await saveRecord('proGroups', { 
-                              ...g, 
-                              leader: normalizeString(g.leader) === normOrphan ? targetStaff.name : g.leader,
+                              ...groupWithoutLeader, 
                               currentLeader: normalizeString(g.currentLeader) === normOrphan ? targetStaff.name : g.currentLeader,
                               leaderPhone: targetStaff.whatsapp || g.leaderPhone
                           });
@@ -237,7 +237,7 @@ export const useHealerActions = (
               const pg = proGroups.find((g: any) => g.id === id);
               if (pg) {
                   const updates = { ...pg };
-                  if (normalizeString(pg.leader) === normalizeString(orphanName)) updates.leader = '';
+                  delete updates.leader;
                   if (normalizeString(pg.currentLeader) === normalizeString(orphanName)) updates.currentLeader = '';
                   await saveRecord('proGroups', updates);
                   showToast("Nome removido da liderança do PG.", "success");

@@ -7,12 +7,12 @@ export interface ProSector {
   unit: Unit;
   active?: boolean;
   cycleMonth?: string; // Mês de Referência (YYYY-MM-DD)
+  createdAt?: number;
   updatedAt?: number;
 }
 
 export interface ProStaff {
   id: string;
-  registrationId?: string; // Matrícula
   name: string;
   sectorId: string;
   unit: Unit;
@@ -20,6 +20,7 @@ export interface ProStaff {
   active?: boolean;
   leftAt?: number;
   cycleMonth?: string; // Mês de Referência (YYYY-MM-DD)
+  createdAt?: number;
   updatedAt?: number;
 }
 
@@ -31,6 +32,7 @@ export interface ProPatient {
   lastLesson?: string;
   joinedAt?: number;
   leftAt?: number;
+  createdAt?: number;
   updatedAt?: number;
 }
 
@@ -42,6 +44,7 @@ export interface ProProvider {
   sector?: string;
   joinedAt?: number;
   leftAt?: number;
+  createdAt?: number;
   updatedAt?: number;
 }
 
@@ -55,6 +58,7 @@ export interface ProGroup {
   unit: Unit;
   active?: boolean;
   cycleMonth?: string; // Mês de Referência (YYYY-MM-DD)
+  createdAt?: number;
   updatedAt?: number;
 }
 
@@ -64,6 +68,7 @@ export interface ProGroupLocation {
   sectorId: string;
   unit: Unit;
   createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface ProGroupMember {
@@ -74,6 +79,8 @@ export interface ProGroupMember {
   leftAt?: number; // Data de saída para histórico (Soft Delete)
   isError?: boolean;
   cycleMonth?: string; // Mês de Competência (YYYY-MM-DD)
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface ProGroupProviderMember {
@@ -84,6 +91,8 @@ export interface ProGroupProviderMember {
   leftAt?: number;
   isError?: boolean;
   cycleMonth?: string; // Mês de Competência (YYYY-MM-DD)
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface ProMonthlyStats {
@@ -97,6 +106,7 @@ export interface ProMonthlyStats {
   goal: number;
   unit: Unit;
   createdAt?: number;
+  updatedAt?: number;
   // --- CAMPOS PARA SNAPSHOT DE FECHAMENTO ---
   snapshotData?: {
     totalColaboradores: number;
@@ -169,6 +179,8 @@ export interface Config {
   lastModifiedAt?: number;
   headerProfiles?: Record<string, HeaderProfile>;
   activeCompetenceMonth?: string; // YYYY-MM-01 (Mês de competência ativo para o sistema)
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface User {
@@ -181,6 +193,8 @@ export interface User {
   attendsHaba?: boolean;
   habaDays?: number[];
   auth_id?: string;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface BibleStudy {
@@ -190,6 +204,7 @@ export interface BibleStudy {
   unit: Unit;
   sector: string;
   sectorId?: string;
+  location?: string;
   name: string;
   staffId?: string;
   whatsapp: string;
@@ -208,6 +223,8 @@ export interface BibleClass {
   date: string;
   unit: Unit;
   sector: string;
+  sectorId?: string;
+  location?: string;
   students: string[];
   status: RecordStatus;
   participantType?: ParticipantType;
@@ -224,6 +241,7 @@ export interface SmallGroup {
   date: string;
   unit: Unit;
   sector: string;
+  sectorId?: string;
   groupName: string;
   leader: string;
   leaderPhone?: string;
@@ -240,6 +258,8 @@ export interface StaffVisit {
   date: string;
   unit: Unit;
   sector: string;
+  sectorId?: string;
+  location?: string;
   reason: VisitReason;
   staffName: string;
   staffId?: string;
@@ -249,7 +269,7 @@ export interface StaffVisit {
   providerRole?: string;
   requiresReturn: boolean;
   returnDate?: string;
-  returnCompleted: boolean;
+  returnCompleted?: boolean;
   observations: string;
   createdAt?: number;
   updatedAt?: number;
@@ -300,6 +320,7 @@ export interface ActivitySchedule {
   responsibleName?: string; // Nome do responsável (Visite Cantando)
   responsibleWhatsApp?: string; // WhatsApp do responsável (Visite Cantando)
   createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface DailyActivityReport {
@@ -328,6 +349,7 @@ export interface EditAuthorization {
   monthToUnlock: string; // YYYY-MM-DD (primeiro dia do mês)
   expiryDate: string; // YYYY-MM-DDTHH:mm:ss (Data e hora de expiração)
   createdAt: number;
+  updatedAt?: number;
   createdBy: string;
 }
 
@@ -337,7 +359,6 @@ export interface ProHistoryRecord {
   unit: Unit;
   staffId: string;
   staffName: string;
-  registrationId?: string; // Matrícula
   sectorId: string;
   sectorName: string;
   groupId?: string;
@@ -345,4 +366,5 @@ export interface ProHistoryRecord {
   status: string; // 'Matriculado' | 'Não Matriculado'
   isEnrolled: boolean;
   createdAt?: number;
+  updatedAt?: number;
 }

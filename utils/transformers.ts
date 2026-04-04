@@ -1,7 +1,7 @@
 export const COLLECTION_TO_TABLE: Record<string, string> = {
   bibleStudies: 'bible_study_sessions',
   bibleClasses: 'bible_classes',
-  smallGroups: 'small_groups',
+  smallGroups: 'small_group_sessions',
   staffVisits: 'staff_visits',
   users: 'users',
   config: 'app_config',
@@ -24,31 +24,31 @@ export const COLLECTION_TO_TABLE: Record<string, string> = {
 };
 
 export const TABLE_SCHEMAS: Record<string, string[]> = {
-  users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'attends_haba', 'haba_days', 'updated_at', 'auth_id'],
-  bible_study_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'name', 'staff_id', 'whatsapp', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
-  bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
-  bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'created_at'],
-  small_groups: ['id', 'user_id', 'date', 'unit', 'sector', 'group_name', 'leader', 'leader_phone', 'shift', 'participants_count', 'observations', 'created_at', 'updated_at'],
-  staff_visits: ['id', 'user_id', 'date', 'unit', 'sector', 'reason', 'staff_name', 'staff_id', 'provider_id', 'whatsapp', 'participant_type', 'provider_role', 'requires_return', 'return_date', 'return_completed', 'observations', 'created_at', 'updated_at'],
+  users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'attends_haba', 'haba_days', 'created_at', 'updated_at', 'auth_id'],
+  bible_study_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'location', 'name', 'staff_id', 'whatsapp', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
+  bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'location', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
+  bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'created_at', 'updated_at'],
+  small_group_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'group_name', 'leader', 'leader_phone', 'shift', 'participants_count', 'observations', 'created_at', 'updated_at'],
+  staff_visits: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'location', 'reason', 'staff_name', 'staff_id', 'provider_id', 'whatsapp', 'participant_type', 'provider_role', 'requires_return', 'return_date', 'return_completed', 'observations', 'created_at', 'updated_at'],
   visit_requests: ['id', 'pg_name', 'leader_name', 'leader_phone', 'unit', 'date', 'status', 'request_notes', 'preferred_chaplain_id', 'assigned_chaplain_id', 'chaplain_response', 'sector_id', 'meeting_location', 'scheduled_time', 'is_read', 'created_at', 'updated_at'],
-  app_config: ['id', 'mural_text', 'header_line1', 'header_line2', 'header_line3', 'font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'header_text_align', 'primary_color', 'app_logo_url', 'report_logo_url', 'last_modified_by', 'last_modified_at', 'header_profiles', 'updated_at'],
-  pro_sectors: ['id', 'name', 'unit', 'active', 'cycle_month'],
-  pro_staff: ['id', 'name', 'sector_id', 'unit', 'whatsapp', 'active', 'left_at', 'cycle_month'],
-  pro_patients: ['id', 'name', 'unit', 'whatsapp', 'last_lesson', 'updated_at'],
+  app_config: ['id', 'mural_text', 'header_line1', 'header_line2', 'header_line3', 'font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'header_text_align', 'primary_color', 'app_logo_url', 'report_logo_url', 'last_modified_by', 'last_modified_at', 'header_profiles', 'created_at', 'updated_at'],
+  pro_sectors: ['id', 'name', 'unit', 'active', 'cycle_month', 'created_at', 'updated_at'],
+  pro_staff: ['id', 'name', 'sector_id', 'unit', 'whatsapp', 'active', 'left_at', 'cycle_month', 'created_at', 'updated_at'],
+  pro_patients: ['id', 'name', 'unit', 'whatsapp', 'last_lesson', 'created_at', 'updated_at'],
   pro_providers: ['id', 'name', 'unit', 'whatsapp', 'sector', 'created_at', 'updated_at'],
-  pro_groups: ['id', 'name', 'current_leader', 'leader_phone', 'sector_id', 'unit', 'active', 'cycle_month'],
-  pro_group_locations: ['id', 'group_id', 'sector_id', 'unit', 'created_at'],
-  pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at', 'left_at', 'is_error', 'cycle_month'],
-  pro_group_provider_members: ['id', 'group_id', 'provider_id', 'joined_at', 'left_at', 'is_error', 'cycle_month'],
+  pro_groups: ['id', 'name', 'current_leader', 'leader_phone', 'sector_id', 'unit', 'active', 'cycle_month', 'created_at', 'updated_at'],
+  pro_group_locations: ['id', 'group_id', 'sector_id', 'unit', 'created_at', 'updated_at'],
+  pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at', 'left_at', 'is_error', 'cycle_month', 'created_at', 'updated_at'],
+  pro_group_provider_members: ['id', 'group_id', 'provider_id', 'joined_at', 'left_at', 'is_error', 'cycle_month', 'created_at', 'updated_at'],
   ambassadors: ['id', 'registration_id', 'name', 'sector_id', 'unit', 'completion_date', 'cycle_month', 'created_at', 'updated_at'],
-  activity_schedules: ['id', 'user_id', 'unit', 'month', 'day_of_week', 'activity_type', 'location', 'time', 'created_at'],
+  activity_schedules: ['id', 'user_id', 'unit', 'month', 'day_of_week', 'activity_type', 'location', 'time', 'created_at', 'updated_at'],
   daily_activity_reports: ['id', 'user_id', 'date', 'unit', 'completed_blueprints', 'completed_cults', 'completed_encontro', 'completed_visite_cantando', 'palliative_count', 'surgical_count', 'pediatric_count', 'uti_count', 'observations', 'created_at', 'updated_at'],
-  pro_monthly_stats: ['id', 'month', 'type', 'target_id', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'unit', 'created_at', 'snapshot_data'],
-  edit_authorizations: ['id', 'user_id', 'user_name', 'allowed_tabs', 'month_to_unlock', 'expiry_date', 'created_at', 'created_by'],
-  pro_history_records: ['id', 'month', 'unit', 'staff_id', 'staff_name', 'registration_id', 'sector_id', 'sector_name', 'group_id', 'group_name', 'leader_name', 'role', 'is_enrolled', 'joined_at', 'left_at', 'created_at']
+  pro_monthly_stats: ['id', 'month', 'type', 'target_id', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'unit', 'snapshot_data', 'created_at', 'updated_at'],
+  edit_authorizations: ['id', 'user_id', 'user_name', 'allowed_tabs', 'month_to_unlock', 'expiry_date', 'created_by', 'created_at', 'updated_at'],
+  pro_history_records: ['id', 'month', 'unit', 'staff_id', 'staff_name', 'sector_id', 'sector_name', 'group_id', 'group_name', 'leader_name', 'role', 'is_enrolled', 'joined_at', 'left_at', 'created_at', 'updated_at']
 };
 
-export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'staff_id', 'provider_id', 'sector_id', 'group_id', 'day_of_week', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal'];
+export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'provider_id', 'group_id', 'day_of_week', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal'];
 
 export const DATE_FIELDS = ['joined_at', 'left_at', 'updated_at', 'created_at', 'completion_date', 'return_date', 'scheduled_time', 'last_modified_at', 'expiry_date', 'month_to_unlock'];
 
@@ -105,15 +105,12 @@ export const toCamel = (obj: any): any => {
 // Mapeamento exato de colunas que são BIGINT (int8) no banco de dados, baseado no SQL do usuário.
 // Qualquer campo de data NÃO listado aqui para sua respectiva tabela será tratado como TIMESTAMPTZ/DATE (ISO String).
 export const NUMERIC_DATE_COLUMNS_BY_TABLE: Record<string, string[]> = {
-  activity_schedules: ['created_at'],
   app_config: ['last_modified_at', 'updated_at'],
-  bible_classes: ['created_at', 'updated_at'],
-  bible_study_sessions: ['created_at', 'updated_at'],
   daily_activity_reports: ['created_at', 'updated_at'],
   pro_group_locations: ['created_at'],
   pro_monthly_stats: ['created_at'],
   pro_history_records: ['created_at', 'joined_at', 'left_at'],
-  small_groups: ['created_at', 'updated_at'],
+  small_group_sessions: ['created_at', 'updated_at'],
   staff_visits: ['created_at', 'updated_at'],
   users: ['updated_at'],
   visit_requests: ['created_at', 'updated_at']
@@ -121,6 +118,7 @@ export const NUMERIC_DATE_COLUMNS_BY_TABLE: Record<string, string[]> = {
 
 export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: string): any => {
   if (!obj || typeof obj !== 'object') return obj;
+  
   const newObj: any = {};
   for (const key in obj) {
     // Convert camelCase to snake_case

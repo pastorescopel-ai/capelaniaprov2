@@ -104,8 +104,18 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date || ''} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all" /></div>
           
           <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Local da Classe (Obrigatório)</label>
-              <Autocomplete options={sectorOptions} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} onSelectOption={handleSelectSector} placeholder="Selecione ou digite o local..." isStrict={false} />
+              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>{isStaff ? 'Setor (Obrigatório)' : 'Local (Opcional)'}</label>
+              {isStaff ? (
+                  <Autocomplete options={sectorOptions} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} onSelectOption={handleSelectSector} placeholder="Selecione ou digite o local..." isStrict={false} />
+              ) : (
+                  <input 
+                    type="text" 
+                    value={formData.location || ''} 
+                    onChange={e => setFormData({...formData, location: e.target.value})} 
+                    placeholder="Local da classe..." 
+                    className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all" 
+                  />
+              )}
           </div>
 
           <div className={`space-y-1 ${!isStaff ? 'order-first md:order-none col-span-2 md:col-span-2 animate-in slide-in-from-top-2' : ''}`}>
