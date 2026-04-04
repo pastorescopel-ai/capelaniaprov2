@@ -141,3 +141,15 @@ export const getFifthBusinessDay = (year: number, month: number): Date => {
   date.setHours(23, 59, 59, 999);
   return date;
 };
+
+/**
+ * Converte qualquer valor de data (Timestamp, ISO String, Date, ou String numérica) em um timestamp numérico (ms).
+ * Essencial para comparações e ordenações após a migração para timestamptz e para lidar com bigints do Supabase.
+ */
+export const getTimestamp = (val: any): number => {
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  if (typeof val === 'string' && /^\d+$/.test(val)) return Number(val);
+  const parsed = new Date(val).getTime();
+  return isNaN(parsed) ? 0 : parsed;
+};

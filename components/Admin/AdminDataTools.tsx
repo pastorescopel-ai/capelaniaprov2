@@ -3,7 +3,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { User, ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProProvider, Ambassador, ProMonthlyStats, ProHistoryRecord } from '../../types';
 import { useToast } from '../../contexts/ToastProvider';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
-import { cleanID } from '../../utils/formatters';
+import { cleanID, getTimestamp } from '../../utils/formatters';
 import { Unit } from '../../types';
 import { TABLE_SCHEMAS } from '../../utils/transformers';
 import { supabase } from '../../services/supabaseClient';
@@ -184,11 +184,22 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
           const hasCreatedAt = columns.includes('created_at');
           const hasUpdatedAt = columns.includes('updated_at');
           if (!hasCreatedAt || !hasUpdatedAt) {
-            report.schemaSync.push({ table, status: 'warning', message: `Faltam colunas de data: ${!hasCreatedAt ? 'created_at ' : ''}${!hasUpdatedAt ? 'updated_at' : ''}` });
+            report.schemaSync.push({ table, status: 'warning', message: `Faltam colunas de auditoria: ${!hasCreatedAt ? 'created_at ' : ''}${!hasUpdatedAt ? 'updated_at' : ''}` });
             report.summary.totalWarnings++;
           } else {
             report.schemaSync.push({ table, status: 'ok', message: 'Tabela acessível e com datas mapeadas.' });
             report.summary.totalOk++;
+          }
+
+          // Check for joined_at/left_at in relevant tables
+          const hasJoinedAt = columns.includes('joined_at');
+          const hasLeftAt = columns.includes('left_at');
+          if (hasJoinedAt || hasLeftAt) {
+            report.schemaSync.push({ 
+              table, 
+              status: 'info', 
+              message: `Contém colunas de vínculo: ${hasJoinedAt ? 'joined_at ' : ''}${hasLeftAt ? 'left_at' : ''}` 
+            });
           }
         }
       }
@@ -228,19 +239,22 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
       // Terceirizados sem setor (Ignorado conforme regra de negócio)
       // const providersWithoutSector = (proData.providers || []).filter(p => p.sectorId && !proData.sectors.find(sec => sec.id === p.sectorId));
 
-      // Terceirizados em PGs órfãos
-      const orphanProviderMembers = proGroupProviderMembers.filter(m => !proData.groups.find(g => g.id === m.groupId) || !(proData.providers || []).find(p => p.id === m.providerId));
+      // Terceirizados em PGs órfãos (Apenas se ainda estiverem ativos no grupo)
+      const orphanProviderMembers = proGroupProviderMembers.filter(m => 
+        !m.leftAt && (!proData.groups.find(g => g.id === m.groupId) || !(proData.providers || []).find(p => p.id === m.providerId))
+      );
       if (orphanProviderMembers.length > 0) {
         report.dataIntegrity.push({ 
           type: 'warning', 
-          message: `${orphanProviderMembers.length} registros de terceirizados em PG com PG ou Provider inexistente.`,
+          message: `${orphanProviderMembers.length} registros de terceirizados ativos em PG com PG ou Provider inexistente.`,
           action: 'delete_orphan_provider_members',
           data: orphanProviderMembers
         });
         report.summary.totalWarnings++;
       }
 
-      // Terceirizados sem PG
+      // Terceirizados sem PG (Removido por regra de negócio: prestadores podem receber atendimento sem PG fixo)
+      /*
       const providersWithoutPG = (proData.providers || []).filter(p => !proGroupProviderMembers.find(m => m.providerId === p.id && !m.leftAt));
       if (providersWithoutPG.length > 0) {
         report.dataIntegrity.push({
@@ -251,6 +265,7 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
         });
         report.summary.totalWarnings++;
       }
+      */
 
       // Embaixadores sem setor
       const ambassadorsWithoutSector = ambassadors.filter(a => a.sectorId && !proData.sectors.find(sec => sec.id === a.sectorId));
@@ -323,7 +338,8 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
         report.summary.totalWarnings++;
       }
 
-      // Visitas sem sectorId (Apenas para Colaboradores)
+      // Visitas sem sectorId (Removido por regra de negócio: podem ser lançamentos externos ou incorretos que não exigem vínculo)
+      /*
       const staffVisitsMissingSectorId = chaplaincyData.staffVisits.filter(v => !v.sectorId && v.sector && (!v.participantType || v.participantType === 'Colaborador'));
       if (staffVisitsMissingSectorId.length > 0) {
         report.dataIntegrity.push({ 
@@ -334,6 +350,7 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
         });
         report.summary.totalWarnings++;
       }
+      */
 
       // 3. Type Validation (BIGINT)
       const isNumeric = (val: string) => /^\d+$/.test(val);
@@ -373,6 +390,126 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
       if (duplicatePGs > 0) {
         report.dataIntegrity.push({ type: 'warning', message: `${duplicatePGs} PGs com nomes duplicados na mesma unidade.` });
         report.summary.totalWarnings++;
+      }
+
+      // 5. Future Cycle Check (Detection of potential data visibility issues)
+      const currentMonthStr = new Date().toISOString().split('T')[0].substring(0, 7) + '-01';
+      const futureCycleMembers = proGroupMembers.filter(m => m.cycleMonth && m.cycleMonth > currentMonthStr);
+      if (futureCycleMembers.length > 0) {
+        report.dataIntegrity.push({ 
+          type: 'info', 
+          message: `${futureCycleMembers.length} matrículas possuem ciclo futuro (ex: sincronizados para o próximo mês).`,
+          details: 'Isso pode fazer com que membros sumam de meses passados se a lógica de filtragem for estrita.'
+        });
+      }
+
+      // 6. Migration Date Check (Detection of reset createdAt)
+      const migrationDate = new Date('2026-04-04').getTime();
+      const resetStaff = proData.staff.filter(s => getTimestamp(s.createdAt) >= migrationDate);
+      const restoredStaff = proData.staff.filter(s => getTimestamp(s.createdAt) < migrationDate && getTimestamp(s.createdAt) >= new Date('2026-01-01').getTime());
+
+      if (resetStaff.length > 0) {
+        report.dataIntegrity.push({
+          type: 'warning',
+          message: `${resetStaff.length} colaboradores ainda possuem data de criação de hoje (04/04/2026).`,
+          details: 'Estes registros podem não ter sido afetados pelo seu comando SQL ou não possuem cycle_month.'
+        });
+        report.summary.totalWarnings++;
+      }
+
+      if (restoredStaff.length > 0) {
+        report.dataIntegrity.push({
+          type: 'ok',
+          message: `${restoredStaff.length} colaboradores foram restaurados com sucesso para datas passadas.`,
+          details: `Amostra de data restaurada: ${new Date(getTimestamp(restoredStaff[0].createdAt)).toLocaleDateString()}`
+        });
+        report.summary.totalOk++;
+      }
+
+      // 7. Legacy Backup Consistency Check
+      const legacyCheckTables = [
+        { name: 'bible_classes', label: 'Aulas Bíblicas' },
+        { name: 'daily_activity_reports', label: 'Relatórios Diários' }
+      ];
+
+      for (const table of legacyCheckTables) {
+        const { data } = await supabase
+          .from(table.name)
+          .select('created_at, created_at_legacy_backup')
+          .not('created_at_legacy_backup', 'is', null)
+          .limit(5);
+
+        if (data && data.length > 0) {
+          const isRestored = data.every(row => {
+            const current = new Date(row.created_at).getTime();
+            const legacy = Number(row.created_at_legacy_backup);
+            return Math.abs(current - legacy) < 2000; // Tolerância de 2 segundos
+          });
+
+          if (isRestored) {
+            report.dataIntegrity.push({
+              type: 'ok',
+              message: `Restauração de backup confirmada para ${table.label}.`,
+              details: 'As datas de criação agora batem com os registros originais.'
+            });
+            report.summary.totalOk++;
+          }
+        }
+      }
+
+      // 7. Legacy Backup Analysis (Deep Dive)
+      const tablesWithLegacy = [
+        { name: 'bible_classes', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup'] },
+        { name: 'daily_activity_reports', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup'] },
+        { name: 'pro_history_records', cols: ['created_at_legacy_backup', 'joined_at_legacy_backup', 'left_at_legacy_backup'] },
+        { name: 'staff_visits', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup', 'return_date_legacy_backup'] },
+        { name: 'pro_staff', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup'] },
+        { name: 'pro_group_members', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup', 'joined_at_legacy_backup', 'left_at_legacy_backup'] }
+      ];
+
+      console.log("[DEBUG] Iniciando Auditoria de Dados Legados...");
+
+      for (const tableInfo of tablesWithLegacy) {
+        try {
+          const { data, error } = await supabase
+            .from(tableInfo.name)
+            .select(tableInfo.cols.join(','))
+            .or(tableInfo.cols.map(c => `${c}.not.is.null`).join(','))
+            .limit(1);
+
+          if (error) {
+            console.warn(`[DEBUG] Erro ao auditar ${tableInfo.name}:`, error.message);
+            continue;
+          }
+
+          if (data && data.length > 0) {
+            const sample = data[0];
+            const readableDates = Object.entries(sample).map(([col, val]) => {
+              if (!val) return `${col}: null`;
+              
+              let date: Date;
+              if (typeof val === 'number' || (typeof val === 'string' && /^\d+$/.test(val))) {
+                date = new Date(Number(val));
+              } else {
+                date = new Date(String(val));
+              }
+
+              const dateStr = isNaN(date.getTime()) ? 'Data Inválida' : date.toISOString();
+              return `${col}: ${dateStr} (${val})`;
+            });
+            
+            console.log(`[DEBUG] Legacy Audit - ${tableInfo.name}:`, readableDates);
+            report.dataIntegrity.push({
+              type: 'info',
+              message: `Dados de backup encontrados em ${tableInfo.name}.`,
+              details: `Amostra: ${readableDates.join(' | ')}`
+            });
+          } else {
+            console.log(`[DEBUG] Legacy Audit - ${tableInfo.name}: Nenhum dado encontrado.`);
+          }
+        } catch (e) {
+          console.error(`[DEBUG] Falha crítica ao auditar ${tableInfo.name}:`, e);
+        }
       }
 
     } catch (err: any) {

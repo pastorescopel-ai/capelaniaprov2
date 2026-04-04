@@ -3,7 +3,7 @@ import React, { useMemo, useState, memo } from 'react';
 import { Unit } from '../../types';
 import { usePro } from '../../contexts/ProContext';
 import { useApp } from '../../hooks/useApp';
-import { normalizeString, cleanID } from '../../utils/formatters';
+import { getTimestamp, normalizeString, cleanID } from '../../utils/formatters';
 import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
 import { getBrandedHeaderByProfile, getBrandedFooter } from '../../utils/reportTemplates';
 
@@ -132,7 +132,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
           if (!group || group.unit !== unit) return false;
           
           const mCycleDate = m.cycleMonth ? new Date(m.cycleMonth + 'T12:00:00').getTime() : 0;
-          const mLeftDate = m.leftAt ? (typeof m.leftAt === 'string' ? new Date(m.leftAt).getTime() : m.leftAt) : null;
+          const mLeftDate = getTimestamp(m.leftAt);
           
           return !m.isError &&
                  (!m.cycleMonth || mCycleDate <= endTimestamp) &&
@@ -144,7 +144,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
           if (!group || group.unit !== unit) return false;
           
           const mCycleDate = m.cycleMonth ? new Date(m.cycleMonth + 'T12:00:00').getTime() : 0;
-          const mLeftDate = m.leftAt ? (typeof m.leftAt === 'string' ? new Date(m.leftAt).getTime() : m.leftAt) : null;
+          const mLeftDate = getTimestamp(m.leftAt);
           
           return !m.isError &&
                  (!m.cycleMonth || mCycleDate <= endTimestamp) &&
@@ -167,7 +167,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
       proStaff.forEach(s => {
         if (s.unit !== unit) return;
 
-        const createdDate = s.createdAt ? (typeof s.createdAt === 'string' ? new Date(s.createdAt).getTime() : s.createdAt) : null;
+        const createdDate = getTimestamp(s.createdAt);
         if (createdDate && createdDate > monthEnd) return;
 
         if (!createdDate && s.cycleMonth) {
@@ -175,7 +175,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
           if (cycleDate > monthEnd) return;
         }
 
-        const leftDate = s.leftAt ? (typeof s.leftAt === 'string' ? new Date(s.leftAt).getTime() : s.leftAt) : null;
+        const leftDate = getTimestamp(s.leftAt);
         if (leftDate && leftDate < targetDate.getTime()) return;
 
         const sId = cleanID(s.sectorId);

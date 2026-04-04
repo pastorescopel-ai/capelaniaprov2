@@ -5,6 +5,7 @@ import { useToast } from '../../contexts/ToastProvider';
 import { useApp } from '../../hooks/useApp';
 import { usePro } from '../../contexts/ProContext';
 import { useBible } from '../../contexts/BibleContext';
+import { getTimestamp } from '../../utils/formatters';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 import GlobalCloseMonthModal from '../Admin/GlobalCloseMonthModal';
 import GlobalReopenMonthModal from '../Admin/GlobalReopenMonthModal';
@@ -95,7 +96,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                 if (s.unit !== u) return false;
                 
                 // 1. Verificar se já existia no mês (Criado antes do fim do mês)
-                const createdDate = s.createdAt ? (typeof s.createdAt === 'string' ? new Date(s.createdAt).getTime() : s.createdAt) : null;
+                const createdDate = getTimestamp(s.createdAt);
                 if (createdDate && createdDate > monthEnd) return false;
                 
                 // Fallback: Se não tem createdAt, usamos o cycleMonth como pista
@@ -105,7 +106,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                 }
 
                 // 2. Verificar se ainda estava na unidade no mês (Saiu depois do início do mês ou ainda não saiu)
-                const leftDate = s.leftAt ? (typeof s.leftAt === 'string' ? new Date(s.leftAt).getTime() : s.leftAt) : null;
+                const leftDate = getTimestamp(s.leftAt);
                 if (leftDate && leftDate < targetDate.getTime()) return false;
 
                 // Se passou pelos filtros acima, ele era um colaborador válido no período, 
@@ -176,7 +177,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                 const members = proGroupMembers.filter(m => 
                     String(m.groupId) === groupId && 
                     (!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && 
-                    (!m.leftAt || (typeof m.leftAt === 'string' ? new Date(m.leftAt).getTime() : m.leftAt) >= targetDate.getTime())
+                    (!m.leftAt || getTimestamp(m.leftAt) >= targetDate.getTime())
                 );
                 const sectorId = String(group.sectorId || '');
                 const staffInSector = sectorId ? (staffBySector.get(sectorId) || []) : [];
@@ -204,7 +205,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                 if (!group || group.unit !== u) return false;
                 
                 const mCycleDate = m.cycleMonth ? new Date(m.cycleMonth + 'T12:00:00').getTime() : 0;
-                const mLeftDate = m.leftAt ? (typeof m.leftAt === 'string' ? new Date(m.leftAt).getTime() : m.leftAt) : null;
+                const mLeftDate = getTimestamp(m.leftAt);
                 
                 return (!m.cycleMonth || mCycleDate <= targetDate.getTime()) && 
                        (!mLeftDate || mLeftDate >= targetDate.getTime());
@@ -215,7 +216,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                 if (!group || group.unit !== u) return false;
                 
                 const mCycleDate = m.cycleMonth ? new Date(m.cycleMonth + 'T12:00:00').getTime() : 0;
-                const mLeftDate = m.leftAt ? (typeof m.leftAt === 'string' ? new Date(m.leftAt).getTime() : m.leftAt) : null;
+                const mLeftDate = getTimestamp(m.leftAt);
                 
                 return (!m.cycleMonth || mCycleDate <= targetDate.getTime()) && 
                        (!mLeftDate || mLeftDate >= targetDate.getTime());
@@ -245,8 +246,8 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                     leaderName: group?.currentLeader || null,
                     role: 'CLT',
                     isEnrolled: !!membership,
-                    joinedAt: membership?.joinedAt ? (typeof membership.joinedAt === 'string' ? new Date(membership.joinedAt).getTime() : membership.joinedAt) : null,
-                    leftAt: membership?.leftAt ? (typeof membership.leftAt === 'string' ? new Date(membership.leftAt).getTime() : membership.leftAt) : null,
+                    joinedAt: getTimestamp(membership?.joinedAt),
+                    leftAt: getTimestamp(membership?.leftAt),
                     createdAt: Date.now()
                 });
             });
@@ -272,8 +273,8 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                     leaderName: group?.currentLeader || null,
                     role: 'PRESTADOR',
                     isEnrolled: true,
-                    joinedAt: m.joinedAt ? (typeof m.joinedAt === 'string' ? new Date(m.joinedAt).getTime() : m.joinedAt) : null,
-                    leftAt: m.leftAt ? (typeof m.leftAt === 'string' ? new Date(m.leftAt).getTime() : m.leftAt) : null,
+                    joinedAt: getTimestamp(m.joinedAt),
+                    leftAt: getTimestamp(m.leftAt),
                     createdAt: Date.now()
                 });
             });

@@ -4,7 +4,7 @@ import { Unit, ProHistoryRecord } from '../../types';
 import { usePro } from '../../contexts/ProContext';
 import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthProvider';
-import { normalizeString, cleanID } from '../../utils/formatters';
+import { getTimestamp, normalizeString, cleanID } from '../../utils/formatters';
 import StatusModal from './StatusModal';
 
 interface PGDashboardProps {
@@ -46,7 +46,10 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     const targetDate = new Date(selectedMonth + 'T12:00:00');
     const isCurrentMonth = selectedMonth === new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
     const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0, 23, 59, 59).getTime();
+    const monthStart = targetDate.getTime();
     
+    console.log(`[DEBUG] PGDashboard - Mês: ${selectedMonth} | Start: ${new Date(monthStart).toISOString()} | End: ${new Date(monthEnd).toISOString()}`);
+
     // 0. Verificar se o mês está encerrado (Snapshot de Fechamento)
     const isClosed = proMonthlyStats?.some(s => s.month === selectedMonth);
     const historyForMonth = proHistoryRecords.filter(r => r.month === selectedMonth && r.unit === unit);
@@ -131,38 +134,48 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
     // 1. Filtrar setores e staff da unidade (Tratando duplicatas de ID)
     const staffMap = new Map<string, any>();
+    let rejectedStaffCount = 0;
+
+    const migrationDate = new Date('2026-04-04').getTime();
+
     proStaff.forEach(s => {
       if (s.unit !== unit) return;
       
-      // 1. Verificar se já existia no mês (Criado antes do fim do mês)
-      const createdDate = s.createdAt ? (typeof s.createdAt === 'string' ? new Date(s.createdAt).getTime() : s.createdAt) : null;
-      if (createdDate && createdDate > monthEnd) return;
+      const createdDate = getTimestamp(s.createdAt);
+      const leftDate = getTimestamp(s.leftAt);
+      
+      // Regra de Atividade do Colaborador (Ajustada para Pós-Migração):
+      const hasLeftBeforeMonth = leftDate && leftDate < monthStart;
+      const wasCreatedBeforeEnd = createdDate && createdDate <= monthEnd;
 
-      // Fallback: Se não tem createdAt, usamos o cycleMonth como pista
-      if (!createdDate && s.cycleMonth) {
-        const cycleDate = new Date(s.cycleMonth + 'T12:00:00').getTime();
-        if (cycleDate > monthEnd) return;
-      }
+      // EXCEÇÃO DE MIGRAÇÃO: Apenas se o createdAt foi resetado para HOJE
+      // E o mês selecionado é Março ou Abril (período de transição)
+      const isMigrationReset = !isCurrentMonth && 
+                               createdDate >= migrationDate && 
+                               (!leftDate || leftDate >= monthStart) &&
+                               selectedMonth >= '2026-02-01'; // Não mostrar em Janeiro se o sistema começou depois
 
-      // 2. Verificar se ainda estava na unidade no mês (Saiu depois do início do mês ou ainda não saiu)
-      const leftDate = s.leftAt ? (typeof s.leftAt === 'string' ? new Date(s.leftAt).getTime() : s.leftAt) : null;
-      if (leftDate && leftDate < targetDate.getTime()) return;
+      if (!hasLeftBeforeMonth && (wasCreatedBeforeEnd || isMigrationReset)) {
+        if (isCurrentMonth && s.active === false) {
+          rejectedStaffCount++;
+          return;
+        }
 
-      // Se o mês selecionado é o ATUAL, respeitamos o flag active.
-      // Se é um mês PASSADO (aberto), ignoramos o active=false se ele saiu DEPOIS do mês.
-      if (isCurrentMonth && s.active === false) return;
-
-      const idClean = cleanID(s.id);
-      const existing = staffMap.get(idClean);
-      // Se houver duplicata de ID no banco, priorizamos o registro ativo
-      if (!existing || (s.active && !existing.active)) {
-        staffMap.set(idClean, s);
+        const idClean = cleanID(s.id);
+        const existing = staffMap.get(idClean);
+        if (!existing || (s.active && !existing.active)) {
+          staffMap.set(idClean, s);
+        }
+      } else {
+        rejectedStaffCount++;
       }
     });
 
     const unitStaff = Array.from(staffMap.values());
+    console.log(`[DEBUG] PGDashboard - Staff Unidade: ${unitStaff.length} | Rejeitados: ${rejectedStaffCount}`);
 
     const unitSectors = proSectors.filter(s => s.unit === unit && (isCurrentMonth ? s.active !== false : true));
+    console.log(`[DEBUG] PGDashboard - Setores Unidade: ${unitSectors.length}`);
 
     // Otimização: Dicionários para buscas O(1)
     const validSectorIds = new Set(unitSectors.map(s => cleanID(s.id)));
@@ -172,19 +185,34 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     const memberGroupIdsBySector = new Map<string, Set<string>>();
     const activePGIds = new Set<string>();
 
+    let activeMembershipsCount = 0;
+
     proGroupMembers.forEach(m => {
       const group = groupsById.get(cleanID(m.groupId));
       if (!group || group.unit !== unit) return;
 
       const mCycleDate = m.cycleMonth ? new Date(m.cycleMonth + 'T12:00:00').getTime() : 0;
-      const mLeftDate = m.leftAt ? (typeof m.leftAt === 'string' ? new Date(m.leftAt).getTime() : m.leftAt) : null;
+      const mLeftDate = getTimestamp(m.leftAt);
+      const mJoinedAt = getTimestamp(m.joinedAt);
+      const mCreatedAt = getTimestamp(m.createdAt);
+      
+      // Prioridade total ao joinedAt. Se não existir, usa createdAt como fallback
+      const effectiveJoined = mJoinedAt || mCreatedAt;
 
-      if ((!m.cycleMonth || mCycleDate <= monthEnd) && 
-          (!mLeftDate || mLeftDate >= targetDate.getTime())) {
+      const isCycleMatch = !m.cycleMonth || mCycleDate <= monthEnd;
+      
+      // Para matrículas, a exceção de migração só ocorre se NÃO houver joinedAt e o createdAt for HOJE
+      const isMigrationReset = !isCurrentMonth && !mJoinedAt && mCreatedAt >= migrationDate && (!mLeftDate || mLeftDate >= monthStart);
+      const isPeriodMatch = (effectiveJoined <= monthEnd || isMigrationReset) && (!mLeftDate || mLeftDate >= monthStart);
+
+      if (isCycleMatch || isPeriodMatch) {
         enrolledStaffIds.add(cleanID(m.staffId));
         activePGIds.add(cleanID(m.groupId));
+        activeMembershipsCount++;
       }
     });
+    
+    console.log(`[DEBUG] PGDashboard - Matrículas Ativas: ${activeMembershipsCount} | Staff Matriculado Único: ${enrolledStaffIds.size}`);
 
     // Também contar PGs que tem apenas prestadores
     (proGroupProviderMembers || []).forEach(m => {
@@ -192,10 +220,14 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       if (!group || group.unit !== unit) return;
 
       const mCycleDate = m.cycleMonth ? new Date(m.cycleMonth + 'T12:00:00').getTime() : 0;
-      const mLeftDate = m.leftAt ? (typeof m.leftAt === 'string' ? new Date(m.leftAt).getTime() : m.leftAt) : null;
+      const mLeftDate = getTimestamp(m.leftAt);
+      const mJoinedDate = getTimestamp(m.joinedAt || m.createdAt);
 
-      if ((!m.cycleMonth || mCycleDate <= monthEnd) && 
-          (!mLeftDate || mLeftDate >= targetDate.getTime())) {
+      // Lógica de Atividade no Mês para Terceirizados
+      const isCycleMatch = !m.cycleMonth || mCycleDate <= monthEnd;
+      const isPeriodMatch = mJoinedDate <= monthEnd && (!mLeftDate || mLeftDate >= targetDate.getTime());
+
+      if (isCycleMatch || isPeriodMatch) {
         activePGIds.add(cleanID(m.groupId));
       }
     });
@@ -219,7 +251,8 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     });
 
     proGroupMembers.forEach(m => {
-      if (!m.leftAt || m.leftAt >= targetDate.getTime()) {
+      const mLeftDate = getTimestamp(m.leftAt);
+      if (!mLeftDate || mLeftDate >= targetDate.getTime()) {
         const staffIdClean = cleanID(m.staffId);
         const sId = sectorIdByStaffId.get(staffIdClean);
         if (sId) {
@@ -315,8 +348,8 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
       proStaff.forEach(s => {
         if (s.unit === unit) {
           const id = cleanID(s.id);
-          const createdDate = s.createdAt ? (typeof s.createdAt === 'string' ? new Date(s.createdAt).getTime() : s.createdAt) : 0;
-          const leftAt = s.leftAt ? (typeof s.leftAt === 'string' ? new Date(s.leftAt).getTime() : s.leftAt) : null;
+          const createdDate = getTimestamp(s.createdAt);
+          const leftAt = getTimestamp(s.leftAt);
           const wasActiveInMonth = createdDate <= monthEnd && (!leftAt || leftAt >= targetDate.getTime());
           
           if (wasActiveInMonth) {

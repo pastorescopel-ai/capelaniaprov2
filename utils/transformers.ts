@@ -86,10 +86,16 @@ export const toCamel = (obj: any): any => {
     
     let val = obj[key];
     
-    if (DATE_FIELDS.includes(key) && val && typeof val === 'string') {
-        const d = new Date(val);
-        if (!isNaN(d.getTime())) {
-            val = d.getTime();
+    if (DATE_FIELDS.includes(key) && val) {
+        if (typeof val === 'string') {
+            if (/^\d+$/.test(val)) {
+                val = parseInt(val, 10);
+            } else {
+                const d = new Date(val);
+                if (!isNaN(d.getTime())) {
+                    val = d.getTime();
+                }
+            }
         }
     }
     
