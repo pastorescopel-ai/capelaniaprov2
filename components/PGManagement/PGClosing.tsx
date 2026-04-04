@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Unit, ProMonthlyStats } from '../../types';
-import { useToast } from '../../contexts/ToastProvider';
+import { useToast } from '../../contexts/ToastContext';
 import { useApp } from '../../hooks/useApp';
 import { usePro } from '../../contexts/ProContext';
 import { useBible } from '../../contexts/BibleContext';

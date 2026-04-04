@@ -120,7 +120,14 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
           <div className={`space-y-1 ${!isStaff ? 'order-first md:order-none col-span-2 md:col-span-2 animate-in slide-in-from-top-2' : ''}`}>
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-indigo-600' : 'text-slate-400'}`}>WhatsApp do Representante {!isStaff ? '*' : '(Opcional)'}</label>
-              <input type="text" placeholder="(00) 00000-0000" value={formData.representativePhone || ''} onChange={e => setFormData({...formData, representativePhone: formatWhatsApp(e.target.value)})} className={`w-full p-3 md:p-3.5 rounded-2xl border-none font-bold text-sm transition-all focus:ring-2 focus:ring-indigo-500/20 ${!isStaff ? 'bg-indigo-50 text-indigo-900 ring-2 ring-indigo-100 focus:ring-indigo-300' : 'bg-slate-50'}`}/>
+              <input 
+                type="tel"
+                inputMode="numeric"
+                placeholder="(00) 00000-0000" 
+                value={formData.representativePhone || ''} 
+                onChange={e => setFormData({...formData, representativePhone: formatWhatsApp(e.target.value)})} 
+                className={`w-full p-3 md:p-3.5 rounded-2xl border-none font-bold text-sm transition-all focus:ring-2 focus:ring-indigo-500/20 ${!isStaff ? 'bg-indigo-50 text-indigo-900 ring-2 ring-indigo-100 focus:ring-indigo-300' : 'bg-slate-50'}`}
+              />
           </div>
           
           <div className="space-y-1 md:col-span-2">

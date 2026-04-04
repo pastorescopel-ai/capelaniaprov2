@@ -122,7 +122,6 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
   }, [data, filterChaplain, filterStart, filterEnd, debouncedSearchQuery, searchFields, disableSort, bypassFilter, currentUser]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(PAGE_SIZE);
   }, [filterChaplain, filterStart, filterEnd, debouncedSearchQuery]);
 

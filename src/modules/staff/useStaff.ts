@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { StaffService } from '../../../services/staff.service';
-import { useToast } from '../../../contexts/ToastProvider';
+import { useToast } from '../../../contexts/ToastContext';
 import { toSafeDateISO } from '../../../utils/formatters';
 import { isRecordLocked } from '../../../utils/validators';
 import { User } from '../../../types';

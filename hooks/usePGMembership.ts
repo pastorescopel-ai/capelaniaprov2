@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Unit, ProGroup } from '../types';
 import { usePro } from '../contexts/ProContext';
-import { useApp } from '../contexts/AppProvider';
-import { useToast } from '../contexts/ToastProvider';
+import { useApp } from '../contexts/AppContext';
+import { useToast } from '../contexts/ToastContext';
 import { usePGMembershipData } from './usePGMembershipData';
 
 interface UsePGMembershipProps {

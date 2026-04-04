@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Unit, RecordStatus, BibleClass, ParticipantType, User } from '../types';
-import { useToast } from '../contexts/ToastProvider';
+import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
-import { isRecordLocked } from '../utils/validators';
+import { isRecordLocked, isValidWhatsApp } from '../utils/validators';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
 
@@ -234,12 +234,15 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     let nextLesson = '';
     let nextGuide = '';
     let nextStatus = RecordStatus.INICIO;
+    let nextPhone = '';
 
     if (lastClass) {
         nextGuide = lastClass.guide;
         const lastNum = parseInt(lastClass.lesson);
         nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClass.lesson;
         nextStatus = RecordStatus.CONTINUACAO;
+        // PONTO 6: Recuperar WhatsApp do representante da última classe do setor
+        nextPhone = lastClass.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || '';
     }
 
     setFormData(prev => ({
@@ -248,9 +251,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         students: [], // Limpa alunos ao trocar de setor manualmente
         guide: nextGuide || prev.guide,
         lesson: nextLesson || prev.lesson,
-        status: nextStatus
+        status: nextStatus,
+        representativePhone: nextPhone || prev.representativePhone
     }));
-  }, [formData.participantType, allHistory, unit, currentUser.id, currentUser.role, proSectors, checkOwnershipConflict]);
+  }, [formData.participantType, allHistory, unit]);
 
   useEffect(() => {
     if (editingItem) {
@@ -280,6 +284,21 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
     if (finalString) { 
       if (formData.students.includes(finalString)) { showToast("Aluno já está na lista."); return; }
+
+      const normName = normalizeString(nameToAdd);
+
+      // AUTO-SWITCH: Se for Prestador, muda automaticamente (Ponto 3)
+      const isProvider = proProviders.some(p => normalizeString(p.name) === normName && p.unit === unit);
+      if (isProvider && formData.participantType !== ParticipantType.PROVIDER) {
+          setFormData(prev => ({ ...prev, participantType: ParticipantType.PROVIDER }));
+          showToast(`${nameToAdd} é um Prestador. Tipo do grupo alterado automaticamente.`, "info");
+      }
+
+      // CROSS-VALIDATION: Se for Colaborador mas selecionado em outra aba (Ponto 2)
+      const isStaffInRH = proStaff.some(s => normalizeString(s.name) === normName && s.unit === unit);
+      if (isStaffInRH && formData.participantType !== ParticipantType.STAFF) {
+          showToast(`${nameToAdd} consta na lista de colaboradores. Por favor, mude o tipo para colaborador ou peça ao capelão para alterar.`, "warning");
+      }
 
       // Verifica se o aluno está em um estudo ativo com outro capelão
       const ownership = checkOwnershipConflict(nameToAdd, 'study', unit, currentUser.id, currentUser.role);
@@ -333,6 +352,13 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
               const lastNum = parseInt(lastClassWithStudent.lesson);
               nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClassWithStudent.lesson;
               nextStatus = RecordStatus.CONTINUACAO;
+              
+              // PONTO 6: Recuperar WhatsApp do representante do histórico do aluno
+              const historyPhone = lastClassWithStudent.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1];
+              if (historyPhone && (!nextPhone || nextPhone.length < 10)) {
+                  nextPhone = historyPhone;
+              }
+
               if (peersToAdd.length > 0) showToast(`Histórico encontrado! Agrupando com ${peersToAdd.length} colega(s).`, "info");
           }
       }
@@ -409,8 +435,21 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
     if (formData.participantType === ParticipantType.STAFF) {
         if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
+        
+        // PONTO 1: Validar que todos os alunos são colaboradores oficiais
+        const nonStaff = formData.students.filter(studentStr => {
+            const nameOnly = studentStr.split(' (')[0].trim();
+            const normName = normalizeString(nameOnly);
+            return !proStaff.some(s => normalizeString(s.name) === normName && s.unit === unit);
+        });
+        
+        if (nonStaff.length > 0) {
+            showToast(`Os seguintes alunos não constam na lista oficial de colaboradores: ${nonStaff.join(', ')}.`, "error");
+            return;
+        }
     } else {
         if (!formData.representativePhone || formData.representativePhone.length < 10) { showToast("O WhatsApp do Representante é obrigatório para este grupo.", "warning"); return; }
+        if (!isValidWhatsApp(formData.representativePhone)) { showToast("Por favor, insira um número de WhatsApp válido para o representante.", "error"); return; }
         // Clear sector info for non-staff
         formData.sector = '';
     }

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { User } from '../types';
-import { useToast } from '../contexts/ToastProvider';
+import { useToast } from '../contexts/ToastContext';
 import { hashPassword } from '../utils/crypto';
 import { getCroppedImg } from '../utils/imageUtils';
 

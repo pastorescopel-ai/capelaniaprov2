@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useMemo } from 'react';
 import ErrorBoundary from './ErrorBoundary';
 import { Unit, User } from '../types';
 import { useAppOperations } from '../hooks/useAppOperations';
-import { useApp } from '../contexts/AppProvider';
+import { useApp } from '../contexts/AppContext';
 import { useBible } from '../contexts/BibleContext';
 import { usePro } from '../contexts/ProContext';
 

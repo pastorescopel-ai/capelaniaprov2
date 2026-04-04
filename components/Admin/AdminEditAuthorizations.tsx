@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { User, EditAuthorization, Unit } from '../../types';
-import { useToast } from '../../contexts/ToastProvider';
+import { useToast } from '../../contexts/ToastContext';
 import Button from '../Shared/Button';
 
 interface AdminEditAuthorizationsProps {

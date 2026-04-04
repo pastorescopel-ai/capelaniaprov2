@@ -153,3 +153,12 @@ export const getTimestamp = (val: any): number => {
   const parsed = new Date(val).getTime();
   return isNaN(parsed) ? 0 : parsed;
 };
+
+/**
+ * Formata um mês ISO (YYYY-MM-DD) para exibição amigável (ex: "janeiro de 2024").
+ */
+export const formatMonthLabel = (iso: string) => {
+  if (!iso) return "";
+  const d = new Date(iso.includes('T') ? iso : iso + 'T12:00:00');
+  return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+};

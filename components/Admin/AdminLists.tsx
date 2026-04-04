@@ -1,6 +1,6 @@
 
 import React, { useRef, useState, useMemo } from 'react';
-import { useToast } from '../../contexts/ToastProvider';
+import { useToast } from '../../contexts/ToastContext';
 import { ProStaff, ProSector, ProGroup, Unit, ProGroupMember, ProGroupProviderMember, ProMonthlyStats } from '../../types';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 import Autocomplete from '../Shared/Autocomplete';

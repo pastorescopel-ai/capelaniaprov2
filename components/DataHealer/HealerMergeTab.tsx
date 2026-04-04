@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Autocomplete from '../Shared/Autocomplete';
 import { PersonType } from '../../hooks/useDataHealer';
-import { useToast } from '../../contexts/ToastProvider';
+import { useToast } from '../../contexts/ToastContext';
 
 interface HealerMergeTabProps {
   mergeSourceType: PersonType;

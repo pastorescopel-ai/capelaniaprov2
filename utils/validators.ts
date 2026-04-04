@@ -61,3 +61,19 @@ export const isRecordLocked = (
 
   return true;
 };
+
+/**
+ * Valida se um número de WhatsApp é válido.
+ * Não permite sequências de apenas um dígito (ex: 0000000000 ou 9999999999).
+ */
+export const isValidWhatsApp = (value: string) => {
+  const nums = String(value || "").replace(/\D/g, "");
+  if (nums.length === 0) return false;
+  if (nums.length < 10) return false;
+  
+  // Verifica se todos os dígitos são iguais (ex: 0000000000, 9999999999)
+  const allSame = /^(\d)\1+$/.test(nums);
+  if (allSame) return false;
+  
+  return true;
+};

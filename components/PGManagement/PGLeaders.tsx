@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ProStaff, ProGroup, ProSector, Unit } from '../../types';
 import { usePro } from '../../contexts/ProContext';
 import { useApp } from '../../hooks/useApp';
-import { useToast } from '../../contexts/ToastProvider';
+import { useToast } from '../../contexts/ToastContext';
 import { Edit2, Save, X } from 'lucide-react';
 import { normalizeString } from '../../utils/formatters';
 

@@ -1,1 +1,1 @@
-export { useApp } from '../contexts/AppProvider';
+export { useApp } from '../contexts/AppContext';

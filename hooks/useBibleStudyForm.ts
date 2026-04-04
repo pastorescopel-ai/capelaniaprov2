@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Unit, RecordStatus, BibleStudy, User, ParticipantType } from '../types';
-import { useToast } from '../contexts/ToastProvider';
+import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
-import { isRecordLocked } from '../utils/validators';
+import { isRecordLocked, isValidWhatsApp } from '../utils/validators';
 
 interface UseBibleStudyFormProps {
   unit: Unit;
@@ -175,7 +175,20 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     let lockSector = false;
     const normName = normalizeString(targetName);
 
-    if (formData.participantType === ParticipantType.STAFF) {
+    // AUTO-SWITCH: Se for Prestador, muda automaticamente (Ponto 3)
+    const isProvider = proProviders.some(p => normalizeString(p.name) === normName && p.unit === unit);
+    if (isProvider && formData.participantType !== ParticipantType.PROVIDER) {
+        setFormData(prev => ({ ...prev, participantType: ParticipantType.PROVIDER }));
+        showToast(`${targetName} é um Prestador. Tipo alterado automaticamente.`, "info");
+    }
+
+    // CROSS-VALIDATION: Se for Colaborador mas selecionado em outra aba (Ponto 2)
+    const isStaffInRH = proStaff.some(s => normalizeString(s.name) === normName && s.unit === unit);
+    if (isStaffInRH && formData.participantType !== ParticipantType.STAFF) {
+        showToast(`${targetName} consta na lista de colaboradores. Por favor, mude o tipo para colaborador ou peça ao capelão para alterar.`, "warning");
+    }
+
+    if (formData.participantType === ParticipantType.STAFF || (isStaffInRH && isProvider)) {
         let staff: any;
         if (match) staff = proStaff.find(s => s.id === `${unit}-${match[1]}` || s.id === match[1]);
         if (!staff) staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
@@ -282,13 +295,20 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     }
 
     const isStaff = formData.participantType === ParticipantType.STAFF;
+    const normName = normalizeString(formData.name);
 
     const dataToSubmit = { ...formData, unit, participantType: formData.participantType };
 
     if (isStaff) {
+        const isOfficialStaff = proStaff.some(s => normalizeString(s.name) === normName && s.unit === unit);
+        if (!isOfficialStaff) {
+            showToast("Para colaboradores, o nome deve ser selecionado da lista oficial do RH.", "error");
+            return;
+        }
         if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
     } else {
         if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast(`O WhatsApp é obrigatório para ${formData.participantType}.`, "warning"); return; }
+        if (!isValidWhatsApp(formData.whatsapp)) { showToast("Por favor, insira um número de WhatsApp válido.", "error"); return; }
         dataToSubmit.sector = '';
         dataToSubmit.sectorId = '';
     }

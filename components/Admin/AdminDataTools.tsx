@@ -1,9 +1,9 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { User, ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProProvider, Ambassador, ProMonthlyStats, ProHistoryRecord } from '../../types';
-import { useToast } from '../../contexts/ToastProvider';
+import { useToast } from '../../contexts/ToastContext';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
-import { cleanID, getTimestamp } from '../../utils/formatters';
+import { cleanID, getTimestamp, normalizeString } from '../../utils/formatters';
 import { Unit } from '../../types';
 import { TABLE_SCHEMAS } from '../../utils/transformers';
 import { supabase } from '../../services/supabaseClient';
@@ -595,6 +595,72 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
         report.summary.totalWarnings++;
       }
 
+      // 8.4. Snapshot Integrity (Drift Detection)
+      const statsWithDrift: any[] = [];
+      (proData.stats || []).forEach(stat => {
+        try {
+          const snapshot = JSON.parse(stat.snapshotData || '{}');
+          const members = snapshot.membersList || [];
+          const missingInStaff = members.filter((m: any) => !proData.staff.find(s => cleanID(s.id) === cleanID(m.id)));
+          
+          if (missingInStaff.length > 0) {
+            statsWithDrift.push({
+              month: stat.month,
+              unit: stat.unit,
+              missingCount: missingInStaff.length,
+              sampleMissing: missingInStaff.slice(0, 3).map((m: any) => m.name || m.staffName)
+            });
+          }
+        } catch (e) {
+          // JSON inválido ou formato antigo
+        }
+      });
+
+      if (statsWithDrift.length > 0) {
+        report.dataIntegrity.push({
+          type: 'warning',
+          message: `${statsWithDrift.length} meses fechados com "Drift" de dados (membros deletados).`,
+          details: 'Pessoas que estavam no fechamento não existem mais no cadastro geral. Isso pode afetar a rastreabilidade.',
+          action: 'view_snapshot_drift',
+          data: statsWithDrift
+        });
+        report.summary.totalWarnings++;
+      }
+
+      // 8.5. Duplicate Names Check (Sectors and Groups) - Scoped by Unit
+      const checkDuplicateNames = (list: any[], label: string) => {
+        const nameMap = new Map<string, any[]>();
+        list.forEach(item => {
+          const norm = normalizeString(item.name || '');
+          const unit = item.unit || 'unknown';
+          const key = `${unit}_${norm}`; // Chave única por unidade e nome
+          if (!nameMap.has(key)) nameMap.set(key, []);
+          nameMap.get(key)?.push(item);
+        });
+
+        const duplicates: any[] = [];
+        nameMap.forEach((items, key) => {
+          if (items.length > 1) {
+            const [unit, name] = key.split('_');
+            duplicates.push({ name, unit, count: items.length, ids: items.map(i => i.id) });
+          }
+        });
+
+        if (duplicates.length > 0) {
+          report.dataIntegrity.push({
+            type: 'warning',
+            message: `Nomes duplicados encontrados em ${label}: ${duplicates.length} ocorrências.`,
+            details: 'Nomes idênticos podem causar confusão no lançamento de dados.',
+            action: `view_duplicate_${label.toLowerCase()}`,
+            data: duplicates
+          });
+          report.summary.totalWarnings++;
+        }
+      };
+
+      checkDuplicateNames(proData.sectors, 'Setores');
+      checkDuplicateNames(proData.groups, 'Grupos');
+
     } catch (err: any) {
       report.schemaSync.push({ table: 'Geral', status: 'error', message: err.message });
       report.summary.totalErrors++;
@@ -610,13 +676,19 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
         action === 'view_overlapping_enrollments' || 
         action === 'view_invalid_dates' || 
         action === 'view_orphaned_staff_sectors' || 
-        action === 'view_orphaned_memberships') {
+        action === 'view_orphaned_memberships' ||
+        action === 'view_snapshot_drift' ||
+        action === 'view_duplicate_setores' ||
+        action === 'view_duplicate_grupos') {
       const titles: Record<string, string> = {
         'view_providers_without_pg': 'Terceirizados sem PG',
         'view_overlapping_enrollments': 'Sobreposição de Matrículas',
         'view_invalid_dates': 'Datas de Entrada/Saída Inválidas',
         'view_orphaned_staff_sectors': 'Colaboradores com Setores Órfãos',
-        'view_orphaned_memberships': 'Matrículas Órfãs'
+        'view_orphaned_memberships': 'Matrículas Órfãs',
+        'view_snapshot_drift': 'Divergência em Meses Fechados',
+        'view_duplicate_setores': 'Setores com Nomes Duplicados',
+        'view_duplicate_grupos': 'Grupos com Nomes Duplicados'
       };
       setDetailsModal({
         isOpen: true,

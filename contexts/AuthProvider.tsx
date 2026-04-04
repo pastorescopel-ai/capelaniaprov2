@@ -21,12 +21,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticatedRef.current = isAuthenticated;
   }, [isAuthenticated]);
 
-  // Função para atualizar o carimbo de última atividade
   const updateActivity = () => {
     localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
   };
 
-  // Função para verificar se o tempo de inatividade expirou
   const checkInactivity = () => {
     const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
     if (lastActivity) {
@@ -44,7 +42,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Monitor de eventos para resetar o timer de inatividade
     const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
     const handleUserActivity = () => {
       if (isAuthenticatedRef.current) updateActivity();
@@ -52,7 +49,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     events.forEach(event => window.addEventListener(event, handleUserActivity));
 
-    // Check active session on mount
     const initSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -66,7 +62,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         if (session?.user?.email) {
-          // Verifica se a sessão expirou por inatividade antes de restaurar
           if (checkInactivity()) {
             await supabase.auth.signOut();
             setCurrentUser(null);
@@ -76,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (dbUser) {
               setCurrentUser(dbUser);
               setIsAuthenticated(true);
-              updateActivity(); // Renova o timer ao entrar
+              updateActivity();
             }
           }
         }
@@ -105,19 +100,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    // Intervalo para verificar inatividade periodicamente enquanto o app está aberto
     const inactivityInterval = setInterval(() => {
       if (isAuthenticatedRef.current && checkInactivity()) {
         logout();
       }
-    }, 60000); // Verifica a cada minuto
+    }, 60000);
 
     return () => {
       subscription.unsubscribe();
       events.forEach(event => window.removeEventListener(event, handleUserActivity));
       clearInterval(inactivityInterval);
     };
-  }, []); // Dependência vazia para rodar apenas uma vez na montagem
+  }, []);
 
   const login = async (email: string, pass: string): Promise<boolean> => {
     setLoginError(null);
@@ -135,17 +129,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
 
-    // 1. Tenta login nativo no Supabase Auth (Caminho Feliz)
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
       password: cleanPass
     });
 
     if (authData?.user) {
-      // Sucesso no Supabase! Busca o perfil no banco.
       const dbUser = await DataRepository.getUserByEmail(cleanEmail);
       if (dbUser) {
-        // Garante que o auth_id está sincronizado
         if (dbUser.authId !== authData.user.id) {
           await saveRecord('users', { ...dbUser, authId: authData.user.id });
         }
@@ -156,8 +147,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // 2. Fallback: Migração Invisível (Lazy Migration)
-    // Se o login nativo falhou, vamos tentar o login legado e migrar o usuário.
     const dbUser = await DataRepository.getUserByEmail(cleanEmail);
     
     if (!dbUser) {
@@ -168,14 +157,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const inputHash = await hashPassword(cleanPass);
     const storedPass = String(dbUser.password || "").trim();
 
-    // Comparação padrão por Hash (Segurança Máxima Legada)
     const isHashMatch = (inputHash !== "" && inputHash === storedPass);
-    
-    // Regra de Ouro/Recuperação para o administrador
     const isMasterBypass = (cleanEmail === "pastorescopel@gmail.com" && cleanPass === "CaE27785055");
 
     if (isHashMatch || isMasterBypass) {
-      // Senha legada correta! Vamos tentar criar a conta no Supabase Auth.
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password: cleanPass
@@ -186,13 +171,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (signUpError && signUpError.message.includes('already registered')) {
          console.warn("Usuário já existe no Supabase Auth, mas a senha falhou no signIn inicial. Tentando recuperar ID.");
       } else if (finalAuthId) {
-         // Migração bem-sucedida! Salva o auth_id no banco.
          await saveRecord('users', { ...dbUser, authId: finalAuthId, password: inputHash });
       } else if (isMasterBypass && !isHashMatch) {
          await saveRecord('users', { ...dbUser, password: inputHash });
       }
 
-      // Se conseguimos um finalAuthId, tentamos o login no Supabase para criar a sessão
       if (finalAuthId && !signUpError) {
          await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPass });
       }
@@ -224,10 +207,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth deve ser usado dentro de um AuthProvider');
-  return context;
 };

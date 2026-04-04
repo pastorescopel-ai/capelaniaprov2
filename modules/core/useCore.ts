@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { User } from '../../types';
-import { useToast } from '../../contexts/ToastProvider';
+import { useToast } from '../../contexts/ToastContext';
 import { CoreService } from '../../services/core.service';
 
 export function useCore(currentUser: User) {

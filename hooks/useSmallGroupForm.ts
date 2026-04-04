@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Unit, SmallGroup, User, ParticipantType } from '../types';
-import { useToast } from '../contexts/ToastProvider';
+import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
-import { isRecordLocked } from '../utils/validators';
+import { isRecordLocked, isValidWhatsApp } from '../utils/validators';
 import { usePGInference } from './usePGInference';
 
 interface UseSmallGroupFormProps {
@@ -109,9 +109,17 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
 
   const handleSelectLeader = (label: string) => {
       const nameOnly = label.split(' (')[0].trim();
+      const normName = normalizeString(nameOnly);
       
+      // CROSS-VALIDATION: Se for Paciente ou Prestador mas selecionado como Líder (Ponto 2)
+      const isProvider = proProviders.some(p => normalizeString(p.name) === normName && p.unit === unit);
+      const isPatient = proPatients.some(p => normalizeString(p.name) === normName && p.unit === unit);
+      if (isProvider || isPatient) {
+          showToast(`${nameOnly} consta na lista de ${isProvider ? 'prestadores' : 'pacientes'}. Pequenos Grupos são para colaboradores.`, "warning");
+      }
+
       // Check if leader is in RH (proStaff)
-      const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(nameOnly));
+      const staff = proStaff.find(s => normalizeString(s.name) === normName);
       
       if (staff) {
           // Found in RH: Update sector, update phone if exists, else clear phone
@@ -174,6 +182,8 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
     if (isSubmitting) return;
     if (!formData.groupName || !formData.leader || !formData.leaderPhone || !formData.sector) { showToast("Preencha todos os campos obrigatórios."); return; }
     
+    if (!isValidWhatsApp(formData.leaderPhone)) { showToast("Por favor, insira um número de WhatsApp válido para o líder.", "error"); return; }
+
     const isOfficialLeader = proStaff.some(s => normalizeString(s.name) === normalizeString(formData.leader) && s.unit === unit);
     if (!isOfficialLeader) {
         showToast("Líder não reconhecido. Por favor, use o campo de busca para selecionar um colaborador oficial do RH.", "warning");

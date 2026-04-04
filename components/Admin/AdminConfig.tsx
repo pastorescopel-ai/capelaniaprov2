@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import { Config } from '../../types';
 import { DEFAULT_APP_LOGO } from '../../assets';
 import { supabase } from '../../services/supabaseClient';
-import { useToast } from '../../contexts/ToastProvider';
+import { useToast } from '../../contexts/ToastContext';
 import AdminHeaderEditor from './AdminHeaderEditor';
 
 interface AdminConfigProps {

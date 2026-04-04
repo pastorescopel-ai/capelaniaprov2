@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Config, UserRole } from '../../types';
 import Button from '../Shared/Button';
-import { useToast } from '../../contexts/ToastProvider';
+import { useToast } from '../../contexts/ToastContext';
 
 interface MuralProps {
   config: Config;

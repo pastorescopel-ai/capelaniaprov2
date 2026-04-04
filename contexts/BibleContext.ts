@@ -1,7 +1,8 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+
+import { createContext, useContext } from 'react';
 import { BibleStudy, BibleClass } from '../types';
 
-interface BibleContextType {
+export interface BibleContextType {
   bibleStudies: BibleStudy[];
   bibleClasses: BibleClass[];
   bibleClassAttendees: any[];
@@ -11,10 +12,6 @@ interface BibleContextType {
 }
 
 export const BibleContext = createContext<BibleContextType | undefined>(undefined);
-
-export const BibleProvider: React.FC<{ children: ReactNode, value: BibleContextType }> = ({ children, value }) => {
-  return <BibleContext.Provider value={value}>{children}</BibleContext.Provider>;
-};
 
 export const useBible = () => {
   const context = useContext(BibleContext);

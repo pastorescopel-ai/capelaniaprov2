@@ -143,7 +143,14 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           
           <div className="space-y-1">
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-blue-600' : 'text-slate-400'}`}>WhatsApp {!isStaff ? '(Obrigatório)' : '(Opcional)'}</label>
-              <input placeholder="(00) 00000-0000" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} className={`w-full p-3 md:p-3.5 rounded-2xl border-none font-bold text-sm transition-all focus:ring-2 focus:ring-blue-500/20 ${!isStaff ? 'bg-blue-50 text-blue-900 ring-2 ring-blue-100 focus:ring-blue-300' : 'bg-slate-50'}`}/>
+              <input 
+                type="tel"
+                inputMode="numeric"
+                placeholder="(00) 00000-0000" 
+                value={formData.whatsapp} 
+                onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})} 
+                className={`w-full p-3 md:p-3.5 rounded-2xl border-none font-bold text-sm transition-all focus:ring-2 focus:ring-blue-500/20 ${!isStaff ? 'bg-blue-50 text-blue-900 ring-2 ring-blue-100 focus:ring-blue-300' : 'bg-slate-50'}`}
+              />
           </div>
 
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Guia de Estudo</label><Autocomplete options={guideOptions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Ex: O Grande Conflito" /></div>

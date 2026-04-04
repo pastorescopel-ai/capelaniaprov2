@@ -160,7 +160,7 @@ export const usePGMembershipData = ({
         return String(a.name || "").localeCompare(String(b.name || ""));
     });
     return result;
-  }, [proProviders, unit, providerSearch, proGroupProviderMembers, groupMap, currentPG, pendingRemovals, pendingTransfers, isMonthClosed, selectedMonth, isActiveInMonth, monthBoundaries]);
+  }, [proProviders, unit, providerSearch, proGroupProviderMembers, groupMap, currentPG, pendingRemovals, pendingTransfers, isActiveInMonth]);
 
   const coverageGaps = useMemo(() => {
     const sectors = proSectors.filter(s => s.unit === unit && s.active !== false);

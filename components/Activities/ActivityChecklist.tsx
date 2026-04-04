@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { useAuth } from '../../contexts/AuthProvider';
+import { useAuth } from '../../contexts/AuthContext';
 import { Unit, DailyActivityReport, UserRole } from '../../types';
-import { useToast } from '../../contexts/ToastProvider';
+import { useToast } from '../../contexts/ToastContext';
 import { CheckCircle, Circle, Plus, Minus, Save, MapPin, Users, HeartPulse, Calendar, Download } from 'lucide-react';
 import { generateDailyChecklistHTML } from '../../utils/activityTemplates';
 import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';

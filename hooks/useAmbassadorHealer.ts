@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Ambassador } from '../../types';
-import { useToast } from '../contexts/ToastProvider';
+import { useToast } from '../contexts/ToastContext';
 
 export const useAmbassadorHealer = () => {
   const { showToast } = useToast();

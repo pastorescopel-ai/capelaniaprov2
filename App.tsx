@@ -9,7 +9,7 @@ import { Unit } from './types/enums';
 import { useApp } from './hooks/useApp';
 import { useBible } from './contexts/BibleContext';
 import { usePro } from './contexts/ProContext';
-import { useAuth } from './contexts/AuthProvider';
+import { useAuth } from './contexts/AuthContext';
 import { useAppFlow } from './hooks/useAppFlow';
 
 import { ensureISODate } from './utils/formatters';

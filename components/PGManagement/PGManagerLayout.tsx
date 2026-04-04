@@ -10,7 +10,7 @@ import PGClosing from './PGClosing';
 import { useApp } from '../../hooks/useApp';
 
 const PGManagerLayout: React.FC = () => {
-  const { proMonthlyStats } = useApp();
+  const { proMonthlyStats, config } = useApp();
   const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'ops' | 'reports' | 'leaders' | 'fechamento'>('dashboard');
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
   const [isPending, startTransition] = useTransition();
@@ -137,7 +137,7 @@ const PGManagerLayout: React.FC = () => {
 
       <div className={`max-w-7xl mx-auto min-h-[500px] transition-opacity duration-200 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
         <main className="animate-in fade-in slide-in-from-top-2 duration-500">
-          {activeSubTab === 'dashboard' && <PGDashboard unit={currentUnit} />}
+          {activeSubTab === 'dashboard' && <PGDashboard key={config.activeCompetenceMonth || 'default'} unit={currentUnit} />}
           {activeSubTab === 'membership' && <PGMembership unit={currentUnit} />}
           {activeSubTab === 'ops' && <PGOps unit={currentUnit} />}
           {activeSubTab === 'reports' && <PGReports unit={currentUnit} />}

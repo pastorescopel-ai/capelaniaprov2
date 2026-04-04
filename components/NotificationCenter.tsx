@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../hooks/useApp';
-import { useAuth } from '../contexts/AuthProvider';
-import { useToast } from '../contexts/ToastProvider';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { UserRole, VisitRequest } from '../types';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { usePGInference } from '../hooks/usePGInference';

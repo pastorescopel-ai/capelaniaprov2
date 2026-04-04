@@ -80,7 +80,18 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data do Encontro *</label><input type="date" value={formData.date || ''} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do Grupo *</label><Autocomplete options={pgOptions} value={formData.groupName || ''} onChange={v => setFormData({...formData, groupName: v})} onSelectOption={handleSelectPG} placeholder="Selecione o PG..." isStrict={true} /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Líder Atual *</label><Autocomplete options={staffOptions} value={formData.leader || ''} onChange={handleLeaderChange} onSelectOption={handleSelectLeader} placeholder="Busque o líder no banco..." /></div>
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">WhatsApp do Líder *</label><input ref={phoneInputRef} placeholder="(00) 00000-0000" value={formData.leaderPhone || ''} onChange={e => setFormData({...formData, leaderPhone: formatWhatsApp(e.target.value)})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all" /></div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">WhatsApp do Líder *</label>
+            <input 
+              ref={phoneInputRef} 
+              type="tel"
+              inputMode="numeric"
+              placeholder="(00) 00000-0000" 
+              value={formData.leaderPhone || ''} 
+              onChange={e => setFormData({...formData, leaderPhone: formatWhatsApp(e.target.value)})} 
+              className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all" 
+            />
+          </div>
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Localização *</label>
             {isSectorLocked ? (<div className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-100 border border-slate-200 font-bold text-slate-500 cursor-not-allowed flex justify-between items-center"><span>{formData.sector || ''}</span><i className="fas fa-lock text-slate-400"></i></div>) : (<Autocomplete options={sectorOptions} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} placeholder="Onde o PG se reúne?" isStrict={true} />)}

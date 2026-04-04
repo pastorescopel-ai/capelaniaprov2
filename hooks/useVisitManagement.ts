@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { VisitRequest, Unit, User } from '../types';
-import { useToast } from '../contexts/ToastProvider';
+import { useToast } from '../contexts/ToastContext';
 import { ensureISODate } from '../utils/formatters';
 
 export const useVisitManagement = (

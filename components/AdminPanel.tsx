@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Config, Unit } from '../types';
-import { useToast } from '../contexts/ToastProvider';
+import { useToast } from '../contexts/ToastContext';
 import AdminConfig from './Admin/AdminConfig';
 import AdminLists from './Admin/AdminLists';
 import AdminDataTools from './Admin/AdminDataTools';
 import AdminEditAuthorizations from './Admin/AdminEditAuthorizations';
 import { useApp } from '../hooks/useApp';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../contexts/AuthContext';
 
 const AdminPanel: React.FC = () => {
   const { 

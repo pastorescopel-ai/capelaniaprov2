@@ -1,11 +1,8 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { ReactNode } from 'react';
 import { useAppData } from '../hooks/useAppData';
-import { BibleProvider } from './BibleContext';
-import { ProProvider } from './ProContext';
-
-type AppContextType = ReturnType<typeof useAppData>;
-
-export const AppContext = createContext<AppContextType | undefined>(undefined);
+import { BibleProvider } from './BibleProvider';
+import { ProProvider } from './ProProvider';
+import { AppContext } from './AppContext';
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const appData = useAppData();
@@ -51,12 +48,4 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       </BibleProvider>
     </AppContext.Provider>
   );
-};
-
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
-  return context;
 };

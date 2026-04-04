@@ -3,7 +3,7 @@ import React, { useMemo, useEffect, memo } from 'react';
 import { Unit, UserRole } from '../../types';
 import { usePro } from '../../contexts/ProContext';
 import { useApp } from '../../hooks/useApp';
-import { useAuth } from '../../contexts/AuthProvider';
+import { useAuth } from '../../contexts/AuthContext';
 import Autocomplete from '../Shared/Autocomplete';
 import ConfirmationModal from '../Shared/ConfirmationModal';
 import { usePGInference } from '../../hooks/usePGInference';

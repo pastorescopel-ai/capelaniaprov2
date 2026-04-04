@@ -1,7 +1,8 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+
+import { createContext, useContext } from 'react';
 import { ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider as ProProviderModel, ProMonthlyStats, ProGroupLocation, ProHistoryRecord } from '../types';
 
-interface ProContextType {
+export interface ProContextType {
   proStaff: ProStaff[];
   proSectors: ProSector[];
   proGroups: ProGroup[];
@@ -25,10 +26,6 @@ interface ProContextType {
 }
 
 export const ProContext = createContext<ProContextType | undefined>(undefined);
-
-export const ProProvider: React.FC<{ children: ReactNode, value: ProContextType }> = ({ children, value }) => {
-  return <ProContext.Provider value={value}>{children}</ProContext.Provider>;
-};
 
 export const usePro = () => {
   const context = useContext(ProContext);
