@@ -200,7 +200,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
 
     const isStaff = formData.participantType === ParticipantType.STAFF;
 
-    let dataToSubmit = { ...formData, unit };
+    const dataToSubmit = { ...formData, unit };
 
     if (isStaff) {
         if (!formData.sector) { showToast("Setor é obrigatório para colaboradores.", "warning"); return; }

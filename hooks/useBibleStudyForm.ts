@@ -283,7 +283,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
     const isStaff = formData.participantType === ParticipantType.STAFF;
 
-    let dataToSubmit = { ...formData, unit, participantType: formData.participantType };
+    const dataToSubmit = { ...formData, unit, participantType: formData.participantType };
 
     if (isStaff) {
         if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
