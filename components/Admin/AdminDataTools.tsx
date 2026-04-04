@@ -512,6 +512,89 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
         }
       }
 
+      // 8. Deep Audit Diagnosis (Logical Integrity)
+      console.log("[DEBUG] Iniciando Diagnóstico de Auditoria Profunda...");
+
+      // 8.1. Overlapping Enrollments (Sobreposição de Matrículas)
+      const activeMemberships = proGroupMembers.filter(m => !m.leftAt);
+      const staffMembershipMap = new Map<string, string[]>();
+      activeMemberships.forEach(m => {
+        const sid = cleanID(m.staffId);
+        if (!staffMembershipMap.has(sid)) staffMembershipMap.set(sid, []);
+        staffMembershipMap.get(sid)?.push(m.groupId);
+      });
+
+      const overlappingEnrollments: any[] = [];
+      staffMembershipMap.forEach((groups, sid) => {
+        if (groups.length > 1) {
+          const staff = proData.staff.find(s => cleanID(s.id) === sid);
+          overlappingEnrollments.push({
+            staffId: sid,
+            staffName: staff?.name || 'Desconhecido',
+            groups: groups.map(gid => proData.groups.find(g => g.id === gid)?.name || gid)
+          });
+        }
+      });
+
+      if (overlappingEnrollments.length > 0) {
+        report.dataIntegrity.push({
+          type: 'error',
+          message: `${overlappingEnrollments.length} Colaboradores com matrículas ATIVAS em múltiplos PGs.`,
+          details: 'Isso duplica as métricas no Dashboard.',
+          action: 'view_overlapping_enrollments',
+          data: overlappingEnrollments
+        });
+        report.summary.totalErrors++;
+      }
+
+      // 8.2. Date Integrity (joinedAt vs leftAt)
+      const invalidDateRecords: any[] = [];
+      const checkDateIntegrity = (list: any[], tableName: string) => {
+        list.forEach(item => {
+          if (item.joinedAt && item.leftAt && Number(item.joinedAt) > Number(item.leftAt)) {
+            invalidDateRecords.push({ ...item, tableName });
+          }
+        });
+      };
+
+      checkDateIntegrity(proGroupMembers, 'Matrículas de Colaboradores');
+      checkDateIntegrity(proGroupProviderMembers, 'Matrículas de Terceirizados');
+
+      if (invalidDateRecords.length > 0) {
+        report.dataIntegrity.push({
+          type: 'error',
+          message: `${invalidDateRecords.length} Registros com data de entrada POSTERIOR à data de saída.`,
+          details: 'Isso causa erros de filtragem temporal e lógica.',
+          action: 'view_invalid_dates',
+          data: invalidDateRecords
+        });
+        report.summary.totalErrors++;
+      }
+
+      // 8.3. Virtual Foreign Key Integrity (Orphaned Relations)
+      const orphanedStaffSectors = proData.staff.filter(s => s.sectorId && !proData.sectors.find(sec => sec.id === s.sectorId));
+      if (orphanedStaffSectors.length > 0) {
+        report.dataIntegrity.push({
+          type: 'warning',
+          message: `${orphanedStaffSectors.length} Colaboradores vinculados a Setores que não existem.`,
+          details: 'O setor original pode ter sido deletado.',
+          action: 'view_orphaned_staff_sectors',
+          data: orphanedStaffSectors
+        });
+        report.summary.totalWarnings++;
+      }
+
+      const orphanedMemberships = proGroupMembers.filter(m => !proData.groups.find(g => g.id === m.groupId) || !proData.staff.find(s => cleanID(s.id) === cleanID(m.staffId)));
+      if (orphanedMemberships.length > 0) {
+        report.dataIntegrity.push({
+          type: 'warning',
+          message: `${orphanedMemberships.length} Matrículas órfãs (PG ou Colaborador inexistente).`,
+          action: 'view_orphaned_memberships',
+          data: orphanedMemberships
+        });
+        report.summary.totalWarnings++;
+      }
+
     } catch (err: any) {
       report.schemaSync.push({ table: 'Geral', status: 'error', message: err.message });
       report.summary.totalErrors++;
@@ -523,10 +606,21 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
   const [detailsModal, setDetailsModal] = useState<{isOpen: boolean, title: string, data: any[]}>({isOpen: false, title: '', data: []});
 
   const handleAction = async (action: string, records: any[]) => {
-    if (action === 'view_providers_without_pg') {
+    if (action === 'view_providers_without_pg' || 
+        action === 'view_overlapping_enrollments' || 
+        action === 'view_invalid_dates' || 
+        action === 'view_orphaned_staff_sectors' || 
+        action === 'view_orphaned_memberships') {
+      const titles: Record<string, string> = {
+        'view_providers_without_pg': 'Terceirizados sem PG',
+        'view_overlapping_enrollments': 'Sobreposição de Matrículas',
+        'view_invalid_dates': 'Datas de Entrada/Saída Inválidas',
+        'view_orphaned_staff_sectors': 'Colaboradores com Setores Órfãos',
+        'view_orphaned_memberships': 'Matrículas Órfãs'
+      };
       setDetailsModal({
         isOpen: true,
-        title: 'Terceirizados sem PG',
+        title: titles[action] || 'Detalhes',
         data: records
       });
       return;
