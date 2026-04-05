@@ -1,8 +1,8 @@
 import React, { lazy, Suspense } from 'react';
-import { User, Unit } from '../../types';
-import { useStaff } from './useStaff';
+import { User, Unit } from '../../../types';
+import { useStaff } from './useStaffHook';
 
-const StaffVisitForm = lazy(() => import('../../components/Forms/StaffVisitForm'));
+const StaffVisitForm = lazy(() => import('../../../components/Forms/StaffVisitForm'));
 
 interface StaffModuleProps {
   currentUser: User;
