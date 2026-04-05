@@ -1,6 +1,6 @@
 
 /**
- * NUCLEO_LOGICO V5.0
+ * NUCLEO_LOGICO V4.0
  * Motor central de utilidades para garantir integridade de dados e consistência visual.
  */
 

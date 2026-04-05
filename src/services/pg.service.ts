@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { cleanAndConvertToSnake, TABLE_SCHEMAS } from '../utils/transformers';
+import { SmallGroup } from '../types/models';
 
 export const PGService = {
   async fetchSmallGroups() {
@@ -8,11 +9,11 @@ export const PGService = {
       .select('*')
       .order('date', { ascending: false });
     
-    if (error) throw error;
-    return data;
+    if (error) return { success: false, error };
+    return { success: true, data: data as SmallGroup[] };
   },
 
-  async saveSmallGroup(pg: any) {
+  async saveSmallGroup(pg: SmallGroup) {
     const snakePG = cleanAndConvertToSnake(pg, TABLE_SCHEMAS.small_group_sessions, 'small_group_sessions');
     const { data, error } = await supabase
       .from('small_group_sessions')
@@ -21,7 +22,7 @@ export const PGService = {
       .single();
     
     if (error) return { success: false, error };
-    return { success: true, data };
+    return { success: true, data: data as SmallGroup };
   },
 
   async deleteSmallGroup(id: string) {
@@ -30,7 +31,8 @@ export const PGService = {
       .delete()
       .eq('id', id);
     
-    return !error;
+    if (error) return { success: false, error };
+    return { success: true };
   },
 
   async getPGManagementData() {
@@ -40,10 +42,17 @@ export const PGService = {
       supabase.from('pro_sectors').select('*')
     ]);
 
-    return {
-      leaders: leaders.data || [],
-      hosts: hosts.data || [],
-      sectors: sectors.data || []
+    if (leaders.error || hosts.error || sectors.error) {
+      return { success: false, error: leaders.error || hosts.error || sectors.error };
+    }
+
+    return { 
+      success: true, 
+      data: {
+        leaders: leaders.data || [],
+        hosts: hosts.data || [],
+        sectors: sectors.data || []
+      }
     };
   }
 };

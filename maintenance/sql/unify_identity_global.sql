@@ -1,6 +1,6 @@
 
 -- #################################################################
--- # UNIFICAÇÃO DE IDENTIDADE GLOBAL (V4 - NUCLEAR MATCH)
+-- # UNIFICAÇÃO DE IDENTIDADE GLOBAL (V5.0 - NUCLEAR MATCH)
 -- # Objetivo: Vínculo total ignorando espaços extras e acentos
 -- #################################################################
 

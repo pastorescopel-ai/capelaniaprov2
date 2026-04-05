@@ -1,6 +1,6 @@
 
 /**
- * MOTOR DE SEGURANÇA HÍBRIDO (V5.0)
+ * MOTOR DE SEGURANÇA HÍBRIDO (V4.2)
  * Garante criptografia SHA-256 mesmo em contextos não seguros (HTTP/Preview).
  */
 

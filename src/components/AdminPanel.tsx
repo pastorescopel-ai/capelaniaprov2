@@ -75,7 +75,7 @@ const AdminPanel: React.FC = () => {
 
   const handleExportFullDNA = () => {
     const fullDNA = {
-      meta: { system: "Capelania Hospitalar Pro", version: "V5.0 (Pure DB)", exportDate: new Date().toISOString(), author: currentUser?.name },
+      meta: { system: "Capelania Hospitalar Pro", version: "V4.0 (Pure DB)", exportDate: new Date().toISOString(), author: currentUser?.name },
       database: { 
         bibleStudies, bibleClasses, smallGroups, staffVisits, users, config: localConfig,
         proStaff, proSectors, proGroups 
