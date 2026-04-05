@@ -45,13 +45,15 @@ export const usePG = (currentUser: User | null) => {
   }, [currentUser, showToast]);
 
   const deleteSmallGroup = useCallback(async (id: string) => {
-    const success = await PGService.deleteSmallGroup(id);
-    if (success) {
+    const result = await PGService.deleteSmallGroup(id);
+    if (result.success) {
       showToast("PG removido com sucesso.", "success");
+      return true;
     } else {
+      console.error(result.error);
       showToast("Erro ao remover PG.", "error");
+      return false;
     }
-    return success;
   }, [showToast]);
 
   return { saveSmallGroup, deleteSmallGroup, isSaving };

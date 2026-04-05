@@ -503,18 +503,6 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
 
       console.log("[DEBUG] Iniciando Auditoria de Dados Legados...");
 
-      // 7. Legacy Backup Analysis (Deep Dive)
-      const tablesWithLegacy = [
-        { name: 'bible_classes', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup'] },
-        { name: 'daily_activity_reports', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup'] },
-        { name: 'pro_history_records', cols: ['created_at_legacy_backup', 'joined_at_legacy_backup', 'left_at_legacy_backup'] },
-        { name: 'staff_visits', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup', 'return_date_legacy_backup'] },
-        { name: 'pro_staff', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup'] },
-        { name: 'pro_group_members', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup', 'joined_at_legacy_backup', 'left_at_legacy_backup'] }
-      ];
-
-      console.log("[DEBUG] Iniciando Auditoria de Dados Legados...");
-
       for (const tableInfo of tablesWithLegacy) {
         try {
           // Consultar apenas colunas existentes de forma simples

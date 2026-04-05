@@ -7,26 +7,26 @@ export function useCore(currentUser: User) {
   const { showToast } = useToast();
 
   const saveUser = useCallback(async (data: any) => {
-    try {
-      const result = await CoreService.saveUser(data);
+    const result = await CoreService.saveUser(data);
+    if (result.success) {
       showToast('Usuário salvo com sucesso!', 'success');
-      return result;
-    } catch (error) {
-      console.error('Error saving user:', error);
+      return result.data;
+    } else {
+      console.error('Error saving user:', result.error);
       showToast('Erro ao salvar usuário.', 'error');
-      throw error;
+      return null;
     }
   }, [showToast]);
 
   const saveConfig = useCallback(async (data: any) => {
-    try {
-      const result = await CoreService.saveAppConfig(data);
+    const result = await CoreService.saveAppConfig(data);
+    if (result.success) {
       showToast('Configurações salvas com sucesso!', 'success');
-      return result;
-    } catch (error) {
-      console.error('Error saving config:', error);
+      return result.data;
+    } else {
+      console.error('Error saving config:', result.error);
       showToast('Erro ao salvar configurações.', 'error');
-      throw error;
+      return null;
     }
   }, [showToast]);
 

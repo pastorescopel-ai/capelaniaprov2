@@ -48,7 +48,7 @@ async function startServer() {
     const report = {
       timestamp: new Date().toISOString(),
       fileAnalysis: {
-        unusedFiles: [] as string[],
+        unusedFiles: [] as { path: string; lastModified: string }[],
         totalFilesScanned: 0
       },
       connectionStatus: {
@@ -72,7 +72,7 @@ async function startServer() {
       report.connectionStatus.supabase = false;
     }
 
-    // 2. Análise de arquivos (simples)
+    // 2. Análise de arquivos
     const srcDir = path.join(_dirname, "src");
     const getAllFiles = (dirPath: string, arrayOfFiles: string[] = []): string[] => {
       const files = fs.readdirSync(dirPath);
@@ -103,11 +103,34 @@ async function startServer() {
       
       // Se aparecer apenas uma vez (nele mesmo), pode estar órfão
       if (matches <= 1) {
-        report.fileAnalysis.unusedFiles.push(path.relative(srcDir, file));
+        const stats = fs.statSync(file);
+        report.fileAnalysis.unusedFiles.push({
+          path: path.relative(srcDir, file),
+          lastModified: stats.mtime.toISOString()
+        });
       }
     });
 
     res.json(report);
+  });
+
+  // API para deletar arquivo
+  app.post("/api/delete-file", express.json(), async (req, res) => {
+    const { filePath } = req.body;
+    if (!filePath) return res.status(400).json({ error: "Caminho do arquivo necessário" });
+    
+    const fullPath = path.join(_dirname, "src", filePath);
+    
+    try {
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Arquivo não encontrado" });
+      }
+    } catch (e) {
+      res.status(500).json({ error: "Erro ao deletar arquivo" });
+    }
   });
 
   // Middleware do Vite para desenvolvimento
