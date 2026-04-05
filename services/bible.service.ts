@@ -1,6 +1,5 @@
 import { supabase } from './supabaseClient';
 import { cleanAndConvertToSnake, TABLE_SCHEMAS } from '../utils/transformers';
-import { BibleStudy, BibleClass } from '../types/models';
 
 export const BibleService = {
   async fetchStudies() {
@@ -10,7 +9,7 @@ export const BibleService = {
       .order('date', { ascending: false });
     
     if (error) throw error;
-    return data as BibleStudy[];
+    return data;
   },
 
   async fetchClasses() {
@@ -20,10 +19,10 @@ export const BibleService = {
       .order('date', { ascending: false });
     
     if (error) throw error;
-    return data as BibleClass[];
+    return data;
   },
 
-  async saveBibleStudy(study: BibleStudy) {
+  async saveBibleStudy(study: any) {
     const snakeStudy = cleanAndConvertToSnake(study, TABLE_SCHEMAS.bible_study_sessions, 'bible_study_sessions');
     const { data, error } = await supabase
       .from('bible_study_sessions')
@@ -32,10 +31,10 @@ export const BibleService = {
       .single();
     
     if (error) return { success: false, error };
-    return { success: true, data: data as BibleStudy };
+    return { success: true, data };
   },
 
-  async saveBibleClass(bibleClass: BibleClass) {
+  async saveBibleClass(bibleClass: any) {
     const snakeClass = cleanAndConvertToSnake(bibleClass, TABLE_SCHEMAS.bible_classes, 'bible_classes');
     const { data, error } = await supabase
       .from('bible_classes')
@@ -44,7 +43,7 @@ export const BibleService = {
       .single();
     
     if (error) return { success: false, error };
-    return { success: true, data: data as BibleClass };
+    return { success: true, data };
   },
 
   async saveClassAttendees(classId: string, attendees: any[]) {

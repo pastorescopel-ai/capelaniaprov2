@@ -1,15 +1,15 @@
 import { useState, useCallback } from 'react';
-import { useToast } from '../../contexts/ToastContext';
-import { toSafeDateISO } from '../../utils/formatters';
-import { isRecordLocked } from '../../utils/validators';
-import { User } from '../../types';
-import { PGService } from '../../services/pg.service';
+import { StaffService } from '../../../services/staff.service';
+import { useToast } from '../../../contexts/ToastContext';
+import { toSafeDateISO } from '../../../utils/formatters';
+import { isRecordLocked } from '../../../utils/validators';
+import { User } from '../../../types';
 
-export const usePG = (currentUser: User | null) => {
+export const useStaff = (currentUser: User | null) => {
   const { showToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
-  const saveSmallGroup = useCallback(async (data: any) => {
+  const saveVisit = useCallback(async (data: any) => {
     if (!currentUser) return false;
 
     if (isRecordLocked(data.date, currentUser.role)) {
@@ -31,28 +31,27 @@ export const usePG = (currentUser: User | null) => {
       updatedAt: now
     };
 
-    const result = await PGService.saveSmallGroup(itemToSave);
+    const result = await StaffService.saveVisit(itemToSave);
     setIsSaving(false);
 
     if (result.success) {
-      showToast("PG salvo com sucesso!", "success");
+      showToast("Visita salva com sucesso!", "success");
       return true;
     } else {
-      console.error(result.error);
-      showToast("Erro ao salvar PG.", "error");
+      showToast("Erro ao salvar visita.", "error");
       return false;
     }
   }, [currentUser, showToast]);
 
-  const deleteSmallGroup = useCallback(async (id: string) => {
-    const success = await PGService.deleteSmallGroup(id);
+  const deleteVisit = useCallback(async (id: string) => {
+    const success = await StaffService.deleteVisit(id);
     if (success) {
-      showToast("PG removido com sucesso.", "success");
+      showToast("Visita removida com sucesso.", "success");
     } else {
-      showToast("Erro ao remover PG.", "error");
+      showToast("Erro ao remover visita.", "error");
     }
     return success;
   }, [showToast]);
 
-  return { saveSmallGroup, deleteSmallGroup, isSaving };
+  return { saveVisit, deleteVisit, isSaving };
 };

@@ -45,15 +45,13 @@ export const useStaff = (currentUser: User | null) => {
   }, [currentUser, showToast]);
 
   const deleteVisit = useCallback(async (id: string) => {
-    const result = await StaffService.deleteVisit(id);
-    if (result.success) {
+    const success = await StaffService.deleteVisit(id);
+    if (success) {
       showToast("Visita removida com sucesso.", "success");
-      return true;
     } else {
-      console.error(result.error);
       showToast("Erro ao remover visita.", "error");
-      return false;
     }
+    return success;
   }, [showToast]);
 
   return { saveVisit, deleteVisit, isSaving };

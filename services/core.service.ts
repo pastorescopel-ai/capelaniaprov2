@@ -1,6 +1,5 @@
 import { supabase } from './supabaseClient';
 import { cleanAndConvertToSnake, TABLE_SCHEMAS } from '../utils/transformers';
-import { User, Config } from '../types/models';
 
 export const CoreService = {
   async fetchUsers() {
@@ -9,8 +8,8 @@ export const CoreService = {
       .select('*')
       .order('name');
     
-    if (error) return { success: false, error };
-    return { success: true, data: data as User[] };
+    if (error) throw error;
+    return data;
   },
 
   async fetchAppConfig() {
@@ -19,11 +18,11 @@ export const CoreService = {
       .select('*')
       .single();
     
-    if (error && error.code !== 'PGRST116') return { success: false, error };
-    return { success: true, data: data as Config };
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
   },
 
-  async saveUser(user: User) {
+  async saveUser(user: any) {
     const snakeUser = cleanAndConvertToSnake(user, TABLE_SCHEMAS.users, 'users');
     const { data, error } = await supabase
       .from('users')
@@ -31,11 +30,11 @@ export const CoreService = {
       .select()
       .single();
     
-    if (error) return { success: false, error };
-    return { success: true, data: data as User };
+    if (error) throw error;
+    return data;
   },
 
-  async saveAppConfig(config: Config) {
+  async saveAppConfig(config: any) {
     const snakeConfig = cleanAndConvertToSnake(config, TABLE_SCHEMAS.app_config, 'app_config');
     const { data, error } = await supabase
       .from('app_config')
@@ -43,7 +42,7 @@ export const CoreService = {
       .select()
       .single();
     
-    if (error) return { success: false, error };
-    return { success: true, data: data as Config };
+    if (error) throw error;
+    return data;
   }
 };

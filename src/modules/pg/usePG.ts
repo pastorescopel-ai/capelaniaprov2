@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
-import { useToast } from '../../contexts/ToastContext';
-import { toSafeDateISO } from '../../utils/formatters';
-import { isRecordLocked } from '../../utils/validators';
-import { User } from '../../types';
-import { PGService } from '../../services/pg.service';
+import { PGService } from '../../../services/pg.service';
+import { useToast } from '../../../contexts/ToastContext';
+import { toSafeDateISO } from '../../../utils/formatters';
+import { isRecordLocked } from '../../../utils/validators';
+import { User } from '../../../types';
 
 export const usePG = (currentUser: User | null) => {
   const { showToast } = useToast();
@@ -38,7 +38,6 @@ export const usePG = (currentUser: User | null) => {
       showToast("PG salvo com sucesso!", "success");
       return true;
     } else {
-      console.error(result.error);
       showToast("Erro ao salvar PG.", "error");
       return false;
     }

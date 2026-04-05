@@ -1,6 +1,5 @@
 import { supabase } from './supabaseClient';
 import { cleanAndConvertToSnake, TABLE_SCHEMAS } from '../utils/transformers';
-import { StaffVisit } from '../types/models';
 
 export const StaffService = {
   async fetchVisits() {
@@ -9,11 +8,11 @@ export const StaffService = {
       .select('*')
       .order('date', { ascending: false });
     
-    if (error) return { success: false, error };
-    return { success: true, data: data as StaffVisit[] };
+    if (error) throw error;
+    return data;
   },
 
-  async saveVisit(visit: StaffVisit) {
+  async saveVisit(visit: any) {
     const snakeVisit = cleanAndConvertToSnake(visit, TABLE_SCHEMAS.staff_visits, 'staff_visits');
     const { data, error } = await supabase
       .from('staff_visits')
@@ -22,7 +21,7 @@ export const StaffService = {
       .single();
     
     if (error) return { success: false, error };
-    return { success: true, data: data as StaffVisit };
+    return { success: true, data };
   },
 
   async deleteVisit(id: string) {
@@ -31,7 +30,6 @@ export const StaffService = {
       .delete()
       .eq('id', id);
     
-    if (error) return { success: false, error };
-    return { success: true };
+    return !error;
   }
 };

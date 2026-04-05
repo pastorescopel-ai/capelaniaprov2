@@ -1,6 +1,6 @@
 {
   "name": "capelania-pro",
-  "version": "4.2.0-FINAL",
+  "version": "4.2.0",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",

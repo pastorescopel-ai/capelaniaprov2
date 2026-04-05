@@ -71,25 +71,6 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
     }
   };
 
-  const deleteFile = async (filePath: string) => {
-    if (!window.confirm(`Tem certeza que deseja deletar o arquivo: ${filePath}?`)) return;
-    try {
-      const response = await fetch('/api/delete-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath })
-      });
-      if (response.ok) {
-        showToast("Arquivo deletado com sucesso!", "success");
-        runRobustDiagnostics(); // Re-run diagnostics
-      } else {
-        showToast("Erro ao deletar arquivo.", "error");
-      }
-    } catch (err) {
-      showToast("Erro ao deletar arquivo: " + (err as Error).message, "warning");
-    }
-  };
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formatMonthLabel = (iso: string) => {
@@ -503,24 +484,12 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
 
       console.log("[DEBUG] Iniciando Auditoria de Dados Legados...");
 
-      // 7. Legacy Backup Analysis (Deep Dive)
-      const tablesWithLegacy = [
-        { name: 'bible_classes', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup'] },
-        { name: 'daily_activity_reports', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup'] },
-        { name: 'pro_history_records', cols: ['created_at_legacy_backup', 'joined_at_legacy_backup', 'left_at_legacy_backup'] },
-        { name: 'staff_visits', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup', 'return_date_legacy_backup'] },
-        { name: 'pro_staff', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup'] },
-        { name: 'pro_group_members', cols: ['created_at_legacy_backup', 'updated_at_legacy_backup', 'joined_at_legacy_backup', 'left_at_legacy_backup'] }
-      ];
-
-      console.log("[DEBUG] Iniciando Auditoria de Dados Legados...");
-
       for (const tableInfo of tablesWithLegacy) {
         try {
-          // Consultar apenas colunas existentes de forma simples
           const { data, error } = await supabase
             .from(tableInfo.name)
             .select(tableInfo.cols.join(','))
+            .or(tableInfo.cols.map(c => `${c}.not.is.null`).join(','))
             .limit(1);
 
           if (error) {
@@ -530,31 +499,28 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
 
           if (data && data.length > 0) {
             const sample = data[0];
-            // Verifica se pelo menos uma das colunas de backup tem valor
-            const hasData = tableInfo.cols.some(col => sample[col] !== null);
-            
-            if (hasData) {
-              const readableDates = Object.entries(sample).map(([col, val]) => {
-                if (!val) return `${col}: null`;
-                
-                let date: Date;
-                if (typeof val === 'number' || (typeof val === 'string' && /^\d+$/.test(val))) {
-                  date = new Date(Number(val));
-                } else {
-                  date = new Date(String(val));
-                }
-
-                const dateStr = isNaN(date.getTime()) ? 'Data Inválida' : date.toISOString();
-                return `${col}: ${dateStr} (${val})`;
-              });
+            const readableDates = Object.entries(sample).map(([col, val]) => {
+              if (!val) return `${col}: null`;
               
-              console.log(`[DEBUG] Legacy Audit - ${tableInfo.name}:`, readableDates);
-              report.dataIntegrity.push({
-                type: 'info',
-                message: `Dados de backup encontrados em ${tableInfo.name}.`,
-                details: `Amostra: ${readableDates.join(' | ')}`
-              });
-            }
+              let date: Date;
+              if (typeof val === 'number' || (typeof val === 'string' && /^\d+$/.test(val))) {
+                date = new Date(Number(val));
+              } else {
+                date = new Date(String(val));
+              }
+
+              const dateStr = isNaN(date.getTime()) ? 'Data Inválida' : date.toISOString();
+              return `${col}: ${dateStr} (${val})`;
+            });
+            
+            console.log(`[DEBUG] Legacy Audit - ${tableInfo.name}:`, readableDates);
+            report.dataIntegrity.push({
+              type: 'info',
+              message: `Dados de backup encontrados em ${tableInfo.name}.`,
+              details: `Amostra: ${readableDates.join(' | ')}`
+            });
+          } else {
+            console.log(`[DEBUG] Legacy Audit - ${tableInfo.name}: Nenhum dado encontrado.`);
           }
         } catch (e) {
           console.error(`[DEBUG] Falha crítica ao auditar ${tableInfo.name}:`, e);
@@ -1148,12 +1114,7 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
                 <div className="bg-slate-100 p-4 rounded-xl">
                   <p className="text-xs font-bold text-slate-600 uppercase">Arquivos órfãos potenciais ({robustReport.fileAnalysis.unusedFiles.length}):</p>
                   <ul className="text-[10px] font-mono text-slate-500 mt-2 max-h-60 overflow-y-auto">
-                    {robustReport.fileAnalysis.unusedFiles.map((f: { path: string; lastModified: string }, i: number) => (
-                      <li key={i} className="flex items-center justify-between py-1 border-b border-slate-200 last:border-none">
-                        <span>{f.path} <span className="text-[9px] text-slate-400">({new Date(f.lastModified).toLocaleDateString()})</span></span>
-                        <button onClick={() => deleteFile(f.path)} className="text-rose-500 hover:text-rose-700 font-bold ml-2">Deletar</button>
-                      </li>
-                    ))}
+                    {robustReport.fileAnalysis.unusedFiles.map((f: string, i: number) => <li key={i}>{f}</li>)}
                   </ul>
                 </div>
               </div>
