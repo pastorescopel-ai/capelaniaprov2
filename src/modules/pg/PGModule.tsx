@@ -2,7 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { User, Unit } from '../../../types';
 import { usePG } from './usePGHook';
 
-const SmallGroupForm = lazy(() => import('../../../components/Forms/SmallGroupForm'));
+const SmallGroupForm = lazy(() => import('../../../components/AppForms/SmallGroupForm'));
 
 interface PGModuleProps {
   currentUser: User;

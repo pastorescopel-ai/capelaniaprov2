@@ -1,9 +1,9 @@
 import React, { lazy, Suspense } from 'react';
-import { User, Unit } from '../../types';
+import { User, Unit } from '../../../types';
 import { useBibleModule } from './useBibleModule';
 
-const BibleStudyForm = lazy(() => import('../../components/Forms/BibleStudyForm'));
-const BibleClassForm = lazy(() => import('../../components/Forms/BibleClassForm'));
+const BibleStudyForm = lazy(() => import('../../../components/AppForms/BibleStudyForm'));
+const BibleClassForm = lazy(() => import('../../../components/AppForms/BibleClassForm'));
 
 interface BibleModuleProps {
   type: 'study' | 'class';
