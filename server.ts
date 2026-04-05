@@ -43,6 +43,73 @@ async function startServer() {
     });
   });
 
+  // API para diagnóstico robusto
+  app.get("/api/diagnostics", async (req, res) => {
+    const report = {
+      timestamp: new Date().toISOString(),
+      fileAnalysis: {
+        unusedFiles: [] as string[],
+        totalFilesScanned: 0
+      },
+      connectionStatus: {
+        supabase: false
+      }
+    };
+
+    // 1. Simples verificação de conexão Supabase
+    try {
+      const config = getConfig();
+      if (!config.supabaseUrl) throw new Error("URL não configurada");
+      
+      const response = await fetch(`${config.supabaseUrl}/rest/v1/pro_staff?select=id&limit=1`, {
+        headers: {
+          'apikey': config.supabaseKey,
+          'Authorization': `Bearer ${config.supabaseKey}`
+        }
+      });
+      report.connectionStatus.supabase = response.ok;
+    } catch (e) {
+      report.connectionStatus.supabase = false;
+    }
+
+    // 2. Análise de arquivos (simples)
+    const srcDir = path.join(_dirname, "src");
+    const getAllFiles = (dirPath: string, arrayOfFiles: string[] = []): string[] => {
+      const files = fs.readdirSync(dirPath);
+      files.forEach(file => {
+        if (fs.statSync(path.join(dirPath, file)).isDirectory()) {
+          arrayOfFiles = getAllFiles(path.join(dirPath, file), arrayOfFiles);
+        } else {
+          arrayOfFiles.push(path.join(dirPath, file));
+        }
+      });
+      return arrayOfFiles;
+    };
+
+    const allFiles = getAllFiles(srcDir);
+    report.fileAnalysis.totalFilesScanned = allFiles.length;
+
+    // Verifica se cada arquivo é importado em outro lugar
+    const allContent = allFiles.map(f => fs.readFileSync(f, 'utf-8')).join('\n');
+    
+    allFiles.forEach(file => {
+      const fileName = path.basename(file, path.extname(file));
+      // Ignora arquivos de teste ou arquivos especiais
+      if (file.includes('.test.') || file.includes('.spec.')) return;
+      
+      // Verifica se o nome do arquivo aparece em outro arquivo
+      const regex = new RegExp(fileName, 'g');
+      const matches = (allContent.match(regex) || []).length;
+      
+      // Se aparecer apenas uma vez (nele mesmo), pode estar órfão
+      if (matches <= 1) {
+        report.fileAnalysis.unusedFiles.push(path.relative(srcDir, file));
+      }
+    });
+
+    res.json(report);
+  });
+
   // Middleware do Vite para desenvolvimento
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

@@ -49,12 +49,27 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
   const [syncState, setSyncState] = useState<{isOpen: boolean; status: SyncStatus; title: string; message: string; error?: string;}>({ isOpen: false, status: 'idle', title: '', message: '' });
   const [activeAuditUnit, setActiveAuditUnit] = useState<Unit>(Unit.HAB);
   const [isAuditing, setIsAuditing] = useState(false);
+  const [isRobustAuditing, setIsRobustAuditing] = useState(false);
+  const [robustReport, setRobustReport] = useState<any>(null);
 
   const [healthCheckState, setHealthCheckState] = useState<{
     isOpen: boolean;
     isChecking: boolean;
     report: any | null;
   }>({ isOpen: false, isChecking: false, report: null });
+
+  const runRobustDiagnostics = async () => {
+    setIsRobustAuditing(true);
+    try {
+      const response = await fetch('/api/diagnostics');
+      const data = await response.json();
+      setRobustReport(data);
+    } catch (err) {
+      showToast("Erro ao rodar diagnóstico: " + (err as Error).message, "warning");
+    } finally {
+      setIsRobustAuditing(false);
+    }
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1008,6 +1023,29 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
               </button>
             </div>
         </div>
+
+        {/* DIAGNÓSTICO ROBUSTO */}
+        <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col items-center text-center gap-6 shadow-sm hover:border-indigo-300 transition-all group w-full">
+            <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
+              <i className="fas fa-microscope"></i>
+            </div>
+            <div className="flex-1 space-y-2">
+              <h3 className="text-slate-800 font-black uppercase text-sm tracking-tight">Diagnóstico Robusto</h3>
+              <p className="text-slate-500 font-medium text-[10px] leading-relaxed">
+                  Análise profunda de conexões, arquivos órfãos e integridade de banco.
+              </p>
+            </div>
+            <div className="relative w-full mt-auto">
+              <button 
+                  onClick={runRobustDiagnostics}
+                  disabled={isRobustAuditing}
+                  className="w-full py-4 bg-indigo-600 text-white font-black rounded-xl uppercase text-[9px] tracking-widest shadow-sm hover:bg-indigo-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                  <i className={`fas ${isRobustAuditing ? 'fa-spinner fa-spin' : 'fa-microscope'}`}></i> 
+                  {isRobustAuditing ? 'Analisando...' : 'Iniciar Diagnóstico Robusto'}
+              </button>
+            </div>
+        </div>
       </div>
       {/* DETAILS MODAL */}
       {detailsModal.isOpen && (
@@ -1052,6 +1090,34 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
               >
                 Fechar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DIAGNÓSTICO ROBUSTO */}
+      {robustReport && (
+        <div className="fixed inset-0 z-[7000] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setRobustReport(null)} />
+          <div className="relative bg-white w-full max-w-3xl max-h-[90vh] flex flex-col rounded-[2rem] shadow-2xl animate-in zoom-in duration-300 border border-slate-200 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Relatório de Diagnóstico Robusto</h3>
+              <button onClick={() => setRobustReport(null)} className="w-10 h-10 bg-white border border-slate-200 text-slate-400 rounded-full hover:bg-slate-50 hover:text-slate-600 transition-colors flex items-center justify-center">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <div className="space-y-4">
+                <div className="bg-slate-100 p-4 rounded-xl">
+                  <p className="text-xs font-bold text-slate-600 uppercase">Status da Conexão Supabase: <span className={robustReport.connectionStatus.supabase ? 'text-emerald-600' : 'text-rose-600'}>{robustReport.connectionStatus.supabase ? 'OK' : 'FALHA'}</span></p>
+                </div>
+                <div className="bg-slate-100 p-4 rounded-xl">
+                  <p className="text-xs font-bold text-slate-600 uppercase">Arquivos órfãos potenciais ({robustReport.fileAnalysis.unusedFiles.length}):</p>
+                  <ul className="text-[10px] font-mono text-slate-500 mt-2 max-h-60 overflow-y-auto">
+                    {robustReport.fileAnalysis.unusedFiles.map((f: string, i: number) => <li key={i}>{f}</li>)}
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
         </div>
