@@ -1,13 +1,12 @@
 import { useState, useCallback } from 'react';
-import { useApp } from '../../contexts/AppContext';
 import { useToast } from '../../contexts/ToastContext';
 import { toSafeDateISO } from '../../utils/formatters';
 import { isRecordLocked } from '../../utils/validators';
 import { User } from '../../types';
+import { PGService } from '../../services/pg.service';
 
 export const usePG = (currentUser: User | null) => {
   const { showToast } = useToast();
-  const { saveRecord, deleteRecord } = useApp();
   const [isSaving, setIsSaving] = useState(false);
 
   const saveSmallGroup = useCallback(async (data: any) => {
@@ -32,27 +31,28 @@ export const usePG = (currentUser: User | null) => {
       updatedAt: now
     };
 
-    const success = await saveRecord('smallGroups', itemToSave);
+    const result = await PGService.saveSmallGroup(itemToSave);
     setIsSaving(false);
 
-    if (success) {
+    if (result.success) {
       showToast("PG salvo com sucesso!", "success");
       return true;
     } else {
+      console.error(result.error);
       showToast("Erro ao salvar PG.", "error");
       return false;
     }
-  }, [currentUser, showToast, saveRecord]);
+  }, [currentUser, showToast]);
 
   const deleteSmallGroup = useCallback(async (id: string) => {
-    const success = await deleteRecord('smallGroups', id);
+    const success = await PGService.deleteSmallGroup(id);
     if (success) {
       showToast("PG removido com sucesso.", "success");
     } else {
       showToast("Erro ao remover PG.", "error");
     }
     return success;
-  }, [showToast, deleteRecord]);
+  }, [showToast]);
 
   return { saveSmallGroup, deleteSmallGroup, isSaving };
 };
