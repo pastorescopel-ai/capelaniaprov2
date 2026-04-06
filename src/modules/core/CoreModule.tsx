@@ -1,11 +1,11 @@
 import React, { lazy, Suspense } from 'react';
-import { User } from '../../../types';
+import { User } from '../../types';
 import { useCore } from './useCoreHook';
 
-const Profile = lazy(() => import('../../../components/Profile'));
-const UserManagement = lazy(() => import('../../../components/UserManagement'));
-const AdminPanel = lazy(() => import('../../../components/AdminPanel'));
-const DataHealer = lazy(() => import('../../../components/DataHealer'));
+const Profile = lazy(() => import('../../components/Profile'));
+const UserManagement = lazy(() => import('../../components/UserManagement'));
+const AdminPanel = lazy(() => import('../../components/AdminPanel'));
+const DataHealer = lazy(() => import('../../components/DataHealer'));
 
 interface CoreModuleProps {
   type: 'profile' | 'users' | 'admin' | 'dataHealing';
