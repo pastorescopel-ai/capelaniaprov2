@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node dist/server.cjs",
-    "build": "NODE_ENV=production vite build && esbuild server.ts --platform=node --format=cjs --outfile=dist/server.cjs",
+    "build": "NODE_ENV=production vite build && esbuild server.ts --platform=node --format=cjs --outfile=dist/server.cjs --define:import.meta=false",
     "preview": "vite preview",
     "lint": "eslint ."
   },
@@ -49,6 +49,7 @@
   },
   "overrides": {
     "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@^1.5.0",
-    "glob": "^10.4.5"
+    "glob": "^11.0.0",
+    "source-map": "^0.7.4"
   }
 }
