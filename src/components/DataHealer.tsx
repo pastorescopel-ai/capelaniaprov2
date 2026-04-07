@@ -39,7 +39,8 @@ const DataHealer: React.FC = () => {
     mergeTargetId, setMergeTargetId,
     handleUniversalMerge,
     handleSyncTemporalCycle,
-    handleFixDuplicateMembership
+    handleFixDuplicateMembership,
+    handleFixAttendeeDates
   } = useDataHealer();
 
   // Tema dinâmico
@@ -286,6 +287,7 @@ const DataHealer: React.FC = () => {
                   officialPatientOptions={officialPatientOptions}
                   officialProviderOptions={officialProviderOptions}
                   handleProcessPerson={handleProcessPerson}
+                  handleFixAttendeeDates={handleFixAttendeeDates}
                   isProcessing={isProcessing}
                 />
               )}

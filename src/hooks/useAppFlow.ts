@@ -1,6 +1,6 @@
 
 import { useState, useCallback, useEffect, useTransition } from 'react';
-import { Unit, User, UserRole, RecordStatus } from '../types';
+import { Unit, User, UserRole, RecordStatus, EditAuthorization } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { isRecordLocked } from '../utils/validators';
 import { toSafeDateISO } from '../utils/formatters';
@@ -9,9 +9,10 @@ interface UseAppFlowProps {
   currentUser: User | null;
   saveRecord: (collection: string, item: any) => Promise<boolean>;
   deleteRecord: (collection: string, id: string) => Promise<boolean>;
+  editAuthorizations?: EditAuthorization[];
 }
 
-export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlowProps) => {
+export const useAppFlow = ({ currentUser, saveRecord, deleteRecord, editAuthorizations = [] }: UseAppFlowProps) => {
   const { showToast } = useToast();
 
   const [activeTab, setActiveTabState] = useState('dashboard');
@@ -40,7 +41,20 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord }: UseAppFlow
   const handleSaveItem = async (type: string, data: any) => {
     if (!currentUser) return;
 
-    if (isRecordLocked(data.date, currentUser.role)) {
+    // Mapeia o tipo do formulário para o nome da coleção/aba para o validador de trava
+    const tabMap: Record<string, string> = {
+      'study': 'bibleStudies',
+      'class': 'bibleClasses',
+      'smallGroup': 'smallGroups',
+      'visit': 'staffVisits',
+      'bibleStudy': 'bibleStudies',
+      'bibleClass': 'bibleClasses',
+      'staffVisit': 'staffVisits'
+    };
+
+    const tabName = tabMap[type] || type;
+
+    if (isRecordLocked(data.date, currentUser.role, tabName, editAuthorizations)) {
       showToast("Período de edição para este mês está encerrado!", "warning");
       return;
     }

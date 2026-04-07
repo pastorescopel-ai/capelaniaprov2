@@ -122,9 +122,6 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
       
       const activePGIds = new Set(historyForMonth.filter(r => r.isEnrolled && r.groupId).map(r => cleanID(r.groupId)));
       activePGCount = activePGIds.size;
-    } else if (isClosed) {
-      data = [];
-      activePGCount = 0;
     } else {
       // 1. Filtrar setores e staff da unidade (Dados em Tempo Real)
       const activeStaffMemberships = proGroupMembers.filter(m => {
@@ -197,6 +194,8 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
           activeProviderMembershipsByGroupId.get(gId)?.push(m);
       });
 
+      const processedPGIds = new Set<string>();
+
       data = sectors.map(sector => {
           const sectorIdClean = cleanID(sector.id);
           const staff = staffBySector.get(sectorIdClean) || [];
@@ -257,11 +256,78 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
           }).filter(id => id !== null) as string[]);
           
           const allGroupIdsInSector = new Set([...Array.from(geoGroupIds), ...Array.from(memberGroupIds)]);
+          allGroupIdsInSector.forEach(id => processedPGIds.add(id));
+          
           const pgs = Array.from(allGroupIdsInSector).map(gid => groupsById.get(gid)).filter(g => !!g);
           const coverage = staff.length > 0 ? (enrolledStaff.length / staff.length) * 100 : 0;
 
           return { sector, totalStaff: staff.length, enrolledCount: enrolledStaff.length, coverage, pgs, notEnrolledList: notEnrolled, enrolledList: enrolledStaff, enrolledByPG };
-      }).filter(d => d.totalStaff > 0);
+      });
+
+      // Adicionar PGs Independentes (sem setor vinculado ou órfãos)
+      const unassignedPGIds = Array.from(activePGIds).filter(id => !processedPGIds.has(id));
+      if (unassignedPGIds.length > 0) {
+          const enrolledByPGMap = new Map<string, { pgName: string, members: any[], leaderName: string | null }>();
+          const pgs: any[] = [];
+
+          unassignedPGIds.forEach(pgIdClean => {
+              const pg = groupsById.get(pgIdClean);
+              if (!pg) return;
+              pgs.push(pg);
+
+              // Adicionar Prestadores
+              const providerMemberships = activeProviderMembershipsByGroupId.get(pgIdClean) || [];
+              providerMemberships.forEach(m => {
+                  const provider = providersById.get(cleanID(m.providerId));
+                  if (provider) {
+                      const pgName = pg.name || 'Sem PG Definido';
+                      const leaderName = pg.currentLeader || null;
+                      const pgNameNorm = normalizeString(pgName);
+                      
+                      if (!enrolledByPGMap.has(pgNameNorm)) {
+                          enrolledByPGMap.set(pgNameNorm, { pgName, members: [], leaderName });
+                      }
+                      if (!enrolledByPGMap.get(pgNameNorm)!.members.some(mem => mem.id === provider.id)) {
+                          enrolledByPGMap.get(pgNameNorm)!.members.push({ ...provider, type: 'provider' });
+                      }
+                  }
+              });
+
+              // Adicionar Staff (caso haja algum staff em PG sem localização de setor)
+              activeStaffMemberships.forEach(m => {
+                  if (cleanID(m.groupId) === pgIdClean) {
+                      const staffMember = proStaff.find(s => cleanID(s.id) === cleanID(m.staffId));
+                      if (staffMember) {
+                          const pgName = pg.name || 'Sem PG Definido';
+                          const leaderName = pg.currentLeader || null;
+                          const pgNameNorm = normalizeString(pgName);
+                          
+                          if (!enrolledByPGMap.has(pgNameNorm)) {
+                              enrolledByPGMap.set(pgNameNorm, { pgName, members: [], leaderName });
+                          }
+                          if (!enrolledByPGMap.get(pgNameNorm)!.members.some(mem => mem.id === staffMember.id)) {
+                              enrolledByPGMap.get(pgNameNorm)!.members.push({ ...staffMember, type: 'staff' });
+                          }
+                      }
+                  }
+              });
+          });
+
+          if (enrolledByPGMap.size > 0) {
+              data.push({
+                  sector: { id: 'virtual-independent', name: 'PGs Independentes / Prestadores', unit, active: true },
+                  totalStaff: 0,
+                  enrolledCount: 0,
+                  coverage: 0,
+                  pgs,
+                  notEnrolledList: [],
+                  enrolledList: [],
+                  enrolledByPG: Array.from(enrolledByPGMap.values()).sort((a, b) => a.pgName.localeCompare(b.pgName))
+              });
+          }
+      }
+
+      data = data.filter(d => d.totalStaff > 0 || d.enrolledByPG.length > 0);
     }
 
     const normSearch = normalizeString(searchTerm);
@@ -269,7 +335,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
 
     return {
         reportData: data.filter(d => {
-            if (d.totalStaff === 0) return false;
+            if (d.totalStaff === 0 && d.enrolledByPG.length === 0) return false;
             
             // Filtro de Gargalo (< 80%)
             if (filterCritical && d.coverage >= 80) return false;

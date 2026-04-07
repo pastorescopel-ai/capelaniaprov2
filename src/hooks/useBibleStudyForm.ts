@@ -86,10 +86,10 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     const filteredHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) === formData.participantType && s.unit === unit);
     const otherHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) !== formData.participantType && s.unit === unit);
     
-    const personalHistory = filteredHistory.filter(s => s.userId === currentUser.id);
+    const personalHistory = filteredHistory.filter(s => s.userId === formData.userId);
     const uniqueHistoryNames = new Set<string>();
     
-    // 1. Primeiro, adiciona os alunos DO CAPELÃO LOGADO (Destaque Amarelo)
+    // 1. Primeiro, adiciona os alunos DO CAPELÃO SELECIONADO (Destaque Amarelo)
     personalHistory.forEach(s => {
       const norm = normalizeString(s.name);
       if (s.name && !uniqueHistoryNames.has(norm)) {
@@ -123,7 +123,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     });
 
     return options;
-  }, [allHistory, currentUser.id, proStaff, proPatients, proProviders, proSectors, unit, formData.participantType]);
+  }, [allHistory, formData.userId, proStaff, proPatients, proProviders, proSectors, unit, formData.participantType]);
 
   useEffect(() => {
     if (editingItem) {
@@ -316,11 +316,20 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     setIsSubmitting(true);
     try {
       await syncMasterContact(dataToSubmit.name, dataToSubmit.whatsapp, unit, dataToSubmit.participantType!, dataToSubmit.sector);
-      await onSubmit({ ...dataToSubmit, unit, participantType: dataToSubmit.participantType });
+      const result = await onSubmit({ ...dataToSubmit, unit, participantType: dataToSubmit.participantType });
+      
+      // Se o onSubmit retornar um objeto com success (como o useBibleModule faz)
+      if (result && typeof result === 'object' && 'success' in result && !result.success) {
+          showToast(result.error?.message || "Erro ao salvar registro.", "error");
+          return;
+      }
+
       setFormData({ ...defaultState, date: getToday() });
       setIsSectorLocked(false);
+      showToast("Registro salvo com sucesso!", "success");
     } catch (error) {
       console.error("Erro ao salvar:", error);
+      showToast("Erro inesperado ao salvar o registro. Verifique sua conexão.", "error");
     } finally {
       setIsSubmitting(false);
     }

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { User } from '../../types';
-import { BibleService } from '../../services/bible.service';
+import { useApp } from '../../hooks/useApp';
 
 export const useBibleModule = (currentUser: User) => {
+  const { saveRecord } = useApp();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -10,11 +11,11 @@ export const useBibleModule = (currentUser: User) => {
     setIsSaving(true);
     setError(null);
     try {
-      const result = await BibleService.saveStudy(study);
-      if (!result.success) {
-        setError(result.error?.message || 'Erro ao salvar estudo bíblico');
+      const success = await saveRecord('bibleStudies', study);
+      if (!success) {
+        setError('Erro ao salvar estudo bíblico');
       }
-      return result;
+      return { success };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(message);
@@ -28,11 +29,11 @@ export const useBibleModule = (currentUser: User) => {
     setIsSaving(true);
     setError(null);
     try {
-      const result = await BibleService.saveClass(bibleClass);
-      if (!result.success) {
-        setError(result.error?.message || 'Erro ao salvar classe bíblica');
+      const success = await saveRecord('bibleClasses', bibleClass);
+      if (!success) {
+        setError('Erro ao salvar classe bíblica');
       }
-      return result;
+      return { success };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(message);

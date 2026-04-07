@@ -27,7 +27,7 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'attends_haba', 'haba_days', 'created_at', 'updated_at', 'auth_id'],
   bible_study_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'location', 'name', 'staff_id', 'whatsapp', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
   bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'location', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
-  bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'created_at', 'updated_at'],
+  bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'date', 'cycle_month', 'created_at', 'updated_at'],
   small_group_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'group_name', 'leader', 'leader_phone', 'shift', 'participants_count', 'observations', 'created_at', 'updated_at'],
   staff_visits: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'location', 'reason', 'staff_name', 'staff_id', 'provider_id', 'whatsapp', 'participant_type', 'provider_role', 'requires_return', 'return_date', 'return_completed', 'observations', 'created_at', 'updated_at'],
   visit_requests: ['id', 'pg_name', 'leader_name', 'leader_phone', 'unit', 'date', 'status', 'request_notes', 'preferred_chaplain_id', 'assigned_chaplain_id', 'chaplain_response', 'sector_id', 'meeting_location', 'scheduled_time', 'is_read', 'created_at', 'updated_at'],

@@ -15,8 +15,8 @@ const ImpactCharts: React.FC<ImpactChartsProps> = ({ individualData, globalData 
         <h3 className="text-sm md:text-lg font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-tighter">
           <i className="fas fa-chart-bar text-blue-600"></i> Desempenho Individual
         </h3>
-        <div className="h-[200px] w-full min-h-[200px] min-w-0 min-h-0">
-          <ResponsiveContainer width="100%" height="100%" debounce={50}>
+        <div className="h-[200px] w-full min-h-[200px]">
+          <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100} debounce={50}>
             <BarChart data={individualData}>
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 9, fontWeight: 800}} />
               <Tooltip cursor={{fill: 'rgba(0,0,0,0.05)'}} contentStyle={{borderRadius: '1rem', border: '1px solid #e2e8f0', background: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}} />
@@ -45,8 +45,8 @@ const ImpactCharts: React.FC<ImpactChartsProps> = ({ individualData, globalData 
           </div>
         </div>
 
-        <div className="h-[250px] w-full min-h-[250px] min-w-0 min-h-0">
-          <ResponsiveContainer width="100%" height="100%" debounce={50}>
+        <div className="h-[250px] w-full min-h-[250px]">
+          <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100} debounce={50}>
             <BarChart 
               data={globalData.chartData}
               margin={{ top: 20, right: 30, left: 0, bottom: 0 }}

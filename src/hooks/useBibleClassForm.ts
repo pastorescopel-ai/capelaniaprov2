@@ -91,8 +91,8 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     
     const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit);
 
-    // 1. Setores onde o capelão logado deu classe (Destaque Amarelo)
-    filteredHistory.filter(c => c.userId === currentUser.id).forEach(c => {
+    // 1. Setores onde o capelão selecionado deu classe (Destaque Amarelo)
+    filteredHistory.filter(c => c.userId === formData.userId).forEach(c => {
       if (c.sector && !myClasses.has(c.sector)) {
         myClasses.add(c.sector);
         options.push({
@@ -117,7 +117,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     });
 
     return options;
-  }, [allHistory, currentUser.id, proSectors, unit, formData.participantType]);
+  }, [allHistory, formData.userId, proSectors, unit, formData.participantType]);
 
   const studentSearchOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
@@ -167,8 +167,8 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     // Filtra histórico APENAS da categoria atual (Integridade Categórica)
     const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit);
     
-    // 2. Alunos das classes do capelão logado (Destaque Amarelo)
-    filteredHistory.filter(c => c.userId === currentUser.id).forEach(c => {
+    // 2. Alunos das classes do capelão selecionado (Destaque Amarelo)
+    filteredHistory.filter(c => c.userId === formData.userId).forEach(c => {
        if (Array.isArray(c.students)) {
          c.students.forEach(s => {
            const norm = normalizeString(s);
@@ -214,7 +214,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       if (a.category !== 'Meus Alunos' && b.category === 'Meus Alunos') return 1;
       return a.label.localeCompare(b.label);
     });
-  }, [proStaff, proPatients, proProviders, proSectors, unit, allHistory, currentUser.id, formData.participantType, formData.sector]);
+  }, [proStaff, proPatients, proProviders, proSectors, unit, allHistory, formData.userId, formData.participantType, formData.sector]);
 
   const handleSelectSector = useCallback((sectorName: string) => {
     if (!sectorName) return;
@@ -426,8 +426,8 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         return;
     }
 
-    // Verifica se a classe (guide) pertence a outro capelão
-    const classOwnership = checkOwnershipConflict(formData.guide, 'class', unit, currentUser.id, currentUser.role);
+    // Verifica se a classe (setor) pertence a outro capelão
+    const classOwnership = checkOwnershipConflict(formData.sector, 'class', unit, currentUser.id, currentUser.role);
     if (classOwnership.hasConflict) {
         setOwnershipConflict({ show: true, message: classOwnership.message });
         return;
@@ -472,10 +472,19 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
               return syncMasterContact(nameOnly, "", unit, ParticipantType.STAFF, formData.sector).catch(console.error);
           }));
       }
-      await onSubmit({ ...formData, unit, participantType: formData.participantType, observations: finalObservations });
+      const result = await onSubmit({ ...formData, unit, participantType: formData.participantType, observations: finalObservations });
+      
+      // Se o onSubmit retornar um objeto com success (como o useBibleModule faz)
+      if (result && typeof result === 'object' && 'success' in result && !result.success) {
+          showToast(result.error?.message || "Erro ao salvar registro.", "error");
+          return;
+      }
+
       setFormData({ ...defaultState, date: getToday() });
+      showToast("Registro salvo com sucesso!", "success");
     } catch (error) {
       console.error("Erro ao salvar:", error);
+      showToast("Erro inesperado ao salvar o registro. Verifique sua conexão.", "error");
     } finally {
       setIsSubmitting(false);
     }

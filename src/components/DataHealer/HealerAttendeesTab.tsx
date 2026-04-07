@@ -13,6 +13,7 @@ interface HealerAttendeesTabProps {
   officialPatientOptions: any[];
   officialProviderOptions: any[];
   handleProcessPerson: (name: string) => void;
+  handleFixAttendeeDates: () => void;
   isProcessing: boolean;
 }
 
@@ -27,12 +28,24 @@ const HealerAttendeesTab: React.FC<HealerAttendeesTabProps> = ({
   officialPatientOptions,
   officialProviderOptions,
   handleProcessPerson,
+  handleFixAttendeeDates,
   isProcessing
 }) => {
   return (
     <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
       <div className="p-8 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-        <h3 className="font-black text-slate-700 uppercase text-sm tracking-widest">Fila de Tratamento</h3>
+        <div className="flex items-center gap-4">
+          <h3 className="font-black text-slate-700 uppercase text-sm tracking-widest">Fila de Tratamento</h3>
+          <button 
+            onClick={handleFixAttendeeDates}
+            disabled={isProcessing}
+            className="px-4 py-2 bg-violet-100 text-violet-700 rounded-xl text-[10px] font-black uppercase hover:bg-violet-200 transition-colors flex items-center gap-2"
+            title="Corrigir datas ausentes baseando-se na aula pai"
+          >
+            <i className="fas fa-calendar-check"></i>
+            Corrigir Datas Ausentes
+          </button>
+        </div>
         <span className="text-[10px] font-bold text-slate-400 uppercase"><i className="fas fa-magic mr-1"></i> Correção em massa</span>
       </div>
       

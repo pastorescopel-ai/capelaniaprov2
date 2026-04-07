@@ -331,6 +331,55 @@ export const useHealerActions = (
     }
   };
 
+  const handleFixAttendeeDates = async () => {
+    const attendeesToFix = (appData.bibleClassAttendees || []).filter((a: any) => !a.date || !a.cycleMonth);
+    
+    if (attendeesToFix.length === 0) {
+      showToast("Todos os registros de presença já possuem data e ciclo.", "info");
+      return;
+    }
+
+    if (!confirm(`Foram encontrados ${attendeesToFix.length} registros sem data. Deseja corrigi-los usando a data da aula correspondente?`)) return;
+
+    setIsProcessing(true);
+    try {
+      const updates = [];
+      for (const attendee of attendeesToFix) {
+        const parentClass = bibleClasses.find((c: any) => c.id === attendee.classId);
+        if (parentClass && parentClass.date) {
+            let cycleMonth = null;
+            const d = new Date(parentClass.date + (parentClass.date.includes('T') ? '' : 'T12:00:00'));
+            if (!isNaN(d.getTime())) {
+                cycleMonth = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+            }
+            
+            updates.push({
+                ...attendee,
+                date: parentClass.date,
+                cycleMonth: cycleMonth
+            });
+        }
+      }
+
+      if (updates.length > 0) {
+        // Salvar em lotes de 50 para não sobrecarregar
+        const CHUNK_SIZE = 50;
+        for (let i = 0; i < updates.length; i += CHUNK_SIZE) {
+            const chunk = updates.slice(i, i + CHUNK_SIZE);
+            await saveRecord('bibleClassAttendees', chunk);
+        }
+        showToast(`${updates.length} registros de presença foram corrigidos!`, "success");
+        await loadFromCloud(false);
+      } else {
+        showToast("Nenhum registro pôde ser corrigido (aulas pai não encontradas).", "warning");
+      }
+    } catch (e: any) {
+      showToast("Erro ao corrigir datas: " + e.message, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return {
     handleProcessPerson,
     handleHealSector,
@@ -340,6 +389,7 @@ export const useHealerActions = (
     handleDeleteSourceRecord,
     handleUniversalMerge,
     handleSyncTemporalCycle,
-    handleFixDuplicateMembership
+    handleFixDuplicateMembership,
+    handleFixAttendeeDates
   };
 };

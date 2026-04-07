@@ -18,7 +18,7 @@ const App: React.FC = () => {
   const {
     users, smallGroups, staffVisits,
     config, isSyncing, isConnected, loadFromCloud, saveToCloud, saveRecord, deleteRecord,
-    activitySchedules, dailyActivityReports
+    activitySchedules, dailyActivityReports, editAuthorizations
   } = useApp();
 
   const { bibleStudies, bibleClasses } = useBible();
@@ -32,7 +32,7 @@ const App: React.FC = () => {
     editingItem, setEditingItem,
     itemToDelete, setItemToDelete,
     handleSaveItem, confirmDeletion, getVisibleHistory
-  } = useAppFlow({ currentUser, saveRecord, deleteRecord });
+  } = useAppFlow({ currentUser, saveRecord, deleteRecord, editAuthorizations });
 
   const [isTabTransitionPending, startTabTransition] = React.useTransition();
 

@@ -132,6 +132,14 @@ export const DataRepository = {
     const tableName = COLLECTION_TO_TABLE[collection];
     if (!tableName) return { success: false };
 
+    // Garantir que temos IDs para todos os itens antes de converter para snake_case
+    // Isso é vital para coleções que dependem do ID para salvar dados em tabelas relacionadas (ex: bibleClasses)
+    items.forEach(i => {
+      if ((i.id === undefined || i.id === null || i.id === '') && tableName !== 'visit_requests' && !tableName.startsWith('pro_')) {
+        i.id = crypto.randomUUID();
+      }
+    });
+
     const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName], tableName));
 
     // Separar em dois grupos: os que têm ID (Updates/Upserts) e os que não têm (Inserts puros)
@@ -212,10 +220,22 @@ export const DataRepository = {
                 const attendeesPayload = originalItem.students.map((name: string) => {
                     const match = name.match(/\((\d+)\)$/);
                     const staffId = match ? match[1] : null;
+                    
+                    // Calcular cycle_month (primeiro dia do mês da data da classe)
+                    let cycleMonth = null;
+                    if (cls.date) {
+                        const d = new Date(cls.date + (cls.date.includes('T') ? '' : 'T12:00:00'));
+                        if (!isNaN(d.getTime())) {
+                            cycleMonth = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+                        }
+                    }
+
                     return {
                         class_id: cls.id,
                         student_name: name,
-                        staff_id: staffId
+                        staff_id: staffId,
+                        date: cls.date,
+                        cycle_month: cycleMonth
                     };
                 });
 
