@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { User } from '../../types';
-import { StaffService } from '../../services/staff.service';
+import { useApp } from '../../hooks/useApp';
 
 export const useStaff = (currentUser: User) => {
+  const { saveRecord, deleteRecord } = useApp();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -10,11 +11,12 @@ export const useStaff = (currentUser: User) => {
     setIsSaving(true);
     setError(null);
     try {
-      const result = await StaffService.saveVisit(visit);
-      if (!result.success) {
-        setError(result.error?.message || 'Erro ao salvar visita');
+      const success = await saveRecord('staffVisits', visit);
+      if (!success) {
+        setError('Erro ao salvar visita');
+        return { success: false };
       }
-      return result;
+      return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(message);
@@ -26,7 +28,8 @@ export const useStaff = (currentUser: User) => {
 
   const deleteVisit = async (id: string) => {
     try {
-      return await StaffService.deleteVisit(id);
+      const success = await deleteRecord('staffVisits', id);
+      return { success };
     } catch (err) {
       return { success: false, error: err };
     }

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { User } from '../../types';
-import { PGService } from '../../services/pg.service';
+import { useApp } from '../../hooks/useApp';
 
 export const usePG = (currentUser: User) => {
+  const { saveRecord } = useApp();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -10,11 +11,12 @@ export const usePG = (currentUser: User) => {
     setIsSaving(true);
     setError(null);
     try {
-      const result = await PGService.saveSmallGroup(pg);
-      if (!result.success) {
-        setError(result.error?.message || 'Erro ao salvar pequeno grupo');
+      const success = await saveRecord('smallGroups', pg);
+      if (!success) {
+        setError('Erro ao salvar pequeno grupo');
+        return { success: false };
       }
-      return result;
+      return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(message);

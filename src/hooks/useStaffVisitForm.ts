@@ -136,6 +136,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       const nameOnly = label.split(' (')[0].trim();
       const match = label.match(/\((.*?)\)$/);
       let foundSector = formData.sector;
+      let foundSectorId = formData.sectorId;
       let foundWhatsapp = formData.whatsapp;
       let foundStaffId = '';
       let foundProviderId = '';
@@ -162,7 +163,11 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
 
           if (staff) {
               const sector = proSectors.find(s => s.id === staff.sectorId);
-              if (sector) { foundSector = sector.name; lockSector = true; } else { lockSector = false; }
+              if (sector) { 
+                  foundSector = sector.name; 
+                  foundSectorId = sector.id;
+                  lockSector = true; 
+              } else { lockSector = false; }
               if (staff.whatsapp) foundWhatsapp = formatWhatsApp(staff.whatsapp);
               foundStaffId = staff.id;
           } else { lockSector = false; }
@@ -182,7 +187,8 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
         staffId: foundStaffId || '', 
         providerId: foundProviderId || '', 
         whatsapp: foundWhatsapp || '', 
-        sector: foundSector || '' 
+        sector: foundSector || '',
+        sectorId: foundSectorId || ''
       }));
       setIsSectorLocked(lockSector);
       if (lockSector) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
@@ -195,7 +201,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
   };
 
   const handleChangeName = (v: string) => {
-      setFormData({...formData, staffName: v, staffId: '', providerId: ''});
+      setFormData({...formData, staffName: v, staffId: '', providerId: '', sectorId: ''});
       if (!v) setIsSectorLocked(false);
   };
 
@@ -224,6 +230,12 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
             return;
         }
         if (!formData.sector) { showToast("Setor é obrigatório para colaboradores.", "warning"); return; }
+        
+        // Ensure sectorId is set if not already
+        if (!dataToSubmit.sectorId) {
+            const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
+            if (staff) dataToSubmit.sectorId = staff.sectorId;
+        }
     } else {
         if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast("WhatsApp é obrigatório para prestadores.", "warning"); return; }
         if (!isValidWhatsApp(formData.whatsapp)) { showToast("Por favor, insira um número de WhatsApp válido.", "error"); return; }

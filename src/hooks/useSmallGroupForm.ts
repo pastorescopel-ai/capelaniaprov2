@@ -102,7 +102,8 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
         groupName: pgName, 
         leader: details.leaderName || '', 
         leaderPhone: details.leaderPhone ? formatWhatsApp(details.leaderPhone) : '', 
-        sector: details.sectorName || '' 
+        sector: details.sectorName || '',
+        sectorId: details.sectorId || ''
       }));
       if(details.leaderName || details.sectorName) showToast("Dados oficiais do líder carregados.", "info");
   };
@@ -123,12 +124,14 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       
       if (staff) {
           // Found in RH: Update sector, update phone if exists, else clear phone
-          const sectorName = staff.sectorId ? (proSectors.find(s => s.id === staff.sectorId)?.name || '') : '';
+          const sector = staff.sectorId ? proSectors.find(s => s.id === staff.sectorId) : null;
+          const sectorName = sector?.name || '';
           setFormData(prev => ({ 
               ...prev, 
               leader: nameOnly, 
               leaderPhone: staff.whatsapp ? formatWhatsApp(staff.whatsapp) : '', 
-              sector: sectorName || prev.sector 
+              sector: sectorName || prev.sector,
+              sectorId: staff.sectorId || ''
           }));
           setIsSectorLocked(!!staff.sectorId);
           if (staff.sectorId) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
@@ -138,7 +141,8 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
               ...prev, 
               leader: nameOnly, 
               leaderPhone: '', 
-              sector: '' 
+              sector: '',
+              sectorId: ''
           }));
           setIsSectorLocked(false);
       }
@@ -157,16 +161,18 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       
       if (staff) {
           // Found in RH: Update sector, update phone if exists, else clear phone
-          const sectorName = staff.sectorId ? (proSectors.find(s => s.id === staff.sectorId)?.name || '') : '';
+          const sector = staff.sectorId ? proSectors.find(s => s.id === staff.sectorId) : null;
+          const sectorName = sector?.name || '';
           setFormData(prev => ({ 
               ...prev, 
               leaderPhone: staff.whatsapp ? formatWhatsApp(staff.whatsapp) : '', 
-              sector: sectorName || prev.sector 
+              sector: sectorName || prev.sector,
+              sectorId: staff.sectorId || ''
           }));
           setIsSectorLocked(!!staff.sectorId);
       } else {
           // Not in RH: Clear both
-          setFormData(prev => ({ ...prev, leaderPhone: '', sector: '' }));
+          setFormData(prev => ({ ...prev, leaderPhone: '', sector: '', sectorId: '' }));
           setIsSectorLocked(false);
       }
   };
@@ -203,9 +209,16 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       await syncMasterContact(formData.leader, formData.leaderPhone, unit, ParticipantType.STAFF, formData.sector);
       const pgMaster = proGroups.find(g => g.name === formData.groupName && g.unit === unit);
       
+      const targetSector = proSectors.find(s => s.name === formData.sector && s.unit === unit);
+      const dataToSubmit = { 
+          ...formData, 
+          unit, 
+          leaderPhone: formData.leaderPhone.replace(/\D/g, ''),
+          sectorId: targetSector?.id || formData.sectorId
+      };
+
       if (pgMaster) {
           const cleanPhone = formData.leaderPhone.replace(/\D/g, '');
-          const targetSector = proSectors.find(s => s.name === formData.sector && s.unit === unit);
           
           const leaderChanged = pgMaster.leader !== formData.leader;
           const phoneChanged = cleanPhone !== (pgMaster.leaderPhone || '');
@@ -220,8 +233,6 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
                   ...(targetSector ? { sectorId: targetSector.id } : {})
               });
           }
-      } else {
-          // PG Master not found
       }
 
       const pendingAgenda = visitRequests
@@ -244,7 +255,7 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
         });
       }
 
-      await onSubmit({ ...formData, unit, leaderPhone: formData.leaderPhone.replace(/\D/g, '') });
+      await onSubmit(dataToSubmit);
       setFormData({ ...defaultState, date: getToday() });
       setIsSectorLocked(false);
     } catch (error) {
