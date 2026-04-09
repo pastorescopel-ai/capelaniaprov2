@@ -5,7 +5,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useApp } from '../../hooks/useApp';
 import { usePro } from '../../contexts/ProContext';
 import { useBible } from '../../contexts/BibleContext';
-import { getTimestamp } from '../../utils/formatters';
+import { getTimestamp, cleanID } from '../../utils/formatters';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 import GlobalCloseMonthModal from '../Admin/GlobalCloseMonthModal';
 import GlobalReopenMonthModal from '../Admin/GlobalReopenMonthModal';
@@ -23,7 +23,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
   
   const { 
     proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, 
-    proMonthlyStats 
+    proMonthlyStats, proProviders 
   } = usePro();
 
   const { showToast } = useToast();
@@ -211,19 +211,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                        (!mLeftDate || mLeftDate >= targetDate.getTime());
             });
 
-            const activeProviderMembershipsInUnit = proGroupProviderMembers.filter(m => {
-                const group = proGroups.find(g => g.id === m.groupId);
-                if (!group || group.unit !== u) return false;
-                
-                const mCycleDate = m.cycleMonth ? new Date(m.cycleMonth + 'T12:00:00').getTime() : 0;
-                const mLeftDate = getTimestamp(m.leftAt);
-                
-                return (!m.cycleMonth || mCycleDate <= targetDate.getTime()) && 
-                       (!mLeftDate || mLeftDate >= targetDate.getTime());
-            });
-
             const membershipMap = new Map(activeMembershipsInUnit.map(m => [cleanID(m.staffId), m]));
-            const providerMembershipMap = new Map(activeProviderMembershipsInUnit.map(m => [cleanID(m.providerId), m]));
 
             // 3.1 PROCESSAR COLABORADORES (CLT)
             unitStaff.forEach(staff => {
@@ -238,43 +226,15 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                     unit: u,
                     staffId: staff.id,
                     staffName: staff.name,
-                    registrationId: staff.registrationId || '',
-                    sectorId: staff.sectorId || 'unassigned',
+                    sectorId: staff.sectorId || null,
                     sectorName: sector?.name || 'Sem Setor',
-                    groupId: membership?.groupId || '',
+                    groupId: membership?.groupId || null,
                     groupName: group?.name || '',
                     leaderName: group?.currentLeader || null,
                     role: 'CLT',
                     isEnrolled: !!membership,
                     joinedAt: getTimestamp(membership?.joinedAt),
                     leftAt: getTimestamp(membership?.leftAt),
-                    createdAt: Date.now()
-                });
-            });
-
-            // 3.2 PROCESSAR PRESTADORES (Apenas os matriculados)
-            activeProviderMembershipsInUnit.forEach(m => {
-                const provider = proProviders.find(p => cleanID(p.id) === cleanID(m.providerId));
-                if (!provider) return;
-
-                const group = proGroups.find(g => cleanID(g.id) === cleanID(m.groupId));
-                const sector = proSectors.find(s => cleanID(s.id) === cleanID(group?.sectorId));
-
-                historyRecords.push({
-                    month: selectedCloseMonth,
-                    unit: u,
-                    staffId: provider.id,
-                    staffName: provider.name,
-                    registrationId: 'PRESTADOR',
-                    sectorId: group?.sectorId || 'unassigned',
-                    sectorName: sector?.name || 'Sem Setor',
-                    groupId: m.groupId,
-                    groupName: group?.name || '',
-                    leaderName: group?.currentLeader || null,
-                    role: 'PRESTADOR',
-                    isEnrolled: true,
-                    joinedAt: getTimestamp(m.joinedAt),
-                    leftAt: getTimestamp(m.leftAt),
                     createdAt: Date.now()
                 });
             });

@@ -7,11 +7,12 @@ import PGReports from './PGReports';
 import PGOps from './PGOps';
 import PGLeaders from './PGLeaders';
 import PGClosing from './PGClosing';
+import PGTools from './PGTools';
 import { useApp } from '../../hooks/useApp';
 
 const PGManagerLayout: React.FC = () => {
   const { proMonthlyStats, config } = useApp();
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'ops' | 'reports' | 'leaders' | 'fechamento'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'ops' | 'reports' | 'leaders' | 'fechamento' | 'tools'>('dashboard');
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
   const [isPending, startTransition] = useTransition();
 
@@ -36,7 +37,7 @@ const PGManagerLayout: React.FC = () => {
     }
   }, [activeSubTab, currentUnit]);
 
-  const handleTabChange = (tabId: 'dashboard' | 'membership' | 'ops' | 'reports' | 'leaders' | 'fechamento') => {
+  const handleTabChange = (tabId: 'dashboard' | 'membership' | 'ops' | 'reports' | 'leaders' | 'fechamento' | 'tools') => {
     startTransition(() => {
       setActiveSubTab(tabId);
     });
@@ -54,6 +55,7 @@ const PGManagerLayout: React.FC = () => {
     { id: 'leaders', label: 'Líderes', icon: 'fas fa-users' },
     { id: 'ops', label: 'Agenda PG', icon: 'fas fa-calendar-check' },
     { id: 'reports', label: 'Relatórios', icon: 'fas fa-print' },
+    { id: 'tools', label: 'Ferramentas', icon: 'fas fa-tools' },
     { id: 'fechamento', label: 'Fechamento', icon: 'fas fa-lock' },
   ];
 
@@ -142,6 +144,7 @@ const PGManagerLayout: React.FC = () => {
           {activeSubTab === 'ops' && <PGOps unit={currentUnit} />}
           {activeSubTab === 'reports' && <PGReports unit={currentUnit} />}
           {activeSubTab === 'leaders' && <PGLeaders unit={currentUnit} />}
+          {activeSubTab === 'tools' && <PGTools unit={currentUnit} />}
           {activeSubTab === 'fechamento' && <PGClosing unit={currentUnit} />}
         </main>
       </div>

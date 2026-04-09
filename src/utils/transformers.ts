@@ -48,7 +48,7 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   pro_history_records: ['id', 'month', 'unit', 'staff_id', 'staff_name', 'sector_id', 'sector_name', 'group_id', 'group_name', 'leader_name', 'role', 'is_enrolled', 'joined_at', 'left_at', 'created_at', 'updated_at']
 };
 
-export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'provider_id', 'group_id', 'day_of_week', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'participant_id'];
+export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'provider_id', 'group_id', 'sector_id', 'day_of_week', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'participant_id'];
 
 export const DATE_FIELDS = ['joined_at', 'left_at', 'updated_at', 'created_at', 'completion_date', 'return_date', 'scheduled_time', 'last_modified_at', 'expiry_date', 'month_to_unlock'];
 
@@ -115,7 +115,6 @@ export const NUMERIC_DATE_COLUMNS_BY_TABLE: Record<string, string[]> = {
   daily_activity_reports: ['created_at', 'updated_at'],
   pro_group_locations: ['created_at'],
   pro_monthly_stats: ['created_at'],
-  pro_history_records: ['created_at', 'joined_at', 'left_at'],
   small_group_sessions: ['created_at', 'updated_at'],
   staff_visits: ['created_at', 'updated_at'],
   users: ['updated_at'],
@@ -180,24 +179,28 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
         }
       }
 
-      if (DATE_FIELDS.includes(snakeKey) && val) {
-          const numericCols = NUMERIC_DATE_COLUMNS_BY_TABLE[tableName] || [];
-          const isNumeric = numericCols.includes(snakeKey);
-          
-          if (isNumeric) {
-              // Converte para número (BIGINT)
-              if (typeof val === 'string') {
-                  const d = new Date(val);
-                  if (!isNaN(d.getTime())) {
-                      val = d.getTime();
-                  }
-              }
+      if (DATE_FIELDS.includes(snakeKey)) {
+          if (!val || val === 0 || val === '0') {
+              val = null;
           } else {
-              // Converte para ISO String (TIMESTAMPTZ/DATE)
-              if (typeof val === 'number') {
-                  val = new Date(val).toISOString();
-              } else if (typeof val === 'string' && !isNaN(Number(val))) {
-                  val = new Date(Number(val)).toISOString();
+              const numericCols = NUMERIC_DATE_COLUMNS_BY_TABLE[tableName] || [];
+              const isNumeric = numericCols.includes(snakeKey);
+              
+              if (isNumeric) {
+                  // Converte para número (BIGINT)
+                  if (typeof val === 'string') {
+                      const d = new Date(val);
+                      if (!isNaN(d.getTime())) {
+                          val = d.getTime();
+                      }
+                  }
+              } else {
+                  // Converte para ISO String (TIMESTAMPTZ/DATE)
+                  if (typeof val === 'number') {
+                      val = new Date(val).toISOString();
+                  } else if (typeof val === 'string' && !isNaN(Number(val))) {
+                      val = new Date(Number(val)).toISOString();
+                  }
               }
           }
       }
