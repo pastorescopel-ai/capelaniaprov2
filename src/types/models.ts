@@ -207,6 +207,7 @@ export interface BibleStudy {
   location?: string;
   name: string;
   staffId?: string;
+  participantId?: string;
   whatsapp: string;
   status: RecordStatus;
   participantType?: ParticipantType;

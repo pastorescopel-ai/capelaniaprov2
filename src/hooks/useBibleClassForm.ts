@@ -143,7 +143,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         proPatients.filter(p => p.unit === unit).forEach(patient => {
           options.push({ 
             value: patient.name, 
-            label: patient.name, 
+            label: `${patient.name} (${patient.id})`, 
             subLabel: 'Paciente', 
             category: 'Pacientes' 
           });
@@ -154,7 +154,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
           const isFromCurrentSector = provider.sector === currentSector;
           options.push({ 
             value: provider.name, 
-            label: provider.name, 
+            label: `${provider.name} (${provider.id})`, 
             subLabel: provider.sector || 'Prestador', 
             category: isFromCurrentSector ? 'Setor Atual' : 'Prestadores',
             highlight: isFromCurrentSector
@@ -277,9 +277,31 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
   const addStudent = (val?: string) => { 
     const inputVal = val || newStudent;
+    if (!inputVal.trim()) return;
+
     const nameToAdd = inputVal.split(' (')[0].trim();
-    // FLEXIBILIZAR: Removido bloqueio de aluno não encontrado no Banco de RH
-    const fullLabel = studentSearchOptions.find(o => o.value === nameToAdd || o.label === inputVal)?.label;
+    const normName = normalizeString(nameToAdd);
+    
+    // BUSCA ROBUSTA: Tenta encontrar a opção no Autocomplete (Case Insensitive)
+    let fullLabel = studentSearchOptions.find(o => 
+      normalizeString(o.value) === normName || 
+      normalizeString(o.label) === normalizeString(inputVal)
+    )?.label;
+
+    // SEGUNDA CHANCE: Se não achou no autocomplete, busca direto nos dados brutos do RH/Prestadores/Pacientes
+    if (!fullLabel) {
+      if (formData.participantType === ParticipantType.STAFF) {
+        const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
+        if (staff) fullLabel = `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`;
+      } else if (formData.participantType === ParticipantType.PATIENT) {
+        const patient = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
+        if (patient) fullLabel = `${patient.name} (${patient.id})`;
+      } else if (formData.participantType === ParticipantType.PROVIDER) {
+        const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
+        if (provider) fullLabel = `${provider.name} (${provider.id})`;
+      }
+    }
+
     const finalString = fullLabel || nameToAdd;
 
     if (finalString) { 
@@ -425,6 +447,27 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         showToast(`Não é possível salvar: ${conflicts.join(', ')}. Remova-os ou altere o tipo do grupo.`, "error");
         return;
     }
+
+    // ENRIQUECIMENTO DE DADOS: Garante que todos os alunos tenham o ID no nome antes de enviar
+    // Isso resolve o problema de IDs perdidos em continuidades ou colagens manuais
+    const enrichedStudents = formData.students.map(s => {
+        if (s.includes(' (')) return s;
+        const nameOnly = s.trim();
+        const normName = normalizeString(nameOnly);
+        
+        if (formData.participantType === ParticipantType.STAFF) {
+            const staff = proStaff.find(st => normalizeString(st.name) === normName && st.unit === unit);
+            if (staff) return `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`;
+        } else if (formData.participantType === ParticipantType.PROVIDER) {
+            const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
+            if (provider) return `${provider.name} (${provider.id})`;
+        } else if (formData.participantType === ParticipantType.PATIENT) {
+            const patient = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
+            if (patient) return `${patient.name} (${patient.id})`;
+        }
+        return s;
+    });
+    formData.students = enrichedStudents;
 
     // Verifica se a classe (setor) pertence a outro capelão
     const classOwnership = checkOwnershipConflict(formData.sector, 'class', unit, currentUser.id, currentUser.role);

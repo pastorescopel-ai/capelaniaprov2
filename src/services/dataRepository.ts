@@ -91,7 +91,13 @@ export const DataRepository = {
       classes.forEach((cls: any) => {
           cls.students = attendees
             .filter((a: any) => a.classId === cls.id)
-            .map((a: any) => a.studentName);
+            .map((a: any) => {
+                const id = a.staffId || a.participantId;
+                if (id && !String(a.studentName).includes(`(${id})`)) {
+                    return `${a.studentName} (${id})`;
+                }
+                return a.studentName;
+            });
       });
 
       return {
@@ -218,9 +224,19 @@ export const DataRepository = {
                 if (delError) console.error("Erro ao limpar participantes antigos:", delError);
 
                 const attendeesPayload = originalItem.students.map((name: string) => {
-                    const match = name.match(/\((\d+)\)$/);
-                    const staffId = match ? match[1] : null;
+                    // Regex mais flexível para capturar o ID entre parênteses no final da string
+                    const match = name.match(/\(([^)]+)\)$/);
+                    const extractedId = match ? match[1].trim() : null;
                     
+                    // Determinação robusta do tipo de participante (Prioriza o objeto original do form)
+                    const pType = originalItem.participantType || cls.participantType || 'Colaborador';
+                    const isStaff = pType === 'Colaborador';
+
+                    // Se for staff, o ID pode ser numérico ou UUID (embora aqui esperemos o número da matrícula)
+                    const staffId = isStaff ? extractedId : null;
+                    // Para participantes (Pacientes/Prestadores), o ID deve ser numérico
+                    const participantId = !isStaff ? extractedId : null;
+
                     // Calcular cycle_month (primeiro dia do mês da data da classe)
                     let cycleMonth = null;
                     if (cls.date) {
@@ -234,6 +250,7 @@ export const DataRepository = {
                         class_id: cls.id,
                         student_name: name,
                         staff_id: staffId,
+                        participant_id: participantId,
                         date: cls.date,
                         cycle_month: cycleMonth
                     };

@@ -23,7 +23,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
-    id: '', userId: currentUser.id, date: getToday(), sector: '', sectorId: '', location: '', name: '', staffId: '', 
+    id: '', userId: currentUser.id, date: getToday(), sector: '', sectorId: '', location: '', name: '', staffId: '', participantId: '',
     whatsapp: '', status: RecordStatus.INICIO, participantType: ParticipantType.STAFF, 
     guide: '', lesson: '', observations: '' 
   }), [getToday, currentUser.id]);
@@ -168,6 +168,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     let targetSector = formData.sector;
     let targetSectorId = formData.sectorId;
     let targetStaffId = formData.staffId;
+    let targetParticipantId = formData.participantId;
     let targetWhatsApp = formData.whatsapp;
     let targetGuide = formData.guide;
     let targetLesson = formData.lesson;
@@ -195,6 +196,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
         if (staff) {
             targetStaffId = staff.id;
+            targetParticipantId = ''; // Clear participantId for staff
             const sector = proSectors.find(s => s.id === staff.sectorId);
             if (sector) {
                 targetSector = sector.name; 
@@ -211,7 +213,8 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         const p = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
         if (p) {
             targetWhatsApp = p.whatsapp ? formatWhatsApp(p.whatsapp) : targetWhatsApp;
-            targetStaffId = p.id;
+            targetParticipantId = p.id;
+            targetStaffId = ''; // Clear staffId for non-staff
         }
         lockSector = false;
     } else {
@@ -219,7 +222,8 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         if (pr) { 
             targetWhatsApp = pr.whatsapp ? formatWhatsApp(pr.whatsapp) : targetWhatsApp; 
             targetSector = pr.sector || targetSector; 
-            targetStaffId = pr.id;
+            targetParticipantId = pr.id;
+            targetStaffId = ''; // Clear staffId for non-staff
         }
         lockSector = false;
     }
@@ -251,6 +255,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         sector: targetSector || '', 
         sectorId: targetSectorId || '', 
         staffId: targetStaffId || '', 
+        participantId: targetParticipantId || '',
         whatsapp: targetWhatsApp || '', 
         guide: targetGuide || '', 
         lesson: targetLesson || '', 
@@ -298,6 +303,20 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     const normName = normalizeString(formData.name);
 
     const dataToSubmit = { ...formData, unit, participantType: formData.participantType };
+
+    // RECUPERAÇÃO DE ID: Se o ID estiver vazio, tenta encontrar pelo nome (Case Insensitive)
+    if (!dataToSubmit.staffId && !dataToSubmit.participantId) {
+        if (isStaff) {
+            const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
+            if (staff) dataToSubmit.staffId = staff.id;
+        } else if (formData.participantType === ParticipantType.PATIENT) {
+            const patient = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
+            if (patient) dataToSubmit.participantId = patient.id;
+        } else if (formData.participantType === ParticipantType.PROVIDER) {
+            const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
+            if (provider) dataToSubmit.participantId = provider.id;
+        }
+    }
 
     if (isStaff) {
         const isOfficialStaff = proStaff.some(s => normalizeString(s.name) === normName && s.unit === unit);
@@ -362,6 +381,8 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
             participantType: baseItem.participantType || ParticipantType.STAFF,
             sector: baseItem.sector,
             whatsapp: baseItem.whatsapp,
+            staffId: baseItem.staffId || '',
+            participantId: baseItem.participantId || '',
             guide: baseItem.guide,
             lesson: !isNaN(parseInt(baseItem.lesson)) ? (parseInt(baseItem.lesson) + 1).toString() : baseItem.lesson,
             status: RecordStatus.CONTINUACAO
