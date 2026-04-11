@@ -111,14 +111,7 @@ export const toCamel = (obj: any): any => {
 // Mapeamento exato de colunas que são BIGINT (int8) no banco de dados, baseado no SQL do usuário.
 // Qualquer campo de data NÃO listado aqui para sua respectiva tabela será tratado como TIMESTAMPTZ/DATE (ISO String).
 export const NUMERIC_DATE_COLUMNS_BY_TABLE: Record<string, string[]> = {
-  app_config: ['last_modified_at', 'updated_at'],
-  daily_activity_reports: ['created_at', 'updated_at'],
-  pro_group_locations: ['created_at'],
-  pro_monthly_stats: ['created_at'],
-  small_group_sessions: ['created_at', 'updated_at'],
-  staff_visits: ['created_at', 'updated_at'],
-  users: ['updated_at'],
-  visit_requests: ['created_at', 'updated_at']
+  // Mantemos vazio para forçar ISO String em todas as tabelas que usam TIMESTAMP/TIMESTAMPTZ
 };
 
 export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: string): any => {
