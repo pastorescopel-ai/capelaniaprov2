@@ -1,29 +1,31 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --primary-color: #005a9c;
+  --primary-color: #1e40af; /* Deeper, more professional blue */
+  --bg-color: #f8fafc;
+  --card-bg: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
 }
 
-/* Classes personalizadas */
+/* Classes personalizadas refinadas */
 .solid-card {
-  @apply bg-white border border-slate-200 shadow-sm rounded-[2.5rem];
+  @apply bg-white border border-slate-200 shadow-sm rounded-2xl; /* Menos arredondado para um ar mais pro */
 }
 .solid-nav {
   @apply bg-white border-b border-slate-200 shadow-sm;
 }
 input, select, textarea {
-  @apply bg-white border border-slate-300 text-slate-800;
+  @apply bg-white border border-slate-300 text-slate-800 rounded-lg;
 }
 input:focus, select:focus, textarea:focus {
-  @apply border-[#005a9c] ring-2 ring-[#005a9c] outline-none;
+  @apply border-primary ring-2 ring-primary/20 outline-none;
 }
 
 body {
-  font-family: 'Inter', sans-serif;
-  background-color: #f1f5f9;
+  @apply font-sans bg-[var(--bg-color)] text-[var(--text-primary)];
   min-height: 100dvh;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: contain;

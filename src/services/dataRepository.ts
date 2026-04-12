@@ -1,7 +1,12 @@
 import { supabase } from './supabaseClient';
 import { TABLE_SCHEMAS, toCamel, cleanAndConvertToSnake, isValidUUID, COLLECTION_TO_TABLE } from '../utils/transformers';
 
-const GLOBAL_ID_CACHE: Record<string, string> = {};
+const CACHE_KEY = 'capelania_pro_config_id';
+const DATA_CACHE_KEY = 'capelania_pro_config_data';
+
+const GLOBAL_ID_CACHE: Record<string, string> = {
+  app_config: typeof window !== 'undefined' ? localStorage.getItem(CACHE_KEY) || '' : ''
+};
 
 export const DataRepository = {
   async fetchFullTable(tableName: string, maxRows = 100000) {
@@ -83,7 +88,14 @@ export const DataRepository = {
         }
       });
 
-      if (c.data?.[0]?.id) GLOBAL_ID_CACHE['app_config'] = c.data[0].id;
+      if (c.data?.[0]?.id) {
+        const configId = c.data[0].id;
+        GLOBAL_ID_CACHE['app_config'] = configId;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(CACHE_KEY, configId);
+          localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(toCamel(c.data[0])));
+        }
+      }
 
       const classes = toCamel(bc.data || []);
       const attendees = toCamel(bca.data || []);
@@ -173,6 +185,7 @@ export const DataRepository = {
              if (data && data.length > 0) {
                chunk[0].id = data[0].id;
                GLOBAL_ID_CACHE[tableName] = data[0].id;
+               if (typeof window !== 'undefined') localStorage.setItem(CACHE_KEY, data[0].id);
              }
            }
         }
@@ -221,48 +234,75 @@ export const DataRepository = {
             }
             
             if (cls.id && originalItem && originalItem.students && Array.isArray(originalItem.students)) {
-                const { error: delError } = await supabase.from('bible_class_attendees').delete().eq('class_id', cls.id);
-                if (delError) console.error("Erro ao limpar participantes antigos:", delError);
+                // 1. Buscar participantes atuais no banco para fazer o "diff"
+                const { data: currentAttendees, error: fetchError } = await supabase
+                    .from('bible_class_attendees')
+                    .select('id, student_name')
+                    .eq('class_id', cls.id);
+                
+                if (fetchError) {
+                    console.error("Erro ao buscar participantes atuais:", fetchError);
+                    continue;
+                }
 
-                const attendeesPayload = originalItem.students.map((name: string) => {
-                    // Regex mais flexível para capturar o ID entre parênteses no final da string
-                    const match = name.match(/\(([^)]+)\)$/);
-                    const extractedId = match ? match[1].trim() : null;
-                    
-                    // Determinação robusta do tipo de participante (Prioriza o objeto original do form)
-                    const pType = originalItem.participantType || cls.participantType || 'Colaborador';
-                    const isStaff = pType === 'Colaborador';
+                const currentNames = (currentAttendees || []).map(a => a.student_name);
+                const newNames = originalItem.students;
 
-                    // Se for staff, o ID pode ser numérico ou UUID (embora aqui esperemos o número da matrícula)
-                    const staffId = isStaff ? extractedId : null;
-                    // Para participantes (Pacientes/Prestadores), o ID deve ser numérico
-                    const participantId = !isStaff ? extractedId : null;
+                // 2. Identificar o que adicionar e o que remover
+                const namesToAdd = newNames.filter(name => !currentNames.includes(name));
+                const idsToRemove = (currentAttendees || [])
+                    .filter(a => !newNames.includes(a.student_name))
+                    .map(a => a.id);
 
-                    // Calcular cycle_month (primeiro dia do mês da data da classe)
-                    let cycleMonth = null;
-                    if (cls.date) {
-                        const d = new Date(cls.date + (cls.date.includes('T') ? '' : 'T12:00:00'));
-                        if (!isNaN(d.getTime())) {
-                            cycleMonth = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+                // 3. Remover os que saíram
+                if (idsToRemove.length > 0) {
+                    const { error: delError } = await supabase
+                        .from('bible_class_attendees')
+                        .delete()
+                        .in('id', idsToRemove);
+                    if (delError) console.error("Erro ao remover participantes:", delError);
+                }
+
+                // 4. Adicionar os novos
+                if (namesToAdd.length > 0) {
+                    const attendeesPayload = namesToAdd.map((name: string) => {
+                        const match = name.match(/\(([^)]+)\)$/);
+                        const extractedId = match ? match[1].trim() : null;
+                        
+                        const pType = originalItem.participantType || cls.participantType || 'Colaborador';
+                        const isStaff = pType === 'Colaborador';
+                        const staffId = isStaff ? extractedId : null;
+                        const participantId = !isStaff ? extractedId : null;
+
+                        let cycleMonth = null;
+                        if (cls.date) {
+                            const d = new Date(cls.date + (cls.date.includes('T') ? '' : 'T12:00:00'));
+                            if (!isNaN(d.getTime())) {
+                                cycleMonth = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+                            }
                         }
-                    }
 
-                    return {
-                        class_id: cls.id,
-                        student_name: name,
-                        staff_id: staffId,
-                        participant_id: participantId,
-                        date: cls.date,
-                        cycle_month: cycleMonth
-                    };
-                });
+                        return {
+                            class_id: cls.id,
+                            student_name: name,
+                            staff_id: staffId,
+                            participant_id: participantId,
+                            date: cls.date,
+                            cycle_month: cycleMonth
+                        };
+                    });
 
-                if (attendeesPayload.length > 0) {
                     const cleanPayload = attendeesPayload.map(p => cleanAndConvertToSnake(p, TABLE_SCHEMAS['bible_class_attendees'], 'bible_class_attendees'));
                     const { error: insError } = await supabase.from('bible_class_attendees').insert(cleanPayload);
                     if (insError) console.error("Erro ao inserir novos participantes:", insError);
                 }
             }
+        }
+    }
+
+    if (collection === 'config' && allUpsertedData.length > 0) {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(allUpsertedData[0]));
         }
     }
 

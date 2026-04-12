@@ -8,10 +8,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#005a9c',
+        primary: '#1e40af',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       }
     },
   },

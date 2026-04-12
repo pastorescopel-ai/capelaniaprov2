@@ -50,7 +50,14 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
 
 export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'provider_id', 'group_id', 'sector_id', 'day_of_week', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'participant_id', 'terminal_count', 'clinical_count'];
 
-export const DATE_FIELDS = ['joined_at', 'left_at', 'updated_at', 'created_at', 'completion_date', 'return_date', 'scheduled_time', 'last_modified_at', 'expiry_date', 'month_to_unlock'];
+export const DATE_FIELDS = [
+  'joined_at', 'left_at', 'updated_at', 'created_at', 'completion_date', 
+  'return_date', 'scheduled_time', 'last_modified_at', 'expiry_date', 
+  'month_to_unlock', 'date', 'month', 'cycle_month', 'snapshot_date'
+];
+
+// Campos que são apenas DATA (YYYY-MM-DD) e não devem sofrer ajuste de fuso horário
+export const PURE_DATE_FIELDS = ['date', 'month', 'cycle_month', 'snapshot_date', 'month_to_unlock', 'return_date'];
 
 export const isValidUUID = (uuid: string) => {
   const s = "" + uuid;
@@ -91,9 +98,14 @@ export const toCamel = (obj: any): any => {
             if (/^\d+$/.test(val)) {
                 val = parseInt(val, 10);
             } else {
-                const d = new Date(val);
-                if (!isNaN(d.getTime())) {
-                    val = d.getTime();
+                // Se for um campo de DATA PURA, mantemos a string original YYYY-MM-DD
+                if (PURE_DATE_FIELDS.includes(key) && val.length === 10 && val.includes('-')) {
+                    // Mantém como string YYYY-MM-DD
+                } else {
+                    const d = new Date(val);
+                    if (!isNaN(d.getTime())) {
+                        val = d.getTime();
+                    }
                 }
             }
         }
@@ -106,22 +118,6 @@ export const toCamel = (obj: any): any => {
     newObj[keyCache[key]] = toCamel(val);
   }
   return newObj;
-};
-
-// Mapeamento exato de colunas que são BIGINT (int8) no banco de dados, baseado no SQL do usuário.
-// Qualquer campo de data NÃO listado aqui para sua respectiva tabela será tratado como TIMESTAMPTZ/DATE (ISO String).
-export const NUMERIC_DATE_COLUMNS_BY_TABLE: Record<string, string[]> = {
-  // Tabelas que usam BIGINT para datas legadas
-  pro_monthly_stats: ['created_at', 'updated_at'],
-  pro_history_records: ['created_at', 'updated_at'],
-  pro_sectors: ['created_at', 'updated_at'],
-  pro_staff: ['created_at', 'updated_at'],
-  pro_patients: ['created_at', 'updated_at'],
-  pro_providers: ['created_at', 'updated_at'],
-  pro_groups: ['created_at', 'updated_at'],
-  pro_group_locations: ['created_at', 'updated_at'],
-  pro_group_members: ['created_at', 'updated_at'],
-  pro_group_provider_members: ['created_at', 'updated_at']
 };
 
 export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: string): any => {
@@ -186,24 +182,24 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
           if (!val || val === 0 || val === '0') {
               val = null;
           } else {
-              const numericCols = NUMERIC_DATE_COLUMNS_BY_TABLE[tableName] || [];
-              const isNumeric = numericCols.includes(snakeKey);
-              
-              if (isNumeric) {
-                  // Converte para número (BIGINT)
-                  if (typeof val === 'string') {
-                      const d = new Date(val);
-                      if (!isNaN(d.getTime())) {
-                          val = d.getTime();
-                      }
+              // Converte para ISO String (TIMESTAMPTZ/DATE)
+              if (typeof val === 'number') {
+                  const d = new Date(val);
+                  if (PURE_DATE_FIELDS.includes(snakeKey)) {
+                      val = d.toISOString().split('T')[0];
+                  } else {
+                      val = d.toISOString();
                   }
-              } else {
-                  // Converte para ISO String (TIMESTAMPTZ/DATE)
-                  if (typeof val === 'number') {
-                      val = new Date(val).toISOString();
-                  } else if (typeof val === 'string' && !isNaN(Number(val))) {
-                      val = new Date(Number(val)).toISOString();
+              } else if (typeof val === 'string' && !isNaN(Number(val))) {
+                  const d = new Date(Number(val));
+                  if (PURE_DATE_FIELDS.includes(snakeKey)) {
+                      val = d.toISOString().split('T')[0];
+                  } else {
+                      val = d.toISOString();
                   }
+              } else if (typeof val === 'string' && PURE_DATE_FIELDS.includes(snakeKey)) {
+                  // Se já for string e campo puro, garante formato YYYY-MM-DD
+                  if (val.includes('T')) val = val.split('T')[0];
               }
           }
       }

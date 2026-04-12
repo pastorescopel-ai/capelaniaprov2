@@ -30,7 +30,23 @@ export const useAppData = () => {
   const [bibleClassAttendees, setBibleClassAttendees] = useState<any[]>([]);
   const [editAuthorizations, setEditAuthorizations] = useState<EditAuthorization[]>([]);
   
-  const [config, setConfig] = useState<Config>(INITIAL_CONFIG);
+  const [config, setConfig] = useState<Config>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('capelania_pro_config_data');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed.primaryColor) {
+            document.documentElement.style.setProperty('--primary-color', parsed.primaryColor);
+          }
+          return parsed;
+        } catch (e) {
+          console.warn("Erro ao carregar cache de config:", e);
+        }
+      }
+    }
+    return INITIAL_CONFIG;
+  });
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isConnected, setIsConnected] = useState(false);

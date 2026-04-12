@@ -45,7 +45,9 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
           const sector = getMeetingSector(req);
           const waLink = req.leaderPhone ? `https://wa.me/55${req.leaderPhone.replace(/\D/g, '')}` : null;
           const assignedChaplainName = getChaplainName(req.assignedChaplainId);
-          const isToday = req.date.split('T')[0] === todayStr;
+          
+          const dateStr = req.date ? (typeof req.date === 'string' ? req.date.split('T')[0] : (req.date instanceof Date ? req.date.toISOString().split('T')[0] : '')) : '';
+          const isToday = dateStr === todayStr;
           
           return (
             <div key={req.id} className={`min-w-[260px] max-w-[280px] p-4 rounded-2xl border flex flex-col justify-between relative group transition-all ${

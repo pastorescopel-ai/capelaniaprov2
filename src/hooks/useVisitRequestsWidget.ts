@@ -146,9 +146,9 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateInput: string | Date) => {
     try {
-      const datePart = dateString.split('T')[0];
+      const datePart = typeof dateInput === 'string' ? dateInput.split('T')[0] : dateInput.toISOString().split('T')[0];
       const [year, month, day] = datePart.split('-').map(Number);
       const d = new Date(year, month - 1, day);
       
@@ -157,7 +157,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
         day: '2-digit', 
         month: '2-digit' 
       }).replace('.', '').toUpperCase();
-    } catch { return dateString; }
+    } catch { return String(dateInput); }
   };
 
   return {
