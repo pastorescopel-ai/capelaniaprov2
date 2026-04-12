@@ -3,6 +3,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import { setupApiRoutes } from "./src/server/routes/api.js";
 
 let _filename: string;
 let _dirname: string;
@@ -29,109 +30,8 @@ async function startServer() {
     supabaseKey: process.env.VITE_SUPABASE_KEY || process.env.SUPABASE_KEY || "",
   });
 
-  // API para fornecer as chaves do Supabase dinamicamente
-  app.get("/api/config", (req, res) => {
-    res.json(getConfig());
-  });
-
-  // API para debug
-  app.get("/api/debug", (req, res) => {
-    res.json({
-      hasUrl: !!(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL),
-      hasKey: !!(process.env.VITE_SUPABASE_KEY || process.env.SUPABASE_KEY),
-      envKeys: Object.keys(process.env).filter(k => k.includes("SUPABASE")),
-    });
-  });
-
-  // API para diagnóstico robusto
-  app.get("/api/diagnostics", async (req, res) => {
-    const report = {
-      timestamp: new Date().toISOString(),
-      fileAnalysis: {
-        unusedFiles: [] as { path: string; lastModified: string }[],
-        totalFilesScanned: 0
-      },
-      connectionStatus: {
-        supabase: false
-      }
-    };
-
-    // 1. Simples verificação de conexão Supabase
-    try {
-      const config = getConfig();
-      if (!config.supabaseUrl) throw new Error("URL não configurada");
-      
-      const response = await fetch(`${config.supabaseUrl}/rest/v1/pro_staff?select=id&limit=1`, {
-        headers: {
-          'apikey': config.supabaseKey,
-          'Authorization': `Bearer ${config.supabaseKey}`
-        }
-      });
-      report.connectionStatus.supabase = response.ok;
-    } catch (e) {
-      report.connectionStatus.supabase = false;
-    }
-
-    // 2. Análise de arquivos
-    const srcDir = path.join(_dirname, "src");
-    const getAllFiles = (dirPath: string, arrayOfFiles: string[] = []): string[] => {
-      const files = fs.readdirSync(dirPath);
-      files.forEach(file => {
-        if (fs.statSync(path.join(dirPath, file)).isDirectory()) {
-          arrayOfFiles = getAllFiles(path.join(dirPath, file), arrayOfFiles);
-        } else {
-          arrayOfFiles.push(path.join(dirPath, file));
-        }
-      });
-      return arrayOfFiles;
-    };
-
-    const allFiles = getAllFiles(srcDir);
-    report.fileAnalysis.totalFilesScanned = allFiles.length;
-
-    // Verifica se cada arquivo é importado em outro lugar
-    const allContent = allFiles.map(f => fs.readFileSync(f, 'utf-8')).join('\n');
-    
-    allFiles.forEach(file => {
-      const fileName = path.basename(file, path.extname(file));
-      // Ignora arquivos de teste ou arquivos especiais
-      if (file.includes('.test.') || file.includes('.spec.')) return;
-      
-      // Verifica se o nome do arquivo aparece em outro arquivo
-      const regex = new RegExp(fileName, 'g');
-      const matches = (allContent.match(regex) || []).length;
-      
-      // Se aparecer apenas uma vez (nele mesmo), pode estar órfão
-      if (matches <= 1) {
-        const stats = fs.statSync(file);
-        report.fileAnalysis.unusedFiles.push({
-          path: path.relative(srcDir, file),
-          lastModified: stats.mtime.toISOString()
-        });
-      }
-    });
-
-    res.json(report);
-  });
-
-  // API para deletar arquivo
-  app.post("/api/delete-file", express.json(), async (req, res) => {
-    const { filePath } = req.body;
-    if (!filePath) return res.status(400).json({ error: "Caminho do arquivo necessário" });
-    
-    const fullPath = path.join(_dirname, "src", filePath);
-    
-    try {
-      if (fs.existsSync(fullPath)) {
-        fs.unlinkSync(fullPath);
-        res.json({ success: true });
-      } else {
-        res.status(404).json({ error: "Arquivo não encontrado" });
-      }
-    } catch (e) {
-      res.status(500).json({ error: "Erro ao deletar arquivo" });
-    }
-  });
+  // Configurar rotas de API
+  setupApiRoutes(app, getConfig, _dirname);
 
   // Middleware do Vite para desenvolvimento
   if (process.env.NODE_ENV !== "production") {

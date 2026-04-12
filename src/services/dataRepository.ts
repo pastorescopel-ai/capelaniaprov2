@@ -14,14 +14,14 @@ const handleSupabaseError = (error: any, context: string) => {
 };
 
 export const DataRepository = {
-  async fetchFullTable(tableName: string, maxRows = 100000) {
+  async fetchFullTable(tableName: string, maxRows = 100000, since?: string) {
     if (!supabase) return { data: [], error: null };
     
+    let query = supabase.from(tableName).select('*');
+    if (since) query = query.gte('updated_at', since);
+    
     // Primeira busca para ver se precisamos paginar
-    const { data: firstBatch, error: firstError } = await supabase
-      .from(tableName)
-      .select('*')
-      .range(0, 999);
+    const { data: firstBatch, error: firstError } = await query.range(0, 999);
       
     if (firstError) return handleSupabaseError(firstError, `fetchFullTable(${tableName}) - first batch`);
     if (!firstBatch || firstBatch.length < 1000) return { data: firstBatch || [], error: null };
@@ -33,10 +33,10 @@ export const DataRepository = {
     let hasMore = true;
     
     while (hasMore && allData.length < maxRows) {
-      const { data, error } = await supabase
-        .from(tableName)
-        .select('*')
-        .range(from, from + step - 1);
+      let paginationQuery = supabase.from(tableName).select('*');
+      if (since) paginationQuery = paginationQuery.gte('updated_at', since);
+      
+      const { data, error } = await paginationQuery.range(from, from + step - 1);
         
       if (error) {
         return handleSupabaseError(error, `fetchFullTable(${tableName}) - pagination at ${from}`);
@@ -54,6 +54,16 @@ export const DataRepository = {
 
   async syncAll() {
     if (!supabase) return null;
+    
+    const CACHE_KEY = 'app_data_cache';
+    const LAST_SYNC_KEY = 'last_sync_timestamp';
+    const lastSync = localStorage.getItem(LAST_SYNC_KEY);
+    
+    if (lastSync && Date.now() - parseInt(lastSync) < 300000) { // 5 minutos
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) return JSON.parse(cached);
+    }
+
     try {
       const MAX_ROWS = 49999;
 
@@ -116,7 +126,7 @@ export const DataRepository = {
             });
       });
 
-      return {
+      const result = {
         users: toCamel(u && 'data' in u ? u.data || [] : []),
         bibleStudies: toCamel(bs && 'data' in bs ? bs.data || [] : []),
         bibleClasses: classes, 
@@ -140,6 +150,11 @@ export const DataRepository = {
         ambassadors: toCamel(amb && 'data' in amb ? amb.data || [] : []),
         editAuthorizations: toCamel(ea && 'data' in ea ? ea.data || [] : [])
       };
+      
+      localStorage.setItem(CACHE_KEY, JSON.stringify(result));
+      localStorage.setItem(LAST_SYNC_KEY, Date.now().toString());
+      
+      return result;
     } catch (error) {
       console.error("Erro fatal ao sincronizar com Supabase:", error);
       return null;
