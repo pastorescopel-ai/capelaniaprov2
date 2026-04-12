@@ -22,7 +22,8 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
     id: '', userId: currentUser.id, date: getToday(), sector: '', groupName: '', leader: '', 
-    leaderPhone: '', shift: 'Manhã', participantsCount: 0, observations: '' 
+    leaderPhone: '', shift: 'Manhã', participantsCount: 0, observations: '',
+    visitRequestId: '' 
   }), [getToday, currentUser.id]);
   
   const [formData, setFormData] = useState(defaultState);
@@ -70,7 +71,8 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
           sector: mission.sectorName || details.sectorName || '',
           shift: shift,
           participantsCount: 0,
-          observations: ''
+          observations: '',
+          visitRequestId: mission.id || mission.visitRequestId || ''
         });
         
         setIsSectorLocked(!!mission.sectorId || !!details.sectorId);
@@ -235,24 +237,33 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
           }
       }
 
-      const pendingAgenda = visitRequests
-        .filter(req => 
-          req.status === 'assigned' && 
-          req.assignedChaplainId === currentUser.id && 
-          normalizeString(req.pgName) === normalizeString(formData.groupName)
-        )
-        .sort((a, b) => {
-          const diffA = Math.abs(new Date(a.date).getTime() - new Date(formData.date).getTime());
-          const diffB = Math.abs(new Date(b.date).getTime() - new Date(formData.date).getTime());
-          return diffA - diffB;
-        })[0];
+      // 1. Tentar encontrar o agendamento pelo ID preservado (mais seguro)
+      // 2. Fallback: buscar por nome e proximidade de data
+      const pendingAgenda = (formData.visitRequestId ? visitRequests.find(r => r.id === formData.visitRequestId) : null) || 
+        visitRequests
+          .filter(req => 
+            req.status === 'assigned' && 
+            req.assignedChaplainId === currentUser.id && 
+            normalizeString(req.pgName) === normalizeString(formData.groupName)
+          )
+          .sort((a, b) => {
+            const diffA = Math.abs(new Date(a.date).getTime() - new Date(formData.date).getTime());
+            const diffB = Math.abs(new Date(b.date).getTime() - new Date(formData.date).getTime());
+            return diffA - diffB;
+          })[0];
 
       if (pendingAgenda) {
-        await saveRecord('visitRequests', { 
+        const agendaResult = await saveRecord('visitRequests', { 
           ...pendingAgenda, 
           status: 'confirmed', 
           isRead: true 
         });
+        
+        if (agendaResult) {
+          showToast("Agendamento de PG confirmado e removido da lista.", "success");
+        } else {
+          console.error("Erro ao confirmar agendamento de PG.");
+        }
       }
 
       await onSubmit(dataToSubmit);

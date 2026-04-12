@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { User, VisitRequest, UserRole } from '../types';
 import { useApp } from './useApp';
 import { useToast } from '../contexts/ToastContext';
 import { usePGInference } from './usePGInference';
+import { normalizeString, ensureISODate } from '../utils/formatters';
 
 interface UseVisitRequestsWidgetProps {
   requests: VisitRequest[];
@@ -11,12 +12,49 @@ interface UseVisitRequestsWidgetProps {
 }
 
 export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisitRequestsWidgetProps) => {
-  const { saveRecord, deleteRecord, proGroups, proSectors, proGroupLocations, proStaff } = useApp();
+  const { saveRecord, deleteRecord, proGroups, proSectors, proGroupLocations, proStaff, smallGroups, isInitialized } = useApp();
   const { showToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<VisitRequest | null>(null);
   const [actionType, setActionType] = useState<'assign' | 'delete' | null>(null);
   const [selectedChaplainId, setSelectedChaplainId] = useState('');
+
+  // Lógica de Auto-Confirmação em Background
+  // Se um PG já foi registrado no histórico para o mesmo dia e unidade, 
+  // o agendamento deve ser marcado como confirmado automaticamente.
+  useEffect(() => {
+    if (!isInitialized || requests.length === 0 || smallGroups.length === 0) return;
+
+    const syncGhostRequests = async () => {
+      const ghostRequests = requests.filter(req => {
+        if (req.status !== 'assigned') return false;
+        
+        const reqDate = ensureISODate(req.date);
+        const normName = normalizeString(req.pgName);
+        
+        return smallGroups.some(sg => 
+          normalizeString(sg.groupName) === normName &&
+          ensureISODate(sg.date) === reqDate &&
+          sg.unit === req.unit
+        );
+      });
+
+      if (ghostRequests.length > 0) {
+        console.log(`[Auto-Sync] Sincronizando ${ghostRequests.length} agendamentos já realizados.`);
+        for (const req of ghostRequests) {
+          try {
+            await saveRecord('visitRequests', { ...req, status: 'confirmed', isRead: true });
+          } catch (err) {
+            console.error("Erro na auto-confirmação:", err);
+          }
+        }
+      }
+    };
+
+    // Pequeno delay para evitar concorrência com o salvamento imediato do form
+    const timer = setTimeout(syncGhostRequests, 2000);
+    return () => clearTimeout(timer);
+  }, [requests, smallGroups, isInitialized, saveRecord]);
 
   const { inferPGDetails } = usePGInference(
     requests[0]?.unit || 'HAB',
@@ -32,6 +70,17 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     return requests.filter(req => {
       if (req.status === 'confirmed' || req.status === 'declined') return false;
       
+      // Filtro Visual Imediato: Se já existe registro no histórico, oculta do Dashboard
+      const reqDate = ensureISODate(req.date);
+      const normName = normalizeString(req.pgName);
+      const isAlreadyRegistered = smallGroups.some(sg => 
+        normalizeString(sg.groupName) === normName &&
+        ensureISODate(sg.date) === reqDate &&
+        sg.unit === req.unit
+      );
+
+      if (isAlreadyRegistered) return false;
+
       if (currentUser.role === UserRole.ADMIN) return true;
       return req.assignedChaplainId === currentUser.id;
     }).sort((a, b) => {
@@ -42,7 +91,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       
       return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
-  }, [requests, currentUser]);
+  }, [requests, currentUser, smallGroups]);
 
   const getMeetingSector = (req: VisitRequest) => {
       if (req.meetingLocation) return req.meetingLocation;
