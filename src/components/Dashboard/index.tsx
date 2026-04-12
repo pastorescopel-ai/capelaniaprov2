@@ -4,6 +4,7 @@ import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Config } from '..
 import { useApp } from '../../hooks/useApp';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import Mural from './Mural';
+import DailyActivitiesReminder from './DailyActivitiesReminder';
 import StatCards from './StatCards';
 import ImpactCharts from './ImpactCharts';
 import VisitGoalWidget from './VisitGoalWidget';
@@ -63,6 +64,9 @@ const Dashboard: React.FC<DashboardProps> = ({
       <div className="w-full">
         <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
       </div>
+
+      {/* Lembrete de Atividades Diárias */}
+      <DailyActivitiesReminder currentUser={currentUser} onGoToTab={onGoToTab} />
 
       {/* Notificações de Retorno */}
       {todaysReturns.length > 0 ? (

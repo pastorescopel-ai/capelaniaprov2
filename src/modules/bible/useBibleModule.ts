@@ -11,7 +11,12 @@ export const useBibleModule = (currentUser: User) => {
     setIsSaving(true);
     setError(null);
     try {
-      const success = await saveRecord('bibleStudies', study);
+      const now = Date.now();
+      const success = await saveRecord('bibleStudies', {
+        ...study,
+        createdAt: study.createdAt || now,
+        updatedAt: now
+      });
       if (!success) {
         setError('Erro ao salvar estudo bíblico');
       }
@@ -29,7 +34,12 @@ export const useBibleModule = (currentUser: User) => {
     setIsSaving(true);
     setError(null);
     try {
-      const success = await saveRecord('bibleClasses', bibleClass);
+      const now = Date.now();
+      const success = await saveRecord('bibleClasses', {
+        ...bibleClass,
+        createdAt: bibleClass.createdAt || now,
+        updatedAt: now
+      });
       if (!success) {
         setError('Erro ao salvar classe bíblica');
       }

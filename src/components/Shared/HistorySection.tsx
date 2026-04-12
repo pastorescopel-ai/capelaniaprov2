@@ -35,12 +35,13 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
 }: HistorySectionProps<T>) => {
   const [filterChaplain, setFilterChaplain] = useState('all');
   
-  const getStartOfMonth = () => {
+  const getInitialStartDate = () => {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    // Retorna o primeiro dia do mês anterior para garantir que o histórico recente seja visível
+    return new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
   };
 
-  const [filterStart, setFilterStart] = useState(getStartOfMonth());
+  const [filterStart, setFilterStart] = useState(getInitialStartDate());
   const [filterEnd, setFilterEnd] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -130,13 +131,13 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
 
   const handleClearFilters = () => {
     setFilterChaplain('all');
-    setFilterStart(getStartOfMonth());
+    setFilterStart(getInitialStartDate());
     setFilterEnd(new Date().toISOString().split('T')[0]);
     setSearchQuery('');
   };
 
   const hasActiveFilters = filterChaplain !== 'all' || 
-    filterStart !== getStartOfMonth() || 
+    filterStart !== getInitialStartDate() || 
     filterEnd !== new Date().toISOString().split('T')[0] || 
     searchQuery !== '';
 

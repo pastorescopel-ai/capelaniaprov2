@@ -111,13 +111,15 @@ export const useAppFlow = ({ currentUser, saveRecord, deleteRecord, editAuthoriz
     }
   };
 
-  const getVisibleHistory = useCallback((list: any[]) => {
+  const getVisibleHistory = useCallback((list: any[] = []) => {
     if (!currentUser) return [];
+    if (!Array.isArray(list)) return [];
+    
     const matchUnit = (item: any) => (item.unit || Unit.HAB) === currentUnit;
     
     return currentUser.role === UserRole.ADMIN 
-      ? list.filter(matchUnit) 
-      : list.filter(item => item && matchUnit(item) && item.userId === currentUser.id);
+      ? list.filter(item => item && matchUnit(item)) 
+      : list.filter(item => item && matchUnit(item) && (item.userId === currentUser.id || !item.userId));
   }, [currentUser, currentUnit]);
 
   return {

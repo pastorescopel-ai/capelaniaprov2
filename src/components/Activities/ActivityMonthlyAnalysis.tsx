@@ -83,9 +83,31 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
 
   const stats = useMemo(() => {
     const activeDaysSet = new Set<string>();
+    const weekdayVisitsSet = new Set<string>();
+    let weekdayVisitsCount = 0;
+    let weekendVisitsCount = 0;
     
     const result = monthReports.reduce((acc, report) => {
       activeDaysSet.add(report.date);
+      
+      const dObj = new Date(report.date + 'T12:00:00');
+      const dayOfWeek = dObj.getDay(); // 0-6 (Sun-Sat)
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      
+      const dayVisits = Number(report.palliativeCount || 0) + 
+                        Number(report.surgicalCount || 0) + 
+                        Number(report.pediatricCount || 0) + 
+                        Number(report.utiCount || 0) + 
+                        Number(report.terminalCount || 0) + 
+                        Number(report.clinicalCount || 0);
+
+      if (!isWeekend) {
+        weekdayVisitsSet.add(report.date);
+        weekdayVisitsCount += dayVisits;
+      } else {
+        weekendVisitsCount += dayVisits;
+      }
+
       return {
         blueprints: acc.blueprints + (report.completedBlueprints?.length || 0),
         cults: acc.cults + (report.completedCults?.length || 0),
@@ -97,39 +119,46 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
         uti: acc.uti + Number(report.utiCount || 0),
         terminal: acc.terminal + Number(report.terminalCount || 0),
         clinical: acc.clinical + Number(report.clinicalCount || 0),
-        totalVisits: acc.totalVisits + 
-          Number(report.palliativeCount || 0) + 
-          Number(report.surgicalCount || 0) + 
-          Number(report.pediatricCount || 0) + 
-          Number(report.utiCount || 0) + 
-          Number(report.terminalCount || 0) + 
-          Number(report.clinicalCount || 0)
+        totalVisits: acc.totalVisits + dayVisits
       };
     }, {
       blueprints: 0, cults: 0, encontros: 0, visiteCantando: 0,
       palliative: 0, surgical: 0, pediatric: 0, uti: 0, terminal: 0, clinical: 0, totalVisits: 0
     });
 
-    // Calculate active days also from schedules if no reports exist yet
+    // Calculate active weekdays also from schedules if no reports exist yet
     if (selectedUser) {
         const daysInMonth = endOfMonth.getDate();
         for (let i = 1; i <= daysInMonth; i++) {
             const dObj = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
-            const dayOfWeek = dObj.getDay() === 0 ? 7 : dObj.getDay();
-            const hasSchedule = monthSchedules.some(s => s.dayOfWeek === dayOfWeek);
-            if (hasSchedule) activeDaysSet.add(formatLocalDate(dObj));
+            const dayOfWeek = dObj.getDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            
+            if (!isWeekend) {
+              const dayOfWeekMapped = dayOfWeek === 0 ? 7 : dayOfWeek;
+              const hasSchedule = monthSchedules.some(s => s.dayOfWeek === dayOfWeekMapped);
+              if (hasSchedule) weekdayVisitsSet.add(formatLocalDate(dObj));
+            }
         }
     }
 
-    const activeDays = activeDaysSet.size || 1;
-    const dailyAverage = result.totalVisits / activeDays;
+    const activeWeekdays = weekdayVisitsSet.size || 1;
+    const dailyAverage = weekdayVisitsCount / activeWeekdays;
     
     // Target Goal
     const targetUser = selectedUser ? users.find(u => String(u.id) === String(selectedUser)) : null;
     const baseGoal = targetUser?.role === UserRole.INTERN ? 18 : 15;
     const performancePercent = baseGoal > 0 ? (dailyAverage / baseGoal) * 100 : 0;
 
-    return { ...result, activeDays, dailyAverage, performancePercent, baseGoal };
+    return { 
+      ...result, 
+      activeDays: activeDaysSet.size, 
+      activeWeekdays, 
+      dailyAverage, 
+      performancePercent, 
+      baseGoal,
+      weekendVisitsCount 
+    };
   }, [monthReports, monthSchedules, selectedUser, users, startOfMonth, endOfMonth]);
 
   const getSemaphoreColor = (percent: number) => {
@@ -308,10 +337,10 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
             </div>
           ))}
         </div>
-        <div className="mt-8 pt-8 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="mt-8 pt-8 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div className={`p-6 rounded-3xl border ${getSemaphoreColor(stats.performancePercent)} transition-colors duration-500`}>
             <span className="text-5xl font-black block mb-1">{stats.totalVisits}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Total de Visitas no Mês</span>
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Total Geral de Visitas</span>
           </div>
           
           <div className={`p-6 rounded-3xl border ${getSemaphoreColor(stats.performancePercent)} transition-colors duration-500`}>
@@ -319,9 +348,20 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
               <span className="text-5xl font-black">{stats.dailyAverage.toFixed(1)}</span>
               <span className="text-sm font-bold opacity-60">/ dia</span>
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Média de Visitas Diárias</span>
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Média Meta (Seg-Sex)</span>
             <div className="mt-2 text-[9px] font-bold uppercase tracking-tighter opacity-50">
               Meta Base: {stats.baseGoal} visitas/dia
+            </div>
+          </div>
+
+          <div className="p-6 rounded-3xl border border-amber-100 bg-amber-50 text-amber-600">
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-5xl font-black">{stats.weekendVisitsCount}</span>
+              <i className="fas fa-star text-amber-400 text-xl"></i>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Bônus Plus (Fim de Semana)</span>
+            <div className="mt-2 text-[9px] font-bold uppercase tracking-tighter opacity-50">
+              Não contabilizado na média diária
             </div>
           </div>
         </div>

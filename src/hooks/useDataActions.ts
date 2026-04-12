@@ -11,6 +11,12 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
     try {
       const data = await DataRepository.syncAll();
       if (data) {
+        console.log('📦 Dados carregados do Cloud:', {
+          smallGroups: data.smallGroups?.length || 0,
+          bibleStudies: data.bibleStudies?.length || 0,
+          bibleClasses: data.bibleClasses?.length || 0,
+          staffVisits: data.staffVisits?.length || 0
+        });
         Object.entries(data).forEach(([key, val]) => {
           if (setters[key]) {
             setters[key](val);
@@ -33,6 +39,11 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
     try {
       const data = await DataRepository.syncAll();
       if (data) {
+        setters.bibleStudies(data.bibleStudies);
+        setters.bibleClasses(data.bibleClasses);
+        setters.smallGroups(data.smallGroups);
+        setters.staffVisits(data.staffVisits);
+        setters.visitRequests(data.visitRequests);
         setters.proGroups(data.proGroups);
         setters.proStaff(data.proStaff);
         setters.proSectors(data.proSectors);

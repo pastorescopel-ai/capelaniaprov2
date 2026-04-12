@@ -11,7 +11,12 @@ export const useStaff = (currentUser: User) => {
     setIsSaving(true);
     setError(null);
     try {
-      const success = await saveRecord('staffVisits', visit);
+      const now = Date.now();
+      const success = await saveRecord('staffVisits', {
+        ...visit,
+        createdAt: visit.createdAt || now,
+        updatedAt: now
+      });
       if (!success) {
         setError('Erro ao salvar visita');
         return { success: false };

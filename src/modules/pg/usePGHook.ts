@@ -11,7 +11,12 @@ export const usePG = (currentUser: User) => {
     setIsSaving(true);
     setError(null);
     try {
-      const success = await saveRecord('smallGroups', pg);
+      const now = Date.now();
+      const success = await saveRecord('smallGroups', {
+        ...pg,
+        createdAt: pg.createdAt || now,
+        updatedAt: now
+      });
       if (!success) {
         setError('Erro ao salvar pequeno grupo');
         return { success: false };
