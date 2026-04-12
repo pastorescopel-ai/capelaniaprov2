@@ -8,6 +8,11 @@ const GLOBAL_ID_CACHE: Record<string, string> = {
   app_config: typeof window !== 'undefined' ? localStorage.getItem(CACHE_KEY) || '' : ''
 };
 
+const handleSupabaseError = (error: any, context: string) => {
+  console.error(`[DataRepository] Erro em ${context}:`, error);
+  return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+};
+
 export const DataRepository = {
   async fetchFullTable(tableName: string, maxRows = 100000) {
     if (!supabase) return { data: [], error: null };
@@ -18,7 +23,7 @@ export const DataRepository = {
       .select('*')
       .range(0, 999);
       
-    if (firstError) return { data: [], error: firstError };
+    if (firstError) return handleSupabaseError(firstError, `fetchFullTable(${tableName}) - first batch`);
     if (!firstBatch || firstBatch.length < 1000) return { data: firstBatch || [], error: null };
     
     // Se atingiu 1000, precisamos buscar mais
@@ -34,8 +39,7 @@ export const DataRepository = {
         .range(from, from + step - 1);
         
       if (error) {
-        console.error(`Erro ao paginar ${tableName}:`, error);
-        return { data: allData, error };
+        return handleSupabaseError(error, `fetchFullTable(${tableName}) - pagination at ${from}`);
       }
       if (data) {
         allData = [...allData, ...data];
@@ -73,22 +77,22 @@ export const DataRepository = {
         DataRepository.fetchFullTable('bible_class_attendees', MAX_ROWS),
         DataRepository.fetchFullTable('activity_schedules', MAX_ROWS),
         DataRepository.fetchFullTable('daily_activity_reports', MAX_ROWS),
-        DataRepository.fetchFullTable('pro_monthly_stats', 99999), // Limite maior para histórico
-        DataRepository.fetchFullTable('pro_history_records', 199999), // Limite muito maior para histórico detalhado
+        DataRepository.fetchFullTable('pro_monthly_stats', 99999), 
+        DataRepository.fetchFullTable('pro_history_records', 199999), 
         DataRepository.fetchFullTable('ambassadors', MAX_ROWS),
         DataRepository.fetchFullTable('edit_authorizations', MAX_ROWS)
       ]);
 
-      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar, pms, phr, amb, ea] = results;
-
       // Log de erros para debug (invisível ao usuário)
       results.forEach((res, idx) => {
-        if (res.error) {
+        if (res && 'error' in res && res.error) {
           console.error(`Query ${idx} falhou:`, res.error.message);
         }
       });
 
-      if (c.data?.[0]?.id) {
+      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar, pms, phr, amb, ea] = results;
+
+      if (c && 'data' in c && c.data?.[0]?.id) {
         const configId = c.data[0].id;
         GLOBAL_ID_CACHE['app_config'] = configId;
         if (typeof window !== 'undefined') {
@@ -97,8 +101,8 @@ export const DataRepository = {
         }
       }
 
-      const classes = toCamel(bc.data || []);
-      const attendees = toCamel(bca.data || []);
+      const classes = toCamel(bc && 'data' in bc ? bc.data || [] : []);
+      const attendees = toCamel(bca && 'data' in bca ? bca.data || [] : []);
       
       classes.forEach((cls: any) => {
           cls.students = attendees
@@ -113,28 +117,28 @@ export const DataRepository = {
       });
 
       return {
-        users: toCamel(u.data || []),
-        bibleStudies: toCamel(bs.data || []),
+        users: toCamel(u && 'data' in u ? u.data || [] : []),
+        bibleStudies: toCamel(bs && 'data' in bs ? bs.data || [] : []),
         bibleClasses: classes, 
-        smallGroups: toCamel(sg.data || []),
-        staffVisits: toCamel(sv.data || []),
-        visitRequests: toCamel(vr.data || []),
-        config: c.data && c.data.length > 0 ? toCamel(c.data[0]) : null,
-        proSectors: toCamel(ps.data || []),
-        proStaff: toCamel(pst.data || []),
-        proPatients: toCamel(pp.data || []),
-        proProviders: toCamel(pr.data || []),
-        proGroups: toCamel(pg.data || []),
-        proGroupLocations: toCamel(pgl.data || []),
-        proGroupMembers: toCamel(pgm.data || []),
-        proGroupProviderMembers: toCamel(pgpm.data || []),
-        activitySchedules: toCamel(asch.data || []),
-        dailyActivityReports: toCamel(dar.data || []),
+        smallGroups: toCamel(sg && 'data' in sg ? sg.data || [] : []),
+        staffVisits: toCamel(sv && 'data' in sv ? sv.data || [] : []),
+        visitRequests: toCamel(vr && 'data' in vr ? vr.data || [] : []),
+        config: c && 'data' in c && c.data && c.data.length > 0 ? toCamel(c.data[0]) : null,
+        proSectors: toCamel(ps && 'data' in ps ? ps.data || [] : []),
+        proStaff: toCamel(pst && 'data' in pst ? pst.data || [] : []),
+        proPatients: toCamel(pp && 'data' in pp ? pp.data || [] : []),
+        proProviders: toCamel(pr && 'data' in pr ? pr.data || [] : []),
+        proGroups: toCamel(pg && 'data' in pg ? pg.data || [] : []),
+        proGroupLocations: toCamel(pgl && 'data' in pgl ? pgl.data || [] : []),
+        proGroupMembers: toCamel(pgm && 'data' in pgm ? pgm.data || [] : []),
+        proGroupProviderMembers: toCamel(pgpm && 'data' in pgpm ? pgpm.data || [] : []),
+        activitySchedules: toCamel(asch && 'data' in asch ? asch.data || [] : []),
+        dailyActivityReports: toCamel(dar && 'data' in dar ? dar.data || [] : []),
         bibleClassAttendees: attendees,
-        proMonthlyStats: toCamel(pms.data || []),
-        proHistoryRecords: toCamel(phr.data || []),
-        ambassadors: toCamel(amb.data || []),
-        editAuthorizations: toCamel(ea.data || [])
+        proMonthlyStats: toCamel(pms && 'data' in pms ? pms.data || [] : []),
+        proHistoryRecords: toCamel(phr && 'data' in phr ? phr.data || [] : []),
+        ambassadors: toCamel(amb && 'data' in amb ? amb.data || [] : []),
+        editAuthorizations: toCamel(ea && 'data' in ea ? ea.data || [] : [])
       };
     } catch (error) {
       console.error("Erro fatal ao sincronizar com Supabase:", error);

@@ -1,9 +1,9 @@
 # Versão Final - Capelania HAB
-**Data:** 05/04/2026
-**Versão:** 4.2.0-PRO (FINAL)
+**Data:** 12/04/2026
+**Versão:** 4.2.1-PRO (STABLE)
 **Status:** ESTÁVEL E FUNCIONAL
 
-Esta versão foi marcada como o ponto de referência final e funcional para o sistema de Relatórios de Atividade de PGs e Auditoria PRO.
+Esta versão foi marcada como um novo ponto de referência estável após a correção de estilos e ajustes de compilação.
 
 ---
 **Instrução para o Agente:**
