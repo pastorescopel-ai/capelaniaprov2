@@ -337,9 +337,11 @@ export interface DailyActivityReport {
   surgicalCount: number;
   pediatricCount: number;
   utiCount: number;
+  terminalCount: number;
+  clinicalCount: number;
   observations?: string;
-  createdAt?: number;
-  updatedAt?: number;
+  createdAt?: number | string;
+  updatedAt?: number | string;
 }
 
 export interface EditAuthorization {

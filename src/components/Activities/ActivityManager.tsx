@@ -4,10 +4,10 @@ import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import ActivityScheduler from './ActivityScheduler';
-import ActivityWeeklyAnalysis from './ActivityWeeklyAnalysis';
+import ActivityMonthlyAnalysis from './ActivityMonthlyAnalysis';
 import ActivityChecklist from './ActivityChecklist';
 import ActivityReports from './ActivityReports';
-import { Calendar, CheckCircle, BarChart3, TrendingUp, CheckSquare } from 'lucide-react';
+import { Calendar, BarChart3, TrendingUp, CheckSquare } from 'lucide-react';
 
 interface ActivityManagerProps {
   isActive?: boolean;
@@ -17,6 +17,16 @@ interface ActivityManagerProps {
 const ActivityManager: React.FC<ActivityManagerProps> = ({ isActive, initialSubTab }) => {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'analysis' | 'checklist' | 'scheduler' | 'reports'>('analysis');
+  
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+
+  // Centralized state for filters shared between Checklist and Analysis
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().split('T')[0];
+  });
+  const [selectedUser, setSelectedUser] = useState<string>(currentUser?.id || '');
 
   // Scroll to top when tab or sub-tab changes
   useEffect(() => {
@@ -34,8 +44,6 @@ const ActivityManager: React.FC<ActivityManagerProps> = ({ isActive, initialSubT
       }
     }
   }, [isActive, initialSubTab]);
-
-  const isAdmin = currentUser?.role === UserRole.ADMIN;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -65,7 +73,7 @@ const ActivityManager: React.FC<ActivityManagerProps> = ({ isActive, initialSubT
             }`}
           >
             <TrendingUp size={14} />
-            <span>Análise Semanal</span>
+            <span>Análise Mensal</span>
           </button>
           
           <button
@@ -110,8 +118,22 @@ const ActivityManager: React.FC<ActivityManagerProps> = ({ isActive, initialSubT
       </header>
 
       <main className="min-h-[500px]">
-        {activeTab === 'analysis' && <ActivityWeeklyAnalysis />}
-        {activeTab === 'checklist' && <ActivityChecklist />}
+        {activeTab === 'analysis' && (
+          <ActivityMonthlyAnalysis 
+            selectedUser={selectedUser} 
+            setSelectedUser={setSelectedUser}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+          />
+        )}
+        {activeTab === 'checklist' && (
+          <ActivityChecklist 
+            selectedUser={selectedUser} 
+            setSelectedUser={setSelectedUser}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+          />
+        )}
         {activeTab === 'scheduler' && <ActivityScheduler />}
         {activeTab === 'reports' && <ActivityReports />}
       </main>

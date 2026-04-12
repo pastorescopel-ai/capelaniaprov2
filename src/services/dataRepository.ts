@@ -147,6 +147,7 @@ export const DataRepository = {
     });
 
     const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName], tableName));
+    console.log(`[DEBUG DataRepository] Payloads preparados para ${tableName}:`, payloads);
 
     // Separar em dois grupos: os que têm ID (Updates/Upserts) e os que não têm (Inserts puros)
     // Isso evita que o Postgrest preencha com 'null' o campo ID em um array misto

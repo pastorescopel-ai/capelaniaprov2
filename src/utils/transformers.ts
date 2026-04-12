@@ -42,13 +42,13 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   pro_group_provider_members: ['id', 'group_id', 'provider_id', 'joined_at', 'left_at', 'is_error', 'cycle_month', 'created_at', 'updated_at'],
   ambassadors: ['id', 'registration_id', 'name', 'sector_id', 'unit', 'completion_date', 'cycle_month', 'created_at', 'updated_at'],
   activity_schedules: ['id', 'user_id', 'unit', 'month', 'day_of_week', 'activity_type', 'location', 'time', 'created_at', 'updated_at'],
-  daily_activity_reports: ['id', 'user_id', 'date', 'unit', 'completed_blueprints', 'completed_cults', 'completed_encontro', 'completed_visite_cantando', 'palliative_count', 'surgical_count', 'pediatric_count', 'uti_count', 'observations', 'created_at', 'updated_at'],
+  daily_activity_reports: ['id', 'user_id', 'date', 'unit', 'completed_blueprints', 'completed_cults', 'completed_encontro', 'completed_visite_cantando', 'palliative_count', 'surgical_count', 'pediatric_count', 'uti_count', 'terminal_count', 'clinical_count', 'observations', 'created_at', 'updated_at'],
   pro_monthly_stats: ['id', 'month', 'type', 'target_id', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'unit', 'snapshot_data', 'created_at', 'updated_at'],
   edit_authorizations: ['id', 'user_id', 'user_name', 'allowed_tabs', 'month_to_unlock', 'expiry_date', 'created_by', 'created_at', 'updated_at'],
   pro_history_records: ['id', 'month', 'unit', 'staff_id', 'staff_name', 'sector_id', 'sector_name', 'group_id', 'group_name', 'leader_name', 'role', 'is_enrolled', 'joined_at', 'left_at', 'created_at', 'updated_at']
 };
 
-export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'provider_id', 'group_id', 'sector_id', 'day_of_week', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'participant_id'];
+export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'provider_id', 'group_id', 'sector_id', 'day_of_week', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'participant_id', 'terminal_count', 'clinical_count'];
 
 export const DATE_FIELDS = ['joined_at', 'left_at', 'updated_at', 'created_at', 'completion_date', 'return_date', 'scheduled_time', 'last_modified_at', 'expiry_date', 'month_to_unlock'];
 
@@ -111,7 +111,17 @@ export const toCamel = (obj: any): any => {
 // Mapeamento exato de colunas que são BIGINT (int8) no banco de dados, baseado no SQL do usuário.
 // Qualquer campo de data NÃO listado aqui para sua respectiva tabela será tratado como TIMESTAMPTZ/DATE (ISO String).
 export const NUMERIC_DATE_COLUMNS_BY_TABLE: Record<string, string[]> = {
-  // Mantemos vazio para forçar ISO String em todas as tabelas que usam TIMESTAMP/TIMESTAMPTZ
+  // Tabelas que usam BIGINT para datas legadas
+  pro_monthly_stats: ['created_at', 'updated_at'],
+  pro_history_records: ['created_at', 'updated_at'],
+  pro_sectors: ['created_at', 'updated_at'],
+  pro_staff: ['created_at', 'updated_at'],
+  pro_patients: ['created_at', 'updated_at'],
+  pro_providers: ['created_at', 'updated_at'],
+  pro_groups: ['created_at', 'updated_at'],
+  pro_group_locations: ['created_at', 'updated_at'],
+  pro_group_members: ['created_at', 'updated_at'],
+  pro_group_provider_members: ['created_at', 'updated_at']
 };
 
 export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableName: string): any => {
@@ -203,7 +213,7 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
         val = null;
       }
 
-      if (tableName !== 'visit_requests' && !tableName.startsWith('pro_') && snakeKey !== 'staff_id' && snakeKey !== 'provider_id' && snakeKey !== 'sector_id') {
+      if (tableName !== 'visit_requests' && tableName !== 'daily_activity_reports' && !tableName.startsWith('pro_') && snakeKey !== 'staff_id' && snakeKey !== 'provider_id' && snakeKey !== 'sector_id') {
         if (isFK && val && !isValidUUID(val) && tableName !== 'bible_class_attendees' && !String(val).match(/^\d+$/)) {
           newObj[snakeKey] = null;
           continue;

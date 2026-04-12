@@ -16,7 +16,13 @@ const ActivityReports: React.FC = () => {
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
   const [selectedUnit, setSelectedUnit] = useState<Unit>(Unit.HAB);
-  const [selectedDate, setSelectedDate] = useState(() => {
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    return new Date(firstDay.getTime() - offset).toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
     return new Date(now.getTime() - offset).toISOString().split('T')[0];
@@ -31,10 +37,11 @@ const ActivityReports: React.FC = () => {
   const filteredReports = useMemo(() => 
     dailyActivityReports.filter(r => 
       r.unit === selectedUnit && 
-      (r.date ? r.date.split('T')[0] : '') === selectedDate && 
+      r.date >= startDate && 
+      r.date <= endDate && 
       (selectedUser ? r.userId === selectedUser : true)
     ),
-    [dailyActivityReports, selectedUnit, selectedDate, selectedUser]
+    [dailyActivityReports, selectedUnit, startDate, endDate, selectedUser]
   );
 
   const stats = useMemo(() => {
@@ -49,6 +56,8 @@ const ActivityReports: React.FC = () => {
       surgicalCount: 0,
       pediatricCount: 0,
       utiCount: 0,
+      terminalCount: 0,
+      clinicalCount: 0,
       observations: ''
     };
 
@@ -59,7 +68,7 @@ const ActivityReports: React.FC = () => {
       const visiteCantandoVal = report.completedVisiteCantando ? 1 : 0;
 
       acc.totalActivities += blueprintLen + cultLen + encontroVal + visiteCantandoVal;
-      acc.totalVisits += (report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0);
+      acc.totalVisits += (report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0) + (report.terminalCount || 0) + (report.clinicalCount || 0);
       
       acc.blueprintCount += blueprintLen;
       acc.cultCount += cultLen;
@@ -70,6 +79,8 @@ const ActivityReports: React.FC = () => {
       acc.surgicalCount += (report.surgicalCount || 0);
       acc.pediatricCount += (report.pediatricCount || 0);
       acc.utiCount += (report.utiCount || 0);
+      acc.terminalCount += (report.terminalCount || 0);
+      acc.clinicalCount += (report.clinicalCount || 0);
       
       if (report.observations) {
         acc.observations += (acc.observations ? ' | ' : '') + report.observations;
@@ -91,13 +102,15 @@ const ActivityReports: React.FC = () => {
       { label: 'Paliativos', value: stats.palliativeCount },
       { label: 'Cirúrgicos', value: stats.surgicalCount },
       { label: 'Pediátricos', value: stats.pediatricCount },
-      { label: 'UTI', value: stats.utiCount }
+      { label: 'UTI', value: stats.utiCount },
+      { label: 'Terminal', value: stats.terminalCount },
+      { label: 'Clínico', value: stats.clinicalCount }
     ];
 
     try {
       const html = generateActivityReportHTML(
         config,
-        selectedDate,
+        startDate === endDate ? startDate : `${startDate} a ${endDate}`,
         chaplain,
         stats,
         visitDetails
@@ -131,15 +144,26 @@ const ActivityReports: React.FC = () => {
         </div>
 
         <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">2. Data do Relatório</label>
-          <div className="relative">
-            <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-slate-100 border-none rounded-xl font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
-            />
+          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">2. Período do Relatório</label>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="relative">
+              <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="w-full pl-9 pr-2 py-3 bg-slate-100 border-none rounded-xl font-bold text-[11px] focus:ring-2 focus:ring-indigo-500/20 outline-none"
+              />
+            </div>
+            <div className="relative">
+              <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="w-full pl-9 pr-2 py-3 bg-slate-100 border-none rounded-xl font-bold text-[11px] focus:ring-2 focus:ring-indigo-500/20 outline-none"
+              />
+            </div>
           </div>
         </div>
 
@@ -225,6 +249,8 @@ const ActivityReports: React.FC = () => {
               { label: 'Cirúrgicos', value: stats.surgicalCount, color: 'bg-emerald-500' },
               { label: 'Pediátricos', value: stats.pediatricCount, color: 'bg-amber-500' },
               { label: 'UTI', value: stats.utiCount, color: 'bg-rose-500' },
+              { label: 'Terminal', value: stats.terminalCount, color: 'bg-slate-500' },
+              { label: 'Clínico', value: stats.clinicalCount, color: 'bg-blue-500' },
             ].map(item => (
               <div key={item.label} className="space-y-2">
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
@@ -272,7 +298,7 @@ const ActivityReports: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredReports.map(report => {
             const chaplain = users.find(u => u.id === report.userId);
-            const totalVisits = (report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0);
+            const totalVisits = (report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0) + (report.terminalCount || 0) + (report.clinicalCount || 0);
             
             return (
               <div key={report.id} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">

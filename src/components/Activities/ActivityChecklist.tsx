@@ -7,7 +7,19 @@ import { CheckCircle, Circle, Plus, Minus, Save, MapPin, Users, HeartPulse, Cale
 import { generateDailyChecklistHTML } from '../../utils/activityTemplates';
 import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
 
-const ActivityChecklist: React.FC = () => {
+interface ActivityChecklistProps {
+  selectedUser: string;
+  setSelectedUser: (id: string) => void;
+  selectedDate: string;
+  setSelectedDate: (date: string) => void;
+}
+
+const ActivityChecklist: React.FC<ActivityChecklistProps> = ({ 
+  selectedUser, 
+  setSelectedUser, 
+  selectedDate, 
+  setSelectedDate 
+}) => {
   const { users, proSectors, activitySchedules, dailyActivityReports, saveRecord, config } = useApp();
   const { currentUser } = useAuth();
   const { showToast } = useToast();
@@ -15,12 +27,6 @@ const ActivityChecklist: React.FC = () => {
   
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    return new Date(now.getTime() - offset).toISOString().split('T')[0];
-  });
-  const [selectedUser, setSelectedUser] = useState<string>(isAdmin ? (currentUser?.id || '') : (currentUser?.id || ''));
   const [isSaving, setIsSaving] = useState(false);
 
   const [report, setReport] = useState<Partial<DailyActivityReport>>({
@@ -56,6 +62,8 @@ const ActivityChecklist: React.FC = () => {
         surgicalCount: 0,
         pediatricCount: 0,
         utiCount: 0,
+        terminalCount: 0,
+        clinicalCount: 0,
         observations: ''
       });
     }
@@ -151,19 +159,29 @@ const ActivityChecklist: React.FC = () => {
     setIsSaving(true);
     try {
       const userObj = users.find(u => u.id === selectedUser);
+      const nowISO = new Date().toISOString();
+      
       const data: Partial<DailyActivityReport> = {
         ...report,
         userId: selectedUser,
         date: selectedDate,
         unit: userObj?.attendsHaba ? Unit.HABA : Unit.HAB,
-        updatedAt: Date.now()
+        updatedAt: nowISO
       };
       
-      if (!data.id) data.createdAt = Date.now();
+      if (!data.id) data.createdAt = nowISO;
 
-      await saveRecord('dailyActivityReports', data);
-      showToast("Relatório salvo com sucesso!", "success");
+      console.log("[DEBUG] Salvando Relatório Diário:", data);
+      const result = await saveRecord('dailyActivityReports', data);
+      
+      if (result) {
+        showToast("Relatório salvo com sucesso!", "success");
+      } else {
+        console.error("[DEBUG] Falha ao salvar relatório no Supabase (saveRecord retornou false)");
+        showToast("Erro ao salvar relatório no banco de dados.", "warning");
+      }
     } catch (error) {
+      console.error("[DEBUG] Erro na função handleSave:", error);
       showToast("Erro ao salvar relatório.", "warning");
     } finally {
       setIsSaving(false);
@@ -473,6 +491,34 @@ const ActivityChecklist: React.FC = () => {
                       min="0"
                       value={report.utiCount || 0} 
                       onChange={(e) => handleCountChange('utiCount', e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Terminal</span>
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <input 
+                      type="number" 
+                      min="0"
+                      value={report.terminalCount || 0} 
+                      onChange={(e) => handleCountChange('terminalCount', e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Clínico</span>
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <input 
+                      type="number" 
+                      min="0"
+                      value={report.clinicalCount || 0} 
+                      onChange={(e) => handleCountChange('clinicalCount', e.target.value)}
                       onFocus={(e) => e.target.select()}
                       className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
                     />
