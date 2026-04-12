@@ -30,19 +30,32 @@ const ActivityReports: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<string>(isAdmin ? '' : (currentUser?.id || ''));
 
   const chaplains = useMemo(() => 
-    users.filter(u => u.role === UserRole.CHAPLAIN || u.role === UserRole.INTERN || u.role === UserRole.ADMIN),
+    users.filter(u => u.role === UserRole.CHAPLAIN || u.role === UserRole.INTERN),
     [users]
   );
 
-  const filteredReports = useMemo(() => 
-    dailyActivityReports.filter(r => 
-      r.unit === selectedUnit && 
-      r.date >= startDate && 
-      r.date <= endDate && 
-      (selectedUser ? r.userId === selectedUser : true)
-    ),
-    [dailyActivityReports, selectedUnit, startDate, endDate, selectedUser]
-  );
+  const filteredReports = useMemo(() => {
+    const filtered = dailyActivityReports.filter(r => {
+      const user = users.find(u => String(u.id) === String(r.userId));
+      const isOperational = user ? (user.role === UserRole.CHAPLAIN || user.role === UserRole.INTERN) : true;
+      
+      return r.unit === selectedUnit && 
+        r.date >= startDate && 
+        r.date <= endDate && 
+        (selectedUser ? String(r.userId) === String(selectedUser) : isOperational);
+    });
+
+    console.log('DEBUG [ActivityReports]:', {
+      unit: selectedUnit,
+      range: `${startDate} to ${endDate}`,
+      selectedUser: selectedUser || 'ALL',
+      totalReports: dailyActivityReports.length,
+      filteredCount: filtered.length,
+      operationalUsers: chaplains.length
+    });
+
+    return filtered;
+  }, [dailyActivityReports, selectedUnit, startDate, endDate, selectedUser, users, chaplains]);
 
   const stats = useMemo(() => {
     const initial = {

@@ -214,9 +214,12 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
 
   const progress = useMemo(() => {
     const totalScheduled = scheduledActivities.length;
-    if (totalScheduled === 0) return 0;
+    const visitGoal = users.find(u => u.id === selectedUser)?.role === 'INTERN' ? 18 : 15;
     
-    const completedScheduled = scheduledActivities.filter(s => {
+    // Total items = scheduled activities + 1 (for the visit goal)
+    const totalItems = totalScheduled + 1;
+    
+    let completedItems = scheduledActivities.filter(s => {
       const period = s.period || 'tarde';
       const locationWithPeriod = `${s.location}:${period}`;
       
@@ -232,9 +235,18 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
       if (s.activityType === 'visiteCantando') return report.completedVisiteCantando;
       return false;
     }).length;
+
+    const totalVisits = (report.palliativeCount || 0) + 
+                       (report.surgicalCount || 0) + 
+                       (report.pediatricCount || 0) + 
+                       (report.utiCount || 0) + 
+                       (report.terminalCount || 0) + 
+                       (report.clinicalCount || 0);
+
+    if (totalVisits >= visitGoal) completedItems++;
     
-    return Math.round((completedScheduled / totalScheduled) * 100);
-  }, [scheduledActivities, report]);
+    return Math.round((completedItems / totalItems) * 100);
+  }, [scheduledActivities, report, selectedUser, users]);
 
   const blueprints = scheduledActivities.filter(s => s.activityType === 'blueprint');
   const cults = scheduledActivities.filter(s => s.activityType === 'cult');
@@ -438,7 +450,21 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
 
             {/* Visitas e Observações */}
             <div className="space-y-6">
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-100 pb-2">Visitas Realizadas</h3>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Visitas Realizadas</h3>
+                {selectedUser && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Meta:</span>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                      ((report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0) + (report.terminalCount || 0) + (report.clinicalCount || 0)) >= (users.find(u => u.id === selectedUser)?.role === 'INTERN' ? 18 : 15)
+                        ? 'bg-emerald-100 text-emerald-600'
+                        : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {users.find(u => u.id === selectedUser)?.role === 'INTERN' ? '18' : '15'}
+                    </span>
+                  </div>
+                )}
+              </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">

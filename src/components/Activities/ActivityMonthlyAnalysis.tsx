@@ -1,8 +1,15 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
-import { Unit } from '../../types';
+import { Unit, UserRole } from '../../types';
 import { Calendar, MapPin, Users, HeartPulse, TrendingUp } from 'lucide-react';
+
+const formatLocalDate = (d: Date) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 interface ActivityMonthlyAnalysisProps {
   selectedUser: string;
@@ -20,10 +27,10 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
   const { activitySchedules, dailyActivityReports, users } = useApp();
   const { currentUser } = useAuth();
   
-  const isAdmin = currentUser?.role === 'ADMIN';
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
 
   const chaplains = useMemo(() => {
-    return users.filter(u => u.role === 'CHAPLAIN' || u.role === 'INTERN' || u.role === 'ADMIN');
+    return users.filter(u => u.role === UserRole.CHAPLAIN || u.role === UserRole.INTERN);
   }, [users]);
 
   const baseDate = useMemo(() => new Date(selectedDate + 'T12:00:00'), [selectedDate]);
@@ -43,86 +50,158 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
   }, [baseDate]);
 
   const monthReports = useMemo(() => {
-    const startStr = startOfMonth.toISOString().split('T')[0];
-    const endStr = endOfMonth.toISOString().split('T')[0];
+    const startStr = formatLocalDate(startOfMonth);
+    const endStr = formatLocalDate(endOfMonth);
     
-    return dailyActivityReports.filter(r => 
-      (selectedUser ? r.userId === selectedUser : true) && 
-      r.date >= startStr && 
-      r.date <= endStr
-    );
-  }, [dailyActivityReports, selectedUser, startOfMonth, endOfMonth]);
+    const filtered = dailyActivityReports.filter(r => {
+      const matchesUser = selectedUser ? String(r.userId) === String(selectedUser) : true;
+      const dateInRange = r.date >= startStr && r.date <= endStr;
+      
+      // If "All" is selected, only include operational users (Chaplains/Interns)
+      if (!selectedUser) {
+        const user = users.find(u => String(u.id) === String(r.userId));
+        // If user not found yet, we include it to avoid zeroing during load, 
+        // but we exclude known ADMINS
+        const isOperational = user ? (user.role === UserRole.CHAPLAIN || user.role === UserRole.INTERN) : true;
+        return isOperational && dateInRange;
+      }
+      
+      return matchesUser && dateInRange;
+    });
+
+    return filtered;
+  }, [dailyActivityReports, selectedUser, startOfMonth, endOfMonth, users]);
 
   const monthSchedules = useMemo(() => {
-    const monthStr = startOfMonth.toISOString().split('T')[0].substring(0, 7) + '-01';
+    const monthStr = formatLocalDate(startOfMonth).substring(0, 7) + '-01';
     
     return activitySchedules.filter(s => 
-      (selectedUser ? s.userId === selectedUser : true) && 
+      (selectedUser ? String(s.userId) === String(selectedUser) : true) && 
       s.month === monthStr
     );
   }, [activitySchedules, selectedUser, startOfMonth]);
 
   const stats = useMemo(() => {
-    return monthReports.reduce((acc, report) => ({
-      blueprints: acc.blueprints + (report.completedBlueprints?.length || 0),
-      cults: acc.cults + (report.completedCults?.length || 0),
-      encontros: acc.encontros + (report.completedEncontro ? 1 : 0),
-      visiteCantando: acc.visiteCantando + (report.completedVisiteCantando ? 1 : 0),
-      palliative: acc.palliative + (report.palliativeCount || 0),
-      surgical: acc.surgical + (report.surgicalCount || 0),
-      pediatric: acc.pediatric + (report.pediatricCount || 0),
-      uti: acc.uti + (report.utiCount || 0),
-      terminal: acc.terminal + (report.terminalCount || 0),
-      clinical: acc.clinical + (report.clinicalCount || 0),
-      totalVisits: acc.totalVisits + (report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0) + (report.terminalCount || 0) + (report.clinicalCount || 0)
-    }), {
+    const activeDaysSet = new Set<string>();
+    
+    const result = monthReports.reduce((acc, report) => {
+      activeDaysSet.add(report.date);
+      return {
+        blueprints: acc.blueprints + (report.completedBlueprints?.length || 0),
+        cults: acc.cults + (report.completedCults?.length || 0),
+        encontros: acc.encontros + (report.completedEncontro ? 1 : 0),
+        visiteCantando: acc.visiteCantando + (report.completedVisiteCantando ? 1 : 0),
+        palliative: acc.palliative + Number(report.palliativeCount || 0),
+        surgical: acc.surgical + Number(report.surgicalCount || 0),
+        pediatric: acc.pediatric + Number(report.pediatricCount || 0),
+        uti: acc.uti + Number(report.utiCount || 0),
+        terminal: acc.terminal + Number(report.terminalCount || 0),
+        clinical: acc.clinical + Number(report.clinicalCount || 0),
+        totalVisits: acc.totalVisits + 
+          Number(report.palliativeCount || 0) + 
+          Number(report.surgicalCount || 0) + 
+          Number(report.pediatricCount || 0) + 
+          Number(report.utiCount || 0) + 
+          Number(report.terminalCount || 0) + 
+          Number(report.clinicalCount || 0)
+      };
+    }, {
       blueprints: 0, cults: 0, encontros: 0, visiteCantando: 0,
       palliative: 0, surgical: 0, pediatric: 0, uti: 0, terminal: 0, clinical: 0, totalVisits: 0
     });
-  }, [monthReports]);
+
+    // Calculate active days also from schedules if no reports exist yet
+    if (selectedUser) {
+        const daysInMonth = endOfMonth.getDate();
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dObj = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
+            const dayOfWeek = dObj.getDay() === 0 ? 7 : dObj.getDay();
+            const hasSchedule = monthSchedules.some(s => s.dayOfWeek === dayOfWeek);
+            if (hasSchedule) activeDaysSet.add(formatLocalDate(dObj));
+        }
+    }
+
+    const activeDays = activeDaysSet.size || 1;
+    const dailyAverage = result.totalVisits / activeDays;
+    
+    // Target Goal
+    const targetUser = selectedUser ? users.find(u => String(u.id) === String(selectedUser)) : null;
+    const baseGoal = targetUser?.role === UserRole.INTERN ? 18 : 15;
+    const performancePercent = baseGoal > 0 ? (dailyAverage / baseGoal) * 100 : 0;
+
+    return { ...result, activeDays, dailyAverage, performancePercent, baseGoal };
+  }, [monthReports, monthSchedules, selectedUser, users, startOfMonth, endOfMonth]);
+
+  const getSemaphoreColor = (percent: number) => {
+    if (percent >= 95) return 'text-emerald-600 bg-emerald-50 border-emerald-100';
+    if (percent >= 70) return 'text-amber-600 bg-amber-50 border-amber-100';
+    return 'text-rose-600 bg-rose-50 border-rose-100';
+  };
 
   const progress = useMemo(() => {
-    const totalScheduled = monthSchedules.length;
-    if (totalScheduled === 0) return 0;
+    let totalItems = 0;
+    let completedItems = 0;
     
-    // For monthly progress, we check all reports in the month
-    let completedScheduled = 0;
-    
-    // This is a simplified monthly progress: how many of the scheduled items across the month were completed
-    // Since schedules are per dayOfWeek, we need to map them to actual dates in the month
     const daysInMonth = endOfMonth.getDate();
     for (let i = 1; i <= daysInMonth; i++) {
         const dObj = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
-        const dateStr = dObj.toISOString().split('T')[0];
+        const dateStr = formatLocalDate(dObj);
         const dayOfWeek = dObj.getDay() === 0 ? 7 : dObj.getDay();
         
-        const daySchedules = monthSchedules.filter(s => s.dayOfWeek === dayOfWeek);
-        const dayReports = monthReports.filter(r => r.date === dateStr);
+        // Find user for this specific day if we are in "All Chaplains" view
+        // For simplicity in "All Chaplains" view, we'll calculate the average or sum.
+        // But usually, selectedUser is provided.
         
-        daySchedules.forEach(s => {
-            const period = s.period || 'tarde';
-            const locWithPeriod = `${s.location}:${period}`;
-            
-            const isDone = dayReports.some(dayReport => {
-                if (s.activityType === 'blueprint') {
-                    return dayReport.completedBlueprints?.includes(locWithPeriod) || 
-                           (period === 'tarde' && dayReport.completedBlueprints?.includes(s.location));
-                }
-                if (s.activityType === 'cult') {
-                    return dayReport.completedCults?.includes(locWithPeriod) || 
-                           (period === 'tarde' && dayReport.completedCults?.includes(s.location));
-                }
-                if (s.activityType === 'encontro') return dayReport.completedEncontro;
-                if (s.activityType === 'visiteCantando') return dayReport.completedVisiteCantando;
-                return false;
-            });
+        const usersToProcess = selectedUser 
+          ? [users.find(u => String(u.id) === String(selectedUser))].filter(Boolean) 
+          : chaplains;
 
-            if (isDone) completedScheduled++;
+        usersToProcess.forEach(user => {
+            if (!user) return;
+            
+            const daySchedules = activitySchedules.filter(s => String(s.userId) === String(user.id) && s.dayOfWeek === dayOfWeek && s.month === (formatLocalDate(startOfMonth).substring(0, 7) + '-01'));
+            const dayReport = dailyActivityReports.find(r => String(r.userId) === String(user.id) && r.date === dateStr);
+            
+            // Goal: 18 for Interns, 15 for others (Chaplains/Admins)
+            const visitGoal = user.role === UserRole.INTERN ? 18 : 15;
+
+            // Only count days that have either a schedule or a report
+            if (daySchedules.length > 0 || dayReport) {
+                // Scheduled activities part
+                totalItems += daySchedules.length;
+                
+                daySchedules.forEach(s => {
+                    if (!dayReport) return;
+                    const period = s.period || 'tarde';
+                    const locWithPeriod = `${s.location}:${period}`;
+                    
+                    const isDone = (s.activityType === 'blueprint' && (dayReport.completedBlueprints?.includes(locWithPeriod) || (period === 'tarde' && dayReport.completedBlueprints?.includes(s.location)))) ||
+                                   (s.activityType === 'cult' && (dayReport.completedCults?.includes(locWithPeriod) || (period === 'tarde' && dayReport.completedCults?.includes(s.location)))) ||
+                                   (s.activityType === 'encontro' && dayReport.completedEncontro) ||
+                                   (s.activityType === 'visiteCantando' && dayReport.completedVisiteCantando);
+                    
+                    if (isDone) completedItems++;
+                });
+
+                // Visit goal part
+                totalItems += 1;
+                if (dayReport) {
+                    const totalVisits = (dayReport.palliativeCount || 0) + 
+                                       (dayReport.surgicalCount || 0) + 
+                                       (dayReport.pediatricCount || 0) + 
+                                       (dayReport.utiCount || 0) + 
+                                       (dayReport.terminalCount || 0) + 
+                                       (dayReport.clinicalCount || 0);
+                    
+                    if (totalVisits >= visitGoal) completedItems++;
+                }
+            }
         });
     }
     
-    return Math.round((completedScheduled / totalScheduled) * 100);
-  }, [monthSchedules, monthReports, startOfMonth, endOfMonth]);
+    if (totalItems === 0) return 0;
+    return Math.round((completedItems / totalItems) * 100);
+  }, [activitySchedules, dailyActivityReports, startOfMonth, endOfMonth, selectedUser, chaplains, users]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -229,9 +308,22 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
             </div>
           ))}
         </div>
-        <div className="mt-8 pt-8 border-t border-slate-100 text-center">
-          <span className="text-5xl font-black text-slate-800 block mb-2">{stats.totalVisits}</span>
-          <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Total de Visitas no Mês</span>
+        <div className="mt-8 pt-8 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className={`p-6 rounded-3xl border ${getSemaphoreColor(stats.performancePercent)} transition-colors duration-500`}>
+            <span className="text-5xl font-black block mb-1">{stats.totalVisits}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Total de Visitas no Mês</span>
+          </div>
+          
+          <div className={`p-6 rounded-3xl border ${getSemaphoreColor(stats.performancePercent)} transition-colors duration-500`}>
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-5xl font-black">{stats.dailyAverage.toFixed(1)}</span>
+              <span className="text-sm font-bold opacity-60">/ dia</span>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Média de Visitas Diárias</span>
+            <div className="mt-2 text-[9px] font-bold uppercase tracking-tighter opacity-50">
+              Meta Base: {stats.baseGoal} visitas/dia
+            </div>
+          </div>
         </div>
       </section>
     </div>

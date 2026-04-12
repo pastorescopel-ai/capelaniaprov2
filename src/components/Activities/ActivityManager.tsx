@@ -26,7 +26,7 @@ const ActivityManager: React.FC<ActivityManagerProps> = ({ isActive, initialSubT
     const offset = now.getTimezoneOffset() * 60000;
     return new Date(now.getTime() - offset).toISOString().split('T')[0];
   });
-  const [selectedUser, setSelectedUser] = useState<string>(currentUser?.id || '');
+  const [selectedUser, setSelectedUser] = useState<string>(isAdmin ? '' : (currentUser?.id || ''));
 
   // Scroll to top when tab or sub-tab changes
   useEffect(() => {
