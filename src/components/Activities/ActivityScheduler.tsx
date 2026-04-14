@@ -51,6 +51,15 @@ const ActivityScheduler: React.FC = () => {
   const [showReplicateModal, setShowReplicateModal] = useState(false);
   const [deletingSchedule, setDeletingSchedule] = useState<ActivitySchedule | null>(null);
 
+  const getCurrentDayId = () => {
+    const day = new Date().getDay();
+    // getDay() returns 0 for Sunday, 1 for Monday, etc.
+    // If it's Sunday (0), default to Monday (1). Otherwise, use the current day.
+    return day === 0 ? 1 : day;
+  };
+
+  const [selectedDay, setSelectedDay] = useState<number>(getCurrentDayId());
+
   useEffect(() => {
     if (!isAdmin && currentUser?.id && selectedUser !== currentUser.id) {
       setSelectedUser(currentUser.id);
@@ -229,8 +238,6 @@ const ActivityScheduler: React.FC = () => {
       showToast("Erro ao gerar PDF da escala.", "warning");
     }
   };
-
-  const [selectedDay, setSelectedDay] = useState<number>(1); // Default to Monday
 
   const daysOfWeek = [
     { id: 1, label: 'Segunda-feira' },
