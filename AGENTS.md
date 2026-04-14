@@ -1,7 +1,7 @@
 # Instruções para o Agente - Capelania HAB
 
 ## Ponto de Restauração Estável
-A versão **4.2.0-PRO-FINAL** (05/04/2026) é considerada a versão final e funcional do sistema.
+A versão **5.0.0-PRO-FINAL** (14/04/2026) é considerada a versão final e funcional do sistema.
 Se houver erros graves em modificações futuras, consulte o arquivo `VERSION.md` e considere reverter para o estado funcional desta data.
 
 ## Estrutura do Projeto

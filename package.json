@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node dist/server.cjs",
-    "build": "NODE_ENV=production vite build && esbuild server.ts --platform=node --format=cjs --outfile=dist/server.cjs --define:import.meta=false",
+    "build": "NODE_ENV=production vite build && esbuild server.ts --bundle --platform=node --format=cjs --outfile=dist/server.cjs --define:import.meta=false --external:express --external:vite",
     "preview": "vite preview",
     "lint": "eslint ."
   },

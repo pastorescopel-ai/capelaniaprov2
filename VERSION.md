@@ -1,9 +1,9 @@
 # Versão Final - Capelania HAB
-**Data:** 12/04/2026
-**Versão:** 4.2.1-PRO (STABLE)
+**Data:** 14/04/2026
+**Versão:** 5.0.0-PRO-FINAL (STABLE)
 **Status:** ESTÁVEL E FUNCIONAL
 
-Esta versão foi marcada como um novo ponto de referência estável após a correção de estilos e ajustes de compilação.
+Esta versão inclui a implementação completa de relatórios de visitas, correção de somas numéricas e a nova coluna de unidade (unit) na tabela de participantes de classes bíblicas.
 
 ---
 **Instrução para o Agente:**
