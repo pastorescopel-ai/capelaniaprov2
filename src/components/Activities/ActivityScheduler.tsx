@@ -230,12 +230,14 @@ const ActivityScheduler: React.FC = () => {
     }
   };
 
+  const [selectedDay, setSelectedDay] = useState<number>(1); // Default to Monday
+
   const daysOfWeek = [
-    { id: 1, label: 'Segunda' },
-    { id: 2, label: 'Terça' },
-    { id: 3, label: 'Quarta' },
-    { id: 4, label: 'Quinta' },
-    { id: 5, label: 'Sexta' },
+    { id: 1, label: 'Segunda-feira' },
+    { id: 2, label: 'Terça-feira' },
+    { id: 3, label: 'Quarta-feira' },
+    { id: 4, label: 'Quinta-feira' },
+    { id: 5, label: 'Sexta-feira' },
     { id: 6, label: 'Sábado' },
   ];
 
@@ -249,6 +251,8 @@ const ActivityScheduler: React.FC = () => {
     d.setMonth(d.getMonth() + offset);
     setSelectedMonth(d.toISOString().split('T')[0]);
   };
+
+  const activeDayData = daysOfWeek.find(d => d.id === selectedDay);
 
   return (
     <div className="space-y-6">
@@ -312,6 +316,221 @@ const ActivityScheduler: React.FC = () => {
         </div>
       </div>
 
+      {/* Day Selector Tabs */}
+      <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap gap-2 justify-center">
+        {daysOfWeek.map(day => (
+          <button
+            key={day.id}
+            onClick={() => setSelectedDay(day.id)}
+            className={`px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
+              selectedDay === day.id 
+                ? 'bg-indigo-600 text-white shadow-md' 
+                : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+            }`}
+          >
+            {day.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Active Day Content */}
+      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+        <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="text-lg font-black uppercase tracking-widest text-slate-800">
+            Atividades de {activeDayData?.label}
+          </h3>
+        </div>
+        
+        <div className="p-6">
+          {selectedDay !== 6 ? (
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Blueprint Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-indigo-100 pb-2">
+                  <span className="text-sm font-black uppercase tracking-widest text-indigo-600">Blueprint</span>
+                  <button 
+                    onClick={() => handleOpenAddModal(selectedDay, 'blueprint')}
+                    className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg flex items-center gap-2 hover:bg-indigo-600 hover:text-white transition-all text-xs font-bold uppercase"
+                  >
+                    <Plus size={14} /> Adicionar
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {filteredSchedules.filter(s => Number(s.dayOfWeek) === selectedDay && s.activityType === 'blueprint').length === 0 ? (
+                    <div className="text-center p-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-sm font-medium">
+                      Nenhum Blueprint agendado para este dia.
+                    </div>
+                  ) : (
+                    filteredSchedules.filter(s => Number(s.dayOfWeek) === selectedDay && s.activityType === 'blueprint').map(s => (
+                      <div key={s.id} className="flex items-center justify-between p-4 bg-indigo-50/50 border border-indigo-100/50 rounded-xl group hover:shadow-sm transition-all">
+                        <div className="space-y-1">
+                          <p className="text-sm font-black text-indigo-900 uppercase">{s.location}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-xs font-black px-2 py-0.5 rounded uppercase ${s.period === 'manha' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                              {s.period === 'manha' ? 'Manhã' : 'Tarde'}
+                            </span>
+                            {s.time && <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-0.5 rounded border border-indigo-200/50">{s.time}</span>}
+                            {!selectedUser && (
+                              <span className="text-xs font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                {chaplains.find(c => c.id === s.userId)?.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button onClick={() => setDeletingSchedule(s)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Cult Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
+                  <span className="text-sm font-black uppercase tracking-widest text-emerald-600">Setores</span>
+                  <button 
+                    onClick={() => handleOpenAddModal(selectedDay, 'cult')}
+                    className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg flex items-center gap-2 hover:bg-emerald-600 hover:text-white transition-all text-xs font-bold uppercase"
+                  >
+                    <Plus size={14} /> Adicionar
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {filteredSchedules.filter(s => Number(s.dayOfWeek) === selectedDay && s.activityType === 'cult').length === 0 ? (
+                    <div className="text-center p-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-sm font-medium">
+                      Nenhum Setor agendado para este dia.
+                    </div>
+                  ) : (
+                    filteredSchedules.filter(s => Number(s.dayOfWeek) === selectedDay && s.activityType === 'cult').map(s => (
+                      <div key={s.id} className="flex items-center justify-between p-4 bg-emerald-50/50 border border-emerald-100/50 rounded-xl group hover:shadow-sm transition-all">
+                        <div className="space-y-1">
+                          <p className="text-sm font-black text-emerald-900 uppercase">
+                            {sectors.find(sec => sec.id === s.location)?.name || 'Setor Removido'}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-xs font-black px-2 py-0.5 rounded uppercase ${s.period === 'manha' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                              {s.period === 'manha' ? 'Manhã' : 'Tarde'}
+                            </span>
+                            {s.time && <span className="text-xs font-bold text-emerald-600 bg-emerald-100/50 px-2 py-0.5 rounded border border-emerald-200/50">{s.time}</span>}
+                            {!selectedUser && (
+                              <span className="text-xs font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                {chaplains.find(c => c.id === s.userId)?.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button onClick={() => setDeletingSchedule(s)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Saturday Section */
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Encontro HAB */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-amber-100 pb-2">
+                  <span className="text-sm font-black uppercase tracking-widest text-amber-600">Encontro HAB</span>
+                  <button 
+                    onClick={() => handleOpenAddModal(selectedDay, 'encontro')}
+                    className="px-3 py-1 bg-amber-50 text-amber-600 rounded-lg flex items-center gap-2 hover:bg-amber-600 hover:text-white transition-all text-xs font-bold uppercase"
+                  >
+                    <Plus size={14} /> Adicionar
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {filteredSchedules.filter(s => Number(s.dayOfWeek) === selectedDay && s.activityType === 'encontro').length === 0 ? (
+                    <div className="text-center p-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-sm font-medium">
+                      Nenhum Encontro HAB agendado para este dia.
+                    </div>
+                  ) : (
+                    filteredSchedules.filter(s => Number(s.dayOfWeek) === selectedDay && s.activityType === 'encontro').map(s => (
+                      <div key={s.id} className="flex items-center justify-between p-4 bg-amber-50/50 border border-amber-100/50 rounded-xl group hover:shadow-sm transition-all">
+                        <div className="space-y-1">
+                          <p className="text-sm font-black text-amber-900 uppercase">
+                            Encontro HAB {s.date ? `(${s.date.split('-')[2]})` : ''}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-xs font-black px-2 py-0.5 rounded uppercase ${s.period === 'manha' ? 'bg-amber-100 text-amber-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {s.period === 'manha' ? 'Manhã' : 'Tarde'}
+                            </span>
+                            {s.time && <span className="text-xs font-bold text-amber-600 bg-amber-100/50 px-2 py-0.5 rounded border border-amber-200/50">{s.time}</span>}
+                            {!selectedUser && (
+                              <span className="text-xs font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                {chaplains.find(c => c.id === s.userId)?.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button onClick={() => setDeletingSchedule(s)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Visite Cantando */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-rose-100 pb-2">
+                  <span className="text-sm font-black uppercase tracking-widest text-rose-600">Visite Cantando</span>
+                  <button 
+                    onClick={() => handleOpenAddModal(selectedDay, 'visiteCantando')}
+                    className="px-3 py-1 bg-rose-50 text-rose-600 rounded-lg flex items-center gap-2 hover:bg-rose-600 hover:text-white transition-all text-xs font-bold uppercase"
+                  >
+                    <Plus size={14} /> Adicionar
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {filteredSchedules.filter(s => Number(s.dayOfWeek) === selectedDay && s.activityType === 'visiteCantando').length === 0 ? (
+                    <div className="text-center p-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-sm font-medium">
+                      Nenhum Visite Cantando agendado para este dia.
+                    </div>
+                  ) : (
+                    filteredSchedules.filter(s => Number(s.dayOfWeek) === selectedDay && s.activityType === 'visiteCantando').map(s => (
+                      <div key={s.id} className="flex items-center justify-between p-4 bg-rose-50/50 border border-rose-100/50 rounded-xl group hover:shadow-sm transition-all">
+                        <div className="space-y-1">
+                          <p className="text-sm font-black text-rose-900 uppercase">
+                            Visite Cantando {s.date ? `(${s.date.split('-')[2]})` : ''}
+                          </p>
+                          {(s.responsibleName || s.responsibleWhatsApp) && (
+                            <div className="flex items-center gap-2 mt-1">
+                              {s.responsibleName && <span className="text-xs font-bold text-rose-700">{s.responsibleName}</span>}
+                              {s.responsibleWhatsApp && <span className="text-xs font-medium text-rose-600 bg-rose-100/50 px-2 py-0.5 rounded">{s.responsibleWhatsApp}</span>}
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <span className={`text-xs font-black px-2 py-0.5 rounded uppercase ${s.period === 'manha' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
+                              {s.period === 'manha' ? 'Manhã' : 'Tarde'}
+                            </span>
+                            {s.time && <span className="text-xs font-bold text-rose-600 bg-rose-100/50 px-2 py-0.5 rounded border border-rose-200/50">{s.time}</span>}
+                            {!selectedUser && (
+                              <span className="text-xs font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                {chaplains.find(c => c.id === s.userId)?.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button onClick={() => setDeletingSchedule(s)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {showReplicateModal && (
         <ReplicateScaleModal
           selectedMonth={selectedMonth}
@@ -321,177 +540,6 @@ const ActivityScheduler: React.FC = () => {
           formatMonthLabel={formatMonthLabel}
         />
       )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
-        {daysOfWeek.map(day => (
-          <div key={day.id} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-            <div className="bg-slate-50 p-4 border-b border-slate-100 text-center">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">{day.label}</h3>
-            </div>
-            
-            <div className="p-4 flex-1 space-y-4">
-              {day.id !== 6 ? (
-                <>
-                  {/* Blueprint Section */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black uppercase text-indigo-600">Blueprint</span>
-                      <button 
-                        onClick={() => handleOpenAddModal(day.id, 'blueprint')}
-                        className="w-5 h-5 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all"
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-                    <div className="space-y-1">
-                      {filteredSchedules.filter(s => Number(s.dayOfWeek) === day.id && s.activityType === 'blueprint').map(s => (
-                        <div key={s.id} className="flex items-center justify-between p-2 bg-indigo-50/50 rounded-lg group">
-                          <div className="min-w-0">
-                            <p className="text-[8px] font-black text-indigo-900 uppercase truncate">{s.location}</p>
-                            <div className="flex items-center gap-1">
-                              <span className={`text-[7px] font-black px-1 rounded uppercase ${s.period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                                {s.period === 'manha' ? 'Manhã' : 'Tarde'}
-                              </span>
-                              {s.time && <span className="text-[7px] font-bold text-indigo-500 bg-indigo-100 px-1 rounded">{s.time}</span>}
-                              {!selectedUser && (
-                                <p className="text-[7px] font-bold text-indigo-400 uppercase truncate">
-                                  {chaplains.find(c => c.id === s.userId)?.name}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <button onClick={() => setDeletingSchedule(s)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
-                            <Trash2 size={10} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Cult Section */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black uppercase text-emerald-600">Setores</span>
-                      <button 
-                        onClick={() => handleOpenAddModal(day.id, 'cult')}
-                        className="w-5 h-5 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all"
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-                    <div className="space-y-1">
-                      {filteredSchedules.filter(s => Number(s.dayOfWeek) === day.id && s.activityType === 'cult').map(s => (
-                        <div key={s.id} className="flex items-center justify-between p-2 bg-emerald-50/50 rounded-lg group">
-                          <div className="min-w-0">
-                            <p className="text-[8px] font-black text-emerald-900 uppercase truncate">
-                              {sectors.find(sec => sec.id === s.location)?.name || 'Setor Removido'}
-                            </p>
-                            <div className="flex items-center gap-1">
-                              <span className={`text-[7px] font-black px-1 rounded uppercase ${s.period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                {s.period === 'manha' ? 'Manhã' : 'Tarde'}
-                              </span>
-                              {s.time && <span className="text-[7px] font-bold text-emerald-500 bg-emerald-100 px-1 rounded">{s.time}</span>}
-                              {!selectedUser && (
-                                <p className="text-[7px] font-bold text-emerald-400 uppercase truncate">
-                                  {chaplains.find(c => c.id === s.userId)?.name}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <button onClick={() => setDeletingSchedule(s)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
-                            <Trash2 size={10} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                /* Saturday Section */
-                <div className="space-y-4">
-                  {/* Encontro HAB */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black uppercase text-amber-600">Encontro HAB</span>
-                      <button 
-                        onClick={() => handleOpenAddModal(day.id, 'encontro')}
-                        className="w-5 h-5 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center hover:bg-amber-600 hover:text-white transition-all"
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-                    <div className="space-y-1">
-                      {filteredSchedules.filter(s => Number(s.dayOfWeek) === day.id && s.activityType === 'encontro').map(s => (
-                        <div key={s.id} className="flex items-center justify-between p-2 bg-amber-50/50 rounded-lg group">
-                          <div className="min-w-0">
-                            <p className="text-[8px] font-black text-amber-900 uppercase truncate">
-                              Encontro HAB {s.date ? `(${s.date.split('-')[2]})` : ''}
-                            </p>
-                            <div className="flex items-center gap-1">
-                              <span className={`text-[7px] font-black px-1 rounded uppercase ${s.period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-amber-100 text-amber-600'}`}>
-                                {s.period === 'manha' ? 'Manhã' : 'Tarde'}
-                              </span>
-                              {s.time && <span className="text-[7px] font-bold text-amber-500 bg-amber-100 px-1 rounded">{s.time}</span>}
-                              {!selectedUser && (
-                                <p className="text-[7px] font-bold text-amber-400 uppercase truncate">
-                                  {chaplains.find(c => c.id === s.userId)?.name}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <button onClick={() => setDeletingSchedule(s)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
-                            <Trash2 size={10} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Visite Cantando */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black uppercase text-rose-600">Visite Cantando</span>
-                      <button 
-                        onClick={() => handleOpenAddModal(day.id, 'visiteCantando')}
-                        className="w-5 h-5 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all"
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-                    <div className="space-y-1">
-                      {filteredSchedules.filter(s => Number(s.dayOfWeek) === day.id && s.activityType === 'visiteCantando').map(s => (
-                        <div key={s.id} className="flex items-center justify-between p-2 bg-rose-50/50 rounded-lg group">
-                          <div className="min-w-0">
-                            <p className="text-[8px] font-black text-rose-900 uppercase truncate">
-                              Visite Cantando {s.date ? `(${s.date.split('-')[2]})` : ''}
-                            </p>
-                            {s.responsibleName && <p className="text-[7px] font-bold text-rose-700 truncate">{s.responsibleName}</p>}
-                            {s.responsibleWhatsApp && <p className="text-[7px] font-bold text-rose-600 truncate">{s.responsibleWhatsApp}</p>}
-                            <div className="flex items-center gap-1">
-                              <span className={`text-[7px] font-black px-1 rounded uppercase ${s.period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}`}>
-                                {s.period === 'manha' ? 'Manhã' : 'Tarde'}
-                              </span>
-                              {s.time && <span className="text-[7px] font-bold text-rose-500 bg-rose-100 px-1 rounded">{s.time}</span>}
-                              {!selectedUser && (
-                                <p className="text-[7px] font-bold text-rose-400 uppercase truncate">
-                                  {chaplains.find(c => c.id === s.userId)?.name}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <button onClick={() => setDeletingSchedule(s)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
-                            <Trash2 size={10} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
 
       {addingActivity && (
         <AddActivityModal
@@ -528,3 +576,4 @@ const ActivityScheduler: React.FC = () => {
 };
 
 export default ActivityScheduler;
+
