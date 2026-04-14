@@ -307,7 +307,8 @@ export const DataRepository = {
                             staff_id: staffId,
                             participant_id: participantId,
                             date: cls.date,
-                            cycle_month: cycleMonth
+                            cycle_month: cycleMonth,
+                            unit: cls.unit
                         };
                     });
 

@@ -81,19 +81,19 @@ const ActivityReports: React.FC = () => {
       const visiteCantandoVal = report.completedVisiteCantando ? 1 : 0;
 
       acc.totalActivities += blueprintLen + cultLen + encontroVal + visiteCantandoVal;
-      acc.totalVisits += (report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0) + (report.terminalCount || 0) + (report.clinicalCount || 0);
+      acc.totalVisits += Number(report.palliativeCount || 0) + Number(report.surgicalCount || 0) + Number(report.pediatricCount || 0) + Number(report.utiCount || 0) + Number(report.terminalCount || 0) + Number(report.clinicalCount || 0);
       
       acc.blueprintCount += blueprintLen;
       acc.cultCount += cultLen;
       acc.encontroCount += encontroVal;
       acc.visiteCantandoCount += visiteCantandoVal;
 
-      acc.palliativeCount += (report.palliativeCount || 0);
-      acc.surgicalCount += (report.surgicalCount || 0);
-      acc.pediatricCount += (report.pediatricCount || 0);
-      acc.utiCount += (report.utiCount || 0);
-      acc.terminalCount += (report.terminalCount || 0);
-      acc.clinicalCount += (report.clinicalCount || 0);
+      acc.palliativeCount += Number(report.palliativeCount || 0);
+      acc.surgicalCount += Number(report.surgicalCount || 0);
+      acc.pediatricCount += Number(report.pediatricCount || 0);
+      acc.utiCount += Number(report.utiCount || 0);
+      acc.terminalCount += Number(report.terminalCount || 0);
+      acc.clinicalCount += Number(report.clinicalCount || 0);
       
       if (report.observations) {
         acc.observations += (acc.observations ? ' | ' : '') + report.observations;
@@ -311,7 +311,7 @@ const ActivityReports: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredReports.map(report => {
             const chaplain = users.find(u => u.id === report.userId);
-            const totalVisits = (report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0) + (report.terminalCount || 0) + (report.clinicalCount || 0);
+            const totalVisits = Number(report.palliativeCount || 0) + Number(report.surgicalCount || 0) + Number(report.pediatricCount || 0) + Number(report.utiCount || 0) + Number(report.terminalCount || 0) + Number(report.clinicalCount || 0);
             
             return (
               <div key={report.id} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
