@@ -43,7 +43,7 @@ BEGIN
     -- Converte coluna 'date' para DATE
     -- Primeiro cria coluna temporária
     ALTER TABLE visit_requests ADD COLUMN IF NOT EXISTS new_date DATE;
-    UPDATE visit_requests SET new_date = fix_to_date(date);
+    UPDATE visit_requests SET new_date = fix_to_date(date::text);
     ALTER TABLE visit_requests DROP COLUMN date;
     ALTER TABLE visit_requests RENAME COLUMN new_date TO date;
     
@@ -57,7 +57,7 @@ BEGIN
     -- bible_study_sessions
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'bible_study_sessions') THEN
         ALTER TABLE bible_study_sessions ADD COLUMN IF NOT EXISTS new_date DATE;
-        UPDATE bible_study_sessions SET new_date = fix_to_date(date);
+        UPDATE bible_study_sessions SET new_date = fix_to_date(date::text);
         ALTER TABLE bible_study_sessions DROP COLUMN date;
         ALTER TABLE bible_study_sessions RENAME COLUMN new_date TO date;
     END IF;
@@ -65,7 +65,7 @@ BEGIN
     -- staff_visits
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'staff_visits') THEN
         ALTER TABLE staff_visits ADD COLUMN IF NOT EXISTS new_date DATE;
-        UPDATE staff_visits SET new_date = fix_to_date(date);
+        UPDATE staff_visits SET new_date = fix_to_date(date::text);
         ALTER TABLE staff_visits DROP COLUMN date;
         ALTER TABLE staff_visits RENAME COLUMN new_date TO date;
     END IF;
@@ -73,7 +73,7 @@ BEGIN
     -- small_group_sessions
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'small_group_sessions') THEN
         ALTER TABLE small_group_sessions ADD COLUMN IF NOT EXISTS new_date DATE;
-        UPDATE small_group_sessions SET new_date = fix_to_date(date);
+        UPDATE small_group_sessions SET new_date = fix_to_date(date::text);
         ALTER TABLE small_group_sessions DROP COLUMN date;
         ALTER TABLE small_group_sessions RENAME COLUMN new_date TO date;
     END IF;

@@ -103,12 +103,12 @@ export const toCamel = (obj: any): any => {
                     val = numVal;
                 }
             } else {
-                // Se for um campo de DATA PURA, mantemos a string original YYYY-MM-DD
-                if (PURE_DATE_FIELDS.includes(key) && val.length === 10 && val.includes('-')) {
-                    // Mantém como string YYYY-MM-DD
-                } else {
-                    const d = new Date(val);
-                    if (!isNaN(d.getTime())) {
+                // Se for um campo de DATA PURA, garantimos o formato YYYY-MM-DD
+                const d = new Date(val);
+                if (!isNaN(d.getTime())) {
+                    if (PURE_DATE_FIELDS.includes(key)) {
+                        val = d.toLocaleDateString('en-CA');
+                    } else {
                         val = d.getTime();
                     }
                 }
