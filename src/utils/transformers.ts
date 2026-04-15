@@ -96,7 +96,12 @@ export const toCamel = (obj: any): any => {
     if (DATE_FIELDS.includes(key) && val) {
         if (typeof val === 'string') {
             if (/^\d+$/.test(val)) {
-                val = parseInt(val, 10);
+                const numVal = parseInt(val, 10);
+                if (PURE_DATE_FIELDS.includes(key)) {
+                    val = new Date(numVal).toLocaleDateString('en-CA');
+                } else {
+                    val = numVal;
+                }
             } else {
                 // Se for um campo de DATA PURA, mantemos a string original YYYY-MM-DD
                 if (PURE_DATE_FIELDS.includes(key) && val.length === 10 && val.includes('-')) {

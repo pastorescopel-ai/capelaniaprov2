@@ -61,18 +61,14 @@ const HealerMergeTab: React.FC<HealerMergeTabProps> = ({
         showToast("Não é possível mesclar um cadastro com ele mesmo.", "error");
         return;
     }
-    const sourceLabel = getLabel(mergeSourceType, mergeSourceId);
-    const targetLabel = getLabel(mergeTargetType, mergeTargetId);
     
-    if (confirm(`ATENÇÃO: Você está prestes a transferir todo o histórico de "${sourceLabel}" (${mergeSourceType}) para "${targetLabel}" (${mergeTargetType}).\n\nO cadastro de origem ("${sourceLabel}") SERÁ APAGADO DEFINITIVAMENTE.\n\nTem certeza que deseja continuar?`)) {
-        handleUniversalMerge(mergeSourceType, mergeSourceId, mergeTargetType, mergeTargetId);
-        setMergeSourceId('');
-        setMergeTargetId('');
-        setSourceInput('');
-        setTargetInput('');
-        setHasUserTypedSource(false);
-        setHasUserTypedTarget(false);
-    }
+    handleUniversalMerge(mergeSourceType, mergeSourceId, mergeTargetType, mergeTargetId);
+    setMergeSourceId('');
+    setMergeTargetId('');
+    setSourceInput('');
+    setTargetInput('');
+    setHasUserTypedSource(false);
+    setHasUserTypedTarget(false);
   };
 
   return (

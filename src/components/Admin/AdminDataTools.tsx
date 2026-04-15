@@ -72,7 +72,7 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
   };
 
   const deleteFile = async (filePath: string) => {
-    if (!window.confirm(`Tem certeza que deseja deletar o arquivo: ${filePath}?`)) return;
+    setIsProcessing(true);
     try {
       const response = await fetch('/api/delete-file', {
         method: 'POST',
@@ -512,7 +512,6 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
             .limit(1);
 
           if (error) {
-            console.warn(`[DEBUG] Erro ao auditar ${tableInfo.name}:`, error.message);
             continue;
           }
 
@@ -536,7 +535,6 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
                 return `${col}: ${dateStr} (${val})`;
               });
               
-              console.log(`[DEBUG] Legacy Audit - ${tableInfo.name}:`, readableDates);
               report.dataIntegrity.push({
                 type: 'info',
                 message: `Dados de backup encontrados em ${tableInfo.name}.`,
@@ -545,7 +543,7 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
             }
           }
         } catch (e) {
-          console.error(`[DEBUG] Falha crítica ao auditar ${tableInfo.name}:`, e);
+          // Silently handle errors in audit
         }
       }
 
@@ -736,7 +734,6 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
     }
 
     if (action === 'delete_orphan_provider_members') {
-      if (!window.confirm(`Tem certeza que deseja deletar ${records.length} registros órfãos de terceirizados em PGs?`)) return;
       setIsAuditing(true);
       try {
         let deletedCount = 0;

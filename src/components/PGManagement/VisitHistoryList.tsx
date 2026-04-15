@@ -2,6 +2,7 @@
 import React from 'react';
 import { VisitRequest, User, UserRole } from '../../types';
 import { useApp } from '../../hooks/useApp';
+import { ensureISODate } from '../../utils/formatters';
 
 interface VisitHistoryListProps {
   requests: VisitRequest[];
@@ -56,8 +57,8 @@ const VisitHistoryList: React.FC<VisitHistoryListProps> = ({
                 <span className="block text-[10px] font-black text-slate-600 uppercase tracking-tight">
                   {(() => {
                     try {
-                      const datePart = req.date.split('T')[0];
-                      const [year, month, day] = datePart.split('-').map(Number);
+                      const iso = ensureISODate(req.date);
+                      const [year, month, day] = iso.split('-').map(Number);
                       const d = new Date(year, month - 1, day);
                       return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }).replace('.', '').toUpperCase();
                     } catch { return req.date; }

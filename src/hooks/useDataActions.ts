@@ -6,17 +6,11 @@ import { toCamel } from '../utils/transformers';
 
 export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val: boolean) => void, setIsConnected: (val: boolean) => void, applySystemOverrides: (config: any) => void) => {
   
-  const loadFromCloud = useCallback(async (showLoader = false) => {
+  const loadFromCloud = useCallback(async (showLoader = false, forceRefresh = false) => {
     if (showLoader) setIsSyncing(true);
     try {
-      const data = await DataRepository.syncAll();
+      const data = await DataRepository.syncAll(forceRefresh);
       if (data) {
-        console.log('📦 Dados carregados do Cloud:', {
-          smallGroups: data.smallGroups?.length || 0,
-          bibleStudies: data.bibleStudies?.length || 0,
-          bibleClasses: data.bibleClasses?.length || 0,
-          staffVisits: data.staffVisits?.length || 0
-        });
         Object.entries(data).forEach(([key, val]) => {
           if (setters[key]) {
             setters[key](val);
@@ -34,10 +28,10 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
     }
   }, [setters, setIsSyncing, setIsConnected, applySystemOverrides]);
 
-  const refreshData = useCallback(async () => {
+  const refreshData = useCallback(async (forceRefresh = true) => {
     setIsSyncing(true);
     try {
-      const data = await DataRepository.syncAll();
+      const data = await DataRepository.syncAll(forceRefresh);
       if (data) {
         setters.bibleStudies(data.bibleStudies);
         setters.bibleClasses(data.bibleClasses);
@@ -55,7 +49,6 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
       }
       return { success: true };
     } catch (err) {
-      console.error("Erro ao recarregar dados:", err);
       return { success: false, error: err };
     } finally {
       setIsSyncing(false);

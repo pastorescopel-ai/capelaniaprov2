@@ -171,17 +171,14 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
       
       if (!data.id) data.createdAt = nowISO;
 
-      console.log("[DEBUG] Salvando Relatório Diário:", data);
       const result = await saveRecord('dailyActivityReports', data);
       
       if (result) {
         showToast("Relatório salvo com sucesso!", "success");
       } else {
-        console.error("[DEBUG] Falha ao salvar relatório no Supabase (saveRecord retornou false)");
         showToast("Erro ao salvar relatório no banco de dados.", "warning");
       }
     } catch (error) {
-      console.error("[DEBUG] Erro na função handleSave:", error);
       showToast("Erro ao salvar relatório.", "warning");
     } finally {
       setIsSaving(false);

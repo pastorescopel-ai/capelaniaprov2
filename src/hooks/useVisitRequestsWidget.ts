@@ -40,12 +40,11 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       });
 
       if (ghostRequests.length > 0) {
-        console.log(`[Auto-Sync] Sincronizando ${ghostRequests.length} agendamentos já realizados.`);
         for (const req of ghostRequests) {
           try {
             await saveRecord('visitRequests', { ...req, status: 'confirmed', isRead: true });
           } catch (err) {
-            console.error("Erro na auto-confirmação:", err);
+            // Silently handle auto-sync errors
           }
         }
       }
@@ -148,8 +147,8 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
 
   const formatDate = (dateInput: string | Date) => {
     try {
-      const datePart = typeof dateInput === 'string' ? dateInput.split('T')[0] : dateInput.toISOString().split('T')[0];
-      const [year, month, day] = datePart.split('-').map(Number);
+      const iso = ensureISODate(dateInput);
+      const [year, month, day] = iso.split('-').map(Number);
       const d = new Date(year, month - 1, day);
       
       return d.toLocaleDateString('pt-BR', { 

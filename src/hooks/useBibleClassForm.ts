@@ -19,7 +19,7 @@ interface UseBibleClassFormProps {
 export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit }: UseBibleClassFormProps) => {
   const { proStaff, proPatients, proProviders, proSectors, syncMasterContact, editAuthorizations } = useApp();
   const { showToast } = useToast();
-  const { checkOwnershipConflict } = useIdentityGuard();
+  const { checkOwnershipConflict, checkIdentityConflict } = useIdentityGuard();
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
@@ -32,6 +32,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   const [newStudent, setNewStudent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ownershipConflict, setOwnershipConflict] = useState<{show: boolean, message: string}>({show: false, message: ''});
+
+  const identityConflict = useMemo(() => {
+    return checkIdentityConflict(newStudent, formData.participantType, unit);
+  }, [newStudent, formData.participantType, unit, checkIdentityConflict]);
 
   const lastClassStudents = useMemo(() => {
     if (!formData.sector || !unit) return [];
@@ -318,6 +322,12 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
       // CROSS-VALIDATION: Se for Colaborador mas selecionado em outra aba (Ponto 2)
       const isStaffInRH = proStaff.some(s => normalizeString(s.name) === normName && s.unit === unit);
+
+      if (formData.participantType === ParticipantType.STAFF && !isStaffInRH) {
+          showToast("Para colaboradores, o nome deve ser selecionado da lista oficial do RH.", "error");
+          return;
+      }
+
       if (isStaffInRH && formData.participantType !== ParticipantType.STAFF) {
           showToast(`${nameToAdd} consta na lista de colaboradores. Por favor, mude o tipo para colaborador ou peça ao capelão para alterar.`, "warning");
       }
@@ -479,6 +489,12 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     if (formData.participantType === ParticipantType.STAFF) {
         if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
         
+        const isOfficialSector = proSectors.some(s => s.name === formData.sector && s.unit === unit);
+        if (!isOfficialSector) {
+            showToast("Para colaboradores, o setor deve ser selecionado da lista oficial.", "error");
+            return;
+        }
+
         // PONTO 1: Validar que todos os alunos são colaboradores oficiais
         const nonStaff = formData.students.filter(studentStr => {
             const nameOnly = studentStr.split(' (')[0].trim();
@@ -568,6 +584,6 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         showToast(`Continuando classe de ${baseItem.sector}`, "info");
     },
     defaultState,
-    ownershipConflict, setOwnershipConflict
+    ownershipConflict, setOwnershipConflict, identityConflict
   };
 };

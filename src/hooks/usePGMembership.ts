@@ -142,32 +142,31 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
         }
       }
 
-      // 2. MOVIMENTAÇÃO: Verificar se já existe matrícula ativa
-      const activeMembership = membersList.find(m => cleanId((m as any)[idField]) === cleanId(personId) && !m.leftAt);
+      // 2. MOVIMENTAÇÃO: Verificar se já existe matrícula ativa (Pode haver mais de uma por erro)
+      const activeMemberships = membersList.filter(m => cleanId((m as any)[idField]) === cleanId(personId) && !m.leftAt);
 
-      if (activeMembership) {
-        if (activeMembership.cycleMonth === selectedMonth) {
-          // MESMO MÊS: Apenas atualiza o PG (Ajuste Direto)
-          const update = { ...activeMembership, groupId: currentPG.id, joinedAt: firstDayMs };
-          const success = await saveRecord(collection, [update]);
-          if (success) showToast("Matrícula atualizada!", "success");
-        } else {
-          // MÊS DIFERENTE: Encerra o antigo (Histórico) e cria novo
-          const { lastDayMs: oldLastDay } = getCycleDates(activeMembership.cycleMonth);
-          
-          const closeOld = { ...activeMembership, leftAt: oldLastDay };
-          const createNew: any = {
-            groupId: currentPG.id,
-            [idField]: personId,
-            joinedAt: firstDayMs,
-            cycleMonth: selectedMonth,
-            leftAt: null,
-            isError: false
-          };
-          
-          const success = await saveRecord(collection, [closeOld, createNew]);
-          if (success) showToast("Nova matrícula com histórico preservado!", "success");
-        }
+      if (activeMemberships.length > 0) {
+        const { lastDayMs: oldLastDay } = getCycleDates(selectedMonth);
+        const updates: any[] = [];
+
+        // Encerra TODAS as matrículas ativas anteriores para evitar duplicidade
+        activeMemberships.forEach(m => {
+          updates.push({ ...m, leftAt: oldLastDay });
+        });
+
+        // Cria a nova matrícula no grupo atual
+        updates.push({
+          groupId: currentPG.id,
+          [idField]: personId,
+          joinedAt: firstDayMs,
+          cycleMonth: selectedMonth,
+          leftAt: null,
+          isError: false
+        });
+
+        const success = await saveRecord(collection, updates);
+        if (success) showToast("Matrícula atualizada e duplicidades encerradas!", "success");
+        
         if (type === 'provider') setProviderSearch('');
       } else {
         // 3. NOVA MATRÍCULA: Sem histórico prévio

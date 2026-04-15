@@ -45,17 +45,8 @@ const ActivityReports: React.FC = () => {
         (selectedUser ? String(r.userId) === String(selectedUser) : isOperational);
     });
 
-    console.log('DEBUG [ActivityReports]:', {
-      unit: selectedUnit,
-      range: `${startDate} to ${endDate}`,
-      selectedUser: selectedUser || 'ALL',
-      totalReports: dailyActivityReports.length,
-      filteredCount: filtered.length,
-      operationalUsers: chaplains.length
-    });
-
     return filtered;
-  }, [dailyActivityReports, selectedUnit, startDate, endDate, selectedUser, users, chaplains]);
+  }, [dailyActivityReports, selectedUnit, startDate, endDate, selectedUser, users]);
 
   const stats = useMemo(() => {
     const initial = {

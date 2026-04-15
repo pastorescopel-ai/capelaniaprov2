@@ -33,7 +33,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     guideOptions, sectorOptions, studentOptions,
     editAuthorizations,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
-    handleContinueStudy, ownershipConflict, setOwnershipConflict
+    handleContinueStudy, ownershipConflict, setOwnershipConflict, identityConflict
   } = useBibleStudyForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
@@ -116,7 +116,16 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           )}
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
           
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do {formData.participantType}</label><Autocomplete options={studentOptions} value={formData.name} onChange={handleChangeName} onSelectOption={handleSelectStudent} placeholder="Buscar..." isStrict={false} /></div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do {formData.participantType}</label><Autocomplete options={studentOptions} value={formData.name} onChange={handleChangeName} onSelectOption={handleSelectStudent} placeholder="Buscar..." isStrict={false} />
+            {identityConflict.hasConflict && identityConflict.isWarning && (
+              <div className="mt-2 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-1 duration-300">
+                <i className="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
+                <p className="text-[10px] font-bold text-amber-700 leading-tight uppercase tracking-tight">
+                  {identityConflict.message}
+                </p>
+              </div>
+            )}
+          </div>
           
           <div className="space-y-1">
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>{isStaff ? 'Setor (Obrigatório)' : 'Local (Opcional)'}</label>

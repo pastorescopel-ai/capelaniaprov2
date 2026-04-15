@@ -160,8 +160,6 @@ const ActivityScheduler: React.FC = () => {
       return;
     }
 
-    if (!window.confirm(`Deseja copiar ${schedulesToCopy.length} agendamentos para ${formatMonthLabel(targetMonth)}?`)) return;
-
     setIsSaving(true);
     try {
       const newSchedules = schedulesToCopy.map(s => ({

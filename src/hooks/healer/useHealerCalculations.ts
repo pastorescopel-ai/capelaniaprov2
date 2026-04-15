@@ -30,7 +30,8 @@ export const useHealerCalculations = (
                 const { data, error } = await supabase
                     .from('bible_class_attendees')
                     .select('student_name, class_id')
-                    .is('staff_id', null);
+                    .is('staff_id', null)
+                    .is('participant_id', null);
                 
                 if (error) throw error;
 
@@ -69,7 +70,7 @@ export const useHealerCalculations = (
       const orphanMap = new Map<string, { count: number, unit: string, participantType: string }>();
       
       bibleStudies.forEach((s: any) => {
-          if (!s.staffId && !s.sectorId) {
+          if (!s.staffId && !s.participantId && !s.sectorId) {
               // Se for Prestador ou Paciente, não é anomalia de estudo
               if (s.participantType === ParticipantType.PROVIDER || s.participantType === ParticipantType.PATIENT) return;
 
@@ -304,21 +305,24 @@ export const useHealerCalculations = (
 
   // --- PGS DUPLICADOS ---
   const duplicatePGs = useMemo(() => {
-    const duplicates: { name: string, unit: string, groups: any[] }[] = [];
+    const duplicates: { name: string, unit: string, month: string, groups: any[] }[] = [];
 
     ['HAB', 'HABA'].forEach(unit => {
       const unitGroups = proGroups.filter((g: any) => g.unit === unit && g.active !== false);
-      const nameMap = new Map<string, any[]>();
+      const groupMap = new Map<string, any[]>();
       
       unitGroups.forEach((g: any) => {
         const norm = normalizeString(g.name);
-        if (!nameMap.has(norm)) nameMap.set(norm, []);
-        nameMap.get(norm)!.push(g);
+        const month = g.cycleMonth || 'Sem Mês';
+        const key = `${norm}_${month}`;
+        if (!groupMap.has(key)) groupMap.set(key, []);
+        groupMap.get(key)!.push(g);
       });
 
-      nameMap.forEach((list) => {
+      groupMap.forEach((list, key) => {
         if (list.length > 1) {
-          duplicates.push({ name: list[0].name, unit: unit, groups: list });
+          const month = key.split('_')[1];
+          duplicates.push({ name: list[0].name, unit: unit, month: month, groups: list });
         }
       });
     });
@@ -328,23 +332,27 @@ export const useHealerCalculations = (
 
   // --- MATRÍCULAS DUPLICADAS ---
   const duplicateMemberships = useMemo(() => {
-    const duplicates: { personName: string, personId: string, type: 'staff' | 'provider', memberships: any[] }[] = [];
+    const duplicates: { personName: string, personId: string, month: string, type: 'staff' | 'provider', memberships: any[] }[] = [];
     
     // 1. CLT
     const staffMap = new Map<string, any[]>();
     (appData.proGroupMembers || []).forEach((m: any) => {
       if (m.leftAt || m.isError) return;
       const sid = String(m.staffId);
-      if (!staffMap.has(sid)) staffMap.set(sid, []);
-      staffMap.get(sid)!.push(m);
+      const month = m.cycleMonth || 'Sem Mês';
+      const key = `${sid}_${month}`;
+      if (!staffMap.has(key)) staffMap.set(key, []);
+      staffMap.get(key)!.push(m);
     });
 
-    staffMap.forEach((list, sid) => {
+    staffMap.forEach((list, key) => {
       if (list.length > 1) {
+        const [sid, month] = key.split('_');
         const person = proStaff.find((s: any) => String(s.id) === sid);
         duplicates.push({
           personName: person?.name || `ID: ${sid}`,
           personId: sid,
+          month: month,
           type: 'staff',
           memberships: list
         });
@@ -356,16 +364,20 @@ export const useHealerCalculations = (
     (appData.proGroupProviderMembers || []).forEach((m: any) => {
       if (m.leftAt || m.isError) return;
       const pid = String(m.providerId);
-      if (!providerMap.has(pid)) providerMap.set(pid, []);
-      providerMap.get(pid)!.push(m);
+      const month = m.cycleMonth || 'Sem Mês';
+      const key = `${pid}_${month}`;
+      if (!providerMap.has(key)) providerMap.set(key, []);
+      providerMap.get(key)!.push(m);
     });
 
-    providerMap.forEach((list, pid) => {
+    providerMap.forEach((list, key) => {
       if (list.length > 1) {
+        const [pid, month] = key.split('_');
         const person = proProviders.find((p: any) => String(p.id) === pid);
         duplicates.push({
           personName: person?.name || `ID: ${pid}`,
           personId: pid,
+          month: month,
           type: 'provider',
           memberships: list
         });

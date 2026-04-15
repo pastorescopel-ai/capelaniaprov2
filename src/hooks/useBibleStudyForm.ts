@@ -33,6 +33,10 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ownershipConflict, setOwnershipConflict] = useState<{show: boolean, message: string}>({show: false, message: ''});
 
+  const identityConflict = useMemo(() => {
+    return checkIdentityConflict(formData.name, formData.participantType, unit);
+  }, [formData.name, formData.participantType, unit, checkIdentityConflict]);
+
   useEffect(() => {
     if (!editingItem) {
       setFormData(prev => ({ ...defaultState, userId: currentUser.id, date: prev.date || getToday() }));
@@ -287,8 +291,8 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     }
 
     const conflict = checkIdentityConflict(formData.name, formData.participantType, unit);
-    if (conflict.hasConflict) {
-        showToast(conflict.message, "warning");
+    if (conflict.hasConflict && !conflict.isWarning) {
+        showToast(conflict.message, "error");
         return;
     }
 
@@ -324,6 +328,13 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
             showToast("Para colaboradores, o nome deve ser selecionado da lista oficial do RH.", "error");
             return;
         }
+
+        const isOfficialSector = proSectors.some(s => s.name === formData.sector && s.unit === unit);
+        if (!isOfficialSector) {
+            showToast("Para colaboradores, o setor deve ser selecionado da lista oficial.", "error");
+            return;
+        }
+
         if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
     } else {
         if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast(`O WhatsApp é obrigatório para ${formData.participantType}.`, "warning"); return; }
@@ -390,6 +401,6 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         showToast(`Continuando estudo de ${baseItem.name}`, "info");
     },
     defaultState,
-    ownershipConflict, setOwnershipConflict
+    ownershipConflict, setOwnershipConflict, identityConflict
   };
 };

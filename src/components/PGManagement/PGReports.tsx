@@ -67,7 +67,6 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
     const startTimestamp = new Date(startDate + 'T00:00:00').getTime();
     const endTimestamp = new Date(endDate + 'T23:59:59').getTime();
     const sDate = new Date(startDate + 'T12:00:00');
-    console.log(`[DEBUG] PGReports - startDate: ${startDate}, endDate: ${endDate}, sDate: ${sDate}`);
 
     // Dicionários para buscas O(1)
     const groupsById = new Map(proGroups.map(g => [cleanID(g.id), g]));
@@ -75,10 +74,8 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
 
     // 0. Verificar se existe histórico para o mês selecionado (Snapshot de Fechamento)
     const monthStr = new Date(sDate.getFullYear(), sDate.getMonth(), 1).toISOString().split('T')[0];
-    console.log(`[DEBUG] PGReports - monthStr: ${monthStr}`);
     const isClosed = config.activeCompetenceMonth && monthStr < config.activeCompetenceMonth;
     const historyForMonth = proHistoryRecords.filter(r => r.month === monthStr && r.unit === unit);
-    console.log(`[DEBUG] PGReports - historyForMonth.length: ${historyForMonth.length}`);
 
     let data = [];
 

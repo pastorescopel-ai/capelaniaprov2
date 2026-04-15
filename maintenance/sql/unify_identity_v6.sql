@@ -59,16 +59,18 @@ BEGIN
 
     -- 4. VINCULAÇÃO EM CLASSES
     UPDATE bible_class_attendees
-    SET staff_id = target_id,
+    SET staff_id = CASE WHEN target_type = 'Colaborador' THEN target_id ELSE NULL END,
+        participant_id = CASE WHEN target_type IN ('Paciente', 'Prestador') THEN target_id ELSE NULL END,
         student_name = official_name
     WHERE lower(regexp_replace(student_name, '[^a-zA-Z0-9]', '', 'g')) = clean_orphan
-    AND staff_id IS NULL;
+    AND (staff_id IS NULL AND participant_id IS NULL);
     GET DIAGNOSTICS updated_classes = ROW_COUNT;
 
-    -- 5. VINCULAÇÃO EM ESTUDOS BÍBLICOS (bible_studies)
-    UPDATE bible_studies
+    -- 5. VINCULAÇÃO EM ESTUDOS BÍBLICOS (bible_study_sessions)
+    UPDATE bible_study_sessions
     SET name = official_name,
-        staff_id = target_id,
+        staff_id = CASE WHEN target_type = 'Colaborador' THEN target_id ELSE NULL END,
+        participant_id = CASE WHEN target_type IN ('Paciente', 'Prestador') THEN target_id ELSE NULL END,
         sector_id = COALESCE(official_sector_id, sector_id),
         participant_type = target_type
     WHERE lower(regexp_replace(name, '[^a-zA-Z0-9]', '', 'g')) = clean_orphan
