@@ -188,6 +188,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
                       </div>
                       <p className="text-xs text-slate-800 font-bold leading-tight mb-1 truncate">Líder: {req.leaderName}</p>
                       <p className="text-[9px] text-slate-500 font-medium italic">{sectorName ? `Setor: ${sectorName}` : 'Setor Externo'}</p>
+                      {req.notes && (
+                          <p className="text-[9px] font-black text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg uppercase tracking-tighter border border-rose-100 inline-block mt-1">
+                              <i className="fas fa-map-marker-alt mr-1"></i> {req.notes}
+                          </p>
+                      )}
                       <div className="flex items-center justify-between mt-2"><span className="text-[9px] font-medium text-slate-400">{formatDate(req.date)}</span>{!req.isRead && <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>}</div>
                     </div>
                   </div>

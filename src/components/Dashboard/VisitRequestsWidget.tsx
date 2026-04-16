@@ -72,9 +72,14 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
                 </div>
                 <div>
                   <h4 className="font-black text-slate-800 text-sm leading-tight mb-1">{req.pgName}</h4>
-                  <p className="text-[9px] text-blue-600 font-bold uppercase flex items-center gap-1 mb-3">
-                    <i className="fas fa-map-marker-alt"></i> {sector}
+                  <p className="text-[9px] text-blue-600 font-bold uppercase flex items-center gap-1 mb-1">
+                    <i className="fas fa-building"></i> {sector}
                   </p>
+                  {req.notes && (
+                    <p className="text-[9px] text-rose-700 font-black uppercase flex items-center gap-1 mb-3 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100">
+                        <i className="fas fa-map-marker-alt"></i> {req.notes}
+                    </p>
+                  )}
                   
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-100">

@@ -43,14 +43,22 @@ const VisitHistoryList: React.FC<VisitHistoryListProps> = ({
               <div className="flex items-center gap-2 mb-1">
                 <span className={`w-2 h-2 rounded-full ${req.status === 'assigned' ? 'bg-blue-500' : 'bg-amber-500'}`}></span>
                 <h4 className="font-bold text-slate-800 text-sm uppercase truncate">{req.pgName}</h4>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 {req.meetingLocation && (
-                  <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-tighter">
-                    <i className="fas fa-map-marker-alt mr-1"></i>
+                  <span className="text-[9px] font-black text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                    <i className="fas fa-building mr-1"></i>
                     {req.meetingLocation}
                   </span>
                 )}
+                {req.notes && (
+                  <span className="text-[9px] font-black text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full uppercase tracking-tighter border border-rose-100 mt-2 block">
+                    <i className="fas fa-map-marker-alt mr-1"></i>
+                    {req.notes}
+                  </span>
+                )}
               </div>
-              <p className="text-[10px] text-slate-500 font-bold uppercase truncate">Designado: {chaplain?.name || 'Aguardando'}</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase truncate mt-1">Designado: {chaplain?.name || 'Aguardando'}</p>
             </div>
             <div className="text-right flex items-center gap-4 flex-shrink-0 ml-4">
               <div>
