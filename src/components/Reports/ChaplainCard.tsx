@@ -42,7 +42,7 @@ const ChaplainCard: React.FC<ChaplainCardProps> = ({ stat }) => {
   );
 
   return (
-    <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col space-y-6 hover:border-blue-300 transition-all group">
+    <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col space-y-6 hover:border-blue-300 transition-all group overflow-hidden">
       <div className="flex items-center gap-4">
         <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-blue-600 font-black text-2xl group-hover:scale-110 transition-transform">
           {stat.name[0]}

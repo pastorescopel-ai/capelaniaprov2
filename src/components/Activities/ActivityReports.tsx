@@ -100,28 +100,69 @@ const ActivityReports: React.FC = () => {
       return;
     }
 
-    const chaplain = selectedUser ? users.find(u => u.id === selectedUser) : { name: 'Relatório Consolidado' } as any;
+    // Group data by chaplain for detailed report
+    const chaplainData = chaplains.map(c => {
+      const userReports = filteredReports.filter(r => String(r.userId) === String(c.id));
+      if (userReports.length === 0) return null;
 
-    const visitDetails = [
-      { label: 'Paliativos', value: stats.palliativeCount },
-      { label: 'Cirúrgicos', value: stats.surgicalCount },
-      { label: 'Pediátricos', value: stats.pediatricCount },
-      { label: 'UTI', value: stats.utiCount },
-      { label: 'Terminal', value: stats.terminalCount },
-      { label: 'Clínico', value: stats.clinicalCount }
-    ];
+      const chaplainStats = userReports.reduce((acc, r) => {
+        acc.palliative += Number(r.palliativeCount || 0);
+        acc.surgical += Number(r.surgicalCount || 0);
+        acc.pediatric += Number(r.pediatricCount || 0);
+        acc.uti += Number(r.utiCount || 0);
+        acc.terminal += Number(r.terminalCount || 0);
+        acc.clinical += Number(r.clinicalCount || 0);
+        
+        r.completedBlueprints?.forEach(loc => acc.locations.add(loc.split(':')[0]));
+        r.completedCults?.forEach(id => {
+          const sectorName = proSectors.find(s => s.id === id.split(':')[0])?.name || 'Setor';
+          acc.locations.add(sectorName);
+        });
+        if (r.completedEncontro) acc.locations.add('Encontro HAB');
+        if (r.completedVisiteCantando) acc.locations.add('Visite Cantando');
+
+        acc.totalActivities += (r.completedBlueprints?.length || 0) + 
+                              (r.completedCults?.length || 0) + 
+                              (r.completedEncontro ? 1 : 0) + 
+                              (r.completedVisiteCantando ? 1 : 0);
+
+        return acc;
+      }, { 
+        palliative: 0, surgical: 0, pediatric: 0, uti: 0, terminal: 0, clinical: 0, 
+        locations: new Set<string>(), totalActivities: 0 
+      });
+
+      return {
+        name: c.name,
+        totalVisits: chaplainStats.palliative + chaplainStats.surgical + chaplainStats.pediatric + 
+                    chaplainStats.uti + chaplainStats.terminal + chaplainStats.clinical,
+        visits: [
+          { label: 'Paliativos', value: chaplainStats.palliative },
+          { label: 'Cirúrgicos', value: chaplainStats.surgical },
+          { label: 'Pediátricos', value: chaplainStats.pediatric },
+          { label: 'UTI', value: chaplainStats.uti },
+          { label: 'Terminal', value: chaplainStats.terminal },
+          { label: 'Clínico', value: chaplainStats.clinical }
+        ],
+        locations: Array.from(chaplainStats.locations),
+        totalActivities: chaplainStats.totalActivities
+      };
+    }).filter(Boolean);
+
+    const periodLabel = startDate === endDate ? startDate : `${startDate} a ${endDate}`;
 
     try {
       const html = generateActivityReportHTML(
         config,
-        startDate === endDate ? startDate : `${startDate} a ${endDate}`,
-        chaplain,
+        periodLabel,
+        selectedUser ? users.find(u => u.id === selectedUser) : null,
         stats,
-        visitDetails
+        chaplainData
       );
       await generatePdf(html);
       showToast("Relatório exportado com sucesso!", "success");
     } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
       showToast("Erro ao gerar PDF do relatório.", "warning");
     }
   };
@@ -325,7 +366,7 @@ const ActivityReports: React.FC = () => {
 
                 <div className="p-6 space-y-6 flex-1">
                   {/* Visitas Grid */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <div className="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
                       <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Paliativos</p>
                       <p className="text-sm font-black text-indigo-900">{report.palliativeCount || 0}</p>
@@ -341,6 +382,14 @@ const ActivityReports: React.FC = () => {
                     <div className="p-3 bg-rose-50/50 rounded-2xl border border-rose-100/50">
                       <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest mb-1">UTI</p>
                       <p className="text-sm font-black text-rose-900">{report.utiCount || 0}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50/50 rounded-2xl border border-slate-100/50">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Terminal</p>
+                      <p className="text-sm font-black text-slate-900">{report.terminalCount || 0}</p>
+                    </div>
+                    <div className="p-3 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+                      <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">Clínico</p>
+                      <p className="text-sm font-black text-blue-900">{report.clinicalCount || 0}</p>
                     </div>
                   </div>
 

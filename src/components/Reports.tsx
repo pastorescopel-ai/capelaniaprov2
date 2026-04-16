@@ -49,7 +49,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           />
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 p-6 bg-slate-50 rounded-[2.5rem]">
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Início</label><input type="date" value={filters.startDate} onChange={e => setFilters({...filters, startDate: e.target.value})} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Fim</label><input type="date" value={filters.endDate} onChange={e => setFilters({...filters, endDate: e.target.value})} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Capelão</label><select value={filters.selectedChaplain} onChange={e => setFilters({...filters, selectedChaplain: e.target.value})} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm"><option value="all">Todos</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
