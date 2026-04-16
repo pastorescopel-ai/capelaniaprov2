@@ -89,9 +89,9 @@ const VisitHistoryList: React.FC<VisitHistoryListProps> = ({
                     <i className="fas fa-edit text-xs"></i>
                   </button>
                   <button 
-                    onClick={() => onDelete(req.id)}
+                    onClick={() => onDelete(req)}
                     className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all shadow-sm"
-                    title="Excluir Agendamento"
+                    title="Cancelar Agendamento"
                   >
                     <i className="fas fa-trash-alt text-xs"></i>
                   </button>

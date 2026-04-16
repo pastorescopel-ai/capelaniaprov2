@@ -67,7 +67,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
 
   const myRequests = useMemo(() => {
     return requests.filter(req => {
-      if (req.status === 'confirmed' || req.status === 'declined') return false;
+      if (req.status === 'confirmed' || req.status === 'declined' || req.status === 'cancelled') return false;
       
       // Filtro Visual Imediato: Se já existe registro no histórico, oculta do Dashboard
       const reqDate = ensureISODate(req.date);
@@ -131,15 +131,15 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     }
   };
 
-  const handleDeleteRequest = async (id: string) => {
+  const handleDeleteRequest = async (req: VisitRequest) => {
     setIsProcessing(true);
     try {
-      await deleteRecord('visitRequests', id);
-      showToast('Agendamento removido com sucesso.', 'success');
+      await saveRecord('visitRequests', { ...req, status: 'cancelled' });
+      showToast('Agendamento cancelado com sucesso.', 'success');
       setSelectedRequest(null);
       setActionType(null);
     } catch (e) {
-      showToast('Erro ao remover agendamento.', 'error');
+      showToast('Erro ao cancelar agendamento.', 'error');
     } finally {
       setIsProcessing(false);
     }

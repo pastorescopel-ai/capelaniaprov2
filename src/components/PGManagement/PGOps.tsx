@@ -36,7 +36,7 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
   
   const activeRequests = useMemo(() => {
     return visitRequests
-        .filter(r => r.unit === unit && r.status !== 'confirmed' && r.status !== 'declined')
+        .filter(r => r.unit === unit && r.status !== 'confirmed' && r.status !== 'declined' && r.status !== 'cancelled')
         .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [visitRequests, unit]);
 
@@ -71,11 +71,11 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
         
         <ConfirmationModal 
             isOpen={!!inviteToDelete}
-            title="Excluir Agendamento?"
-            message="Esta ação removerá o agendamento da lista do capelão designado. Deseja continuar?"
-            confirmLabel="Sim, Excluir"
+            title="Cancelar Agendamento?"
+            message="Esta ação cancelará o agendamento da lista do capelão designado. Deseja continuar?"
+            confirmLabel="Sim, Cancelar"
             variant="danger"
-            onConfirm={() => inviteToDelete && handleDeleteVisit(inviteToDelete)}
+            onConfirm={() => inviteToDelete && handleDeleteVisit(inviteToDelete.id, inviteToDelete)}
             onCancel={() => setInviteToDelete(null)}
         />
 

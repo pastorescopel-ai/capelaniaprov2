@@ -1,11 +1,13 @@
 import { supabase } from './supabaseClient';
 import { TABLE_SCHEMAS, toCamel, cleanAndConvertToSnake, isValidUUID, COLLECTION_TO_TABLE } from '../utils/transformers';
 
-const CACHE_KEY = 'capelania_pro_config_id';
-const DATA_CACHE_KEY = 'capelania_pro_config_data';
+const CONFIG_CACHE_KEY = 'capelania_pro_config_id';
+const CONFIG_DATA_CACHE_KEY = 'capelania_pro_config_data';
+export const SYNC_DATA_CACHE_KEY = 'app_data_cache';
+export const SYNC_LAST_SYNC_KEY = 'last_sync_timestamp';
 
 const GLOBAL_ID_CACHE: Record<string, string> = {
-  app_config: typeof window !== 'undefined' ? localStorage.getItem(CACHE_KEY) || '' : ''
+  app_config: typeof window !== 'undefined' ? localStorage.getItem(CONFIG_CACHE_KEY) || '' : ''
 };
 
 const handleSupabaseError = (error: any, context: string) => {
@@ -55,13 +57,11 @@ export const DataRepository = {
   async syncAll(forceRefresh = false) {
     if (!supabase) return null;
     
-    const CACHE_KEY = 'app_data_cache';
-    const LAST_SYNC_KEY = 'last_sync_timestamp';
-    const lastSync = localStorage.getItem(LAST_SYNC_KEY);
+    const lastSync = localStorage.getItem(SYNC_LAST_SYNC_KEY);
     
     // Se sincronizou há menos de 1 minuto, retorna cache (evita spam de requests)
     if (!forceRefresh && lastSync && Date.now() - parseInt(lastSync) < 60000) {
-        const cached = localStorage.getItem(CACHE_KEY);
+        const cached = localStorage.getItem(SYNC_DATA_CACHE_KEY);
         if (cached) return JSON.parse(cached);
     }
 
@@ -107,7 +107,7 @@ export const DataRepository = {
       const tableResults = results.slice(0, results.length - 1);
 
       // Carregar cache anterior para o Delta Sync
-      const previousCache = lastSync ? JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') : {};
+      const previousCache = lastSync ? JSON.parse(localStorage.getItem(SYNC_DATA_CACHE_KEY) || '{}') : {};
       const newResult: any = { ...previousCache };
 
       // Processar resultados das tabelas
@@ -143,8 +143,8 @@ export const DataRepository = {
         const configId = configData.id;
         GLOBAL_ID_CACHE['app_config'] = configId;
         if (typeof window !== 'undefined') {
-          localStorage.setItem(CACHE_KEY, configId);
-          localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(configData));
+          localStorage.setItem(CONFIG_CACHE_KEY, configId);
+          localStorage.setItem(CONFIG_DATA_CACHE_KEY, JSON.stringify(configData));
         }
       }
 
@@ -166,8 +166,8 @@ export const DataRepository = {
 
       newResult.bibleClasses = classes;
       
-      localStorage.setItem(CACHE_KEY, JSON.stringify(newResult));
-      localStorage.setItem(LAST_SYNC_KEY, Date.now().toString());
+      localStorage.setItem(SYNC_DATA_CACHE_KEY, JSON.stringify(newResult));
+      localStorage.setItem(SYNC_LAST_SYNC_KEY, Date.now().toString());
       
       return newResult;
     } catch (error) {
@@ -182,6 +182,8 @@ export const DataRepository = {
 
     const tableName = COLLECTION_TO_TABLE[collection];
     if (!tableName) return { success: false };
+    
+    console.log(`[DataRepository] Upserting to ${tableName}:`, items);
 
     // Garantir que temos IDs para todos os itens antes de converter para snake_case
     // Isso é vital para coleções que dependem do ID para salvar dados em tabelas relacionadas (ex: bibleClasses)
@@ -216,7 +218,7 @@ export const DataRepository = {
              if (data && data.length > 0) {
                chunk[0].id = data[0].id;
                GLOBAL_ID_CACHE[tableName] = data[0].id;
-               if (typeof window !== 'undefined') localStorage.setItem(CACHE_KEY, data[0].id);
+               if (typeof window !== 'undefined') localStorage.setItem(CONFIG_CACHE_KEY, data[0].id);
              }
            }
         }
@@ -225,12 +227,22 @@ export const DataRepository = {
         const { data, error } = await query.select();
         
         if (error) {
+          console.error(`[DataRepository] Erro detalhado do Supabase em ${tableName}:`, {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+            payload: chunk
+          });
           return false;
         }
         if (data) {
           allUpsertedData.push(...toCamel(data));
         }
       }
+      localStorage.removeItem(SYNC_LAST_SYNC_KEY);
+      localStorage.removeItem('app_data_cache');
+      localStorage.removeItem('last_sync_timestamp');
       return true;
     };
 
@@ -319,7 +331,7 @@ export const DataRepository = {
 
     if (collection === 'config' && allUpsertedData.length > 0) {
         if (typeof window !== 'undefined') {
-            localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(allUpsertedData[0]));
+            localStorage.setItem(CONFIG_DATA_CACHE_KEY, JSON.stringify(allUpsertedData[0]));
         }
     }
 
@@ -343,10 +355,21 @@ export const DataRepository = {
     const tableName = COLLECTION_TO_TABLE[collection];
     if (!tableName) return false;
     
+    console.log(`[DataRepository] Tentando deletar: collection=${collection}, tableName=${tableName}, id=${id}`);
+    
     // IDs numéricos (nas tabelas PRO) podem ser passados como string, o Postgres faz o cast na query
-    if (!tableName.startsWith('pro_') && !tableName.startsWith('visit_requests') && !isValidUUID(id)) return false;
+    if (!tableName.startsWith('pro_') && !tableName.startsWith('visit_requests') && !isValidUUID(id)) {
+        console.warn(`[DataRepository] ID inválido para deleção: ${id}`);
+        return false;
+    }
     
     const { error } = await supabase.from(tableName).delete().eq('id', id);
+    if (error) {
+        console.error(`[DataRepository] Erro no Supabase ao deletar:`, error);
+    } else {
+        localStorage.removeItem('app_data_cache');
+        localStorage.removeItem('last_sync_timestamp');
+    }
     return !error;
   },
 

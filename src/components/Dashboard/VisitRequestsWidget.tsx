@@ -163,23 +163,23 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
         <div className="fixed inset-0 z-[8000] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => { setSelectedRequest(null); setActionType(null); }} />
           <div className="relative bg-white w-full max-w-sm p-8 rounded-[2.5rem] shadow-2xl animate-in zoom-in duration-300">
-            <h4 className="text-lg font-black text-slate-800 mb-4 uppercase tracking-tight">Excluir Agendamento?</h4>
-            <p className="text-sm text-slate-500 font-medium mb-6">Esta ação removerá permanentemente a missão de {selectedRequest.pgName} da escala.</p>
+            <h4 className="text-lg font-black text-slate-800 mb-4 uppercase tracking-tight">Cancelar Agendamento?</h4>
+            <p className="text-sm text-slate-500 font-medium mb-6">Esta ação cancelará a missão de {selectedRequest.pgName} da escala.</p>
             <div className="flex gap-3">
               <Button 
                 variant="ghost"
                 onClick={() => { setSelectedRequest(null); setActionType(null); }} 
                 className="flex-1 py-4 text-[10px]"
               >
-                Cancelar
+                Voltar
               </Button>
               <Button 
                 variant="danger"
-                onClick={() => handleDeleteRequest(selectedRequest.id)} 
+                onClick={() => handleDeleteRequest(selectedRequest)} 
                 isLoading={isProcessing} 
                 className="flex-1 py-4 text-[10px]"
               >
-                Confirmar Exclusão
+                Confirmar Cancelamento
               </Button>
             </div>
           </div>
