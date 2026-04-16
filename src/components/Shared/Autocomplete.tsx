@@ -146,7 +146,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
 
                   <button 
                     type="button" 
-                    className={`w-full text-left p-3 transition-all rounded-xl flex items-center justify-between group mb-1 border-2 border-transparent
+                    className={`w-full text-left p-3 transition-all rounded-xl flex items-center justify-between group mb-1 border-2 border-transparent cursor-pointer
                       ${o.highlight
                         ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
                         : isOfficial 
