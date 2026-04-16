@@ -130,7 +130,7 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
                         </div>
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Local da Reunião (Texto Livre)</label>
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Local da Reunião (Texto Livre) *</label>
                         <div className="relative">
                             <i className="fas fa-map-marker-alt absolute left-4 top-1/2 -translate-y-1/2 text-blue-500"></i>
                             <input 
@@ -160,10 +160,6 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
                         <option value="">Selecione...</option>
                         {chaplains.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
-                </div>
-                <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Local da Reunião (Texto Livre) *</label>
-                    <input value={form.meetingLocation} onChange={e => form.setMeetingLocation(e.target.value)} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-medium text-sm text-slate-700 outline-none" placeholder="Ex: Refeitório Industrial..."/>
                 </div>
 
                 <div className="space-y-1">
