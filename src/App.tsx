@@ -12,6 +12,7 @@ import { useBible } from './contexts/BibleContext';
 import { usePro } from './contexts/ProContext';
 import { useAuth } from './contexts/AuthContext';
 import { useAppFlow } from './hooks/useAppFlow';
+import DebugConsole from './components/Shared/DebugConsole';
 
 import { ensureISODate } from './utils/formatters';
 
@@ -212,6 +213,7 @@ const App: React.FC = () => {
 
         </div>
       </ErrorBoundary>
+      <DebugConsole />
     </Layout>
   );
 };
