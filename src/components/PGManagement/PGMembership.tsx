@@ -11,7 +11,7 @@ interface PGMembershipProps {
   unit: Unit;
 }
 
-const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
+const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
   const {
     activeTab, setActiveTab,
     selectedSectorName, setSelectedSectorName,
@@ -327,8 +327,6 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
       />
     </div>
   );
-});
-
-PGMembership.displayName = 'PGMembership';
+};
 
 export default PGMembership;

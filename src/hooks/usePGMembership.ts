@@ -38,9 +38,22 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     return () => clearTimeout(handler);
   }, [providerSearch]);
 
-  const isMonthClosed = selectedMonth < (config.activeCompetenceMonth || '');
-  const isFutureMonth = selectedMonth > (config.activeCompetenceMonth || '');
-  const isOpenMonth = selectedMonth === (config.activeCompetenceMonth || '');
+  // Se activeCompetenceMonth não estiver definido, assume o mês atual como o limite para evitar que tudo fique aberto
+  const activeMonth = config.activeCompetenceMonth || new Date().toISOString().split('T')[0].substring(0, 7) + '-01';
+  
+  const isMonthClosed = selectedMonth < activeMonth;
+  const isFutureMonth = selectedMonth > activeMonth;
+  const isOpenMonth = selectedMonth === activeMonth;
+
+  useEffect(() => {
+    console.log('DEBUG [PGMembership]:', {
+      selectedMonth,
+      activeMonth: config.activeCompetenceMonth,
+      isMonthClosed,
+      isFutureMonth,
+      isOpenMonth
+    });
+  }, [selectedMonth, config.activeCompetenceMonth, isMonthClosed]);
 
   // --- ESTADOS OTIMISTAS (UI Instantânea) ---
   const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());
