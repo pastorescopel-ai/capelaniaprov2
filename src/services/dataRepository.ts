@@ -11,8 +11,16 @@ const GLOBAL_ID_CACHE: Record<string, string> = {
 };
 
 const handleSupabaseError = (error: any, context: string) => {
-  console.error(`[DataRepository] Erro em ${context}:`, error);
-  return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+  const errorMessage = error?.message || String(error);
+  const isNetworkError = errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError') || errorMessage.includes('ERR_NAME_NOT_RESOLVED');
+  
+  if (isNetworkError) {
+    // Aviso de rede no console para facilitar diagnóstico rápido
+    console.warn(`[Supabase] Offline/Network Error em ${context}: ${errorMessage}`);
+  } else {
+    console.error(`[DataRepository] Erro em ${context}:`, error);
+  }
+  return { data: null, error: error instanceof Error ? error : new Error(errorMessage) };
 };
 
 export const DataRepository = {
@@ -94,27 +102,47 @@ export const DataRepository = {
         { key: 'editAuthorizations', table: 'edit_authorizations' }
       ];
 
-      // Executa as queries em paralelo
-      const promises = syncMap.map(item => 
-        DataRepository.fetchFullTable(item.table, item.max || MAX_ROWS, lastSyncISO)
-      );
+      // Executa as queries em paralelo com tratamento de erro individual
+      const syncPromises = syncMap.map(async (item) => {
+        try {
+          const res = await DataRepository.fetchFullTable(item.table, item.max || MAX_ROWS, lastSyncISO);
+          return { key: item.key, data: res.data, error: res.error };
+        } catch (e) {
+          return { key: item.key, data: null, error: e };
+        }
+      });
       
-      // Adiciona app_config separadamente (sempre fetch full ou single)
-      promises.push(supabase.from('app_config').select('*').limit(1));
+      const configPromise = (async () => {
+        try {
+          return await supabase.from('app_config').select('*').limit(1);
+        } catch (e) {
+          return { data: null, error: e };
+        }
+      })();
 
-      const results = await Promise.all(promises);
-      const configRes = results[results.length - 1];
-      const tableResults = results.slice(0, results.length - 1);
+      const results = await Promise.all([...syncPromises, configPromise]);
+      const configRes = results[results.length - 1] as any;
+      const tableResults = results.slice(0, results.length - 1) as any[];
 
       // Carregar cache anterior para o Delta Sync
       const previousCache = lastSync ? JSON.parse(localStorage.getItem(SYNC_DATA_CACHE_KEY) || '{}') : {};
       const newResult: any = { ...previousCache };
 
       // Processar resultados das tabelas
-      tableResults.forEach((res, idx) => {
-        const { key } = syncMap[idx];
-        if (res && 'data' in res && res.data) {
-          const newData = toCamel(res.data);
+      tableResults.forEach((res) => {
+        const { key, data, error } = res;
+        
+        if (error) {
+          const isNetwork = String(error).includes('Failed to fetch') || (error as any)?.message?.includes('Failed to fetch');
+          if (isNetwork) {
+            console.warn(`[DataRepository] Falha de rede ao sincronizar ${key}. Usando cache.`);
+          } else {
+            console.error(`[DataRepository] Erro ao sincronizar ${key}:`, error);
+          }
+        }
+
+        if (data) {
+          const newData = toCamel(data);
           
           if (lastSyncISO && previousCache[key]) {
             // Delta Sync: Mesclar novos dados com o cache
@@ -132,7 +160,7 @@ export const DataRepository = {
             newResult[key] = newData;
           }
         } else if (!newResult[key]) {
-          newResult[key] = [];
+          newResult[key] = previousCache[key] || [];
         }
       });
 
@@ -227,13 +255,18 @@ export const DataRepository = {
         const { data, error } = await query.select();
         
         if (error) {
-          console.error(`[DataRepository] Erro detalhado do Supabase em ${tableName}:`, {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code,
-            payload: chunk
-          });
+          const isNetworkError = error?.message?.includes('Failed to fetch') || String(error).includes('Failed to fetch');
+          if (isNetworkError) {
+             console.warn(`[DataRepository] Erro de rede (Failed to fetch) em ${tableName}.`);
+          } else {
+             console.error(`[DataRepository] Erro detalhado do Supabase em ${tableName}:`, {
+               message: error.message,
+               details: error.details,
+               hint: error.hint,
+               code: error.code,
+               payload: chunk
+             });
+          }
           return false;
         }
         if (data) {
@@ -269,7 +302,7 @@ export const DataRepository = {
                     .eq('class_id', cls.id);
                 
                 if (fetchError) {
-                    console.error("Erro ao buscar participantes atuais:", fetchError);
+                    handleSupabaseError(fetchError, `upsertRecord(${collection}) - fetch attendees`);
                     continue;
                 }
 
@@ -288,7 +321,9 @@ export const DataRepository = {
                         .from('bible_class_attendees')
                         .delete()
                         .in('id', idsToRemove);
-                    if (delError) console.error("Erro ao remover participantes:", delError);
+                    if (delError) {
+                        handleSupabaseError(delError, `upsertRecord(${collection}) - delete attendees`);
+                    }
                 }
 
                 // 4. Adicionar os novos
@@ -323,7 +358,9 @@ export const DataRepository = {
 
                     const cleanPayload = attendeesPayload.map(p => cleanAndConvertToSnake(p, TABLE_SCHEMAS['bible_class_attendees'], 'bible_class_attendees'));
                     const { error: insError } = await supabase.from('bible_class_attendees').insert(cleanPayload);
-                    if (insError) console.error("Erro ao inserir novos participantes:", insError);
+                    if (insError) {
+                        handleSupabaseError(insError, `upsertRecord(${collection}) - insert attendees`);
+                    }
                 }
             }
         }
@@ -346,7 +383,12 @@ export const DataRepository = {
       .eq('email', email.toLowerCase().trim())
       .maybeSingle();
     
-    if (error || !data) return null;
+    if (error) {
+      handleSupabaseError(error, `getUserByEmail(${email})`);
+      return null;
+    }
+    
+    if (!data) return null;
     return toCamel(data);
   },
 
@@ -365,7 +407,7 @@ export const DataRepository = {
     
     const { error } = await supabase.from(tableName).delete().eq('id', id);
     if (error) {
-        console.error(`[DataRepository] Erro no Supabase ao deletar:`, error);
+        handleSupabaseError(error, `deleteRecord(${collection}, ${id})`);
     } else {
         localStorage.removeItem('app_data_cache');
         localStorage.removeItem('last_sync_timestamp');
@@ -391,7 +433,9 @@ export const DataRepository = {
     }
 
     const { error } = await query;
-    if (error) console.error(`Erro ao deletar registros filtrados em ${tableName}:`, error);
+    if (error) {
+      handleSupabaseError(error, `deleteRecordsByFilter(${collection})`);
+    }
     return !error;
   },
 

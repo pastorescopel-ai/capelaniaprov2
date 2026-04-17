@@ -1,7 +1,7 @@
 
 import { useCallback } from 'react';
-import { DataRepository } from '../services/dataRepository';
-import { supabase } from '../services/supabaseClient';
+import { DataRepository, SYNC_DATA_CACHE_KEY } from '../services/dataRepository';
+import { supabase, checkSupabaseConnection } from '../services/supabaseClient';
 import { toCamel } from '../utils/transformers';
 
 export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val: boolean) => void, setIsConnected: (val: boolean) => void, applySystemOverrides: (config: any) => void) => {
@@ -9,7 +9,12 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
   const loadFromCloud = useCallback(async (showLoader = false, forceRefresh = false) => {
     if (showLoader) setIsSyncing(true);
     try {
+      // Verifica conexão real primeiro
+      const isOnline = await checkSupabaseConnection();
+      setIsConnected(isOnline);
+
       const data = await DataRepository.syncAll(forceRefresh);
+      
       if (data) {
         Object.entries(data).forEach(([key, val]) => {
           if (setters[key]) {
@@ -19,9 +24,19 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
         if (data.config) {
           applySystemOverrides(data.config);
         }
-        setIsConnected(true);
+      } else if (!isOnline) {
+        // Se estiver offline e sem dados de syncAll, tenta carregar o que estiver no localStorage
+        const cached = localStorage.getItem(SYNC_DATA_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          Object.entries(parsed).forEach(([key, val]) => {
+            if (setters[key]) setters[key](val);
+          });
+          if (parsed.config) applySystemOverrides(parsed.config);
+        }
       }
     } catch (e) {
+      console.error("[useDataActions] Erro ao carregar dados:", e);
       setIsConnected(false);
     } finally {
       if (showLoader) setIsSyncing(false);
@@ -31,29 +46,28 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
   const refreshData = useCallback(async (forceRefresh = true) => {
     setIsSyncing(true);
     try {
+      const isOnline = await checkSupabaseConnection();
+      setIsConnected(isOnline);
+
       const data = await DataRepository.syncAll(forceRefresh);
-      if (data) {
-        setters.bibleStudies(data.bibleStudies);
-        setters.bibleClasses(data.bibleClasses);
-        setters.smallGroups(data.smallGroups);
-        setters.staffVisits(data.staffVisits);
-        setters.visitRequests(data.visitRequests);
-        setters.proGroups(data.proGroups);
-        setters.proStaff(data.proStaff);
-        setters.proSectors(data.proSectors);
-        setters.proGroupMembers(data.proGroupMembers);
-        setters.proGroupLocations(data.proGroupLocations);
-        setters.proMonthlyStats(data.proMonthlyStats);
-        setters.proHistoryRecords(data.proHistoryRecords);
-        setters.config(data.config);
+      const finalData = data || (isOnline ? null : JSON.parse(localStorage.getItem(SYNC_DATA_CACHE_KEY) || 'null'));
+
+      if (finalData) {
+        const collections = ['bibleStudies', 'bibleClasses', 'smallGroups', 'staffVisits', 'visitRequests', 'proGroups', 'proStaff', 'proSectors', 'proGroupMembers', 'proGroupLocations', 'proMonthlyStats', 'proHistoryRecords', 'config'];
+        collections.forEach(key => {
+          if (finalData[key] && setters[key]) {
+            setters[key](finalData[key]);
+          }
+        });
       }
-      return { success: true };
+      return { success: !!finalData };
     } catch (err) {
+      console.warn("[useDataActions] Erro ao atualizar dados:", err);
       return { success: false, error: err };
     } finally {
       setIsSyncing(false);
     }
-  }, [setters, setIsSyncing]);
+  }, [setters, setIsSyncing, setIsConnected]);
 
   const saveRecord = useCallback(async (collection: string, item: any) => {
     const result = await DataRepository.upsertRecord(collection, item);
