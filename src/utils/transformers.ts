@@ -20,7 +20,8 @@ export const COLLECTION_TO_TABLE: Record<string, string> = {
   bibleClassAttendees: 'bible_class_attendees',
   proMonthlyStats: 'pro_monthly_stats',
   editAuthorizations: 'edit_authorizations',
-  proHistoryRecords: 'pro_history_records'
+  proHistoryRecords: 'pro_history_records',
+  pushSubscriptions: 'push_subscriptions'
 };
 
 export const TABLE_SCHEMAS: Record<string, string[]> = {
@@ -45,7 +46,8 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   daily_activity_reports: ['id', 'user_id', 'date', 'unit', 'completed_blueprints', 'completed_cults', 'completed_encontro', 'completed_visite_cantando', 'palliative_count', 'surgical_count', 'pediatric_count', 'uti_count', 'terminal_count', 'clinical_count', 'observations', 'created_at', 'updated_at'],
   pro_monthly_stats: ['id', 'month', 'type', 'target_id', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'unit', 'snapshot_data', 'created_at', 'updated_at'],
   edit_authorizations: ['id', 'user_id', 'user_name', 'allowed_tabs', 'month_to_unlock', 'expiry_date', 'created_by', 'created_at', 'updated_at'],
-  pro_history_records: ['id', 'month', 'unit', 'staff_id', 'staff_name', 'sector_id', 'sector_name', 'group_id', 'group_name', 'leader_name', 'role', 'is_enrolled', 'joined_at', 'left_at', 'created_at', 'updated_at']
+  pro_history_records: ['id', 'month', 'unit', 'staff_id', 'staff_name', 'sector_id', 'sector_name', 'group_id', 'group_name', 'leader_name', 'role', 'is_enrolled', 'joined_at', 'left_at', 'created_at', 'updated_at'],
+  push_subscriptions: ['id', 'user_id', 'subscription', 'created_at', 'updated_at']
 };
 
 export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'provider_id', 'group_id', 'sector_id', 'day_of_week', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'participant_id', 'terminal_count', 'clinical_count', 'palliative_count', 'surgical_count', 'pediatric_count', 'uti_count'];

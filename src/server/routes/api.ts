@@ -2,11 +2,75 @@ import express, { Express } from "express";
 import fs from "fs";
 import path from "path";
 import { logger } from "../../utils/logger.js";
+import { NotificationManager } from "../notifications.js";
 
 export function setupApiRoutes(app: Express, getConfig: () => { supabaseUrl: string; supabaseKey: string }, _dirname: string) {
+  // Inicializa o gerenciador de notificações se as chaves existirem
+  const notificationConfig = {
+    ...getConfig(),
+    vapidPublicKey: process.env.VAPID_PUBLIC_KEY || "",
+    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || "",
+    vapidEmail: process.env.VAPID_EMAIL || "mailto:admin@capelaniahab.com.br"
+  };
+
+  const notificationManager = new NotificationManager(notificationConfig);
+  notificationManager.setupSchedules();
+
   // API para fornecer as chaves do Supabase dinamicamente
   app.get("/api/config", (req, res) => {
-    res.json(getConfig());
+    const config = {
+      ...getConfig(),
+      vapidPublicKey: process.env.VAPID_PUBLIC_KEY || ""
+    };
+    res.json(config);
+  });
+
+  // Rota para salvar subscrição de push
+  app.post("/api/push/subscribe", express.json(), async (req, res) => {
+    const { userId, subscription } = req.body;
+    if (!userId || !subscription) {
+      return res.status(400).json({ error: "userId e subscription são obrigatórios" });
+    }
+
+    try {
+      const { supabaseUrl, supabaseKey } = getConfig();
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Salva no banco (push_subscriptions)
+      // Usamos upsert se possível para evitar duplicatas do mesmo aparelho
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .upsert({ 
+          user_id: userId, 
+          subscription: typeof subscription === 'string' ? subscription : JSON.stringify(subscription),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,subscription' }); // Assumindo uma constraint única se existir
+
+      if (error) {
+        // Se a tabela não existir, tentamos um fallback ou apenas log
+        if (error.code === '42P01') {
+           logger.error("Tabela push_subscriptions não existe no Supabase. Crie-a para habilitar notificações.");
+           return res.status(501).json({ error: "Push subscriptions not configured in database." });
+        }
+        throw error;
+      }
+
+      res.json({ success: true });
+    } catch (err) {
+      logger.error("Erro ao salvar subscrição de push:", err);
+      res.status(500).json({ error: "Erro interno ao salvar subscrição" });
+    }
+  });
+
+  // Rota para teste de push
+  app.post("/api/push/test", express.json(), async (req, res) => {
+    const { userId, title, body } = req.body;
+    await notificationManager.sendPushNotification(userId, { 
+      title: title || "Teste de Notificação 🔔", 
+      body: body || "Esta é uma mensagem de teste do sistema." 
+    });
+    res.json({ success: true });
   });
 
   // API para debug

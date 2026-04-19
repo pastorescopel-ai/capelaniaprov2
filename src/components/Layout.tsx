@@ -6,6 +6,7 @@ import { DEFAULT_APP_LOGO } from '../assets';
 import { UserRole, Config, User } from '../types';
 import NotificationCenter from './NotificationCenter';
 import InstallPrompt from './PWA/InstallPrompt';
+import { PushNotificationManager } from './Shared/PushNotificationManager';
 import { useScrollDetection } from '../hooks/useScrollDetection';
 import { useKeyboardDetection } from '../hooks/useKeyboardDetection';
 import { useGracePeriod } from '../hooks/useGracePeriod';
@@ -184,6 +185,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
         {/* Conteúdo Principal */}
         <main className="flex-1 flex flex-col min-w-0 bg-transparent overflow-hidden">
           <div id="main-scroll-container" className="flex-1 overflow-y-auto p-3 md:p-6 pb-28 md:pb-6 no-scrollbar animate-in fade-in duration-500">
+            {/* GERENCIADOR DE NOTIFICAÇÕES PUSH */}
+            <PushNotificationManager />
+
             {/* IDENTIDADE MOBILE (OPÇÃO 3 - PILL STYLE) */}
             <AnimatePresence>
               {!isScrolled && (
