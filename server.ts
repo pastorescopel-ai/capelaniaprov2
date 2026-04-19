@@ -20,6 +20,10 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Body parsers globais para garantir que o body chegue nas rotas
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+
   // Log de todas as requisições
   app.use((req, res, next) => {
     next();

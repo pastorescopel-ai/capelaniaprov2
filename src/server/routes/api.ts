@@ -26,7 +26,7 @@ export function setupApiRoutes(app: Express, getConfig: () => { supabaseUrl: str
   });
 
   // Rota para salvar subscrição de push
-  app.post("/api/push/subscribe", express.json(), async (req, res) => {
+  app.post("/api/push/subscribe", async (req, res) => {
     const { userId, subscription } = req.body;
     if (!userId || !subscription) {
       return res.status(400).json({ error: "userId e subscription são obrigatórios" });
@@ -64,7 +64,7 @@ export function setupApiRoutes(app: Express, getConfig: () => { supabaseUrl: str
   });
 
   // Rota para teste de push
-  app.post("/api/push/test", express.json(), async (req, res) => {
+  app.post("/api/push/test", async (req, res) => {
     const { userId, title, body } = req.body;
     await notificationManager.sendPushNotification(userId, { 
       title: title || "Teste de Notificação 🔔", 
@@ -157,7 +157,7 @@ export function setupApiRoutes(app: Express, getConfig: () => { supabaseUrl: str
   });
 
   // API para deletar arquivo
-  app.post("/api/delete-file", express.json(), async (req, res) => {
+  app.post("/api/delete-file", async (req, res) => {
     const { filePath } = req.body;
     if (!filePath) return res.status(400).json({ error: "Caminho do arquivo necessário" });
     
