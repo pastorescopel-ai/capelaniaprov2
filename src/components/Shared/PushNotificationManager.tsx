@@ -13,14 +13,31 @@ export const PushNotificationManager: React.FC = () => {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [debugLog, setDebugLog] = useState<string[]>([]);
+  const [isCheckingCompatibility, setIsCheckingCompatibility] = useState(true);
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
-  const supportsPush = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window;
+  
+  // Detecção refinada de suporte
+  const supportsPush = typeof window !== 'undefined' && 
+                       'serviceWorker' in navigator && 
+                       'PushManager' in window &&
+                       'Notification' in window;
+
+  useEffect(() => {
+    // Pequeno delay para garantir que o AuthContext carregou o usuário
+    const timer = setTimeout(() => {
+      setIsCheckingCompatibility(false);
+      if (typeof Notification !== 'undefined') {
+        setPermission(Notification.permission);
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const addLog = (msg: string) => {
     console.log(`[PushManager] ${msg}`);
-    setDebugLog(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`]);
+    setDebugLog(prev => [...prev.slice(-6), `${new Date().toLocaleTimeString()}: ${msg}`]);
   };
 
   const isChaplainOrIntern = 
@@ -141,6 +158,16 @@ export const PushNotificationManager: React.FC = () => {
       setIsTesting(false);
     }
   };
+
+  if (isCheckingCompatibility) {
+    return (
+      <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm mb-6 animate-pulse">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">
+          Verificando compatibilidade de notificações...
+        </p>
+      </div>
+    );
+  }
 
   if (!isAuthenticated || !isChaplainOrIntern) return null;
 
