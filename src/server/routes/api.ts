@@ -34,6 +34,37 @@ export function setupApiRoutes(app: Express, getConfig: () => { supabaseUrl: str
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // Gatilhos de automação (Cron)
+  const cronMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const authHeader = req.headers.authorization;
+    const secret = process.env.CRON_SECRET;
+    
+    if (secret && authHeader !== `Bearer ${secret}`) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    next();
+  };
+
+  // Rota para disparar lembretes de relatórios pendentes
+  app.get("/api/cron/daily-reports", cronMiddleware, async (req, res) => {
+    try {
+      const result = await notificationManager.checkDailyReports();
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: "Erro ao processar lembretes diários" });
+    }
+  });
+
+  // Rota para disparar alertas de visitas próximas
+  app.get("/api/cron/visit-alerts", cronMiddleware, async (req, res) => {
+    try {
+      const result = await notificationManager.checkUpcomingVisits();
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: "Erro ao processar alertas de visitas" });
+    }
+  });
+
   // Rota para salvar subscrição de push
   app.post("/api/push/subscribe", async (req, res) => {
     const { userId, subscription } = req.body;
