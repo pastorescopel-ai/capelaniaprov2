@@ -14,7 +14,11 @@ export function setupApiRoutes(app: Express, getConfig: () => { supabaseUrl: str
   };
 
   const notificationManager = new NotificationManager(notificationConfig);
-  notificationManager.setupSchedules();
+  
+  // Agendamentos apenas em ambiente persistente (Não-Vercel)
+  if (!process.env.VERCEL) {
+    notificationManager.setupSchedules();
+  }
 
   // API para fornecer as chaves do Supabase dinamicamente
   app.get("/api/config", (req, res) => {

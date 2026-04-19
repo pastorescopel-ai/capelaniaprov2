@@ -17,27 +17,23 @@ if (typeof __filename !== 'undefined') {
 
 const app = express();
 
+const getConfig = () => ({
+  supabaseUrl: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "",
+  supabaseKey: process.env.VITE_SUPABASE_KEY || process.env.SUPABASE_KEY || "",
+});
+
+// Configurar rotas de API imediatamente e de forma síncrona
+// Isso garante que o Vercel encontre as rotas assim que importar o 'app'
+setupApiRoutes(app, getConfig, _dirname);
+
 async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
 
-  // Body parsers globais para garantir que o body chegue nas rotas
+  // Body parsers globais
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Log de todas as requisições
-  app.use((req, res, next) => {
-    next();
-  });
-
-  const getConfig = () => ({
-    supabaseUrl: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "",
-    supabaseKey: process.env.VITE_SUPABASE_KEY || process.env.SUPABASE_KEY || "",
-  });
-
-  // Configurar rotas de API
-  setupApiRoutes(app, getConfig, _dirname);
-
-  // Middleware do Vite para desenvolvimento
+  // Middleware do Vite para desenvolvimento (Assíncrono)
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
