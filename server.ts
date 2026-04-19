@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
@@ -16,9 +15,10 @@ if (typeof __filename !== 'undefined') {
   _dirname = path.dirname(_filename);
 }
 
+const app = express();
+
 async function startServer() {
-  const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   // Body parsers globais para garantir que o body chegue nas rotas
   app.use(express.json());
@@ -39,6 +39,7 @@ async function startServer() {
 
   // Middleware do Vite para desenvolvimento
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -92,15 +93,14 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Servidor rodando em http://localhost:${PORT}`);
-    if (!process.env.VITE_SUPABASE_URL && !process.env.SUPABASE_URL) {
-      console.warn("⚠️ AVISO: VITE_SUPABASE_URL não encontrada no ambiente do servidor!");
-    }
-    if (!process.env.VITE_SUPABASE_KEY && !process.env.SUPABASE_KEY) {
-      console.warn("⚠️ AVISO: VITE_SUPABASE_KEY não encontrada no ambiente do servidor!");
-    }
-  });
+  // Apenas inicia o listen se não estiver sendo importado como módulo (Vercel/Cloud Run)
+  if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Servidor rodando em http://localhost:${PORT}`);
+    });
+  }
 }
 
 startServer();
+
+export default app;
