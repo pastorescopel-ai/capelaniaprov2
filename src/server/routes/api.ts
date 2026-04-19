@@ -25,6 +25,11 @@ export function setupApiRoutes(app: Express, getConfig: () => { supabaseUrl: str
     res.json(config);
   });
 
+  // Health check
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   // Rota para salvar subscrição de push
   app.post("/api/push/subscribe", async (req, res) => {
     const { userId, subscription } = req.body;

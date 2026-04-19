@@ -171,9 +171,16 @@ export const PushNotificationManager: React.FC = () => {
               >
                 {isTesting ? 'Testando...' : 'Testar'}
               </button>
+              <button
+                onClick={subscribeUser}
+                disabled={isSubscribing}
+                className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-indigo-100 transition-all disabled:opacity-50"
+              >
+                {isSubscribing ? 'Refazendo...' : 'Refazer'}
+              </button>
               <div className="flex items-center gap-2 text-emerald-600 font-black text-[10px] uppercase bg-emerald-50 px-4 py-2 rounded-xl">
                 <CheckCircle size={14} />
-                <span className="hidden sm:inline">Habilitado</span>
+                <span className="hidden sm:inline">Ativo</span>
               </div>
             </>
           ) : (
