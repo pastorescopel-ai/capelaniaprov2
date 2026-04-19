@@ -7,17 +7,28 @@ precacheAndRoute(self.__WB_MANIFEST);
 
 // Handle Push Notifications
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : { title: 'Notificação', body: 'Você tem uma nova mensagem.' };
+  let data = { title: 'Notificação', body: 'Você tem uma nova mensagem.' };
   
-  const options = {
+  try {
+    if (event.data) {
+      data = event.data.json();
+    }
+  } catch (e) {
+    console.error('SW: Error parsing push data', e);
+  }
+  
+  const options: NotificationOptions = {
     body: data.body,
-    icon: '/favicon.ico', // Ajustar se necessário
-    badge: '/badge.png', // Ajustar se necessário
+    // Usamos o origin atual dinamicamente para garantir que o ícone carregue em qualquer domínio (Vercel ou Dev)
+    icon: `${self.location.origin}/favicon.ico`,
+    badge: `${self.location.origin}/favicon.ico`,
     data: data.data || {},
-    vibrate: [100, 50, 100],
+    vibrate: [200, 100, 200],
+    tag: 'capelania-notif', // Evita empilhar várias notificações iguais
+    renotify: true,
+    requireInteraction: true, // Mantém a notificação até o usuário interagir (opcional)
     actions: [
-      { action: 'open', title: 'Ver Agora' },
-      { action: 'close', title: 'Fechar' }
+      { action: 'open', title: 'Abrir Sistema' }
     ]
   };
 
