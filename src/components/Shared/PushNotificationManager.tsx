@@ -14,6 +14,10 @@ export const PushNotificationManager: React.FC = () => {
   const [isTesting, setIsTesting] = useState(false);
   const [debugLog, setDebugLog] = useState<string[]>([]);
 
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+  const supportsPush = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window;
+
   const addLog = (msg: string) => {
     console.log(`[PushManager] ${msg}`);
     setDebugLog(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`]);
@@ -139,6 +143,44 @@ export const PushNotificationManager: React.FC = () => {
   };
 
   if (!isAuthenticated || !isChaplainOrIntern) return null;
+
+  // Caso especial: iOS fora do modo PWA (Adicionado à Tela de Início)
+  if (isIOS && !isStandalone) {
+    return (
+      <div className="bg-indigo-50 p-6 rounded-[2rem] border border-indigo-100 shadow-sm mb-6">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-indigo-600 shadow-sm shrink-0">
+            <BellOff size={24} />
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+              Notificações no iPhone
+            </h4>
+            <p className="mt-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-loose">
+              Para receber alertas no iOS, você deve instalar este site:<br/>
+              1. Clique no ícone de <span className="text-indigo-600">Compartilhar</span> (quadrado com seta)<br/>
+              2. Escolha <span className="text-indigo-600">"Adicionar à Tela de Início"</span><br/>
+              3. Abra o app pela tela inicial e habilite aqui.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Caso o navegador não suporte Push (Webviews ou navegadores antigos)
+  if (!supportsPush) {
+    return (
+      <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 shadow-sm mb-6">
+        <div className="flex items-center gap-4">
+          <BellOff className="text-slate-400" size={24} />
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            Notificações não suportadas neste navegador.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm mb-6">
