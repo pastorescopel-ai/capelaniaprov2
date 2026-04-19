@@ -19,14 +19,15 @@ self.addEventListener('push', (event) => {
   
   const options: NotificationOptions = {
     body: data.body,
-    // Usamos o origin atual dinamicamente para garantir que o ícone carregue em qualquer domínio (Vercel ou Dev)
     icon: `${self.location.origin}/favicon.ico`,
     badge: `${self.location.origin}/favicon.ico`,
     data: data.data || {},
-    vibrate: [200, 100, 200],
-    tag: 'capelania-notif', // Evita empilhar várias notificações iguais
+    vibrate: [200, 100, 200, 100, 200],
+    tag: `capelania-notif-${Date.now()}`, // Tag dinâmica força o aparecimento de novo balão
+    timestamp: Date.now(),
     renotify: true,
-    requireInteraction: true, // Mantém a notificação até o usuário interagir (opcional)
+    requireInteraction: true,
+    silent: false, // Garante que não seja silenciosa
     actions: [
       { action: 'open', title: 'Abrir Sistema' }
     ]
