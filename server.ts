@@ -22,16 +22,16 @@ const getConfig = () => ({
   supabaseKey: process.env.VITE_SUPABASE_KEY || process.env.SUPABASE_KEY || "",
 });
 
+// Middleware Global (Deve vir ANTES das rotas)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 // Configurar rotas de API imediatamente e de forma síncrona
 // Isso garante que o Vercel encontre as rotas assim que importar o 'app'
 setupApiRoutes(app, getConfig, _dirname);
 
 async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
-
-  // Body parsers globais
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
 
   // Middleware do Vite para desenvolvimento (Assíncrono)
   if (process.env.NODE_ENV !== "production") {
