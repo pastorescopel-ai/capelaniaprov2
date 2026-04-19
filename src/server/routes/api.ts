@@ -103,6 +103,38 @@ export function setupApiRoutes(app: Express, getConfig: () => { supabaseUrl: str
     }
   });
 
+  // Rota para broadcast (Admin apenas)
+  app.post("/api/push/broadcast", async (req, res) => {
+    const { title, body, data } = req.body;
+    try {
+      const result = await notificationManager.broadcastToAll({ title, body, data });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: "Erro ao enviar transmissão" });
+    }
+  });
+
+  // Rotas de configuração (Admin apenas)
+  app.get("/api/push/settings", async (req, res) => {
+    try {
+      const settings = await notificationManager.getSettings();
+      res.json(settings);
+    } catch (err) {
+      res.status(500).json({ error: "Erro ao buscar configurações" });
+    }
+  });
+
+  app.patch("/api/push/settings/:id", async (req, res) => {
+    const { id } = req.params;
+    const updates = req.body;
+    try {
+      const result = await notificationManager.updateSetting(id, updates);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: "Erro ao atualizar configuração" });
+    }
+  });
+
   // Rota para teste de push
   app.post("/api/push/test", async (req, res) => {
     const { userId, title, body } = req.body;

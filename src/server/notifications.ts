@@ -131,6 +131,55 @@ export class NotificationManager {
     }
   }
 
+  async broadcastToAll(payload: { title: string; body: string; data?: any }) {
+    logger.info('Broadcast: Sending notification to all users...');
+    try {
+      const { data: subs, error } = await this.supabase
+        .from('push_subscriptions')
+        .select('*');
+
+      if (error) throw error;
+      if (!subs || subs.length === 0) return { status: 'success', sent: 0 };
+
+      const pushPromises = subs.map(subRecord => {
+        const subscription = typeof subRecord.subscription === 'string' 
+          ? JSON.parse(subRecord.subscription) 
+          : subRecord.subscription;
+
+        return webpush.sendNotification(subscription, JSON.stringify(payload))
+          .catch(err => {
+            if (err.statusCode === 410 || err.statusCode === 404) {
+              return this.supabase.from('push_subscriptions').delete().eq('id', subRecord.id);
+            }
+            logger.error(`Error sending broadcast push:`, err);
+          });
+      });
+
+      await Promise.all(pushPromises);
+      return { status: 'success', sent: subs.length };
+    } catch (err) {
+      logger.error('Failed to send broadcast:', err);
+      throw err;
+    }
+  }
+
+  async getSettings() {
+    const { data, error } = await this.supabase.from('notification_settings').select('*');
+    if (error) throw error;
+    return data;
+  }
+
+  async updateSetting(id: string, updates: { enabled?: boolean; scheduled_time?: string }) {
+    const { data, error } = await this.supabase
+      .from('notification_settings')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
   setupSchedules() {
     // 1. Relatório Diário Pendente (20:00 todos os dias)
     cron.schedule('0 20 * * *', () => this.checkDailyReports());
