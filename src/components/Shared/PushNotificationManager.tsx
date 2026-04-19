@@ -172,11 +172,49 @@ export const PushNotificationManager: React.FC = () => {
   if (!supportsPush) {
     return (
       <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 shadow-sm mb-6">
-        <div className="flex items-center gap-4">
-          <BellOff className="text-slate-400" size={24} />
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            Notificações não suportadas neste navegador.
-          </p>
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-slate-400 shadow-sm shrink-0">
+            <BellOff size={24} />
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+              Acesso Restrito
+            </h4>
+            <p className="mt-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-loose">
+              Seu navegador atual bloqueia notificações.<br/>
+              <span className="text-indigo-600">Recomendação:</span> Abra este site diretamente no <span className="font-black">Google Chrome</span> ou no navegador oficial do seu celular.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback para quando a permissão já foi negada manualmente
+  if (permission === 'denied') {
+    return (
+      <div className="bg-rose-50 p-6 rounded-[2rem] border border-rose-100 shadow-sm mb-6">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-rose-600 shadow-sm shrink-0">
+            <BellOff size={24} />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+              Notificações Bloqueadas
+            </h4>
+            <p className="mt-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-loose">
+              Você negou o acesso anteriormente. Para receber alertas:<br/>
+              1. Clique no cadeado (🔒) ao lado da URL lá no topo.<br/>
+              2. Ative a opção <span className="text-rose-600">"Notificações"</span>.<br/>
+              3. Atualize esta página.
+            </p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-white text-rose-600 px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-rose-100 shadow-sm transition-all"
+          >
+            Atualizar
+          </button>
         </div>
       </div>
     );
