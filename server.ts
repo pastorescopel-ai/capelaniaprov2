@@ -4,17 +4,17 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import { setupApiRoutes } from "./src/server/routes/api.js";
 
-let _filename: string;
-let _dirname: string;
+// Utilitário para determinar o diretório base
+const getDirname = () => {
+  try {
+    if (typeof __dirname !== 'undefined') return __dirname;
+    return path.dirname(fileURLToPath(import.meta.url));
+  } catch (e) {
+    return process.cwd();
+  }
+};
 
-if (typeof __filename !== 'undefined') {
-  _filename = __filename;
-  _dirname = __dirname;
-} else {
-  _filename = fileURLToPath(import.meta.url);
-  _dirname = path.dirname(_filename);
-}
-
+const _dirname = getDirname();
 const app = express();
 
 const getConfig = () => ({
