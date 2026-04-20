@@ -41,8 +41,7 @@ export const getMonthStartISO = (date: Date = new Date()): string => {
   const year = date.getFullYear();
   const month = date.getMonth();
   const firstDay = new Date(year, month, 1);
-  const offset = firstDay.getTimezoneOffset() * 60000;
-  return new Date(firstDay.getTime() - offset).toISOString().split('T')[0];
+  return firstDay.toLocaleDateString('en-CA');
 };
 
 /**

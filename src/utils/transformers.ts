@@ -100,16 +100,29 @@ export const toCamel = (obj: any): any => {
             if (/^\d+$/.test(val)) {
                 const numVal = parseInt(val, 10);
                 if (PURE_DATE_FIELDS.includes(key)) {
-                    val = new Date(numVal).toLocaleDateString('en-CA');
+                    // Proteção contra fuso horário mesmo em timestamps numéricos
+                    const d = new Date(numVal);
+                    const safeDate = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12, 0, 0);
+                    val = safeDate.toLocaleDateString('en-CA');
                 } else {
                     val = numVal;
                 }
             } else {
-                // Se for um campo de DATA PURA, garantimos o formato YYYY-MM-DD
-                const d = new Date(val);
+                // Se for um campo de DATA PURA, garantimos o formato YYYY-MM-DD de forma neutra ao fuso horário
+                const dateStr = val.includes('T') ? val : val + 'T12:00:00';
+                const d = new Date(dateStr);
                 if (!isNaN(d.getTime())) {
                     if (PURE_DATE_FIELDS.includes(key)) {
-                        val = d.toLocaleDateString('en-CA');
+                        // RECOMPOSIÇÃO DE INTEGRIDADE: Se for o campo 'month', o dia DEVE ser 01.
+                        // Se houver desvio (ex: dia 28, 30 ou 31), ajustamos para o dia 01 do mês correto.
+                        if (key === 'month' && d.getDate() !== 1) {
+                           const corrected = d.getDate() > 15 
+                             ? new Date(d.getFullYear(), d.getMonth() + 1, 1) 
+                             : new Date(d.getFullYear(), d.getMonth(), 1);
+                           val = corrected.toLocaleDateString('en-CA');
+                        } else {
+                           val = d.toLocaleDateString('en-CA');
+                        }
                     } else {
                         val = d.getTime();
                     }

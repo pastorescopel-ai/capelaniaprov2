@@ -12,7 +12,7 @@ interface UseVisitRequestsWidgetProps {
 }
 
 export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisitRequestsWidgetProps) => {
-  const { saveRecord, deleteRecord, proGroups, proSectors, proGroupLocations, proStaff, smallGroups, isInitialized } = useApp();
+  const { saveRecord, deleteRecord, proGroups, proSectors, proGroupLocations, proStaff, smallGroups, staffVisits, isInitialized } = useApp();
   const { showToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<VisitRequest | null>(null);
@@ -20,29 +20,44 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
   const [selectedChaplainId, setSelectedChaplainId] = useState('');
 
   // Lógica de Auto-Confirmação em Background
-  // Se um PG já foi registrado no histórico para o mesmo dia e unidade, 
-  // o agendamento deve ser marcado como confirmado automaticamente.
+  // Se um PG ou Visita já foi registrado no histórico para o mesmo dia e unidade, 
+  // o agendamento deve ser marcado como concluído automaticamente.
   useEffect(() => {
-    if (!isInitialized || requests.length === 0 || smallGroups.length === 0) return;
+    if (!isInitialized || requests.length === 0) return;
 
     const syncGhostRequests = async () => {
       const ghostRequests = requests.filter(req => {
-        if (req.status !== 'assigned') return false;
+        // Apenas agendamentos que ainda parecem "pendentes" ou "escalados"
+        if (!['assigned', 'scheduled', 'confirmed'].includes(req.status)) return false;
         
         const reqDate = ensureISODate(req.date);
-        const normName = normalizeString(req.pgName);
+        const normName = normalizeString(req.pgName || "");
         
-        return smallGroups.some(sg => 
-          normalizeString(sg.groupName) === normName &&
-          ensureISODate(sg.date) === reqDate &&
-          sg.unit === req.unit
-        );
+        // Verificação 1: Se é um Pequeno Grupo (tem pgName)
+        if (normName) {
+           return smallGroups.some(sg => 
+             normalizeString(sg.groupName) === normName &&
+             ensureISODate(sg.date) === reqDate &&
+             sg.unit === req.unit
+           );
+        }
+        
+        // Verificação 2: Se é uma Visita de Staff (visita individual)
+        // Se o capelão fez uma visita física no mesmo setor/unidade no mesmo dia
+        return proStaff.some(ps => {
+            // Se o agendamento não tem nome de PG, procuramos por visitas ao staff ou setores compatíveis
+            return staffVisits.some(sv => 
+                ensureISODate(sv.date) === reqDate &&
+                sv.unit === req.unit &&
+                sv.userId === req.assignedChaplainId
+            );
+        });
       });
 
       if (ghostRequests.length > 0) {
         for (const req of ghostRequests) {
           try {
-            await saveRecord('visitRequests', { ...req, status: 'confirmed', isRead: true });
+            await saveRecord('visitRequests', { ...req, status: 'completed', isRead: true, updatedAt: Date.now() });
           } catch (err) {
             // Silently handle auto-sync errors
           }
@@ -50,10 +65,10 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       }
     };
 
-    // Pequeno delay para evitar concorrência com o salvamento imediato do form
-    const timer = setTimeout(syncGhostRequests, 2000);
+    // Pequeno delay para permitir que o estado global se estabilize
+    const timer = setTimeout(syncGhostRequests, 3000);
     return () => clearTimeout(timer);
-  }, [requests, smallGroups, isInitialized, saveRecord]);
+  }, [requests, smallGroups, staffVisits, isInitialized, saveRecord, proStaff]);
 
   const { inferPGDetails } = usePGInference(
     requests[0]?.unit || 'HAB',
@@ -67,18 +82,27 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
 
   const myRequests = useMemo(() => {
     return requests.filter(req => {
-      if (req.status === 'confirmed' || req.status === 'declined' || req.status === 'cancelled') return false;
+      if (['confirmed', 'declined', 'cancelled', 'completed'].includes(req.status)) return false;
       
-      // Filtro Visual Imediato: Se já existe registro no histórico, oculta do Dashboard
+      // Filtro Visual Imediato (Double-Check): Se já existe registro no histórico, oculta do Dashboard
       const reqDate = ensureISODate(req.date);
-      const normName = normalizeString(req.pgName);
-      const isAlreadyRegistered = smallGroups.some(sg => 
-        normalizeString(sg.groupName) === normName &&
-        ensureISODate(sg.date) === reqDate &&
-        sg.unit === req.unit
-      );
-
-      if (isAlreadyRegistered) return false;
+      
+      if (req.pgName) {
+        const normName = normalizeString(req.pgName);
+        const isRegisteredPG = smallGroups.some(sg => 
+          normalizeString(sg.groupName) === normName &&
+          ensureISODate(sg.date) === reqDate &&
+          sg.unit === req.unit
+        );
+        if (isRegisteredPG) return false;
+      } else {
+        const isRegisteredVisit = staffVisits.some(sv => 
+          ensureISODate(sv.date) === reqDate &&
+          sv.unit === req.unit &&
+          sv.userId === req.assignedChaplainId
+        );
+        if (isRegisteredVisit) return false;
+      }
 
       if (currentUser.role === UserRole.ADMIN) return true;
       return req.assignedChaplainId === currentUser.id;
@@ -90,7 +114,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       
       return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
-  }, [requests, currentUser, smallGroups]);
+  }, [requests, currentUser, smallGroups, staffVisits]);
 
   const getMeetingSector = (req: VisitRequest) => {
       if (req.meetingLocation) return req.meetingLocation;

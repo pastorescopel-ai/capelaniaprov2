@@ -72,16 +72,29 @@ const ActivityScheduler: React.FC = () => {
   );
 
   const filteredSchedules = useMemo(() => 
-    activitySchedules.filter(s => 
-      s.unit === selectedUnit && 
-      s.month === selectedMonth && 
-      (!selectedUser || s.userId === selectedUser)
-    ),
+    activitySchedules.filter(s => {
+      const scheduleMonthPrefix = String(s.month || '').substring(0, 7);
+      const targetMonthPrefix = String(selectedMonth || '').substring(0, 7);
+      
+      return (
+        String(s.unit).trim().toUpperCase() === String(selectedUnit).trim().toUpperCase() && 
+        scheduleMonthPrefix === targetMonthPrefix &&
+        (!selectedUser || s.userId === selectedUser)
+      );
+    }),
     [activitySchedules, selectedUnit, selectedMonth, selectedUser]
   );
 
   const globalSchedulesForMonth = useMemo(() => 
-    activitySchedules.filter(s => s.unit === selectedUnit && s.month === selectedMonth),
+    activitySchedules.filter(s => {
+      const scheduleMonthPrefix = String(s.month || '').substring(0, 7);
+      const targetMonthPrefix = String(selectedMonth || '').substring(0, 7);
+      
+      return (
+        String(s.unit).trim().toUpperCase() === String(selectedUnit).trim().toUpperCase() && 
+        scheduleMonthPrefix === targetMonthPrefix
+      );
+    }),
     [activitySchedules, selectedUnit, selectedMonth]
   );
 
@@ -153,10 +166,19 @@ const ActivityScheduler: React.FC = () => {
       return;
     }
 
-    const schedulesToCopy = activitySchedules.filter(s => s.unit === selectedUnit && s.month === selectedMonth);
-    
+    const schedulesToCopy = activitySchedules.filter(s => {
+      // Comparação Robusta: Extraímos apenas YYYY-MM para evitar divergência de dias
+      const scheduleMonthPrefix = String(s.month || '').substring(0, 7);
+      const targetMonthPrefix = String(selectedMonth || '').substring(0, 7);
+      
+      const unitMatch = String(s.unit).trim().toUpperCase() === String(selectedUnit).trim().toUpperCase();
+      const monthMatch = scheduleMonthPrefix === targetMonthPrefix;
+      
+      return unitMatch && monthMatch;
+    });
+
     if (schedulesToCopy.length === 0) {
-      showToast("Não há agendamentos para copiar neste mês.", "warning");
+      showToast(`Não há agendamentos encontrados para ${formatMonthLabel(selectedMonth)}.`, "warning");
       return;
     }
 

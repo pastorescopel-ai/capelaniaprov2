@@ -101,9 +101,11 @@ export class NotificationManager {
   async checkUpcomingVisits() {
     logger.info('Task: Checking for upcoming visits...');
     const now = new Date();
+    const today = now.toISOString().split('T')[0];
     const in30Minutes = new Date(now.getTime() + 30 * 60 * 1000);
     
     try {
+      // 1. Busca visitas agendadas para os próximos 30 minutos
       const { data: visits, error } = await this.supabase
         .from('visit_requests')
         .select('*')
@@ -115,14 +117,46 @@ export class NotificationManager {
 
       let count = 0;
       for (const visit of (visits || [])) {
-        if (visit.assigned_chaplain_id) {
-          await this.sendPushNotification(visit.assigned_chaplain_id, {
-            title: 'Próxima Visita 🏥',
-            body: `Você tem uma visita agendada em breve: ${visit.pg_name || 'Paciente'}`,
-            data: { url: '/visits' }
-          });
-          count++;
+        if (!visit.assigned_chaplain_id) continue;
+
+        // 2. VERIFICAÇÃO DE INTEGRIDADE: O PG já foi registrado hoje?
+        // Se já houver um registro de PG para este capelão e este grupo hoje, não notificamos
+        const { data: existingPG } = await this.supabase
+          .from('small_group_sessions')
+          .select('id')
+          .eq('user_id', visit.assigned_chaplain_id)
+          .eq('group_name', visit.pg_name)
+          .eq('date', today)
+          .maybeSingle();
+
+        // Também verificamos se não foi registrada como visita comum (Staff Visit)
+        const { data: existingVisit } = await this.supabase
+          .from('staff_visits')
+          .select('id')
+          .eq('user_id', visit.assigned_chaplain_id)
+          .eq('date', today)
+          .maybeSingle();
+
+        if (existingPG || existingVisit) {
+          // Já foi registrado! Marcamos o agendamento como concluído e pulamos
+          logger.info(`Visit request ${visit.id} already recorded. Marking as completed.`);
+          await this.supabase
+            .from('visit_requests')
+            .update({ status: 'completed', updated_at: new Date().toISOString() })
+            .eq('id', visit.id);
+          continue;
         }
+
+        // 3. Se não foi registrado, enviamos o push
+        await this.sendPushNotification(visit.assigned_chaplain_id, {
+          title: 'Próxima Visita 🏥',
+          body: `Você tem uma visita agendada em breve: ${visit.pg_name || 'Paciente'}`,
+          data: { 
+            url: visit.pg_name ? '/smallGroup' : '/staffVisit',
+            requestId: visit.id
+          }
+        });
+        count++;
       }
       return { status: 'success', sent: count };
     } catch (err) {
