@@ -159,6 +159,8 @@ export const PushNotificationManager: React.FC = () => {
     }
   };
 
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+
   if (isCheckingCompatibility) {
     return (
       <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm mb-6 animate-pulse">
@@ -170,6 +172,9 @@ export const PushNotificationManager: React.FC = () => {
   }
 
   if (!isAuthenticated || !isChaplainOrIntern) return null;
+
+  // Se for capelão e já estiver habilitado, removemos a barra completamente
+  if (!isAdmin && permission === 'granted') return null;
 
   // Caso especial: iOS fora do modo PWA (Adicionado à Tela de Início)
   if (isIOS && !isStandalone) {
@@ -302,7 +307,7 @@ export const PushNotificationManager: React.FC = () => {
         </div>
       </div>
 
-      {debugLog.length > 0 && (
+      {isAdmin && debugLog.length > 0 && (
         <div className="mt-4 pt-4 border-t border-slate-50">
           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-2">Logs do Sistema:</p>
           <div className="space-y-1">
