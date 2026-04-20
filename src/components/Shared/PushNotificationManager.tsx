@@ -173,8 +173,10 @@ export const PushNotificationManager: React.FC = () => {
 
   if (!isAuthenticated || !isChaplainOrIntern) return null;
 
-  // Se for capelão e já estiver habilitado, removemos a barra completamente
-  if (!isAdmin && permission === 'granted') return null;
+  // Se for capelão e já estiver habilitado, removemos a barra completamente do DOM
+  if (isAuthenticated && !isAdmin && permission === 'granted') {
+    return null;
+  }
 
   // Caso especial: iOS fora do modo PWA (Adicionado à Tela de Início)
   if (isIOS && !isStandalone) {
@@ -276,20 +278,24 @@ export const PushNotificationManager: React.FC = () => {
         <div className="flex items-center gap-2">
           {permission === 'granted' ? (
             <>
-              <button
-                onClick={testPush}
-                disabled={isTesting}
-                className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-slate-200 transition-all disabled:opacity-50"
-              >
-                {isTesting ? 'Testando...' : 'Testar'}
-              </button>
-              <button
-                onClick={subscribeUser}
-                disabled={isSubscribing}
-                className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-indigo-100 transition-all disabled:opacity-50"
-              >
-                {isSubscribing ? 'Refazendo...' : 'Refazer'}
-              </button>
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={testPush}
+                    disabled={isTesting}
+                    className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-slate-200 transition-all disabled:opacity-50"
+                  >
+                    {isTesting ? 'Testando...' : 'Testar'}
+                  </button>
+                  <button
+                    onClick={subscribeUser}
+                    disabled={isSubscribing}
+                    className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-indigo-100 transition-all disabled:opacity-50"
+                  >
+                    {isSubscribing ? 'Refazendo...' : 'Refazer'}
+                  </button>
+                </>
+              )}
               <div className="flex items-center gap-2 text-emerald-600 font-black text-[10px] uppercase bg-emerald-50 px-4 py-2 rounded-xl">
                 <CheckCircle size={14} />
                 <span className="hidden sm:inline">Ativo</span>
