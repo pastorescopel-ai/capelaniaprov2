@@ -16,10 +16,12 @@ export const AdminNotifications: React.FC = () => {
   const [broadcastMessage, setBroadcastMessage] = useState({ title: '', body: '' });
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isVercel, setIsVercel] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
     fetchSettings();
+    setIsVercel(window.location.hostname.includes('vercel.app'));
   }, []);
 
   const fetchSettings = async () => {
@@ -191,9 +193,15 @@ export const AdminNotifications: React.FC = () => {
             <h5 className="text-[10px] font-black text-blue-600 uppercase tracking-tight flex items-center gap-2 mb-2">
               <AlertCircle size={14} /> Nota Técnica
             </h5>
-            <p className="text-[9px] font-bold text-blue-500 uppercase tracking-widest leading-loose">
+            <p className="text-[9px] font-bold text-blue-500 uppercase tracking-widest leading-loose mb-3">
               O sistema utiliza serviços externos para verificar estes gatilhos. Se você mudar o horário aqui, o robô externo avisará às pessoas conforme a nova regra.
             </p>
+            <div className="flex items-center gap-2 bg-white/50 p-3 rounded-xl border border-blue-100">
+               <div className={`w-2 h-2 rounded-full ${isVercel ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
+               <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">
+                 {isVercel ? 'Vercel Cron Engine Ativo' : 'Cron Engine Padrão'}
+               </span>
+            </div>
           </div>
         </section>
       </div>

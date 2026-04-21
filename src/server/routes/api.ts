@@ -65,6 +65,16 @@ export function setupApiRoutes(app: Express, getConfig: () => { supabaseUrl: str
     }
   });
 
+  // Rota para disparar lembretes de atividades pendentes no dashboard
+  app.get("/api/cron/dashboard-reminders", cronMiddleware, async (req, res) => {
+    try {
+      const result = await notificationManager.checkDashboardPendingActivities();
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: "Erro ao processar lembretes do dashboard" });
+    }
+  });
+
   // Rota para salvar subscrição de push
   app.post("/api/push/subscribe", async (req, res) => {
     const { userId, subscription } = req.body;
