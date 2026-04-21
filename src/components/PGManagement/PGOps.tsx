@@ -12,9 +12,11 @@ import VisitHistoryList from './VisitHistoryList';
 
 interface PGOpsProps {
   unit: Unit;
+  editingItem?: any;
+  onCancelEdit?: () => void;
 }
 
-const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
+const PGOps: React.FC<PGOpsProps> = memo(({ unit, editingItem, onCancelEdit }) => {
   const { proGroups, proStaff, proGroupLocations, proSectors } = usePro();
   const { config, users, saveRecord, visitRequests, deleteRecord } = useApp();
   const { currentUser } = useAuth();
@@ -27,10 +29,22 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
     setInviteToDelete,
     form,
     handleEditRequest,
-    handleCancelEdit,
+    handleCancelEdit: localHandleCancelEdit,
     handleSaveVisit,
     handleDeleteVisit
   } = useVisitManagement(saveRecord, deleteRecord);
+
+  // Efeito para carregar item de edição externo
+  useEffect(() => {
+    if (editingItem && editingItem.id !== editingRequestId) {
+      handleEditRequest(editingItem);
+    }
+  }, [editingItem, editingRequestId, handleEditRequest]);
+
+  const handleCancelEdit = () => {
+    localHandleCancelEdit();
+    onCancelEdit?.();
+  };
 
   const chaplains = useMemo(() => users, [users]);
   

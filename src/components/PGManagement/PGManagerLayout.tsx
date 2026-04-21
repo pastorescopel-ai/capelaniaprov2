@@ -10,9 +10,17 @@ import PGClosing from './PGClosing';
 import PGTools from './PGTools';
 import { useApp } from '../../hooks/useApp';
 
-const PGManagerLayout: React.FC = () => {
+interface PGManagerLayoutProps {
+  editingItem?: any;
+  onCancelEdit?: () => void;
+}
+
+const PGManagerLayout: React.FC<PGManagerLayoutProps> = ({ editingItem, onCancelEdit }) => {
   const { proMonthlyStats, config } = useApp();
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'ops' | 'reports' | 'leaders' | 'fechamento' | 'tools'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'ops' | 'reports' | 'leaders' | 'fechamento' | 'tools'>(() => {
+    return editingItem?.isVisitRequest ? 'ops' : 'dashboard';
+  });
+
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
   const [isPending, startTransition] = useTransition();
 
@@ -141,7 +149,13 @@ const PGManagerLayout: React.FC = () => {
         <main className="animate-in fade-in slide-in-from-top-2 duration-500">
           {activeSubTab === 'dashboard' && <PGDashboard key={config.activeCompetenceMonth || 'default'} unit={currentUnit} />}
           {activeSubTab === 'membership' && <PGMembership unit={currentUnit} />}
-          {activeSubTab === 'ops' && <PGOps unit={currentUnit} />}
+          {activeSubTab === 'ops' && (
+            <PGOps 
+              unit={currentUnit} 
+              editingItem={editingItem?.isVisitRequest ? editingItem : undefined} 
+              onCancelEdit={onCancelEdit}
+            />
+          )}
           {activeSubTab === 'reports' && <PGReports unit={currentUnit} />}
           {activeSubTab === 'leaders' && <PGLeaders unit={currentUnit} />}
           {activeSubTab === 'tools' && <PGTools unit={currentUnit} />}

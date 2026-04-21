@@ -79,6 +79,22 @@ const App: React.FC = () => {
     handleTabChange('smallGroup');
   };
 
+  const handleEditVisitRequest = (request: any) => {
+    // Definir como item de edição com flag de agendamento
+    setEditingItem({
+      ...request,
+      isVisitRequest: true
+    });
+    
+    // Mudar fuso se necessário
+    if (request.unit !== currentUnit) {
+      setCurrentUnit(request.unit);
+    }
+    
+    // Mudar para Gestão de PGs (onde fica a escala)
+    handleTabChange('pgManagement');
+  };
+
   const handleGoToReturnHistory = (visit?: any) => {
     if (visit && visit.unit && visit.unit !== currentUnit) {
       setCurrentUnit(visit.unit);
@@ -206,6 +222,7 @@ const App: React.FC = () => {
             updateCurrentUser={updateCurrentUser}
             handleSaveItem={handleSaveItem}
             onRegisterMission={handleRegisterMission}
+            onEditVisitRequest={handleEditVisitRequest}
             onGoToReturnHistory={handleGoToReturnHistory}
             getVisibleHistory={getVisibleHistory}
           />

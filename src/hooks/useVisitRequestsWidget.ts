@@ -27,10 +27,15 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
 
     const syncGhostRequests = async () => {
       const ghostRequests = requests.filter(req => {
-        // Apenas agendamentos que ainda parecem "pendentes" ou "escalados"
-        if (!['assigned', 'scheduled', 'confirmed'].includes(req.status)) return false;
+        // Agora somos mais cautelosos: só baixamos agendamentos "Assigned" ou "Confirmed"
+        if (!['assigned', 'confirmed'].includes(req.status)) return false;
         
         const reqDate = ensureISODate(req.date);
+        const today = new Date().toLocaleDateString('en-CA');
+        
+        // Só fazemos a baixa automática se a data do agendamento for hoje ou anterior
+        if (reqDate > today) return false;
+
         const normName = normalizeString(req.pgName || "");
         
         // Verificação 1: Se é um Pequeno Grupo (tem pgName)
@@ -43,15 +48,11 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
         }
         
         // Verificação 2: Se é uma Visita de Staff (visita individual)
-        // Se o capelão fez uma visita física no mesmo setor/unidade no mesmo dia
-        return proStaff.some(ps => {
-            // Se o agendamento não tem nome de PG, procuramos por visitas ao staff ou setores compatíveis
-            return staffVisits.some(sv => 
-                ensureISODate(sv.date) === reqDate &&
-                sv.unit === req.unit &&
-                sv.userId === req.assignedChaplainId
-            );
-        });
+        return staffVisits.some(sv => 
+            ensureISODate(sv.date) === reqDate &&
+            sv.unit === req.unit &&
+            sv.userId === req.assignedChaplainId
+        );
       });
 
       if (ghostRequests.length > 0) {
@@ -65,10 +66,9 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       }
     };
 
-    // Pequeno delay para permitir que o estado global se estabilize
-    const timer = setTimeout(syncGhostRequests, 3000);
+    const timer = setTimeout(syncGhostRequests, 5000); // Aumentado para 5s para evitar conflitos de salvamento
     return () => clearTimeout(timer);
-  }, [requests, smallGroups, staffVisits, isInitialized, saveRecord, proStaff]);
+  }, [requests, smallGroups, staffVisits, isInitialized, saveRecord]);
 
   const { inferPGDetails } = usePGInference(
     requests[0]?.unit || 'HAB',
@@ -80,13 +80,44 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
 
   const todayStr = new Date().toLocaleDateString('en-CA');
 
+  // Diagnostics Logger for Admin
+  useEffect(() => {
+    if (currentUser.role === UserRole.ADMIN && requests.length > 0) {
+      console.group("🔍 DIAGNÓSTICO ESCALA (ADMIN)");
+      console.log("Total requests:", requests.length);
+      requests.forEach(req => {
+        const reqDate = ensureISODate(req.date);
+        const isFuture = reqDate > todayStr;
+        const visibilityInfo = {
+          id: req.id,
+          pg: req.pgName,
+          status: req.status,
+          date: reqDate,
+          isFuture,
+          isRead: req.isRead
+        };
+        console.log(`REQ: ${req.pgName || 'Individual'} (${reqDate}) - Status: ${req.status}`, visibilityInfo);
+      });
+      console.groupEnd();
+    }
+  }, [requests, currentUser, todayStr]);
+
   const myRequests = useMemo(() => {
     return requests.filter(req => {
-      if (['confirmed', 'declined', 'cancelled', 'completed'].includes(req.status)) return false;
+      // 1. Status Check: Registros explícitamente finalizados somem
+      if (['declined', 'cancelled', 'completed'].includes(req.status)) return false;
       
-      // Filtro Visual Imediato (Double-Check): Se já existe registro no histórico, oculta do Dashboard
       const reqDate = ensureISODate(req.date);
-      
+      const today = new Date().toLocaleDateString('en-CA');
+
+      // 2. Future Protection: Agendamentos futuros SEMPRE são visíveis (Admin) 
+      // ou se atribuídos (Capelão)
+      if (reqDate > today) {
+         if (currentUser.role === UserRole.ADMIN) return true;
+         return req.assignedChaplainId === currentUser.id;
+      }
+
+      // 3. Current/Past Check: Se já existe um registro correspondente no histórico REAL, ocultamos
       if (req.pgName) {
         const normName = normalizeString(req.pgName);
         const isRegisteredPG = smallGroups.some(sg => 
@@ -94,7 +125,11 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
           ensureISODate(sg.date) === reqDate &&
           sg.unit === req.unit
         );
-        if (isRegisteredPG) return false;
+        if (isRegisteredPG) {
+           // Se o Admin está vendo e o agendamento ainda está como 'assigned', 
+           // é porque a sincronia de fundo ainda não rodou. Ocultamos visualmente de qualquer forma.
+           return false;
+        }
       } else {
         const isRegisteredVisit = staffVisits.some(sv => 
           ensureISODate(sv.date) === reqDate &&
@@ -104,6 +139,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
         if (isRegisteredVisit) return false;
       }
 
+      // 4. Role Match
       if (currentUser.role === UserRole.ADMIN) return true;
       return req.assignedChaplainId === currentUser.id;
     }).sort((a, b) => {
@@ -194,6 +230,8 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     getChaplainName,
     handleUpdateStatus,
     handleDeleteRequest,
-    formatDate
+    formatDate,
+    smallGroups,
+    staffVisits
   };
 };

@@ -3,15 +3,17 @@ import React from 'react';
 import { User, VisitRequest, UserRole } from '../../types';
 import Button from '../Shared/Button';
 import { useVisitRequestsWidget } from '../../hooks/useVisitRequestsWidget';
+import { normalizeString, ensureISODate } from '../../utils/formatters';
 
 interface VisitRequestsWidgetProps {
   requests: VisitRequest[];
   currentUser: User;
   users: User[];
   onRegisterMission?: (visit: VisitRequest) => void;
+  onEditFullRequest?: (visit: VisitRequest) => void;
 }
 
-const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, currentUser, users, onRegisterMission }) => {
+const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, currentUser, users, onRegisterMission, onEditFullRequest }) => {
   const {
     isProcessing,
     selectedRequest, setSelectedRequest,
@@ -23,21 +25,65 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
     getChaplainName,
     handleUpdateStatus,
     handleDeleteRequest,
-    formatDate
+    formatDate,
+    smallGroups,
+    staffVisits
   } = useVisitRequestsWidget({ requests, currentUser, users });
 
-  if (myRequests.length === 0) return null;
+  const isAdmin = currentUser.role === UserRole.ADMIN;
+
+  // Se não há NADA para ninguém, esconde.
+  if (requests.length === 0 && !isAdmin) return null;
+
+  // Se o filtro 'myRequests' está vazio, mas o Admin quer ver a escala, damos um feedback
+  if (myRequests.length === 0) {
+    if (!isAdmin) return null;
+    
+    return (
+      <div className="bg-white p-5 md:p-6 rounded-3xl border border-blue-100 shadow-sm mb-6 animate-in slide-in-from-top duration-500">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3">
+             <div className="flex items-center gap-3">
+               <div className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center"><i className="fas fa-calendar-alt text-lg"></i></div>
+               <div>
+                 <h3 className="text-sm md:text-lg font-black text-slate-400 uppercase tracking-tight">Escala de Visitas PG</h3>
+                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Nenhum agendamento pendente no momento</p>
+               </div>
+             </div>
+             <button 
+               onClick={() => window.location.reload()} 
+               className="text-[10px] bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg font-black uppercase hover:bg-slate-200"
+             >
+               Sincronizar
+             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white p-5 md:p-6 rounded-3xl border border-blue-100 shadow-sm mb-6 animate-in slide-in-from-top duration-500">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><i className="fas fa-calendar-alt text-lg"></i></div>
-        <div>
-          <h3 className="text-sm md:text-lg font-black text-slate-800 uppercase tracking-tight">
-            {currentUser.role === UserRole.ADMIN ? 'Escala de Visitas PG' : 'Minha Escala de Visitas'}
-          </h3>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{myRequests.length} visita(s) programada(s)</p>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><i className="fas fa-calendar-alt text-lg"></i></div>
+          <div>
+            <h3 className="text-sm md:text-lg font-black text-slate-800 uppercase tracking-tight">
+              {currentUser.role === UserRole.ADMIN ? 'Escala de Visitas PG' : 'Minha Escala de Visitas'}
+            </h3>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{myRequests.length} visita(s) programada(s)</p>
+          </div>
         </div>
+        
+        {isAdmin && (
+           <button 
+             onClick={() => window.location.reload()} 
+             className="text-[9px] bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg font-black uppercase hover:bg-slate-200"
+             title="Sincronizar Dados"
+           >
+             <i className="fas fa-sync-alt"></i>
+           </button>
+        )}
       </div>
 
       <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
@@ -102,11 +148,18 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
                       {currentUser.role === UserRole.ADMIN && (
                         <div className="flex items-center gap-1 absolute right-2 top-2">
                           <button 
+                            onClick={() => onEditFullRequest?.(req)}
+                            className="w-7 h-7 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                            title="Editar Agendamento (Completo)"
+                          >
+                            <i className="fas fa-edit text-[10px]"></i>
+                          </button>
+                          <button 
                             onClick={() => { setSelectedRequest(req); setActionType('assign'); }}
                             className="w-7 h-7 bg-slate-50 text-slate-400 rounded-lg flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-all"
-                            title="Alterar Capelão"
+                            title="Alterar Apenas Capelão"
                           >
-                            <i className="fas fa-pencil-alt text-[10px]"></i>
+                            <i className="fas fa-user-edit text-[10px]"></i>
                           </button>
                           <button 
                             onClick={() => { setSelectedRequest(req); setActionType('delete'); }}
