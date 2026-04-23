@@ -41,9 +41,14 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   // Se activeCompetenceMonth não estiver definido, assume o mês atual como o limite para evitar que tudo fique aberto
   const activeMonth = config.activeCompetenceMonth || new Date().toISOString().split('T')[0].substring(0, 7) + '-01';
   
-  const isMonthClosed = selectedMonth < activeMonth;
-  const isFutureMonth = selectedMonth > activeMonth;
-  const isOpenMonth = selectedMonth === activeMonth;
+  // Lógica Robusta: O mês está fechado se:
+  // 1. Ele for anterior à competência ativa configurada
+  // 2. OU se já houver um registro de fechamento global no banco de dados para este mês
+  const hasClosingSnapshot = proMonthlyStats.some(s => s.month === selectedMonth && (s.type === 'pg' || s.targetId === 'all'));
+  
+  const isMonthClosed = (selectedMonth < activeMonth) || hasClosingSnapshot;
+  const isFutureMonth = selectedMonth > activeMonth && !hasClosingSnapshot;
+  const isOpenMonth = selectedMonth === activeMonth && !hasClosingSnapshot;
 
   useEffect(() => {
     console.log('DEBUG [PGMembership]:', {
@@ -53,7 +58,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       isFutureMonth,
       isOpenMonth
     });
-  }, [selectedMonth, config.activeCompetenceMonth, isMonthClosed]);
+  }, [selectedMonth, config.activeCompetenceMonth, isMonthClosed, isFutureMonth, isOpenMonth]);
 
   // --- ESTADOS OTIMISTAS (UI Instantânea) ---
   const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());

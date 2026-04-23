@@ -29,8 +29,15 @@ const PGManagerLayout: React.FC<PGManagerLayoutProps> = ({ editingItem, onCancel
     const now = new Date();
     const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const prevISO = prev.toISOString().split('T')[0];
-    return proMonthlyStats.some(s => s.month === prevISO);
-  }, [proMonthlyStats]);
+    
+    // 1. Verifica se já existe snapshot no banco (Fonte Real)
+    const hasSnapshot = proMonthlyStats.some(s => s.month === prevISO && s.type === 'pg' && s.targetId === 'all');
+    
+    // 2. Verifica se a competência ativa já avançou (Fonte Lógica)
+    const competenceAdvanced = config.activeCompetenceMonth ? config.activeCompetenceMonth >= now.toISOString().split('T')[0].substring(0, 7) + '-01' : false;
+
+    return hasSnapshot || competenceAdvanced;
+  }, [proMonthlyStats, config.activeCompetenceMonth]);
 
   const getPreviousMonthLabel = () => {
     const now = new Date();

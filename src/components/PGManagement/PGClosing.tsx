@@ -312,11 +312,23 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
         }
         await saveRecord('proMonthlyStats', snapshots);
 
+        // 5. ATUALIZAR COMPETÊNCIA GLOBAL (Barreira de Segurança)
+        // Se fechou o mês atual ou anterior, movemos a competência para o próximo mês
+        const nextMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
+        const nextMonthISO = nextMonth.toISOString().split('T')[0];
+        
+        if (config.id) {
+            await saveRecord('config', { 
+                ...config, 
+                activeCompetenceMonth: nextMonthISO 
+            });
+        }
+
         setSyncState({ 
           isOpen: true, 
           status: 'success', 
           title: 'Mês Encerrado', 
-          message: `Sucesso! O fechamento de ${formatMonthLabel(selectedCloseMonth)} foi concluído para Gestão de PGs.` 
+          message: `Sucesso! O fechamento de ${formatMonthLabel(selectedCloseMonth)} foi concluído e a competência ativa avançou para ${formatMonthLabel(nextMonthISO)}.` 
         });
         await loadFromCloud(true);
     } catch (e: any) {
@@ -342,11 +354,19 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
         await deleteRecordsByFilter('proMonthlyStats', { month: selectedCloseMonth });
         await deleteRecordsByFilter('proHistoryRecords', { month: selectedCloseMonth });
 
+        // Retornar competência para o mês reaberto
+        if (config.id) {
+            await saveRecord('config', { 
+                ...config, 
+                activeCompetenceMonth: selectedCloseMonth 
+            });
+        }
+
         setSyncState({ 
           isOpen: true, 
           status: 'success', 
           title: 'Mês Reaberto', 
-          message: `O mês de ${formatMonthLabel(selectedCloseMonth)} foi reaberto com sucesso.` 
+          message: `O mês de ${formatMonthLabel(selectedCloseMonth)} foi reaberto e definido como competência ativa.` 
         });
         await loadFromCloud(true);
     } catch (e: any) {
