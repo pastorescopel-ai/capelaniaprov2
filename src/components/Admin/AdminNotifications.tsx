@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Bell, Send, Clock, ToggleLeft, ToggleRight, CheckCircle, AlertCircle, Save } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -19,12 +19,7 @@ export const AdminNotifications: React.FC = () => {
   const [isVercel, setIsVercel] = useState(false);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    fetchSettings();
-    setIsVercel(window.location.hostname.includes('vercel.app'));
-  }, []);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
       const res = await fetch('/api/push/settings');
       if (res.ok) {
@@ -36,7 +31,12 @@ export const AdminNotifications: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    fetchSettings();
+    setIsVercel(window.location.hostname.includes('vercel.app'));
+  }, [fetchSettings]);
 
   const handleUpdateSetting = async (id: string, updates: Partial<NotificationSetting>) => {
     try {
