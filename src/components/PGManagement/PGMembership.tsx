@@ -224,13 +224,21 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
                             </p>
                           </div>
                         </div>
-                        <button onClick={() => handleEnroll(staff.id, 'staff')} disabled={!currentPG || isProcessing} className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${staff.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}><i className={`fas ${staff.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i></button>
+                        {!isMonthClosed && (
+                          <button 
+                            onClick={() => handleEnroll(staff.id, 'staff')} 
+                            disabled={!currentPG || isProcessing} 
+                            className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${staff.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                          >
+                            <i className={`fas ${staff.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i>
+                          </button>
+                        )}
                       </div>
                     ))}
                 </>
             ) : (
                 <>
-                    {isNewProvider && (
+                    {isNewProvider && !isMonthClosed && (
                         <div className="p-4 rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50 flex flex-col items-center justify-center text-center space-y-3 animate-in fade-in duration-300 mb-4">
                             <div className="w-10 h-10 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center">
                                 <i className="fas fa-user-plus"></i>
@@ -261,7 +269,15 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
                               ) : 'Não Matriculado'}
                           </p>
                         </div>
-                        <button onClick={() => handleEnroll(provider.id, 'provider')} disabled={!currentPG || isProcessing} className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${provider.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}><i className={`fas ${provider.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i></button>
+                        {!isMonthClosed && (
+                          <button 
+                            onClick={() => handleEnroll(provider.id, 'provider')} 
+                            disabled={!currentPG || isProcessing} 
+                            className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-90 flex-shrink-0 ml-4 ${provider.membership ? 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                          >
+                            <i className={`fas ${provider.membership ? 'fa-exchange-alt' : 'fa-plus'} text-xs`}></i>
+                          </button>
+                        )}
                       </div>
                     ))}
                 </>
@@ -302,8 +318,29 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
                 </div>
                 {!member.isOptimistic && (
                     <div className="flex gap-1 flex-shrink-0 ml-2">
-                        <button onClick={() => handleSetLeader(member)} disabled={isProcessing || member.isLeader} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${member.isLeader ? 'bg-amber-100 text-amber-500 cursor-default' : 'bg-slate-50 text-slate-300 hover:text-amber-400 hover:bg-amber-50'}`}><i className="fas fa-crown text-[10px]"></i></button>
-                        <button onClick={() => setMemberToRemove({ id: member.id, name: member.staffName, staffId: member.staffId })} disabled={isProcessing} className="w-7 h-7 rounded-lg bg-rose-50 text-rose-300 hover:text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-all"><i className="fas fa-trash text-[10px]"></i></button>
+                        {!isMonthClosed && (
+                          <>
+                            <button 
+                              onClick={() => handleSetLeader(member)} 
+                              disabled={isProcessing || member.isLeader} 
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${member.isLeader ? 'bg-amber-100 text-amber-500 cursor-default' : 'bg-slate-50 text-slate-300 hover:text-amber-400 hover:bg-amber-50'}`}
+                            >
+                              <i className="fas fa-crown text-[10px]"></i>
+                            </button>
+                            <button 
+                              onClick={() => setMemberToRemove({ id: member.id, name: member.staffName, staffId: member.staffId })} 
+                              disabled={isProcessing} 
+                              className="w-7 h-7 rounded-lg bg-rose-50 text-rose-300 hover:text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-all"
+                            >
+                              <i className="fas fa-trash text-[10px]"></i>
+                            </button>
+                          </>
+                        )}
+                        {isMonthClosed && member.isLeader && (
+                          <div className="w-7 h-7 flex items-center justify-center text-amber-500">
+                             <i className="fas fa-crown text-[10px]"></i>
+                          </div>
+                        )}
                     </div>
                 )}
               </div>
