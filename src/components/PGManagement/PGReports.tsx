@@ -19,8 +19,11 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
   // Filtros
   const [selectedTarget, setSelectedTarget] = useState<{type: 'sector' | 'pg' | 'leader', id: string, label: string} | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA');
+  });
+  const [endDate, setEndDate] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [filterCritical, setFilterCritical] = useState(false);
 
   const searchOptions = useMemo(() => {
@@ -73,7 +76,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
     const providersById = new Map(proProviders.map(p => [cleanID(p.id), p]));
 
     // 0. Verificar se existe histórico para o mês selecionado (Snapshot de Fechamento)
-    const monthStr = new Date(sDate.getFullYear(), sDate.getMonth(), 1).toISOString().split('T')[0];
+    const monthStr = new Date(sDate.getFullYear(), sDate.getMonth(), 1).toLocaleDateString('en-CA');
     const isClosed = config.activeCompetenceMonth && monthStr < config.activeCompetenceMonth;
     const historyForMonth = proHistoryRecords.filter(r => r.month === monthStr && r.unit === unit);
 
@@ -533,7 +536,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
 
   const generateActivityReportHtml = () => {
     const sDate = new Date(startDate + 'T12:00:00');
-    const monthStr = new Date(sDate.getFullYear(), sDate.getMonth(), 1).toISOString().split('T')[0];
+    const monthStr = new Date(sDate.getFullYear(), sDate.getMonth(), 1).toLocaleDateString('en-CA');
     const isClosed = config.activeCompetenceMonth && monthStr < config.activeCompetenceMonth;
 
     const allGroups = proGroups.filter(g => g.unit === unit).sort((a, b) => a.name.localeCompare(b.name));
@@ -544,7 +547,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
 
     // Dados do mês anterior para comparação
     const prevMonthDate = new Date(sDate.getFullYear(), sDate.getMonth() - 1, 1);
-    const prevMonthStr = prevMonthDate.toISOString().split('T')[0];
+    const prevMonthStr = prevMonthDate.toLocaleDateString('en-CA');
     const historyPrevMonth = proHistoryRecords.filter(r => r.month === prevMonthStr && r.unit === unit);
 
     const prevActivePGNames = new Set<string>();

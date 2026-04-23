@@ -14,7 +14,13 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   const { config, saveRecord } = useApp();
   const { showToast } = useToast();
   
-  const [selectedMonth, setSelectedMonth] = useState(config.activeCompetenceMonth || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+  // Normalização Universal: Garante YYYY-MM-01 sem desvios de fuso horário
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    if (config.activeCompetenceMonth) return config.activeCompetenceMonth;
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA');
+  });
+  
   const [activeTab, setActiveTab] = useState<'staff' | 'providers'>('staff');
   const [selectedSectorName, setSelectedSectorName] = useState('');
   const [staffSearch, setStaffSearch] = useState('');
@@ -38,13 +44,19 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     return () => clearTimeout(handler);
   }, [providerSearch]);
 
-  // Se activeCompetenceMonth não estiver definido, assume o mês atual como o limite para evitar que tudo fique aberto
-  const activeMonth = config.activeCompetenceMonth || new Date().toISOString().split('T')[0].substring(0, 7) + '-01';
+  // Sincroniza com a competência ativa se ela mudar no config (carregamento inicial)
+  useEffect(() => {
+    if (config.activeCompetenceMonth) {
+        setSelectedMonth(config.activeCompetenceMonth);
+    }
+  }, [config.activeCompetenceMonth]);
+
+  // Lógica Robusta de Fechamento:
+  // 1. O mês está fechado se for anterior à competência ativa configurada
+  // 2. OU se houver qualquer snapshot de fechamento (geral ou por unidade) para este mês
+  const activeMonth = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA').substring(0, 7) + '-01';
   
-  // Lógica Robusta: O mês está fechado se:
-  // 1. Ele for anterior à competência ativa configurada
-  // 2. OU se já houver um registro de fechamento global no banco de dados para este mês
-  const hasClosingSnapshot = proMonthlyStats.some(s => s.month === selectedMonth && (s.type === 'pg' || s.targetId === 'all'));
+  const hasClosingSnapshot = proMonthlyStats.some(s => s.month === selectedMonth && (s.unit === unit || s.targetId === 'all'));
   
   const isMonthClosed = (selectedMonth < activeMonth) || hasClosingSnapshot;
   const isFutureMonth = selectedMonth > activeMonth && !hasClosingSnapshot;

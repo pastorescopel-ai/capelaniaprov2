@@ -31,7 +31,8 @@ export const calculateDashboardMetrics = (
   const monthStart = targetDate.getTime();
   
   // 0. Verificar se o mês está encerrado (Snapshot de Fechamento)
-  const isClosed = proMonthlyStats?.some(s => s.month === selectedMonth);
+  // O mês é considerado encerrado se houver um snapshot global (targetId: all) ou específico da unidade
+  const isClosed = proMonthlyStats?.some(s => s.month === selectedMonth && (s.targetId === 'all' || s.unit === unit));
   const historyForMonth = proHistoryRecords.filter(r => r.month === selectedMonth && r.unit === unit);
 
   if (isClosed && historyForMonth.length > 0) {

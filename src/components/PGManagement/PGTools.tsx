@@ -78,7 +78,7 @@ const PGTools: React.FC<PGToolsProps> = ({ unit }) => {
         name: newPGName.trim().toUpperCase(),
         unit: unit,
         active: true,
-        cycleMonth: config.activeCompetenceMonth || new Date().toISOString().split('T')[0],
+        cycleMonth: config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA'),
         createdAt: Date.now(),
         updatedAt: Date.now()
       };

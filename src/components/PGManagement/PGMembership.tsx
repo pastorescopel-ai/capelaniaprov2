@@ -44,7 +44,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     startTransition(() => {
       const d = new Date(selectedMonth + 'T12:00:00');
       d.setMonth(d.getMonth() - 1);
-      setSelectedMonth(d.toISOString().split('T')[0]);
+      setSelectedMonth(d.toLocaleDateString('en-CA'));
     });
   };
 
@@ -53,7 +53,7 @@ const PGMembership: React.FC<PGMembershipProps> = ({ unit }) => {
     startTransition(() => {
       const d = new Date(selectedMonth + 'T12:00:00');
       d.setMonth(d.getMonth() + 1);
-      setSelectedMonth(d.toISOString().split('T')[0]);
+      setSelectedMonth(d.toLocaleDateString('en-CA'));
     });
   };
 

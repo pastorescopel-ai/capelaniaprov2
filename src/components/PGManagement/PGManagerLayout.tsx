@@ -26,17 +26,15 @@ const PGManagerLayout: React.FC<PGManagerLayoutProps> = ({ editingItem, onCancel
 
   // Lógica para notificação de fechamento de mês
   const previousMonthClosed = useCallback(() => {
-    const now = new Date();
-    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevISO = prev.toISOString().split('T')[0];
+    const activeComp = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA').substring(0, 7) + '-01';
+    const prevDate = new Date(activeComp + 'T12:00:00');
+    prevDate.setMonth(prevDate.getMonth() - 1);
+    const prevISO = prevDate.toLocaleDateString('en-CA');
     
     // 1. Verifica se já existe snapshot no banco (Fonte Real)
-    const hasSnapshot = proMonthlyStats.some(s => s.month === prevISO && s.type === 'pg' && s.targetId === 'all');
+    const hasSnapshot = proMonthlyStats.some(s => s.month === prevISO && s.targetId === 'all');
     
-    // 2. Verifica se a competência ativa já avançou (Fonte Lógica)
-    const competenceAdvanced = config.activeCompetenceMonth ? config.activeCompetenceMonth >= now.toISOString().split('T')[0].substring(0, 7) + '-01' : false;
-
-    return hasSnapshot || competenceAdvanced;
+    return hasSnapshot;
   }, [proMonthlyStats, config.activeCompetenceMonth]);
 
   const getPreviousMonthLabel = () => {
