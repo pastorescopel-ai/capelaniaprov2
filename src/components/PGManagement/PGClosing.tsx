@@ -53,14 +53,14 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
     prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
     const prevMonthISO = prevMonthDate.toLocaleDateString('en-CA');
 
-    const isPrevClosed = proMonthlyStats.some(s => s.month === prevMonthISO && s.targetId === 'all');
+    const isPrevClosed = proMonthlyStats.some(s => s.month === prevMonthISO && s.unit === unit && s.targetId === 'all');
     
     // Sugerimos o mês de competência se o anterior estiver fechado, senão sugerimos o anterior
     const suggestedMonth = isPrevClosed ? activeComp : prevMonthISO;
     
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedCloseMonth(prev => prev !== suggestedMonth ? suggestedMonth : prev);
-  }, [proMonthlyStats, config.activeCompetenceMonth]);
+  }, [proMonthlyStats, config.activeCompetenceMonth, unit]);
 
   const formatMonthLabel = (iso: string) => {
     const d = new Date(iso + 'T12:00:00');
@@ -445,7 +445,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
   const isMonthClosed = useMemo(() => {
     const activeMonthRaw = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA');
     const activeMonth = activeMonthRaw.substring(0, 7) + '-01';
-    const hasClosingSnapshot = proMonthlyStats.some(s => s.month === selectedCloseMonth && (s.unit === unit || s.targetId === 'all'));
+    const hasClosingSnapshot = proMonthlyStats.some(s => s.month === selectedCloseMonth && s.unit === unit && s.targetId === 'all');
     return (selectedCloseMonth < activeMonth) || hasClosingSnapshot;
   }, [selectedCloseMonth, config.activeCompetenceMonth, proMonthlyStats, unit]);
 
