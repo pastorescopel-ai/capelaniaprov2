@@ -2,29 +2,12 @@ import express, { Express } from "express";
 import fs from "fs";
 import path from "path";
 import { logger } from "../../utils/logger.js";
-import { NotificationManager } from "../notifications.js";
 
 export function setupApiRoutes(app: Express, getConfig: () => { supabaseUrl: string; supabaseKey: string }, _dirname: string) {
-  // Inicializa o gerenciador de notificações se as chaves existirem
-  const notificationConfig = {
-    ...getConfig(),
-    vapidPublicKey: process.env.VAPID_PUBLIC_KEY || "",
-    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || "",
-    vapidEmail: process.env.VAPID_EMAIL || "mailto:admin@capelaniahab.com.br"
-  };
-
-  const notificationManager = new NotificationManager(notificationConfig);
-  
-  // Agendamentos apenas em ambiente persistente (Não-Vercel)
-  if (!process.env.VERCEL) {
-    notificationManager.setupSchedules();
-  }
-
   // API para fornecer as chaves do Supabase dinamicamente
   app.get("/api/config", (req, res) => {
     const config = {
-      ...getConfig(),
-      vapidPublicKey: process.env.VAPID_PUBLIC_KEY || ""
+      ...getConfig()
     };
     res.json(config);
   });
@@ -32,136 +15,6 @@ export function setupApiRoutes(app: Express, getConfig: () => { supabaseUrl: str
   // Health check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
-  });
-
-  // Gatilhos de automação (Cron)
-  const cronMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const authHeader = req.headers.authorization;
-    const secret = process.env.CRON_SECRET;
-    
-    if (secret && authHeader !== `Bearer ${secret}`) {
-      return res.status(401).json({ error: "Não autorizado" });
-    }
-    next();
-  };
-
-  // Rota para disparar lembretes de relatórios pendentes
-  app.get("/api/cron/daily-reports", cronMiddleware, async (req, res) => {
-    try {
-      const result = await notificationManager.checkDailyReports();
-      res.json(result);
-    } catch (err) {
-      res.status(500).json({ error: "Erro ao processar lembretes diários" });
-    }
-  });
-
-  // Rota para disparar alertas de visitas próximas
-  app.get("/api/cron/visit-alerts", cronMiddleware, async (req, res) => {
-    try {
-      const result = await notificationManager.checkUpcomingVisits();
-      res.json(result);
-    } catch (err) {
-      res.status(500).json({ error: "Erro ao processar alertas de visitas" });
-    }
-  });
-
-  // Rota para disparar lembretes de atividades pendentes no dashboard
-  app.get("/api/cron/dashboard-reminders", cronMiddleware, async (req, res) => {
-    try {
-      const result = await notificationManager.checkDashboardPendingActivities();
-      res.json(result);
-    } catch (err) {
-      res.status(500).json({ error: "Erro ao processar lembretes do dashboard" });
-    }
-  });
-
-  // Rota para salvar subscrição de push
-  app.post("/api/push/subscribe", async (req, res) => {
-    const { userId, subscription } = req.body;
-    if (!userId || !subscription) {
-      return res.status(400).json({ error: "userId e subscription são obrigatórios" });
-    }
-
-    try {
-      const { supabaseUrl, supabaseKey } = getConfig();
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(supabaseUrl, supabaseKey);
-
-      // Salva no banco (push_subscriptions)
-      // Usamos upsert se possível para evitar duplicatas do mesmo aparelho
-      const { error } = await supabase
-        .from('push_subscriptions')
-        .upsert({ 
-          user_id: userId, 
-          subscription: typeof subscription === 'string' ? subscription : JSON.stringify(subscription),
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,subscription' }); // Assumindo uma constraint única se existir
-
-      if (error) {
-        // Se a tabela não existir, tentamos um fallback ou apenas log
-        if (error.code === '42P01') {
-           logger.error("Tabela push_subscriptions não existe no Supabase. Crie-a para habilitar notificações.");
-           return res.status(501).json({ error: "Push subscriptions not configured in database." });
-        }
-        throw error;
-      }
-
-      res.json({ success: true });
-    } catch (err) {
-      logger.error("Erro ao salvar subscrição de push:", err);
-      res.status(500).json({ error: "Erro interno ao salvar subscrição" });
-    }
-  });
-
-  // Rota para broadcast (Admin apenas)
-  app.post("/api/push/broadcast", async (req, res) => {
-    const { title, body, data } = req.body;
-    try {
-      const result = await notificationManager.broadcastToAll({ title, body, data });
-      res.json(result);
-    } catch (err) {
-      res.status(500).json({ error: "Erro ao enviar transmissão" });
-    }
-  });
-
-  // Rotas de configuração (Admin apenas)
-  app.get("/api/push/settings", async (req, res) => {
-    try {
-      const settings = await notificationManager.getSettings();
-      res.json(settings);
-    } catch (err) {
-      res.status(500).json({ error: "Erro ao buscar configurações" });
-    }
-  });
-
-  app.patch("/api/push/settings/:id", async (req, res) => {
-    const { id } = req.params;
-    const updates = req.body;
-    try {
-      const result = await notificationManager.updateSetting(id, updates);
-      res.json(result);
-    } catch (err) {
-      res.status(500).json({ error: "Erro ao atualizar configuração" });
-    }
-  });
-
-  // Rota para teste de push
-  app.post("/api/push/test", async (req, res) => {
-    const { userId, title, body } = req.body;
-    await notificationManager.sendPushNotification(userId, { 
-      title: title || "Teste de Notificação 🔔", 
-      body: body || "Esta é uma mensagem de teste do sistema." 
-    });
-    res.json({ success: true });
-  });
-
-  // API para debug
-  app.get("/api/debug", (req, res) => {
-    res.json({
-      hasUrl: !!(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL),
-      hasKey: !!(process.env.VITE_SUPABASE_KEY || process.env.SUPABASE_KEY),
-      envKeys: Object.keys(process.env).filter(k => k.includes("SUPABASE")),
-    });
   });
 
   // API para diagnóstico robusto

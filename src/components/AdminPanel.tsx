@@ -6,7 +6,6 @@ import AdminConfig from './Admin/AdminConfig';
 import AdminLists from './Admin/AdminLists';
 import AdminDataTools from './Admin/AdminDataTools';
 import AdminEditAuthorizations from './Admin/AdminEditAuthorizations';
-import { AdminNotifications } from './Admin/AdminNotifications';
 import { useApp } from '../hooks/useApp';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -101,7 +100,7 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'config' | 'identity' | 'lists' | 'tools' | 'permissions' | 'notifications'>('config');
+  const [activeTab, setActiveTab] = useState<'config' | 'identity' | 'lists' | 'tools' | 'permissions'>('config');
 
   if (!currentUser) return null;
 
@@ -130,7 +129,6 @@ const AdminPanel: React.FC = () => {
           { id: 'identity', label: 'Identidade Visual', icon: 'fa-palette' },
           { id: 'lists', label: 'Listas & PGs', icon: 'fa-list-ul' },
           { id: 'permissions', label: 'Permissões', icon: 'fa-user-shield' },
-          { id: 'notifications', label: 'Notificações', icon: 'fa-bell' },
           { id: 'tools', label: 'Ferramentas', icon: 'fa-tools' },
         ].map(tab => (
           <button
@@ -181,10 +179,6 @@ const AdminPanel: React.FC = () => {
             onDelete={(id) => deleteRecord('editAuthorizations', id)}
             currentUser={currentUser}
           />
-        )}
-
-        {activeTab === 'notifications' && (
-          <AdminNotifications />
         )}
 
         {activeTab === 'tools' && (
