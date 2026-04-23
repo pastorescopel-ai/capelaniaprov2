@@ -33,7 +33,8 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
 
   // Lógica de Detecção de Mês Fechado
   const isMonthClosed = useMemo(() => {
-    const activeMonth = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA').substring(0, 7) + '-01';
+    const activeMonthRaw = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA');
+    const activeMonth = activeMonthRaw.substring(0, 7) + '-01';
     const hasClosingSnapshot = proMonthlyStats.some(s => s.month === selectedMonth && (s.unit === unit || s.targetId === 'all'));
     return (selectedMonth < activeMonth) || hasClosingSnapshot;
   }, [selectedMonth, config.activeCompetenceMonth, proMonthlyStats, unit]);

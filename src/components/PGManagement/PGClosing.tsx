@@ -45,7 +45,8 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
     if (!proMonthlyStats || proMonthlyStats.length === 0) return;
 
     // Se a competência ativa no banco estiver definida, respeitamos ela como base para sugestão
-    const activeComp = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA').substring(0, 7) + '-01';
+    const activeCompRaw = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA');
+    const activeComp = activeCompRaw.substring(0, 7) + '-01';
     
     // Verifica se já fechamos o mês anterior à competência ativa
     const prevMonthDate = new Date(activeComp + 'T12:00:00');
@@ -320,7 +321,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
         // 5. ATUALIZAR COMPETÊNCIA GLOBAL (Barreira de Segurança)
         // Se fechou o mês atual ou anterior, movemos a competência para o próximo mês
         const nextMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
-        const nextMonthISO = nextMonth.toISOString().split('T')[0];
+        const nextMonthISO = nextMonth.toLocaleDateString('en-CA');
         
         if (config.id) {
             await saveRecord('config', { 
@@ -442,7 +443,8 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
   };
 
   const isMonthClosed = useMemo(() => {
-    const activeMonth = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA').substring(0, 7) + '-01';
+    const activeMonthRaw = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA');
+    const activeMonth = activeMonthRaw.substring(0, 7) + '-01';
     const hasClosingSnapshot = proMonthlyStats.some(s => s.month === selectedCloseMonth && (s.unit === unit || s.targetId === 'all'));
     return (selectedCloseMonth < activeMonth) || hasClosingSnapshot;
   }, [selectedCloseMonth, config.activeCompetenceMonth, proMonthlyStats, unit]);

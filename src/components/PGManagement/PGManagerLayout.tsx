@@ -26,21 +26,43 @@ const PGManagerLayout: React.FC<PGManagerLayoutProps> = ({ editingItem, onCancel
 
   // Lógica para notificação de fechamento de mês
   const previousMonthClosed = useCallback(() => {
-    const activeComp = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA').substring(0, 7) + '-01';
-    const prevDate = new Date(activeComp + 'T12:00:00');
-    prevDate.setMonth(prevDate.getMonth() - 1);
-    const prevISO = prevDate.toLocaleDateString('en-CA');
+    // Normaliza a competência ativa para garantir o formato YYYY-MM-01
+    const rawActive = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA');
+    const activeComp = rawActive.substring(0, 7) + '-01';
     
-    // 1. Verifica se já existe snapshot no banco (Fonte Real)
-    const hasSnapshot = proMonthlyStats.some(s => s.month === prevISO && s.targetId === 'all');
-    
-    return hasSnapshot;
-  }, [proMonthlyStats, config.activeCompetenceMonth]);
-
-  const getPreviousMonthLabel = () => {
+    // Mes "esperado" para estar fechado (mês anterior ao atual real)
     const now = new Date();
-    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return prev.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const expectedPrevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const expectedPrevISO = expectedPrevDate.toLocaleDateString('en-CA');
+    
+    // 1. Verifica se já existe snapshot no banco para o mês que deveria estar fechado
+    // Considera tanto o fechamento global (all) quanto o específico da unidade
+    const hasSnapshot = proMonthlyStats.some(s => 
+      s.month === expectedPrevISO && (s.unit === currentUnit || s.targetId === 'all')
+    );
+    
+    // 2. Verifica se a competência ativa já avançou (se activeComp >= hoje, está em dia)
+    const currentMonthISO = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA');
+    const competenceIsCurrent = activeComp >= currentMonthISO;
+
+    return hasSnapshot && competenceIsCurrent;
+  }, [proMonthlyStats, config.activeCompetenceMonth, currentUnit]);
+
+  const getPendingMonthLabel = () => {
+    const now = new Date();
+    const currentMonthISO = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA');
+    const rawActive = config.activeCompetenceMonth || currentMonthISO;
+    const activeComp = rawActive.substring(0, 7) + '-01';
+
+    let targetDate: Date;
+    if (activeComp < currentMonthISO) {
+        // Se a competência está atrasada, o foco é a própria competência
+        targetDate = new Date(activeComp + 'T12:00:00');
+    } else {
+        // Caso contrário, o foco é o mês anterior que pode não ter snapshot ainda
+        targetDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    }
+    return targetDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   };
 
   useEffect(() => {
@@ -84,7 +106,7 @@ const PGManagerLayout: React.FC<PGManagerLayoutProps> = ({ editingItem, onCancel
             </div>
             <div>
               <p className="text-[11px] font-black uppercase tracking-tight">Fechamento Pendente</p>
-              <p className="text-[10px] font-bold opacity-80">O mês de <span className="uppercase">{getPreviousMonthLabel()}</span> ainda não foi encerrado oficialmente.</p>
+              <p className="text-[10px] font-bold opacity-80">O mês de <span className="uppercase">{getPendingMonthLabel()}</span> ainda não foi encerrado oficialmente.</p>
             </div>
           </div>
           <button 
