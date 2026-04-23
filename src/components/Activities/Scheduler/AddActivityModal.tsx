@@ -49,7 +49,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
   const [currentSector, setCurrentSector] = useState('');
   const [currentSectorTime, setCurrentSectorTime] = useState('');
   const [modalUserId, setModalUserId] = useState(selectedUser || '');
-  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  const [selectedDays, setSelectedDays] = useState<number[]>(addingActivity?.dayOfWeek ? [addingActivity.dayOfWeek] : []);
 
   const formatPhone = (value: string) => {
     const cleaned = value.replace(/\D/g, '');
@@ -187,8 +187,8 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
                 {BLUEPRINT_LOCATIONS.map(loc => {
                   const conflictingSchedule = globalSchedulesForMonth.find(s => 
                     s.activityType === 'blueprint' && 
-                    s.location === loc && 
-                    selectedDays.includes(s.dayOfWeek) &&
+                    String(s.location) === loc && 
+                    selectedDays.map(Number).includes(Number(s.dayOfWeek)) &&
                     (s.period || 'tarde') === selectedPeriod
                   );
                   const isBlocked = !!conflictingSchedule;
@@ -272,8 +272,8 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
                     {sectors.map(sec => {
                       const conflictingSchedule = globalSchedulesForMonth.find(s => 
                         s.activityType === 'cult' && 
-                        s.location === sec.id && 
-                        selectedDays.includes(s.dayOfWeek) &&
+                        String(s.location) === String(sec.id) && 
+                        selectedDays.map(Number).includes(Number(s.dayOfWeek)) &&
                         (s.period || 'tarde') === selectedPeriod
                       );
                       const isBlocked = !!conflictingSchedule;

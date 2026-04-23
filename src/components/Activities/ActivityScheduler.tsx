@@ -15,7 +15,7 @@ import ReplicateScaleModal from './Scheduler/ReplicateScaleModal';
 import DeleteScheduleModal from './Scheduler/DeleteScheduleModal';
 
 const ActivityScheduler: React.FC = () => {
-  const { users, proSectors, activitySchedules, saveRecord, deleteRecord, config, isInitialized } = useApp();
+  const { users, proSectors, activitySchedules, saveRecord, deleteRecord, refreshData, config, isInitialized } = useApp();
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const { generatePdf, isGenerating: isGeneratingPdf } = useDocumentGenerator();
@@ -233,6 +233,12 @@ const ActivityScheduler: React.FC = () => {
     setIsSaving(true);
     try {
       await Promise.all(toDeleteIds.map(id => deleteRecord('activitySchedules', id)));
+      
+      // Força um refresh dos dados para garantir que os blocos de conflito sumam imediatamente
+      if (toDeleteIds.length > 1) {
+        await refreshData();
+      }
+      
       showToast(toDeleteIds.length > 1 ? "Agendamentos removidos." : "Agendamento removido.", "success");
     } catch (error) {
       showToast("Erro ao remover agendamento.", "warning");
