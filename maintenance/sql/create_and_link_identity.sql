@@ -38,7 +38,7 @@ BEGIN
             SELECT COALESCE(MAX(id), range_start) + 1 INTO new_id FROM pro_patients WHERE id >= range_start;
             
             INSERT INTO pro_patients (id, name, unit, updated_at) 
-            VALUES (new_id, target_name, target_unit, now());
+            VALUES (new_id, target_name, target_unit, extract(epoch from now()) * 1000);
             official_name := target_name;
         ELSE
             new_id := existing_id;
@@ -56,7 +56,7 @@ BEGIN
             SELECT COALESCE(MAX(id), range_start) + 1 INTO new_id FROM pro_providers WHERE id >= range_start;
             
             INSERT INTO pro_providers (id, name, unit, updated_at) 
-            VALUES (new_id, target_name, target_unit, now());
+            VALUES (new_id, target_name, target_unit, extract(epoch from now()) * 1000);
             official_name := target_name;
         ELSE
             new_id := existing_id;
@@ -66,44 +66,32 @@ BEGIN
     END IF;
 
     -- 3. VÍNCULO NO HISTÓRICO
-    -- Atualiza tabelas históricas usando o novo BIGINT e corrigindo o tipo de participante
+    -- Atualiza tabelas históricas usando o novo BIGINT
     
-    -- Estudos (bible_study_sessions)
-    UPDATE bible_study_sessions 
-    SET staff_id = CASE WHEN entity_type = 'Colaborador' THEN new_id ELSE NULL END,
-        participant_id = CASE WHEN entity_type IN ('Paciente', 'Prestador') THEN new_id ELSE NULL END,
-        participant_type = entity_type, 
-        name = official_name
+    -- Estudos
+    UPDATE bible_studies 
+    SET staff_id = new_id, participant_type = entity_type, name = official_name
     WHERE lower(regexp_replace(name, '[^a-zA-Z0-9]', '', 'g')) = clean_name 
-    AND (staff_id IS NULL OR staff_id != new_id OR participant_type != entity_type);
+    AND (staff_id IS NULL OR staff_id != new_id);
     GET DIAGNOSTICS affected_rows = ROW_COUNT;
     total_history := total_history + affected_rows;
 
-    -- Visitas (staff_visits)
+    -- Visitas
     UPDATE staff_visits 
-    SET staff_id = CASE WHEN entity_type = 'Colaborador' THEN new_id ELSE NULL END,
-        provider_id = CASE WHEN entity_type = 'Prestador' THEN new_id ELSE NULL END,
-        participant_type = entity_type, 
-        staff_name = official_name
+    SET staff_id = new_id, participant_type = entity_type, staff_name = official_name
     WHERE lower(regexp_replace(staff_name, '[^a-zA-Z0-9]', '', 'g')) = clean_name 
-    AND (
-        (entity_type = 'Colaborador' AND (staff_id IS NULL OR staff_id != new_id)) OR
-        (entity_type = 'Prestador' AND (provider_id IS NULL OR provider_id != new_id)) OR
-        (entity_type = 'Paciente' AND (participant_type != 'Paciente'))
-    );
+    AND (staff_id IS NULL OR staff_id != new_id);
     GET DIAGNOSTICS affected_rows = ROW_COUNT;
     total_history := total_history + affected_rows;
     
-    -- Classes (bible_class_attendees)
+    -- Classes
     UPDATE bible_class_attendees
-    SET staff_id = CASE WHEN entity_type = 'Colaborador' THEN new_id ELSE NULL END,
-        participant_id = CASE WHEN entity_type IN ('Paciente', 'Prestador') THEN new_id ELSE NULL END,
-        student_name = official_name
+    SET staff_id = new_id, student_name = official_name
     WHERE lower(regexp_replace(student_name, '[^a-zA-Z0-9]', '', 'g')) = clean_name 
-    AND (staff_id IS NULL AND participant_id IS NULL OR staff_id != new_id OR participant_id != new_id);
+    AND (staff_id IS NULL OR staff_id != new_id);
     GET DIAGNOSTICS affected_rows = ROW_COUNT;
     total_history := total_history + affected_rows;
 
-    RETURN 'Sucesso! ' || entity_type || ' "' || official_name || '" ID: ' || new_id || '. (' || total_history || ' registros históricos vinculados)';
+    RETURN 'Sucesso! ' || entity_type || ' "' || official_name || '" ID: ' || new_id || '. (' || total_history || ' registros)';
 END;
 $$;

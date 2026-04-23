@@ -36,7 +36,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     editAuthorizations,
     handleSelectSector,
     addStudent, handleClear, handleFormSubmit,
-    handleContinueClass, defaultState, ownershipConflict, setOwnershipConflict, identityConflict
+    handleContinueClass, defaultState, ownershipConflict, setOwnershipConflict
   } = useBibleClassForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
 
   const isAdmin = currentUser.role === UserRole.ADMIN;
@@ -136,14 +136,6 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
               <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent || ''} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={`Buscar ${formData.participantType.toLowerCase()}...`} isStrict={false} /></div>
               <button type="button" onClick={() => addStudent()} className="w-12 h-12 md:w-14 md:h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all"><i className="fas fa-plus"></i></button>
             </div>
-            {identityConflict.hasConflict && identityConflict.isWarning && (
-              <div className="mt-2 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-1 duration-300">
-                <i className="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
-                <p className="text-[10px] font-bold text-amber-700 leading-tight uppercase tracking-tight">
-                  {identityConflict.message}
-                </p>
-              </div>
-            )}
             
             <div className="mt-4 md:mt-5 border border-slate-200 rounded-[1.5rem] overflow-hidden bg-white shadow-sm">
               <div className="bg-slate-50 p-3 md:p-3.5 border-b border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-2 flex items-center gap-2"><i className="fas fa-clipboard-list text-indigo-400"></i> Lista de Alunos ({formData.students.length})</span></div>

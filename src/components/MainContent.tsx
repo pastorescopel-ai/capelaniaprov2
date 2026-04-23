@@ -38,7 +38,6 @@ interface MainContentProps {
   updateCurrentUser: (user: User) => void;
   handleSaveItem: (type: string, data: any) => void;
   onRegisterMission: (visit: any) => void;
-  onEditVisitRequest?: (request: any) => void;
   onGoToReturnHistory: (visit?: any) => void;
   getVisibleHistory: (list: any[]) => any[];
 }
@@ -79,7 +78,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   const {
     activeTab, activitiesSubTab, visitedTabs, currentUser, currentUnit, unitSectors, editingItem, isLoading,
     setActiveTab, setCurrentUnit, setEditingItem, setItemToDelete,
-    updateCurrentUser, handleSaveItem, onRegisterMission, onEditVisitRequest, onGoToReturnHistory, getVisibleHistory
+    updateCurrentUser, handleSaveItem, onRegisterMission, onGoToReturnHistory, getVisibleHistory
   } = props;
 
   const {
@@ -111,7 +110,6 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             config={config} 
             onGoToTab={setActiveTab} 
             onRegisterMission={onRegisterMission}
-            onEditRequest={onEditVisitRequest}
             onGoToReturnHistory={onGoToReturnHistory}
             onUpdateConfig={c => saveToCloud({config: c}, false)} 
             onUpdateUser={u => saveRecord('users', u)} 
@@ -190,7 +188,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       case 'reports':
         return <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} currentUser={currentUser} config={config} onRefresh={() => loadFromCloud(true)} />;
       case 'pgManagement':
-        return <PGManager editingItem={editingItem} onCancelEdit={() => setEditingItem(null)} />;
+        return <PGManager />;
       case 'users':
         return <CoreModule type="users" currentUser={currentUser} users={users} isLoading={isLoading} onUpdateUsers={async u => { await saveToCloud({ users: u }, true); }} />;
       case 'profile':

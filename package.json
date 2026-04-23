@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node dist/server.cjs",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --outfile=dist/server.cjs --external:express --external:vite --external:path --external:url --external:fs --external:@supabase/supabase-js",
+    "build": "NODE_ENV=production vite build && esbuild server.ts --platform=node --format=cjs --outfile=dist/server.cjs --define:import.meta=false",
     "preview": "vite preview",
     "lint": "eslint ."
   },
@@ -30,6 +30,8 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
     "@vitejs/plugin-react": "^4.3.4",

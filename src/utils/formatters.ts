@@ -41,7 +41,8 @@ export const getMonthStartISO = (date: Date = new Date()): string => {
   const year = date.getFullYear();
   const month = date.getMonth();
   const firstDay = new Date(year, month, 1);
-  return firstDay.toLocaleDateString('en-CA');
+  const offset = firstDay.getTimezoneOffset() * 60000;
+  return new Date(firstDay.getTime() - offset).toISOString().split('T')[0];
 };
 
 /**
@@ -50,8 +51,9 @@ export const getMonthStartISO = (date: Date = new Date()): string => {
  */
 export const toSafeDateISO = (val: any): string => {
   if (!val) return "";
-  const iso = ensureISODate(val);
-  return `${iso}T12:00:00`;
+  const dateStr = typeof val === 'number' ? new Date(val).toLocaleDateString('en-CA') : String(val);
+  const base = dateStr.split('T')[0]; // Garante apenas YYYY-MM-DD
+  return `${base}T12:00:00`;
 };
 
 /**
@@ -59,9 +61,9 @@ export const toSafeDateISO = (val: any): string => {
  */
 export const formatDateBR = (val: any): string => {
   if (!val) return "";
-  const iso = ensureISODate(val);
-  const parts = iso.split('-');
-  if (parts.length !== 3) return iso;
+  const dateStr = typeof val === 'number' ? new Date(val).toLocaleDateString('en-CA') : String(val);
+  const parts = dateStr.split('T')[0].split('-');
+  if (parts.length !== 3) return dateStr;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 };
 
@@ -74,11 +76,7 @@ export const ensureISODate = (val: any): string => {
   if (typeof val === 'number') {
     return new Date(val).toLocaleDateString('en-CA');
   }
-  const strVal = String(val);
-  if (/^\d+$/.test(strVal)) {
-    return new Date(Number(strVal)).toLocaleDateString('en-CA');
-  }
-  return strVal.split('T')[0];
+  return String(val).split('T')[0];
 };
 
 export const getFirstName = (fullName: string) => {

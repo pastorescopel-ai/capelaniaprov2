@@ -1,4 +1,3 @@
-import { useCallback } from 'react';
 import { useApp } from '../hooks/useApp';
 import { normalizeString } from '../utils/formatters';
 import { Unit, ParticipantType, RecordStatus, UserRole } from '../types';
@@ -6,35 +5,12 @@ import { Unit, ParticipantType, RecordStatus, UserRole } from '../types';
 export const useIdentityGuard = () => {
   const { proStaff, bibleStudies, bibleClasses, users } = useApp();
 
-  const checkIdentityConflict = useCallback((name: string, participantType: ParticipantType, unit: Unit): { hasConflict: boolean; message: string; isWarning?: boolean } => {
-    if (!name) return { hasConflict: false, message: '' };
-    const normName = normalizeString(name);
-
-    // 1. Verificação de Colaborador Oficial
-    const isOfficialStaff = proStaff.some(s => normalizeString(s.name) === normName && s.unit === unit);
-
-    if (participantType === ParticipantType.STAFF) {
-      if (!isOfficialStaff) {
-        return { 
-          hasConflict: true, 
-          message: 'Este nome não consta na lista oficial de colaboradores do RH. Para registrar como colaborador, selecione um nome da lista.' 
-        };
-      }
-    } else {
-      // 2. Alerta de Cross-Categorização (Aviso, não bloqueio)
-      if (isOfficialStaff) {
-        return {
-          hasConflict: true,
-          isWarning: true,
-          message: `Atenção: "${name}" consta na lista oficial de Colaboradores. Tem certeza que deseja registrar como ${participantType}?`
-        };
-      }
-    }
-
+  const checkIdentityConflict = (name: string, participantType: ParticipantType, unit: Unit): { hasConflict: boolean; message: string } => {
+    // FLEXIBILIZAR: Desativado para permitir registros livres sem bloqueios de tipo
     return { hasConflict: false, message: '' };
-  }, [proStaff]);
+  };
 
-  const checkOwnershipConflict = useCallback((
+  const checkOwnershipConflict = (
     nameOrSector: string, 
     type: 'study' | 'class', 
     unit: Unit, 
@@ -77,7 +53,7 @@ export const useIdentityGuard = () => {
     }
 
     return { hasConflict: false, message: '' };
-  }, [bibleStudies, bibleClasses, users]);
+  };
 
   return { checkIdentityConflict, checkOwnershipConflict };
 };

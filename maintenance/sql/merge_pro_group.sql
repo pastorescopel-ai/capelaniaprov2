@@ -26,7 +26,7 @@ BEGIN
         FROM pro_groups WHERE id = old_id;
 
         INSERT INTO pro_groups (id, name, current_leader, sector_id, unit, active, updated_at)
-        VALUES (new_id, old_name, old_leader, old_sector, old_unit, true, now());
+        VALUES (new_id, old_name, old_leader, old_sector, old_unit, true, (extract(epoch from now()) * 1000));
     END IF;
 
     DELETE FROM pro_group_locations

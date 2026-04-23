@@ -26,18 +26,8 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
   
   // Estado para o mês de competência selecionado
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    if (config.activeCompetenceMonth) return config.activeCompetenceMonth;
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA');
+    return config.activeCompetenceMonth || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   });
-
-  // Lógica de Detecção de Mês Fechado
-  const isMonthClosed = useMemo(() => {
-    const activeMonthRaw = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA');
-    const activeMonth = activeMonthRaw.substring(0, 7) + '-01';
-    const hasClosingSnapshot = proMonthlyStats.some(s => s.month === selectedMonth && s.unit === unit && s.targetId === 'all');
-    return (selectedMonth < activeMonth) || hasClosingSnapshot;
-  }, [selectedMonth, config.activeCompetenceMonth, proMonthlyStats, unit]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -63,17 +53,16 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
     );
   }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, unit, debouncedSearchTerm, filterType, selectedMonth, proHistoryRecords, proMonthlyStats]);
 
-  // Gerar opções de meses (Últimos 12 meses para garantir que Fevereiro/Março apareçam)
+  // Gerar opções de meses (Últimos 6 meses)
   const monthOptions = useMemo(() => {
     const options = [];
     const now = new Date();
-    for (let i = 0; i < 12; i++) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const iso = d.toLocaleDateString('en-CA');
-        options.push({
-            value: iso,
-            label: new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(d)
-        });
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      options.push({
+        value: d.toISOString().split('T')[0],
+        label: new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(d)
+      });
     }
     return options;
   }, []);
@@ -128,27 +117,6 @@ const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
           </select>
         </div>
       </div>
-
-      {/* Aviso de Mês Fechado */}
-      {isMonthClosed && (
-        <div className="bg-amber-50 border border-amber-200 p-6 rounded-[2rem] flex flex-col md:flex-row items-center gap-6 animate-in slide-in-from-top-4 duration-500 shadow-sm">
-          <div className="w-14 h-14 bg-amber-500 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-amber-200 shrink-0">
-            <i className="fas fa-lock"></i>
-          </div>
-          <div className="flex-1 text-center md:text-left">
-            <h4 className="text-sm font-black text-amber-900 uppercase tracking-tight">Período de Competência Encerrado</h4>
-            <p className="text-amber-700/70 text-[10px] font-bold uppercase tracking-wide mt-1">
-              Os dados de {formatMonthLabel(selectedMonth)} estão consolidados no histórico e não podem mais ser alterados. 
-              Gere os relatórios finais para esta competência.
-            </p>
-          </div>
-          <div className="shrink-0 flex gap-2">
-            <span className="px-4 py-2 bg-white border border-amber-200 text-amber-700 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm">
-              Snapshot Ativo
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* KPI Global */}
       <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">

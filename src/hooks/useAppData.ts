@@ -138,26 +138,15 @@ export const useAppData = () => {
 
   // Sincronização automática de estudantes nas classes bíblicas
   useEffect(() => {
-    if (bibleClassAttendees.length === 0 && bibleClasses.length === 0) return;
-
     setBibleClasses(prevClasses => {
       let hasChanges = false;
       const nextClasses = prevClasses.map(cls => {
-        // Busca alunos vinculados a esta classe
         const students = bibleClassAttendees
           .filter(a => a.classId === cls.id)
-          .map(a => {
-            const id = a.staffId || a.participantId;
-            if (id && !String(a.studentName).includes(`(${id})`)) {
-                return `${a.studentName} (${id})`;
-            }
-            return a.studentName;
-          });
+          .map(a => a.studentName);
         
         const currentStudents = cls.students || [];
-        
-        // Verificação profunda para evitar re-render se os dados forem idênticos
-        if (students.length !== currentStudents.length || !students.every((s, i) => s === currentStudents[i])) {
+        if (students.length !== currentStudents.length || !students.every(s => currentStudents.includes(s))) {
           hasChanges = true;
           return { ...cls, students };
         }
@@ -165,7 +154,7 @@ export const useAppData = () => {
       });
       return hasChanges ? nextClasses : prevClasses;
     });
-  }, [bibleClassAttendees, bibleClasses.length]);
+  }, [bibleClassAttendees]);
 
   return {
     users, setUsers, bibleStudies, setBibleStudies, bibleClasses, setBibleClasses, smallGroups, setSmallGroups, staffVisits, setStaffVisits, visitRequests, setVisitRequests,

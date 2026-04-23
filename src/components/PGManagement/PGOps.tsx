@@ -12,11 +12,9 @@ import VisitHistoryList from './VisitHistoryList';
 
 interface PGOpsProps {
   unit: Unit;
-  editingItem?: any;
-  onCancelEdit?: () => void;
 }
 
-const PGOps: React.FC<PGOpsProps> = memo(({ unit, editingItem, onCancelEdit }) => {
+const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
   const { proGroups, proStaff, proGroupLocations, proSectors } = usePro();
   const { config, users, saveRecord, visitRequests, deleteRecord } = useApp();
   const { currentUser } = useAuth();
@@ -29,28 +27,16 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit, editingItem, onCancelEdit }) =
     setInviteToDelete,
     form,
     handleEditRequest,
-    handleCancelEdit: localHandleCancelEdit,
+    handleCancelEdit,
     handleSaveVisit,
     handleDeleteVisit
   } = useVisitManagement(saveRecord, deleteRecord);
-
-  // Efeito para carregar item de edição externo
-  useEffect(() => {
-    if (editingItem && editingItem.id !== editingRequestId) {
-      handleEditRequest(editingItem);
-    }
-  }, [editingItem, editingRequestId, handleEditRequest]);
-
-  const handleCancelEdit = () => {
-    localHandleCancelEdit();
-    onCancelEdit?.();
-  };
 
   const chaplains = useMemo(() => users, [users]);
   
   const activeRequests = useMemo(() => {
     return visitRequests
-        .filter(r => r.unit === unit && r.status !== 'confirmed' && r.status !== 'declined' && r.status !== 'cancelled')
+        .filter(r => r.unit === unit && r.status !== 'confirmed' && r.status !== 'declined')
         .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [visitRequests, unit]);
 
@@ -58,17 +44,15 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit, editingItem, onCancelEdit }) =
 
   const { setLeaderPhone, setMeetingLocation } = form;
 
-  // Sincronizar WhatsApp quando o PG é selecionado
+  // Sincronizar WhatsApp e Local quando o PG é selecionado
   useEffect(() => {
     if (leaderInfo && form.selectedPG && !editingRequestId) {
         setLeaderPhone(leaderInfo.leaderPhone || '');
+        setMeetingLocation(leaderInfo.sectorName || '');
     }
-  }, [leaderInfo, form.selectedPG, editingRequestId, setLeaderPhone]);
+  }, [leaderInfo, form.selectedPG, editingRequestId, setLeaderPhone, setMeetingLocation]);
 
   const onSave = () => {
-    if (!form.meetingLocation.trim()) {
-        return false;
-    }
     const details = inferPGDetails(form.selectedPG);
     handleSaveVisit(unit, {
       leaderName: details.leaderName,
@@ -77,7 +61,6 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit, editingItem, onCancelEdit }) =
       sectorName: details.sectorName,
       staffId: details.staffId
     }, proStaff, config.activeCompetenceMonth);
-    return true;
   };
 
   return (
@@ -85,11 +68,11 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit, editingItem, onCancelEdit }) =
         
         <ConfirmationModal 
             isOpen={!!inviteToDelete}
-            title="Cancelar Agendamento?"
-            message="Esta ação cancelará o agendamento da lista do capelão designado. Deseja continuar?"
-            confirmLabel="Sim, Cancelar"
+            title="Excluir Agendamento?"
+            message="Esta ação removerá o agendamento da lista do capelão designado. Deseja continuar?"
+            confirmLabel="Sim, Excluir"
             variant="danger"
-            onConfirm={() => inviteToDelete && handleDeleteVisit(inviteToDelete.id, inviteToDelete)}
+            onConfirm={() => inviteToDelete && handleDeleteVisit(inviteToDelete)}
             onCancel={() => setInviteToDelete(null)}
         />
 
@@ -144,7 +127,7 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit, editingItem, onCancelEdit }) =
                         </div>
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Local da Reunião (Texto Livre) *</label>
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Local da Reunião (Texto Livre)</label>
                         <div className="relative">
                             <i className="fas fa-map-marker-alt absolute left-4 top-1/2 -translate-y-1/2 text-blue-500"></i>
                             <input 
@@ -175,7 +158,6 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit, editingItem, onCancelEdit }) =
                         {chaplains.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                 </div>
-
                 <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Observações para o Capelão</label>
                     <textarea value={form.notes} onChange={e => form.setNotes(e.target.value)} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-medium text-sm text-slate-700 h-24 resize-none outline-none" placeholder="Ex: Focar no discipulado do líder..."/>
@@ -191,13 +173,7 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit, editingItem, onCancelEdit }) =
                         </button>
                     )}
                     <button 
-                        onClick={() => {
-                            if (!form.meetingLocation.trim()) {
-                                alert("Por favor, preencha o local da reunião.");
-                                return;
-                            }
-                            onSave();
-                        }}
+                        onClick={onSave} 
                         disabled={isProcessing} 
                         className={`flex-[2] py-5 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl transition-all flex items-center justify-center gap-2
                             ${isProcessing ? 'bg-slate-400 cursor-not-allowed' : (editingRequestId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#005a9c] hover:bg-[#004a80]')} active:scale-95`}

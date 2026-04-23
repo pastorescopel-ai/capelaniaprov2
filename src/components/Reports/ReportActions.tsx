@@ -14,7 +14,7 @@ interface ActionsProps {
 
 const ReportActions: React.FC<ActionsProps> = ({ pColor, generating, onPdf, onExcel, onAuditVidas, onAuditVisitas, onPGReport }) => {
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap gap-3">
       <Button 
         variant="primary" 
         style={{backgroundColor: pColor}} 

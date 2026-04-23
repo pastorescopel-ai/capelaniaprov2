@@ -46,7 +46,7 @@ const HealerMembershipsTab: React.FC<HealerMembershipsTabProps> = ({
       <div className="grid grid-cols-1 gap-4">
         {duplicateMemberships.map((dup, idx) => (
           <motion.div 
-            key={`${dup.type}-${dup.personId}-${dup.month}`}
+            key={`${dup.type}-${dup.personId}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.05 }}
@@ -62,9 +62,6 @@ const HealerMembershipsTab: React.FC<HealerMembershipsTabProps> = ({
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${dup.type === 'staff' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
                       {dup.type === 'staff' ? 'CLT' : 'Prestador'}
-                    </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-slate-100 text-slate-500">
-                      Mês: {dup.month}
                     </span>
                     <span className="text-xs text-slate-400">ID: {dup.personId}</span>
                   </div>

@@ -54,27 +54,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          const errorMessage = error?.message || String(error);
-          const isNetworkError = errorMessage.includes('Failed to fetch') || 
-                                 errorMessage.includes('NetworkError') || 
-                                 errorMessage.includes('ERR_NAME_NOT_RESOLVED');
-                                 
-          const isInvalidToken = errorMessage.includes('Refresh Token Not Found') || 
-                                errorMessage.includes('Invalid Refresh Token');
-                                
-          if (isNetworkError) {
-             console.warn("[AuthProvider] Falha de rede ao verificar sessão. Mantendo estado atual.");
-          } else if (isInvalidToken) {
-             console.error("[AuthProvider] Token de atualização inválido ou ausente. Limpando sessão.");
-             // Limpa localmente para evitar loops
-             await supabase.auth.signOut().catch(() => {});
-             Object.keys(localStorage).forEach(key => {
-               if (key.startsWith('sb-')) localStorage.removeItem(key);
-             });
-          } else {
-             console.error("Erro ao obter sessão:", error);
-             await supabase.auth.signOut().catch(() => {});
-          }
+          console.error("Erro ao obter sessão:", error);
+          await supabase.auth.signOut();
           setCurrentUser(null);
           setIsAuthenticated(false);
           return;
@@ -91,10 +72,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setCurrentUser(dbUser);
               setIsAuthenticated(true);
               updateActivity();
-            } else {
-              // Se não encontrou dbUser, pode ser erro de rede ou usuário deletado
-              console.warn("[AuthProvider] Usuário não encontrado no DB após login social.");
-              setLoginError("Usuário não encontrado ou erro de conexão. Verifique se o projeto Supabase está ativo.");
             }
           }
         }
@@ -108,24 +85,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      try {
-        if (session?.user?.email) {
-          DataRepository.getUserByEmail(session.user.email).then(dbUser => {
-            if (dbUser) {
-              setCurrentUser(dbUser);
-              setIsAuthenticated(true);
-              updateActivity();
-            }
-          }).catch(err => {
-            console.debug("[AuthProvider] Erro de rede em onAuthStateChange:", err);
-          });
-        } else {
-          setCurrentUser(null);
-          setIsAuthenticated(false);
-          localStorage.removeItem(LAST_ACTIVITY_KEY);
-        }
-      } catch (e) {
-        console.debug("[AuthProvider] Erro em onAuthStateChange handler:", e);
+      if (session?.user?.email) {
+        DataRepository.getUserByEmail(session.user.email).then(dbUser => {
+          if (dbUser) {
+            setCurrentUser(dbUser);
+            setIsAuthenticated(true);
+            updateActivity();
+          }
+        });
+      } else {
+        setCurrentUser(null);
+        setIsAuthenticated(false);
+        localStorage.removeItem(LAST_ACTIVITY_KEY);
       }
     });
 
@@ -162,15 +133,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: cleanEmail,
       password: cleanPass
     });
-
-    if (authError) {
-      if (authError.message.includes('Failed to fetch')) {
-        setLoginError('Falha de conexão com o servidor. Verifique sua internet ou se o Supabase está ativo.');
-      } else {
-        setLoginError('E-mail ou senha inválidos.');
-      }
-      return false;
-    }
 
     if (authData?.user) {
       const dbUser = await DataRepository.getUserByEmail(cleanEmail);

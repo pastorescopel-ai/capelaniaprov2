@@ -5,7 +5,6 @@ import Layout from './components/Layout';
 import Login from './components/Login';
 import ConfirmationModal from './components/Shared/ConfirmationModal';
 import MainContent from './components/MainContent';
-import ErrorBoundary from './components/ErrorBoundary';
 import { Unit } from './types/enums';
 import { useApp } from './hooks/useApp';
 import { useBible } from './contexts/BibleContext';
@@ -79,22 +78,6 @@ const App: React.FC = () => {
     handleTabChange('smallGroup');
   };
 
-  const handleEditVisitRequest = (request: any) => {
-    // Definir como item de edição com flag de agendamento
-    setEditingItem({
-      ...request,
-      isVisitRequest: true
-    });
-    
-    // Mudar fuso se necessário
-    if (request.unit !== currentUnit) {
-      setCurrentUnit(request.unit);
-    }
-    
-    // Mudar para Gestão de PGs (onde fica a escala)
-    handleTabChange('pgManagement');
-  };
-
   const handleGoToReturnHistory = (visit?: any) => {
     if (visit && visit.unit && visit.unit !== currentUnit) {
       setCurrentUnit(visit.unit);
@@ -156,79 +139,76 @@ const App: React.FC = () => {
       onLogout={logout}
       onGoToReturnHistory={handleGoToReturnHistory}
     >
-      <ErrorBoundary>
-        <div className="max-w-7xl mx-auto px-2 md:px-0 relative">
-          
-          {/* Loader de Transição Suave (Top Progress Bar) */}
-          <AnimatePresence>
-            {isPending && (
-              <motion.div 
-                initial={{ opacity: 0, scaleX: 0 }}
-                animate={{ opacity: 1, scaleX: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="fixed top-0 left-0 right-0 h-1 bg-blue-500 z-[200] origin-left"
-              />
-            )}
-          </AnimatePresence>
-          
+      <div className="max-w-7xl mx-auto px-2 md:px-0 relative">
+        
+        {/* Loader de Transição Suave (Top Progress Bar) */}
+        <AnimatePresence>
           {isPending && (
-            <div className="fixed top-4 right-4 md:top-8 md:right-8 z-[200] animate-in fade-in zoom-in duration-300">
-              <div className="bg-white/80 backdrop-blur-md p-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-3">
-                <div className="w-8 h-8 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest pr-2">Sincronizando</span>
-              </div>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0, scaleX: 0 }}
+              animate={{ opacity: 1, scaleX: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="fixed top-0 left-0 right-0 h-1 bg-blue-500 z-[200] origin-left"
+            />
           )}
-
-          <ConfirmationModal 
-            isOpen={!!itemToDelete}
-            title="Excluir Registro?"
-            message="Esta ação é permanente e não pode ser desfeita."
-            onConfirm={confirmDeletion}
-            onCancel={() => setItemToDelete(null)}
-          />
-
-          {/* Seletor de Unidade (Fixo no Topo para Formulários) */}
-          {['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab) && (
-            <div className="mb-8 flex bg-white p-1.5 rounded-full shadow-sm border border-slate-100 max-w-fit mx-auto md:mx-0 animate-in slide-in-from-left duration-300">
-              {[Unit.HAB, Unit.HABA].map(u => (
-                <button 
-                  key={u} 
-                  onClick={() => setCurrentUnit(u)} 
-                  className={`px-8 py-2.5 rounded-full font-black text-[10px] uppercase transition-all ${currentUnit === u ? 'text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`} 
-                  style={{ backgroundColor: currentUnit === u ? (config.primaryColor || '#005a9c') : undefined }}
-                >
-                  Unidade {u}
-                </button>
-              ))}
+        </AnimatePresence>
+        
+        {isPending && (
+          <div className="fixed top-4 right-4 md:top-8 md:right-8 z-[200] animate-in fade-in zoom-in duration-300">
+            <div className="bg-white/80 backdrop-blur-md p-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-3">
+              <div className="w-8 h-8 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+              <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest pr-2">Sincronizando</span>
             </div>
-          )}
-          
-          {/* Conteúdo Principal Modularizado */}
-          <MainContent 
-            activeTab={activeTab}
-            activitiesSubTab={activitiesSubTab}
-            visitedTabs={visitedTabs}
-            currentUser={currentUser}
-            currentUnit={currentUnit}
-            unitSectors={unitSectors}
-            editingItem={editingItem}
-            isLoading={isSyncing}
-            setActiveTab={handleTabChange}
-            setCurrentUnit={setCurrentUnit}
-            setEditingItem={setEditingItem}
-            setItemToDelete={setItemToDelete}
-            updateCurrentUser={updateCurrentUser}
-            handleSaveItem={handleSaveItem}
-            onRegisterMission={handleRegisterMission}
-            onEditVisitRequest={handleEditVisitRequest}
-            onGoToReturnHistory={handleGoToReturnHistory}
-            getVisibleHistory={getVisibleHistory}
-          />
+          </div>
+        )}
 
-        </div>
-      </ErrorBoundary>
+        <ConfirmationModal 
+          isOpen={!!itemToDelete}
+          title="Excluir Registro?"
+          message="Esta ação é permanente e não pode ser desfeita."
+          onConfirm={confirmDeletion}
+          onCancel={() => setItemToDelete(null)}
+        />
+
+        {/* Seletor de Unidade (Fixo no Topo para Formulários) */}
+        {['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab) && (
+          <div className="mb-8 flex bg-white p-1.5 rounded-full shadow-sm border border-slate-100 max-w-fit mx-auto md:mx-0 animate-in slide-in-from-left duration-300">
+            {[Unit.HAB, Unit.HABA].map(u => (
+              <button 
+                key={u} 
+                onClick={() => setCurrentUnit(u)} 
+                className={`px-8 py-2.5 rounded-full font-black text-[10px] uppercase transition-all ${currentUnit === u ? 'text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`} 
+                style={{ backgroundColor: currentUnit === u ? (config.primaryColor || '#005a9c') : undefined }}
+              >
+                Unidade {u}
+              </button>
+            ))}
+          </div>
+        )}
+        
+        {/* Conteúdo Principal Modularizado */}
+        <MainContent 
+          activeTab={activeTab}
+          activitiesSubTab={activitiesSubTab}
+          visitedTabs={visitedTabs}
+          currentUser={currentUser}
+          currentUnit={currentUnit}
+          unitSectors={unitSectors}
+          editingItem={editingItem}
+          isLoading={isSyncing}
+          setActiveTab={handleTabChange}
+          setCurrentUnit={setCurrentUnit}
+          setEditingItem={setEditingItem}
+          setItemToDelete={setItemToDelete}
+          updateCurrentUser={updateCurrentUser}
+          handleSaveItem={handleSaveItem}
+          onRegisterMission={handleRegisterMission}
+          onGoToReturnHistory={handleGoToReturnHistory}
+          getVisibleHistory={getVisibleHistory}
+        />
+
+      </div>
     </Layout>
   );
 };

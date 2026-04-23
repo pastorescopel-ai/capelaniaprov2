@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { ProGroup } from '../../types';
 
 interface HealerPGsTabProps {
-  duplicatePGs: { name: string, unit: string, month: string, groups: ProGroup[] }[];
+  duplicatePGs: { name: string, unit: string, groups: ProGroup[] }[];
   handleMergePGs: (sourceId: string, targetId: string) => Promise<void>;
   isProcessing: boolean;
 }
@@ -36,10 +36,7 @@ const HealerPGsTab: React.FC<HealerPGsTabProps> = ({ duplicatePGs, handleMergePG
                   <i className="fas fa-users-rectangle"></i>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-black text-slate-800 uppercase text-sm tracking-tight truncate">{dup.name}</h3>
-                    <span className="text-[9px] font-black bg-white px-2 py-0.5 rounded border border-amber-200 text-amber-600 uppercase tracking-widest">Mês: {dup.month}</span>
-                  </div>
+                  <h3 className="font-black text-slate-800 uppercase text-sm tracking-tight truncate">{dup.name}</h3>
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Unidade {dup.unit}</span>
                 </div>
               </div>

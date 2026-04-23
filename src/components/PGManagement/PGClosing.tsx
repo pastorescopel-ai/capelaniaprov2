@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Unit, ProMonthlyStats } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import { useApp } from '../../hooks/useApp';
@@ -18,7 +18,7 @@ interface PGClosingProps {
 const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
   const { 
     users, bibleStudies, bibleClasses, smallGroups, staffVisits, ambassadors,
-    saveRecord, deleteRecordsByFilter, loadFromCloud, config
+    saveRecord, deleteRecordsByFilter, loadFromCloud 
   } = useApp();
   
   const { 
@@ -36,31 +36,25 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
   });
   
   const [selectedCloseMonth, setSelectedCloseMonth] = useState(() => {
-    if (config.activeCompetenceMonth) return config.activeCompetenceMonth;
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA');
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   });
 
   useEffect(() => {
     if (!proMonthlyStats || proMonthlyStats.length === 0) return;
 
-    // Se a competência ativa no banco estiver definida, respeitamos ela como base para sugestão
-    const activeCompRaw = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA');
-    const activeComp = activeCompRaw.substring(0, 7) + '-01';
-    
-    // Verifica se já fechamos o mês anterior à competência ativa
-    const prevMonthDate = new Date(activeComp + 'T12:00:00');
-    prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
-    const prevMonthISO = prevMonthDate.toLocaleDateString('en-CA');
+    const now = new Date();
+    const currentMonthISO = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthISO = prevMonth.toISOString().split('T')[0];
 
-    const isPrevClosed = proMonthlyStats.some(s => s.month === prevMonthISO && s.unit === unit && s.targetId === 'all');
+    const isPrevClosed = proMonthlyStats.some(s => s.month === prevMonthISO);
+    const suggestedMonth = isPrevClosed ? currentMonthISO : prevMonthISO;
     
-    // Sugerimos o mês de competência se o anterior estiver fechado, senão sugerimos o anterior
-    const suggestedMonth = isPrevClosed ? activeComp : prevMonthISO;
-    
+    // Only update if it's different to avoid unnecessary renders
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedCloseMonth(prev => prev !== suggestedMonth ? suggestedMonth : prev);
-  }, [proMonthlyStats, config.activeCompetenceMonth, unit]);
+  }, [proMonthlyStats]);
 
   const formatMonthLabel = (iso: string) => {
     const d = new Date(iso + 'T12:00:00');
@@ -318,23 +312,11 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
         }
         await saveRecord('proMonthlyStats', snapshots);
 
-        // 5. ATUALIZAR COMPETÊNCIA GLOBAL (Barreira de Segurança)
-        // Se fechou o mês atual ou anterior, movemos a competência para o próximo mês
-        const nextMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
-        const nextMonthISO = nextMonth.toLocaleDateString('en-CA');
-        
-        if (config.id) {
-            await saveRecord('config', { 
-                ...config, 
-                activeCompetenceMonth: nextMonthISO 
-            });
-        }
-
         setSyncState({ 
           isOpen: true, 
           status: 'success', 
           title: 'Mês Encerrado', 
-          message: `Sucesso! O fechamento de ${formatMonthLabel(selectedCloseMonth)} foi concluído e a competência ativa avançou para ${formatMonthLabel(nextMonthISO)}.` 
+          message: `Sucesso! O fechamento de ${formatMonthLabel(selectedCloseMonth)} foi concluído para Gestão de PGs.` 
         });
         await loadFromCloud(true);
     } catch (e: any) {
@@ -360,19 +342,11 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
         await deleteRecordsByFilter('proMonthlyStats', { month: selectedCloseMonth });
         await deleteRecordsByFilter('proHistoryRecords', { month: selectedCloseMonth });
 
-        // Retornar competência para o mês reaberto
-        if (config.id) {
-            await saveRecord('config', { 
-                ...config, 
-                activeCompetenceMonth: selectedCloseMonth 
-            });
-        }
-
         setSyncState({ 
           isOpen: true, 
           status: 'success', 
           title: 'Mês Reaberto', 
-          message: `O mês de ${formatMonthLabel(selectedCloseMonth)} foi reaberto e definido como competência ativa.` 
+          message: `O mês de ${formatMonthLabel(selectedCloseMonth)} foi reaberto com sucesso.` 
         });
         await loadFromCloud(true);
     } catch (e: any) {
@@ -442,12 +416,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
     }
   };
 
-  const isMonthClosed = useMemo(() => {
-    const activeMonthRaw = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA');
-    const activeMonth = activeMonthRaw.substring(0, 7) + '-01';
-    const hasClosingSnapshot = proMonthlyStats.some(s => s.month === selectedCloseMonth && s.unit === unit && s.targetId === 'all');
-    return (selectedCloseMonth < activeMonth) || hasClosingSnapshot;
-  }, [selectedCloseMonth, config.activeCompetenceMonth, proMonthlyStats, unit]);
+  const isMonthClosed = proMonthlyStats?.some(s => s.month === selectedCloseMonth);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right duration-500">

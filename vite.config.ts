@@ -7,12 +7,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'sw.ts',
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
-      includeAssets: [], 
+      includeAssets: [], // Removido para evitar 404 em arquivos que são Data URI no HTML
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg}'],
         runtimeCaching: [

@@ -70,7 +70,6 @@ export const useHealerActions = (
                   setResolvedItems((prev: any) => new Set(prev).add(orphanName));
                   setResolvedItems((prev: any) => new Set(prev).add(normalizeString(orphanName)));
                   setTargetMap((prev: any) => { const n = {...prev}; delete n[orphanName]; return n; });
-                  await loadFromCloud(false, true);
               } else {
                   showToast(`Erro na unificação: ${result}`, "error");
               }
@@ -94,14 +93,16 @@ export const useHealerActions = (
                   if (!isError) {
                       setResolvedItems((prev: any) => new Set(prev).add(orphanName));
                       setTargetMap((prev: any) => { const n = {...prev}; delete n[orphanName]; return n; });
-                      await loadFromCloud(false, true);
                   }
               } else {
+                  if (!confirm(`Confirma criar novo cadastro de ${selectedType} para "${orphanName}"?`)) {
+                      setIsProcessing(false);
+                      return;
+                  }
                   const result = await createAndLinkIdentity(orphanName, selectedType);
-                  showToast(`Cadastro criado e vinculado: ${result}`, "success");
+                  showToast(result, "success");
                   setResolvedItems((prev: any) => new Set(prev).add(orphanName));
                   setTargetMap((prev: any) => { const n = {...prev}; delete n[orphanName]; return n; });
-                  await loadFromCloud(false, true);
               }
           } catch (e: any) { showToast("Erro: " + e.message, "error"); }
           finally { setIsProcessing(false); }
@@ -161,7 +162,6 @@ export const useHealerActions = (
       const result = await mergePGs(sourceId, targetId);
       if (result.success) {
         showToast(result.message, "success");
-        await loadFromCloud(false, true);
       } else {
         showToast(result.message, "error");
       }
@@ -218,6 +218,12 @@ export const useHealerActions = (
   };
 
   const handleDeleteSourceRecord = async (collection: string, id: string, actionType?: string, orphanName?: string) => {
+      const msg = actionType === 'delete_record' 
+          ? "Tem certeza absoluta? Esta ação APAGARÁ O REGISTRO COMPLETO do banco de dados." 
+          : "Tem certeza? Esta ação removerá apenas este nome do registro, mantendo o restante intacto.";
+          
+      if (!confirm(msg)) return;
+      
       setIsProcessing(true);
       try {
           if (actionType === 'remove_from_array' && collection === 'bibleClasses' && orphanName) {
@@ -244,7 +250,7 @@ export const useHealerActions = (
                   showToast("Falha ao excluir o registro. Verifique as permissões ou se o registro ainda existe.", "error");
               }
           }
-          await loadFromCloud(false, true);
+          await loadFromCloud(false);
       } catch (e: any) {
           showToast("Erro ao processar: " + e.message, "error");
       } finally {
@@ -260,7 +266,7 @@ export const useHealerActions = (
           
           if (!isError) {
               showToast("Mesclagem concluída com sucesso! Histórico transferido e cadastro incorreto removido.", "success");
-              await loadFromCloud(false, true);
+              await loadFromCloud(false);
           } else {
               showToast(result, "error");
           }
@@ -272,6 +278,8 @@ export const useHealerActions = (
   };
 
   const handleSyncTemporalCycle = async () => {
+    if (!confirm("Isso carimbará todos os membros de PG sem competência como 'Fevereiro/2026'. Confirma?")) return;
+    
     setIsProcessing(true);
     try {
       const result = await syncPGMembershipCycle();
@@ -292,37 +300,27 @@ export const useHealerActions = (
     const idField = type === 'staff' ? 'staffId' : 'providerId';
     const membersList = type === 'staff' ? appData.proGroupMembers : appData.proGroupProviderMembers;
 
-    const keepRecord = (membersList || []).find((m: any) => m.id === keepId);
-    if (!keepRecord) {
-      showToast("Registro selecionado não encontrado.", "error");
-      return;
-    }
-
-    const targetMonth = keepRecord.cycleMonth || null;
-    const duplicates = (membersList || []).filter((m: any) => {
-      const mMonth = m.cycleMonth || null;
-      return String((m as any)[idField]) === String(personId) && 
-             mMonth === targetMonth &&
-             !m.leftAt && 
-             !m.isError;
-    });
+    const duplicates = (membersList || []).filter((m: any) => String((m as any)[idField]) === String(personId) && !m.leftAt && !m.isError);
     
     if (duplicates.length <= 1) {
-      showToast("Não há duplicidade ativa para este colaborador neste mês.", "info");
+      showToast("Não há duplicidade ativa para este colaborador.", "info");
       return;
     }
 
     const toRemove = duplicates.filter((m: any) => m.id !== keepId);
-    const keepGroupName = proGroups.find((g: any) => g.id === keepRecord.groupId)?.name || 'selecionado';
+    const keepRecord = duplicates.find((m: any) => m.id === keepId);
+    const keepGroupName = proGroups.find((g: any) => g.id === keepRecord?.groupId)?.name || 'selecionado';
     
+    if (!confirm(`Deseja manter apenas a matrícula no grupo "${keepGroupName}" e remover as outras ${toRemove.length}?`)) return;
+
     setIsProcessing(true);
     try {
+      // Marcamos como erro para "retirar" da visão ativa mas manter rastro se necessário
       const updates = toRemove.map(m => ({ ...m, isError: true, leftAt: Date.now() }));
       const success = await saveRecord(collection, updates);
       
       if (success) {
-        showToast(`Duplicidades resolvidas! Mantido apenas no grupo "${keepGroupName}".`, "success");
-        await loadFromCloud(false, true);
+        showToast("Duplicidades resolvidas!", "success");
       } else {
         showToast("Erro ao resolver duplicidades.", "error");
       }
@@ -340,6 +338,8 @@ export const useHealerActions = (
       showToast("Todos os registros de presença já possuem data e ciclo.", "info");
       return;
     }
+
+    if (!confirm(`Foram encontrados ${attendeesToFix.length} registros sem data. Deseja corrigi-los usando a data da aula correspondente?`)) return;
 
     setIsProcessing(true);
     try {
@@ -369,7 +369,7 @@ export const useHealerActions = (
             await saveRecord('bibleClassAttendees', chunk);
         }
         showToast(`${updates.length} registros de presença foram corrigidos!`, "success");
-        await loadFromCloud(false, true);
+        await loadFromCloud(false);
       } else {
         showToast("Nenhum registro pôde ser corrigido (aulas pai não encontradas).", "warning");
       }

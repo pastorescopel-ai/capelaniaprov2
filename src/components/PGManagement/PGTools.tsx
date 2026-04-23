@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Unit, ProGroup } from '../../types';
 import { useApp } from '../../hooks/useApp';
 import { useToast } from '../../contexts/ToastContext';
-import { cleanID, normalizeString } from '../../utils/formatters';
+import { cleanID } from '../../utils/formatters';
 
 interface PGToolsProps {
   unit: Unit;
@@ -13,23 +13,7 @@ const PGTools: React.FC<PGToolsProps> = ({ unit }) => {
   const { proGroups, saveRecord, config } = useApp();
   const { showToast } = useToast();
   const [newPGName, setNewPGName] = useState('');
-  const [pgSearchTerm, setPgSearchTerm] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-
-  // PGs para gerenciamento (Ativos e Inativos da unidade)
-  const managedPGs = useMemo(() => {
-    return proGroups
-      .filter(g => g.unit === unit)
-      .filter(g => 
-        normalizeString(g.name).includes(normalizeString(pgSearchTerm)) || 
-        g.id.includes(pgSearchTerm)
-      )
-      .sort((a, b) => {
-        const idA = parseInt(cleanID(a.id)) || 0;
-        const idB = parseInt(cleanID(b.id)) || 0;
-        return idA - idB;
-      });
-  }, [proGroups, unit, pgSearchTerm]);
 
   // Lógica para encontrar o próximo ID disponível (preenchendo lacunas ou incrementando o maior)
   const nextAvailableId = useMemo(() => {
@@ -78,7 +62,7 @@ const PGTools: React.FC<PGToolsProps> = ({ unit }) => {
         name: newPGName.trim().toUpperCase(),
         unit: unit,
         active: true,
-        cycleMonth: config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA'),
+        cycleMonth: config.activeCompetenceMonth || new Date().toISOString().split('T')[0],
         createdAt: Date.now(),
         updatedAt: Date.now()
       };
@@ -91,20 +75,6 @@ const PGTools: React.FC<PGToolsProps> = ({ unit }) => {
       showToast("Erro ao criar PG no banco de dados.", "warning");
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleTogglePG = async (pg: ProGroup) => {
-    try {
-      const updatedPG = { 
-        ...pg, 
-        active: pg.active === false ? true : false, 
-        updatedAt: Date.now() 
-      };
-      await saveRecord('proGroups', updatedPG);
-      showToast(`PG ${pg.name} ${updatedPG.active ? 'ativado' : 'desativado'} com sucesso!`, "success");
-    } catch (error) {
-      showToast("Erro ao alterar status do PG.", "warning");
     }
   };
 
@@ -159,79 +129,6 @@ const PGTools: React.FC<PGToolsProps> = ({ unit }) => {
               {isSaving ? 'Processando...' : 'Confirmar Criação'}
             </button>
           </div>
-        </div>
-      </div>
-      
-      {/* Gerenciamento de Status de PGs */}
-      <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 relative overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-slate-200">
-              <i className="fas fa-toggle-on"></i>
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Gerenciar Status de PGs</h2>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Ativar ou Desativar Pequenos Grupos da Unidade</p>
-            </div>
-          </div>
-
-          <div className="relative w-full md:w-64">
-            <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-            <input 
-              type="text"
-              placeholder="Buscar PG..."
-              value={pgSearchTerm}
-              onChange={(e) => setPgSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-slate-200 outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {managedPGs.map(pg => (
-            <div 
-              key={pg.id} 
-              className={`p-4 rounded-2xl border transition-all flex items-center justify-between group ${
-                pg.active !== false 
-                  ? 'bg-white border-slate-100 hover:border-blue-200' 
-                  : 'bg-slate-50 border-slate-200 opacity-75'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${
-                  pg.active !== false ? 'bg-blue-50 text-blue-600' : 'bg-slate-200 text-slate-500'
-                }`}>
-                  {pg.id}
-                </div>
-                <div className="min-w-0">
-                  <h4 className={`text-xs font-black uppercase truncate ${pg.active !== false ? 'text-slate-800' : 'text-slate-400'}`}>
-                    {pg.name}
-                  </h4>
-                  <span className={`text-[8px] font-black uppercase tracking-widest ${pg.active !== false ? 'text-emerald-500' : 'text-rose-400'}`}>
-                    {pg.active !== false ? 'Ativo' : 'Inativo'}
-                  </span>
-                </div>
-              </div>
-
-              <button 
-                onClick={() => handleTogglePG(pg)}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                  pg.active !== false 
-                    ? 'bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white' 
-                    : 'bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white'
-                }`}
-                title={pg.active !== false ? 'Desativar PG' : 'Ativar PG'}
-              >
-                <i className={`fas ${pg.active !== false ? 'fa-power-off' : 'fa-play'}`}></i>
-              </button>
-            </div>
-          ))}
-
-          {managedPGs.length === 0 && (
-            <div className="col-span-full py-10 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhum PG encontrado</p>
-            </div>
-          )}
         </div>
       </div>
       

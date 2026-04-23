@@ -171,14 +171,17 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
       
       if (!data.id) data.createdAt = nowISO;
 
+      console.log("[DEBUG] Salvando Relatório Diário:", data);
       const result = await saveRecord('dailyActivityReports', data);
       
       if (result) {
         showToast("Relatório salvo com sucesso!", "success");
       } else {
+        console.error("[DEBUG] Falha ao salvar relatório no Supabase (saveRecord retornou false)");
         showToast("Erro ao salvar relatório no banco de dados.", "warning");
       }
     } catch (error) {
+      console.error("[DEBUG] Erro na função handleSave:", error);
       showToast("Erro ao salvar relatório.", "warning");
     } finally {
       setIsSaving(false);
@@ -233,12 +236,12 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
       return false;
     }).length;
 
-    const totalVisits = Number(report.palliativeCount || 0) + 
-                       Number(report.surgicalCount || 0) + 
-                       Number(report.pediatricCount || 0) + 
-                       Number(report.utiCount || 0) + 
-                       Number(report.terminalCount || 0) + 
-                       Number(report.clinicalCount || 0);
+    const totalVisits = (report.palliativeCount || 0) + 
+                       (report.surgicalCount || 0) + 
+                       (report.pediatricCount || 0) + 
+                       (report.utiCount || 0) + 
+                       (report.terminalCount || 0) + 
+                       (report.clinicalCount || 0);
 
     if (totalVisits >= visitGoal) completedItems++;
     
@@ -319,19 +322,18 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Atividades Agendadas */}
-          <div className="space-y-6">
-            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-100 pb-2">Atividades Agendadas</h3>
-            
-            {scheduledActivities.length === 0 ? (
-              <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100">
-                <Calendar className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-                <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">Nenhuma atividade agendada</h3>
-                <p className="text-xs text-slate-500 mt-1">Não há atividades na escala para esta data.</p>
-              </div>
-            ) : (
-              <>
+        {scheduledActivities.length === 0 ? (
+          <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100">
+            <Calendar className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+            <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">Nenhuma atividade agendada</h3>
+            <p className="text-xs text-slate-500 mt-1">Não há atividades na escala para esta data.</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Atividades Agendadas */}
+            <div className="space-y-6">
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-100 pb-2">Atividades Agendadas</h3>
+              
               {blueprints.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 mb-3">
@@ -444,8 +446,6 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
                   </button>
                 </div>
               )}
-              </>
-            )}
             </div>
 
             {/* Visitas e Observações */}
@@ -456,7 +456,7 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Meta:</span>
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                      (Number(report.palliativeCount || 0) + Number(report.surgicalCount || 0) + Number(report.pediatricCount || 0) + Number(report.utiCount || 0) + Number(report.terminalCount || 0) + Number(report.clinicalCount || 0)) >= (users.find(u => u.id === selectedUser)?.role === 'INTERN' ? 18 : 15)
+                      ((report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0) + (report.terminalCount || 0) + (report.clinicalCount || 0)) >= (users.find(u => u.id === selectedUser)?.role === 'INTERN' ? 18 : 15)
                         ? 'bg-emerald-100 text-emerald-600'
                         : 'bg-slate-100 text-slate-500'
                     }`}>
@@ -572,6 +572,7 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
               </button>
             </div>
           </div>
+        )}
       </div>
     </div>
   );

@@ -19,14 +19,13 @@ interface DashboardProps {
   config: Config;
   onGoToTab: (tab: string, subTab?: any) => void;
   onRegisterMission: (visit: any) => void;
-  onEditRequest?: (visit: any) => void;
   onGoToReturnHistory: (visit?: any) => void;
   onUpdateConfig: (newConfig: Config) => any;
   onUpdateUser: (updatedUser: User) => any;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
-  studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onEditRequest, onGoToReturnHistory, onUpdateConfig 
+  studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onGoToReturnHistory, onUpdateConfig 
 }) => {
   const { visitRequests, users, isInitialized, proMonthlyStats } = useApp(); 
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().split('T')[0].substring(0, 7));
@@ -113,7 +112,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         currentUser={currentUser} 
         users={users} 
         onRegisterMission={onRegisterMission} 
-        onEditFullRequest={onEditRequest}
       />
 
       {/* Metas de Visitas (VisitGoalWidget) */}

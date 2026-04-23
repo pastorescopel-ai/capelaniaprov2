@@ -11,7 +11,7 @@ export const useVisitManagement = (
   const { showToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
-  const [inviteToDelete, setInviteToDelete] = useState<VisitRequest | null>(null);
+  const [inviteToDelete, setInviteToDelete] = useState<string | null>(null);
 
   // Form State
   const [selectedPG, setSelectedPG] = useState('');
@@ -107,26 +107,25 @@ export const useVisitManagement = (
     }
   }, [selectedPG, selectedChaplainId, leaderPhone, meetingLocation, visitDate, visitTime, notes, editingRequestId, saveRecord, showToast, handleCancelEdit]);
 
-  const handleDeleteVisit = useCallback(async (id: string, requestData: VisitRequest) => {
+  const handleDeleteVisit = useCallback(async (id: string) => {
     setIsProcessing(true);
     try {
-      // Soft delete: update status to 'cancelled'
-      const success = await saveRecord('visitRequests', { ...requestData, status: 'cancelled' });
+      const success = await deleteRecord('visitRequests', id);
       if (success) {
-        showToast("Agendamento cancelado.", "success");
+        showToast("Agendamento excluído.", "success");
         if (editingRequestId === id) handleCancelEdit();
         return true;
       }
-      showToast("Erro ao cancelar.", "warning");
+      showToast("Erro ao excluir.", "warning");
       return false;
     } catch (e) {
-      showToast("Erro ao cancelar.", "warning");
+      showToast("Erro ao excluir.", "warning");
       return false;
     } finally {
       setIsProcessing(false);
       setInviteToDelete(null);
     }
-  }, [saveRecord, editingRequestId, handleCancelEdit, showToast]);
+  }, [deleteRecord, editingRequestId, handleCancelEdit, showToast]);
 
   return {
     isProcessing,

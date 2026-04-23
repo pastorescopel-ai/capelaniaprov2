@@ -10,53 +10,24 @@ import PGClosing from './PGClosing';
 import PGTools from './PGTools';
 import { useApp } from '../../hooks/useApp';
 
-interface PGManagerLayoutProps {
-  editingItem?: any;
-  onCancelEdit?: () => void;
-}
-
-const PGManagerLayout: React.FC<PGManagerLayoutProps> = ({ editingItem, onCancelEdit }) => {
+const PGManagerLayout: React.FC = () => {
   const { proMonthlyStats, config } = useApp();
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'ops' | 'reports' | 'leaders' | 'fechamento' | 'tools'>(() => {
-    return editingItem?.isVisitRequest ? 'ops' : 'dashboard';
-  });
-
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'ops' | 'reports' | 'leaders' | 'fechamento' | 'tools'>('dashboard');
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
   const [isPending, startTransition] = useTransition();
 
   // Lógica para notificação de fechamento de mês
   const previousMonthClosed = useCallback(() => {
     const now = new Date();
-    const currentMonthISO = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA');
-    
-    // Normaliza a competência ativa para garantir o formato YYYY-MM-01
-    const rawActive = config.activeCompetenceMonth || currentMonthISO;
-    const activeComp = rawActive.substring(0, 7) + '-01';
-    
-    // 1. Se a competência do sistema já é o mês atual ou futuro, não há pendência
-    if (activeComp >= currentMonthISO) return true;
-    
-    // 2. Se a competência está "atrasada", verificamos se já existe o snapshot para esta unidade específica.
-    // Isso evita o "banner fantasma" caso o snapshot tenha sido criado mas a competência global ainda não avançou.
-    const hasSnapshot = proMonthlyStats.some(s => 
-      s.month === activeComp && 
-      s.unit === currentUnit && 
-      s.targetId === 'all'
-    );
-    
-    return hasSnapshot;
-  }, [proMonthlyStats, config.activeCompetenceMonth, currentUnit]);
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevISO = prev.toISOString().split('T')[0];
+    return proMonthlyStats.some(s => s.month === prevISO);
+  }, [proMonthlyStats]);
 
-  const getPendingMonthLabel = () => {
+  const getPreviousMonthLabel = () => {
     const now = new Date();
-    const currentMonthISO = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA');
-    const rawActive = config.activeCompetenceMonth || currentMonthISO;
-    const activeComp = rawActive.substring(0, 7) + '-01';
-
-    // O rótulo deve sempre refletir o mês que o sistema considera como competência ativa 
-    // quando esta estiver atrasada em relação ao calendário real.
-    const targetDate = new Date(activeComp + 'T12:00:00');
-    return targetDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return prev.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   };
 
   useEffect(() => {
@@ -100,7 +71,7 @@ const PGManagerLayout: React.FC<PGManagerLayoutProps> = ({ editingItem, onCancel
             </div>
             <div>
               <p className="text-[11px] font-black uppercase tracking-tight">Fechamento Pendente</p>
-              <p className="text-[10px] font-bold opacity-80">O mês de <span className="uppercase">{getPendingMonthLabel()}</span> ainda não foi encerrado oficialmente.</p>
+              <p className="text-[10px] font-bold opacity-80">O mês de <span className="uppercase">{getPreviousMonthLabel()}</span> ainda não foi encerrado oficialmente.</p>
             </div>
           </div>
           <button 
@@ -170,13 +141,7 @@ const PGManagerLayout: React.FC<PGManagerLayoutProps> = ({ editingItem, onCancel
         <main className="animate-in fade-in slide-in-from-top-2 duration-500">
           {activeSubTab === 'dashboard' && <PGDashboard key={config.activeCompetenceMonth || 'default'} unit={currentUnit} />}
           {activeSubTab === 'membership' && <PGMembership unit={currentUnit} />}
-          {activeSubTab === 'ops' && (
-            <PGOps 
-              unit={currentUnit} 
-              editingItem={editingItem?.isVisitRequest ? editingItem : undefined} 
-              onCancelEdit={onCancelEdit}
-            />
-          )}
+          {activeSubTab === 'ops' && <PGOps unit={currentUnit} />}
           {activeSubTab === 'reports' && <PGReports unit={currentUnit} />}
           {activeSubTab === 'leaders' && <PGLeaders unit={currentUnit} />}
           {activeSubTab === 'tools' && <PGTools unit={currentUnit} />}

@@ -61,9 +61,11 @@ export const useProfile = ({ user, onUpdateUser }: UseProfileProps) => {
 
   const handleRemovePhoto = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setProfilePic('');
-    onUpdateUser({ ...user, profilePic: '' });
-    showToast("Foto removida com sucesso.", "info");
+    if (confirm("Deseja realmente remover sua foto de perfil?")) {
+      setProfilePic('');
+      onUpdateUser({ ...user, profilePic: '' });
+      showToast("Foto removida com sucesso.", "info");
+    }
   };
 
   const triggerFileInput = () => {

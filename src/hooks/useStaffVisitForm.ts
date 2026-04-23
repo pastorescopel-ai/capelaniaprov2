@@ -33,10 +33,6 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
   const [isSectorLocked, setIsSectorLocked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const identityConflict = useMemo(() => {
-    return checkIdentityConflict(formData.staffName, formData.participantType, unit);
-  }, [formData.staffName, formData.participantType, unit, checkIdentityConflict]);
-
   useEffect(() => {
     if (!editingItem) {
       setFormData(prev => ({ ...defaultState, userId: currentUser.id, date: prev.date || getToday(), participantType: prev.participantType }));
@@ -217,8 +213,8 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     if (!formData.reason) { showToast("Motivo obrigatório."); return; }
     
     const conflict = checkIdentityConflict(formData.staffName, formData.participantType, unit);
-    if (conflict.hasConflict && !conflict.isWarning) {
-        showToast(conflict.message, "error");
+    if (conflict.hasConflict) {
+        showToast(conflict.message, "warning");
         return;
     }
 
@@ -233,13 +229,6 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
             showToast("Para colaboradores, o nome deve ser selecionado da lista oficial do RH.", "error");
             return;
         }
-        
-        const isOfficialSector = proSectors.some(s => s.name === formData.sector && s.unit === unit);
-        if (!isOfficialSector) {
-            showToast("Para colaboradores, o setor deve ser selecionado da lista oficial.", "error");
-            return;
-        }
-
         if (!formData.sector) { showToast("Setor é obrigatório para colaboradores.", "warning"); return; }
         
         // Ensure sectorId is set if not already
@@ -359,6 +348,6 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     sectorOptions, nameOptions,
     editAuthorizations,
     handleSelectName, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
-    sortedHistory, defaultState, identityConflict
+    sortedHistory, defaultState
   };
 };

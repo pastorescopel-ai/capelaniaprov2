@@ -12,7 +12,7 @@ interface UseVisitRequestsWidgetProps {
 }
 
 export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisitRequestsWidgetProps) => {
-  const { saveRecord, deleteRecord, proGroups, proSectors, proGroupLocations, proStaff, smallGroups, staffVisits, isInitialized } = useApp();
+  const { saveRecord, deleteRecord, proGroups, proSectors, proGroupLocations, proStaff, smallGroups, isInitialized } = useApp();
   const { showToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<VisitRequest | null>(null);
@@ -20,55 +20,41 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
   const [selectedChaplainId, setSelectedChaplainId] = useState('');
 
   // Lógica de Auto-Confirmação em Background
-  // Se um PG ou Visita já foi registrado no histórico para o mesmo dia e unidade, 
-  // o agendamento deve ser marcado como concluído automaticamente.
+  // Se um PG já foi registrado no histórico para o mesmo dia e unidade, 
+  // o agendamento deve ser marcado como confirmado automaticamente.
   useEffect(() => {
-    if (!isInitialized || requests.length === 0) return;
+    if (!isInitialized || requests.length === 0 || smallGroups.length === 0) return;
 
     const syncGhostRequests = async () => {
       const ghostRequests = requests.filter(req => {
-        // Agora somos mais cautelosos: só baixamos agendamentos "Assigned" ou "Confirmed"
-        if (!['assigned', 'confirmed'].includes(req.status)) return false;
+        if (req.status !== 'assigned') return false;
         
         const reqDate = ensureISODate(req.date);
-        const today = new Date().toLocaleDateString('en-CA');
+        const normName = normalizeString(req.pgName);
         
-        // Só fazemos a baixa automática se a data do agendamento for hoje ou anterior
-        if (reqDate > today) return false;
-
-        const normName = normalizeString(req.pgName || "");
-        
-        // Verificação 1: Se é um Pequeno Grupo (tem pgName)
-        if (normName) {
-           return smallGroups.some(sg => 
-             normalizeString(sg.groupName) === normName &&
-             ensureISODate(sg.date) === reqDate &&
-             sg.unit === req.unit
-           );
-        }
-        
-        // Verificação 2: Se é uma Visita de Staff (visita individual)
-        return staffVisits.some(sv => 
-            ensureISODate(sv.date) === reqDate &&
-            sv.unit === req.unit &&
-            sv.userId === req.assignedChaplainId
+        return smallGroups.some(sg => 
+          normalizeString(sg.groupName) === normName &&
+          ensureISODate(sg.date) === reqDate &&
+          sg.unit === req.unit
         );
       });
 
       if (ghostRequests.length > 0) {
+        console.log(`[Auto-Sync] Sincronizando ${ghostRequests.length} agendamentos já realizados.`);
         for (const req of ghostRequests) {
           try {
-            await saveRecord('visitRequests', { ...req, status: 'completed', isRead: true, updatedAt: Date.now() });
+            await saveRecord('visitRequests', { ...req, status: 'confirmed', isRead: true });
           } catch (err) {
-            // Silently handle auto-sync errors
+            console.error("Erro na auto-confirmação:", err);
           }
         }
       }
     };
 
-    const timer = setTimeout(syncGhostRequests, 5000); // Aumentado para 5s para evitar conflitos de salvamento
+    // Pequeno delay para evitar concorrência com o salvamento imediato do form
+    const timer = setTimeout(syncGhostRequests, 2000);
     return () => clearTimeout(timer);
-  }, [requests, smallGroups, staffVisits, isInitialized, saveRecord]);
+  }, [requests, smallGroups, isInitialized, saveRecord]);
 
   const { inferPGDetails } = usePGInference(
     requests[0]?.unit || 'HAB',
@@ -80,66 +66,21 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
 
   const todayStr = new Date().toLocaleDateString('en-CA');
 
-  // Diagnostics Logger for Admin
-  useEffect(() => {
-    if (currentUser.role === UserRole.ADMIN && requests.length > 0) {
-      console.group("🔍 DIAGNÓSTICO ESCALA (ADMIN)");
-      console.log("Total requests:", requests.length);
-      requests.forEach(req => {
-        const reqDate = ensureISODate(req.date);
-        const isFuture = reqDate > todayStr;
-        const visibilityInfo = {
-          id: req.id,
-          pg: req.pgName,
-          status: req.status,
-          date: reqDate,
-          isFuture,
-          isRead: req.isRead
-        };
-        console.log(`REQ: ${req.pgName || 'Individual'} (${reqDate}) - Status: ${req.status}`, visibilityInfo);
-      });
-      console.groupEnd();
-    }
-  }, [requests, currentUser, todayStr]);
-
   const myRequests = useMemo(() => {
     return requests.filter(req => {
-      // 1. Status Check: Registros explícitamente finalizados somem
-      if (['declined', 'cancelled', 'completed'].includes(req.status)) return false;
+      if (req.status === 'confirmed' || req.status === 'declined') return false;
       
+      // Filtro Visual Imediato: Se já existe registro no histórico, oculta do Dashboard
       const reqDate = ensureISODate(req.date);
-      const today = new Date().toLocaleDateString('en-CA');
+      const normName = normalizeString(req.pgName);
+      const isAlreadyRegistered = smallGroups.some(sg => 
+        normalizeString(sg.groupName) === normName &&
+        ensureISODate(sg.date) === reqDate &&
+        sg.unit === req.unit
+      );
 
-      // 2. Future Protection: Agendamentos futuros SEMPRE são visíveis (Admin) 
-      // ou se atribuídos (Capelão)
-      if (reqDate > today) {
-         if (currentUser.role === UserRole.ADMIN) return true;
-         return req.assignedChaplainId === currentUser.id;
-      }
+      if (isAlreadyRegistered) return false;
 
-      // 3. Current/Past Check: Se já existe um registro correspondente no histórico REAL, ocultamos
-      if (req.pgName) {
-        const normName = normalizeString(req.pgName);
-        const isRegisteredPG = smallGroups.some(sg => 
-          normalizeString(sg.groupName) === normName &&
-          ensureISODate(sg.date) === reqDate &&
-          sg.unit === req.unit
-        );
-        if (isRegisteredPG) {
-           // Se o Admin está vendo e o agendamento ainda está como 'assigned', 
-           // é porque a sincronia de fundo ainda não rodou. Ocultamos visualmente de qualquer forma.
-           return false;
-        }
-      } else {
-        const isRegisteredVisit = staffVisits.some(sv => 
-          ensureISODate(sv.date) === reqDate &&
-          sv.unit === req.unit &&
-          sv.userId === req.assignedChaplainId
-        );
-        if (isRegisteredVisit) return false;
-      }
-
-      // 4. Role Match
       if (currentUser.role === UserRole.ADMIN) return true;
       return req.assignedChaplainId === currentUser.id;
     }).sort((a, b) => {
@@ -150,7 +91,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       
       return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
-  }, [requests, currentUser, smallGroups, staffVisits]);
+  }, [requests, currentUser, smallGroups]);
 
   const getMeetingSector = (req: VisitRequest) => {
       if (req.meetingLocation) return req.meetingLocation;
@@ -191,15 +132,15 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     }
   };
 
-  const handleDeleteRequest = async (req: VisitRequest) => {
+  const handleDeleteRequest = async (id: string) => {
     setIsProcessing(true);
     try {
-      await saveRecord('visitRequests', { ...req, status: 'cancelled' });
-      showToast('Agendamento cancelado com sucesso.', 'success');
+      await deleteRecord('visitRequests', id);
+      showToast('Agendamento removido com sucesso.', 'success');
       setSelectedRequest(null);
       setActionType(null);
     } catch (e) {
-      showToast('Erro ao cancelar agendamento.', 'error');
+      showToast('Erro ao remover agendamento.', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -207,8 +148,8 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
 
   const formatDate = (dateInput: string | Date) => {
     try {
-      const iso = ensureISODate(dateInput);
-      const [year, month, day] = iso.split('-').map(Number);
+      const datePart = typeof dateInput === 'string' ? dateInput.split('T')[0] : dateInput.toISOString().split('T')[0];
+      const [year, month, day] = datePart.split('-').map(Number);
       const d = new Date(year, month - 1, day);
       
       return d.toLocaleDateString('pt-BR', { 
@@ -230,8 +171,6 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     getChaplainName,
     handleUpdateStatus,
     handleDeleteRequest,
-    formatDate,
-    smallGroups,
-    staffVisits
+    formatDate
   };
 };

@@ -3,7 +3,6 @@ import { UserRole, Config, Unit, RecordStatus } from './types';
 
 declare global {
   interface Window {
-    // NOTE: __SUPABASE_CONFIG__ is injected by server.ts for development/preview environments.
     __SUPABASE_CONFIG__?: {
       supabaseUrl: string;
       supabaseKey: string;

@@ -283,7 +283,7 @@ export interface VisitRequest {
   leaderPhone?: string;
   unit: 'HAB' | 'HABA';
   date: string;
-  status: 'confirmed' | 'declined' | 'assigned' | 'scheduled' | 'cancelled' | 'completed';
+  status: 'confirmed' | 'declined' | 'assigned';
   requestNotes?: string;
   assignedChaplainId?: string;
   chaplainResponse?: string;

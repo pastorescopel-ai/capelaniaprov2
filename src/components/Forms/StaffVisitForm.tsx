@@ -31,7 +31,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     sectorOptions, nameOptions,
     editAuthorizations,
     handleSelectName, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
-    sortedHistory, defaultState, identityConflict
+    sortedHistory, defaultState
   } = useStaffVisitForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
 
   const isAdmin = currentUser.role === UserRole.ADMIN;
@@ -209,16 +209,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           )}
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data da Visita *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>
           
-          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{isStaff ? 'Colaborador Atendido *' : 'Nome do Prestador *'}</label><Autocomplete options={nameOptions} value={formData.staffName} onChange={handleChangeName} onSelectOption={handleSelectName} placeholder={isStaff ? "Busque por nome ou matrícula..." : "Busque ou digite o nome..."} isStrict={false} />
-            {identityConflict.hasConflict && identityConflict.isWarning && (
-              <div className="mt-2 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-1 duration-300">
-                <i className="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
-                <p className="text-[10px] font-bold text-amber-700 leading-tight uppercase tracking-tight">
-                  {identityConflict.message}
-                </p>
-              </div>
-            )}
-          </div>
+          <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{isStaff ? 'Colaborador Atendido *' : 'Nome do Prestador *'}</label><Autocomplete options={nameOptions} value={formData.staffName} onChange={handleChangeName} onSelectOption={handleSelectName} placeholder={isStaff ? "Busque por nome ou matrícula..." : "Busque ou digite o nome..."} isStrict={false} /></div>
 
           {!isStaff && (
               <div className="space-y-1 md:col-span-2 animate-in slide-in-from-top-2 duration-300"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Função / Especialidade</label><input placeholder="Ex: Médico Cardiologista, Técnico de TI..." value={formData.providerRole} onChange={e => setFormData({...formData, providerRole: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm text-slate-700 focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>

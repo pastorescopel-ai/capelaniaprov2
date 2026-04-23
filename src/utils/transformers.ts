@@ -20,15 +20,14 @@ export const COLLECTION_TO_TABLE: Record<string, string> = {
   bibleClassAttendees: 'bible_class_attendees',
   proMonthlyStats: 'pro_monthly_stats',
   editAuthorizations: 'edit_authorizations',
-  proHistoryRecords: 'pro_history_records',
-  pushSubscriptions: 'push_subscriptions'
+  proHistoryRecords: 'pro_history_records'
 };
 
 export const TABLE_SCHEMAS: Record<string, string[]> = {
   users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'attends_haba', 'haba_days', 'created_at', 'updated_at', 'auth_id'],
   bible_study_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'location', 'name', 'staff_id', 'participant_id', 'whatsapp', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
   bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'location', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
-  bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'participant_id', 'date', 'cycle_month', 'unit', 'created_at', 'updated_at'],
+  bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'participant_id', 'date', 'cycle_month', 'created_at', 'updated_at'],
   small_group_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'group_name', 'leader', 'leader_phone', 'shift', 'participants_count', 'observations', 'created_at', 'updated_at'],
   staff_visits: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'location', 'reason', 'staff_name', 'staff_id', 'provider_id', 'whatsapp', 'participant_type', 'provider_role', 'requires_return', 'return_date', 'return_completed', 'observations', 'created_at', 'updated_at'],
   visit_requests: ['id', 'pg_name', 'leader_name', 'leader_phone', 'unit', 'date', 'status', 'request_notes', 'preferred_chaplain_id', 'assigned_chaplain_id', 'chaplain_response', 'sector_id', 'meeting_location', 'scheduled_time', 'is_read', 'created_at', 'updated_at'],
@@ -46,11 +45,10 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   daily_activity_reports: ['id', 'user_id', 'date', 'unit', 'completed_blueprints', 'completed_cults', 'completed_encontro', 'completed_visite_cantando', 'palliative_count', 'surgical_count', 'pediatric_count', 'uti_count', 'terminal_count', 'clinical_count', 'observations', 'created_at', 'updated_at'],
   pro_monthly_stats: ['id', 'month', 'type', 'target_id', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'unit', 'snapshot_data', 'created_at', 'updated_at'],
   edit_authorizations: ['id', 'user_id', 'user_name', 'allowed_tabs', 'month_to_unlock', 'expiry_date', 'created_by', 'created_at', 'updated_at'],
-  pro_history_records: ['id', 'month', 'unit', 'staff_id', 'staff_name', 'sector_id', 'sector_name', 'group_id', 'group_name', 'leader_name', 'role', 'is_enrolled', 'joined_at', 'left_at', 'created_at', 'updated_at'],
-  push_subscriptions: ['id', 'user_id', 'subscription', 'created_at', 'updated_at']
+  pro_history_records: ['id', 'month', 'unit', 'staff_id', 'staff_name', 'sector_id', 'sector_name', 'group_id', 'group_name', 'leader_name', 'role', 'is_enrolled', 'joined_at', 'left_at', 'created_at', 'updated_at']
 };
 
-export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'provider_id', 'group_id', 'sector_id', 'day_of_week', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'participant_id', 'terminal_count', 'clinical_count', 'palliative_count', 'surgical_count', 'pediatric_count', 'uti_count'];
+export const NUMERIC_FIELDS = ['font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'participants_count', 'provider_id', 'group_id', 'sector_id', 'day_of_week', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'participant_id', 'terminal_count', 'clinical_count'];
 
 export const DATE_FIELDS = [
   'joined_at', 'left_at', 'updated_at', 'created_at', 'completion_date', 
@@ -98,32 +96,14 @@ export const toCamel = (obj: any): any => {
     if (DATE_FIELDS.includes(key) && val) {
         if (typeof val === 'string') {
             if (/^\d+$/.test(val)) {
-                const numVal = parseInt(val, 10);
-                if (PURE_DATE_FIELDS.includes(key)) {
-                    // Proteção contra fuso horário mesmo em timestamps numéricos
-                    const d = new Date(numVal);
-                    const safeDate = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12, 0, 0);
-                    val = safeDate.toLocaleDateString('en-CA');
-                } else {
-                    val = numVal;
-                }
+                val = parseInt(val, 10);
             } else {
-                // Se for um campo de DATA PURA, garantimos o formato YYYY-MM-DD de forma neutra ao fuso horário
-                const dateStr = val.includes('T') ? val : val + 'T12:00:00';
-                const d = new Date(dateStr);
-                if (!isNaN(d.getTime())) {
-                    if (PURE_DATE_FIELDS.includes(key)) {
-                        // RECOMPOSIÇÃO DE INTEGRIDADE: Se for o campo 'month', o dia DEVE ser 01.
-                        // Se houver desvio (ex: dia 28, 30 ou 31), ajustamos para o dia 01 do mês correto.
-                        if (key === 'month' && d.getDate() !== 1) {
-                           const corrected = d.getDate() > 15 
-                             ? new Date(d.getFullYear(), d.getMonth() + 1, 1) 
-                             : new Date(d.getFullYear(), d.getMonth(), 1);
-                           val = corrected.toLocaleDateString('en-CA');
-                        } else {
-                           val = d.toLocaleDateString('en-CA');
-                        }
-                    } else {
+                // Se for um campo de DATA PURA, mantemos a string original YYYY-MM-DD
+                if (PURE_DATE_FIELDS.includes(key) && val.length === 10 && val.includes('-')) {
+                    // Mantém como string YYYY-MM-DD
+                } else {
+                    const d = new Date(val);
+                    if (!isNaN(d.getTime())) {
                         val = d.getTime();
                     }
                 }

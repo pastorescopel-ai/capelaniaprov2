@@ -1,6 +1,6 @@
 
 import { Config, Unit, ActivitySchedule, User, ProSector } from '../types';
-import { getBrandedHeaderByProfile, getBrandedFooter } from './reportTemplates';
+import { getBrandedHeaderByProfile } from './reportTemplates';
 
 const DAYS_LABELS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
@@ -255,110 +255,69 @@ export const generateDailyChecklistHTML = (
 
 export const generateActivityReportHTML = (
   config: Config,
-  period: string,
-  chaplain: User | null,
+  date: string,
+  chaplain: User,
   stats: any,
-  chaplainData: any[]
+  visits: any[]
 ) => {
   const pColor = config.primaryColor || '#005a9c';
-  const periodLabel = `Relatório de Atividades: ${period}`;
-  const isConsolidated = !chaplain;
+  const dateObj = new Date(date + 'T12:00:00');
+  const dateLabel = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'long' });
+  const periodLabel = `Relatório de Atividades: ${dateLabel}`;
 
-  const renderChaplain = (c: any) => `
-    <div style="margin-bottom: 40px; border: 1px solid #e2e8f0; border-radius: 36px; overflow: hidden; background: white; box-shadow: 0 12px 24px rgba(0,0,0,0.06); page-break-inside: avoid;">
-      <div style="background: #f8fafc; padding: 30px 40px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 22px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: -0.02em;">${c.name}</span>
-        <span style="font-size: 15px; font-weight: 800; color: #64748b; background: #fff; padding: 10px 24px; border-radius: 30px; border: 1px solid #e2e8f0; text-transform: uppercase; letter-spacing: 0.1em;">
-          ${c.totalVisits} Visitas • ${c.totalActivities} Atividades
-        </span>
-      </div>
-      
-      <div style="padding: 40px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 50px;">
-        <!-- Visitas -->
-        <div>
-          <p style="font-size: 14px; font-weight: 900; color: #64748b; text-transform: uppercase; margin-bottom: 25px; letter-spacing: 0.2em;">Distribuição de Visitas</p>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-            ${c.visits.map((v: any) => `
-              <div style="background: #f1f5f9; padding: 18px 22px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 14px; font-weight: 700; color: #475569;">${v.label}</span>
-                <span style="font-size: 18px; font-weight: 900; color: #1e293b;">${v.value}</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-
-        <!-- Locais -->
-        <div>
-          <p style="font-size: 14px; font-weight: 900; color: #64748b; text-transform: uppercase; margin-bottom: 25px; letter-spacing: 0.2em;">Locais Atendidos</p>
-          <div style="display: flex; flex-wrap: wrap; gap: 12px;">
-            ${c.locations.length > 0 ? c.locations.map((loc: string) => `
-              <span style="font-size: 13px; font-weight: 800; color: ${pColor}; background: #eff6ff; padding: 10px 20px; border-radius: 16px; border: 1px solid #dbeafe; text-transform: uppercase; letter-spacing: 0.05em;">
-                ${loc}
-              </span>
-            `).join('') : '<span style="font-size: 14px; color: #94a3b8; font-style: italic;">Nenhum local registrado</span>'}
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  // Divide chaplains into pages to prevent overcrowding
-  const CHAPS_PER_PAGE = 1;
-  const pages = [];
-  for (let i = 0; i < chaplainData.length; i += CHAPS_PER_PAGE) {
-    pages.push(chaplainData.slice(i, i + CHAPS_PER_PAGE));
-  }
-
-  return pages.map((pageChaps, pageIndex) => `
-    <div class="pdf-page" style="width: 210mm; min-height: 297mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; display: block; overflow: hidden; line-height: 1.6; padding-bottom: 20mm; ${pageIndex > 0 ? 'page-break-before: always;' : ''}">
+  return `
+    <div class="pdf-page" style="width: 210mm; min-height: 297mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; display: block; overflow: hidden; line-height: 1.6;">
       ${getBrandedHeaderByProfile(config, 'chaplaincy', periodLabel)}
 
       <div style="padding: 0 20mm 20mm 20mm;">
-        ${pageIndex === 0 ? `
-          <div style="background: #f8fafc; padding: 40px; border-left: 20px solid ${pColor}; border-radius: 0 30px 30px 0; margin-bottom: 60px; box-shadow: 0 10px 25px rgba(0,0,0,0.08);">
-            <h2 style="font-size: 44px; font-weight: 900; color: #0f172a; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: -0.06em; line-height: 1;">
-              ${isConsolidated ? 'Relatório Consolidado' : 'Relatório Individual'}
-            </h2>
-            <p style="font-size: 24px; color: #475569; margin: 0; font-weight: 700; letter-spacing: -0.01em;">
-              ${isConsolidated ? 'Todos os Capelães' : `Capelão: <span style="color: ${pColor}; font-weight: 900;">${chaplain.name}</span>`}
-            </p>
-          </div>
-
-          <!-- Resumo Geral -->
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; margin-bottom: 70px;">
-            <div style="background: #eff6ff; padding: 30px; border-radius: 30px; text-align: center; border: 1px solid #dbeafe;">
-              <p style="font-size: 14px; font-weight: 900; color: #3b82f6; text-transform: uppercase; margin: 0 0 12px 0; letter-spacing: 0.2em;">Atividades</p>
-              <p style="font-size: 52px; font-weight: 900; color: #1e3a8a; margin: 0; line-height: 1;">${stats.totalActivities}</p>
-            </div>
-            <div style="background: #ecfdf5; padding: 30px; border-radius: 30px; text-align: center; border: 1px solid #d1fae5;">
-              <p style="font-size: 14px; font-weight: 900; color: #10b981; text-transform: uppercase; margin: 0 0 12px 0; letter-spacing: 0.2em;">Visitas</p>
-              <p style="font-size: 52px; font-weight: 900; color: #064e3b; margin: 0; line-height: 1;">${stats.totalVisits}</p>
-            </div>
-            <div style="background: #fff7ed; padding: 30px; border-radius: 30px; text-align: center; border: 1px solid #ffedd5;">
-              <p style="font-size: 14px; font-weight: 900; color: #f97316; text-transform: uppercase; margin: 0 0 12px 0; letter-spacing: 0.2em;">Blueprint</p>
-              <p style="font-size: 52px; font-weight: 900; color: #7c2d12; margin: 0; line-height: 1;">${stats.blueprintCount}</p>
-            </div>
-            <div style="background: #fdf2f8; padding: 30px; border-radius: 30px; text-align: center; border: 1px solid #fce7f3;">
-              <p style="font-size: 14px; font-weight: 900; color: #ec4899; text-transform: uppercase; margin: 0 0 12px 0; letter-spacing: 0.2em;">Setores</p>
-              <p style="font-size: 52px; font-weight: 900; color: #831843; margin: 0; line-height: 1;">${stats.cultCount}</p>
-            </div>
-          </div>
-        ` : ''}
-
-        <!-- Detalhamento por Capelão -->
-        <div style="margin-top: 70px;">
-          ${pageIndex === 0 ? `
-            <h3 style="font-size: 30px; font-weight: 900; color: #1e293b; text-transform: uppercase; margin-bottom: 40px; border-bottom: 6px solid #f1f5f9; padding-bottom: 20px; letter-spacing: -0.04em;">
-              Detalhamento por Capelão
-            </h3>
-          ` : ''}
-          ${pageChaps.map(renderChaplain).join('')}
+        <div style="background: #f8fafc; padding: 25px 30px; border-left: 12px solid ${pColor}; border-radius: 0 20px 20px 0; margin-bottom: 35px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+          <h2 style="font-size: 28px; font-weight: 900; color: #0f172a; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: -0.025em;">Relatório Diário</h2>
+          <p style="font-size: 16px; color: #475569; margin: 0; font-weight: 800;">Capelão: <span style="color: ${pColor};">${chaplain.name}</span></p>
         </div>
 
-        ${pageIndex === pages.length - 1 && stats.observations ? `
-          <div style="margin-top: 40px; padding: 40px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 36px;">
-            <h3 style="font-size: 16px; font-weight: 900; color: #92400e; text-transform: uppercase; margin: 0 0 20px 0; letter-spacing: 0.2em;">Observações Consolidadas</h3>
-            <p style="font-size: 18px; color: #b45309; margin: 0; line-height: 1.8; font-weight: 500; font-style: italic;">"${stats.observations}"</p>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 40px;">
+          <div style="background: #eff6ff; padding: 20px; border-radius: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+            <p style="font-size: 10px; font-weight: 900; color: #3b82f6; text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.05em;">Total Atividades</p>
+            <p style="font-size: 32px; font-weight: 900; color: #1e3a8a; margin: 0; line-height: 1;">${stats.totalActivities}</p>
+          </div>
+          <div style="background: #ecfdf5; padding: 20px; border-radius: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+            <p style="font-size: 10px; font-weight: 900; color: #10b981; text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.05em;">Total Visitas</p>
+            <p style="font-size: 32px; font-weight: 900; color: #064e3b; margin: 0; line-height: 1;">${stats.totalVisits}</p>
+          </div>
+          <div style="background: #fff7ed; padding: 20px; border-radius: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+            <p style="font-size: 10px; font-weight: 900; color: #f97316; text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.05em;">Blueprint</p>
+            <p style="font-size: 32px; font-weight: 900; color: #7c2d12; margin: 0; line-height: 1;">${stats.blueprintCount}</p>
+          </div>
+          <div style="background: #fdf2f8; padding: 20px; border-radius: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+            <p style="font-size: 10px; font-weight: 900; color: #ec4899; text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.05em;">Setores</p>
+            <p style="font-size: 32px; font-weight: 900; color: #831843; margin: 0; line-height: 1;">${stats.cultCount}</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 40px;">
+          <h3 style="font-size: 16px; font-weight: 900; color: #1e293b; text-transform: uppercase; margin-bottom: 20px; border-bottom: 4px solid #f1f5f9; padding-bottom: 10px; letter-spacing: 0.05em;">Detalhamento de Visitas</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+            <thead>
+              <tr style="background: #f8fafc;">
+                <th style="padding: 15px 20px; text-align: left; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; color: #475569; font-weight: 900; letter-spacing: 0.05em;">Tipo de Visita</th>
+                <th style="padding: 15px 20px; text-align: center; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; color: #475569; font-weight: 900; letter-spacing: 0.05em;">Quantidade</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${visits.map(v => `
+                <tr>
+                  <td style="padding: 15px 20px; border-bottom: 1px solid #f1f5f9; font-weight: 700; color: #334155;">${v.label}</td>
+                  <td style="padding: 15px 20px; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 900; color: #0f172a; font-size: 15px;">${v.value}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        ${stats.observations ? `
+          <div style="margin-top: 40px; padding: 30px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.01);">
+            <h3 style="font-size: 14px; font-weight: 900; color: #92400e; text-transform: uppercase; margin: 0 0 15px 0; letter-spacing: 0.05em;">Observações Adicionais</h3>
+            <p style="font-size: 14px; color: #b45309; margin: 0; line-height: 1.8; font-weight: 500; font-style: italic;">"${stats.observations}"</p>
           </div>
         ` : ''}
 
@@ -367,5 +326,5 @@ export const generateActivityReportHTML = (
         </div>
       </div>
     </div>
-  `).join('');
+  `;
 };

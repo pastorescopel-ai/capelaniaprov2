@@ -1,39 +1,24 @@
 import { supabase } from './supabaseClient';
 import { TABLE_SCHEMAS, toCamel, cleanAndConvertToSnake, isValidUUID, COLLECTION_TO_TABLE } from '../utils/transformers';
 
-const CONFIG_CACHE_KEY = 'capelania_pro_config_id';
-const CONFIG_DATA_CACHE_KEY = 'capelania_pro_config_data';
-export const SYNC_DATA_CACHE_KEY = 'app_data_cache';
-export const SYNC_LAST_SYNC_KEY = 'last_sync_timestamp';
+const CACHE_KEY = 'capelania_pro_config_id';
+const DATA_CACHE_KEY = 'capelania_pro_config_data';
 
 const GLOBAL_ID_CACHE: Record<string, string> = {
-  app_config: typeof window !== 'undefined' ? localStorage.getItem(CONFIG_CACHE_KEY) || '' : ''
-};
-
-const handleSupabaseError = (error: any, context: string) => {
-  const errorMessage = error?.message || String(error);
-  const isNetworkError = errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError') || errorMessage.includes('ERR_NAME_NOT_RESOLVED');
-  
-  if (isNetworkError) {
-    // Aviso de rede no console para facilitar diagnóstico rápido
-    console.warn(`[Supabase] Offline/Network Error em ${context}: ${errorMessage}`);
-  } else {
-    console.error(`[DataRepository] Erro em ${context}:`, error);
-  }
-  return { data: null, error: error instanceof Error ? error : new Error(errorMessage) };
+  app_config: typeof window !== 'undefined' ? localStorage.getItem(CACHE_KEY) || '' : ''
 };
 
 export const DataRepository = {
-  async fetchFullTable(tableName: string, maxRows = 100000, since?: string) {
+  async fetchFullTable(tableName: string, maxRows = 100000) {
     if (!supabase) return { data: [], error: null };
     
-    let query = supabase.from(tableName).select('*');
-    if (since) query = query.gte('updated_at', since);
-    
     // Primeira busca para ver se precisamos paginar
-    const { data: firstBatch, error: firstError } = await query.range(0, 999);
+    const { data: firstBatch, error: firstError } = await supabase
+      .from(tableName)
+      .select('*')
+      .range(0, 999);
       
-    if (firstError) return handleSupabaseError(firstError, `fetchFullTable(${tableName}) - first batch`);
+    if (firstError) return { data: [], error: firstError };
     if (!firstBatch || firstBatch.length < 1000) return { data: firstBatch || [], error: null };
     
     // Se atingiu 1000, precisamos buscar mais
@@ -43,13 +28,14 @@ export const DataRepository = {
     let hasMore = true;
     
     while (hasMore && allData.length < maxRows) {
-      let paginationQuery = supabase.from(tableName).select('*');
-      if (since) paginationQuery = paginationQuery.gte('updated_at', since);
-      
-      const { data, error } = await paginationQuery.range(from, from + step - 1);
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .range(from, from + step - 1);
         
       if (error) {
-        return handleSupabaseError(error, `fetchFullTable(${tableName}) - pagination at ${from}`);
+        console.error(`Erro ao paginar ${tableName}:`, error);
+        return { data: allData, error };
       }
       if (data) {
         allData = [...allData, ...data];
@@ -62,123 +48,57 @@ export const DataRepository = {
     return { data: allData, error: null };
   },
 
-  async syncAll(forceRefresh = false) {
+  async syncAll() {
     if (!supabase) return null;
-    
-    const lastSync = localStorage.getItem(SYNC_LAST_SYNC_KEY);
-    
-    // Se sincronizou há menos de 1 minuto, retorna cache (evita spam de requests)
-    if (!forceRefresh && lastSync && Date.now() - parseInt(lastSync) < 60000) {
-        const cached = localStorage.getItem(SYNC_DATA_CACHE_KEY);
-        if (cached) return JSON.parse(cached);
-    }
-
     try {
       const MAX_ROWS = 49999;
-      const lastSyncISO = (!forceRefresh && lastSync) ? new Date(parseInt(lastSync)).toISOString() : undefined;
 
-      // Mapeamento de coleções para tabelas
-      const syncMap = [
-        { key: 'users', table: 'users' },
-        { key: 'bibleStudies', table: 'bible_study_sessions' },
-        { key: 'bibleClasses', table: 'bible_classes' },
-        { key: 'smallGroups', table: 'small_group_sessions' },
-        { key: 'staffVisits', table: 'staff_visits' },
-        { key: 'visitRequests', table: 'visit_requests' },
-        { key: 'proSectors', table: 'pro_sectors' },
-        { key: 'proStaff', table: 'pro_staff' },
-        { key: 'proPatients', table: 'pro_patients' },
-        { key: 'proProviders', table: 'pro_providers' },
-        { key: 'proGroups', table: 'pro_groups' },
-        { key: 'proGroupLocations', table: 'pro_group_locations' },
-        { key: 'proGroupMembers', table: 'pro_group_members' },
-        { key: 'proGroupProviderMembers', table: 'pro_group_provider_members' },
-        { key: 'bibleClassAttendees', table: 'bible_class_attendees' },
-        { key: 'activitySchedules', table: 'activity_schedules' },
-        { key: 'dailyActivityReports', table: 'daily_activity_reports' },
-        { key: 'proMonthlyStats', table: 'pro_monthly_stats', max: 99999 },
-        { key: 'proHistoryRecords', table: 'pro_history_records', max: 199999 },
-        { key: 'ambassadors', table: 'ambassadors' },
-        { key: 'editAuthorizations', table: 'edit_authorizations' }
-      ];
+      // Executa as queries em paralelo, mas trata erros individualmente para não quebrar o app todo
+      const results = await Promise.all([
+        DataRepository.fetchFullTable('users', MAX_ROWS),
+        DataRepository.fetchFullTable('bible_study_sessions', MAX_ROWS),
+        DataRepository.fetchFullTable('bible_classes', MAX_ROWS),
+        DataRepository.fetchFullTable('small_group_sessions', MAX_ROWS),
+        DataRepository.fetchFullTable('staff_visits', MAX_ROWS),
+        DataRepository.fetchFullTable('visit_requests', MAX_ROWS),
+        supabase.from('app_config').select('*').limit(1),
+        DataRepository.fetchFullTable('pro_sectors', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_staff', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_patients', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_providers', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_groups', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_group_locations', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_group_members', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_group_provider_members', MAX_ROWS),
+        DataRepository.fetchFullTable('bible_class_attendees', MAX_ROWS),
+        DataRepository.fetchFullTable('activity_schedules', MAX_ROWS),
+        DataRepository.fetchFullTable('daily_activity_reports', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_monthly_stats', 99999), // Limite maior para histórico
+        DataRepository.fetchFullTable('pro_history_records', 199999), // Limite muito maior para histórico detalhado
+        DataRepository.fetchFullTable('ambassadors', MAX_ROWS),
+        DataRepository.fetchFullTable('edit_authorizations', MAX_ROWS)
+      ]);
 
-      // Executa as queries em paralelo com tratamento de erro individual
-      const syncPromises = syncMap.map(async (item) => {
-        try {
-          const res = await DataRepository.fetchFullTable(item.table, item.max || MAX_ROWS, lastSyncISO);
-          return { key: item.key, data: res.data, error: res.error };
-        } catch (e) {
-          return { key: item.key, data: null, error: e };
-        }
-      });
-      
-      const configPromise = (async () => {
-        try {
-          return await supabase.from('app_config').select('*').limit(1);
-        } catch (e) {
-          return { data: null, error: e };
-        }
-      })();
+      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar, pms, phr, amb, ea] = results;
 
-      const results = await Promise.all([...syncPromises, configPromise]);
-      const configRes = results[results.length - 1] as any;
-      const tableResults = results.slice(0, results.length - 1) as any[];
-
-      // Carregar cache anterior para o Delta Sync
-      const previousCache = lastSync ? JSON.parse(localStorage.getItem(SYNC_DATA_CACHE_KEY) || '{}') : {};
-      const newResult: any = { ...previousCache };
-
-      // Processar resultados das tabelas
-      tableResults.forEach((res) => {
-        const { key, data, error } = res;
-        
-        if (error) {
-          const isNetwork = String(error).includes('Failed to fetch') || (error as any)?.message?.includes('Failed to fetch');
-          if (isNetwork) {
-            console.warn(`[DataRepository] Falha de rede ao sincronizar ${key}. Usando cache.`);
-          } else {
-            console.error(`[DataRepository] Erro ao sincronizar ${key}:`, error);
-          }
-        }
-
-        if (data) {
-          const newData = toCamel(data);
-          
-          if (lastSyncISO && previousCache[key]) {
-            // Delta Sync: Mesclar novos dados com o cache
-            const merged = [...previousCache[key]];
-            newData.forEach((newItem: any) => {
-              const index = merged.findIndex((i: any) => i.id === newItem.id);
-              if (index !== -1) {
-                merged[index] = newItem;
-              } else {
-                merged.push(newItem);
-              }
-            });
-            newResult[key] = merged;
-          } else {
-            newResult[key] = newData;
-          }
-        } else if (!newResult[key]) {
-          newResult[key] = previousCache[key] || [];
+      // Log de erros para debug (invisível ao usuário)
+      results.forEach((res, idx) => {
+        if (res.error) {
+          console.error(`Query ${idx} falhou:`, res.error.message);
         }
       });
 
-      // Processar Config
-      if (configRes && 'data' in configRes && configRes.data?.[0]?.id) {
-        const configData = toCamel(configRes.data[0]);
-        newResult.config = configData;
-        const configId = configData.id;
+      if (c.data?.[0]?.id) {
+        const configId = c.data[0].id;
         GLOBAL_ID_CACHE['app_config'] = configId;
         if (typeof window !== 'undefined') {
-          localStorage.setItem(CONFIG_CACHE_KEY, configId);
-          localStorage.setItem(CONFIG_DATA_CACHE_KEY, JSON.stringify(configData));
+          localStorage.setItem(CACHE_KEY, configId);
+          localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(toCamel(c.data[0])));
         }
       }
 
-      // Lógica de Alunos em Classes Bíblicas (Denormalização em memória)
-      const classes = newResult.bibleClasses || [];
-      const attendees = newResult.bibleClassAttendees || [];
+      const classes = toCamel(bc.data || []);
+      const attendees = toCamel(bca.data || []);
       
       classes.forEach((cls: any) => {
           cls.students = attendees
@@ -192,13 +112,32 @@ export const DataRepository = {
             });
       });
 
-      newResult.bibleClasses = classes;
-      
-      localStorage.setItem(SYNC_DATA_CACHE_KEY, JSON.stringify(newResult));
-      localStorage.setItem(SYNC_LAST_SYNC_KEY, Date.now().toString());
-      
-      return newResult;
+      return {
+        users: toCamel(u.data || []),
+        bibleStudies: toCamel(bs.data || []),
+        bibleClasses: classes, 
+        smallGroups: toCamel(sg.data || []),
+        staffVisits: toCamel(sv.data || []),
+        visitRequests: toCamel(vr.data || []),
+        config: c.data && c.data.length > 0 ? toCamel(c.data[0]) : null,
+        proSectors: toCamel(ps.data || []),
+        proStaff: toCamel(pst.data || []),
+        proPatients: toCamel(pp.data || []),
+        proProviders: toCamel(pr.data || []),
+        proGroups: toCamel(pg.data || []),
+        proGroupLocations: toCamel(pgl.data || []),
+        proGroupMembers: toCamel(pgm.data || []),
+        proGroupProviderMembers: toCamel(pgpm.data || []),
+        activitySchedules: toCamel(asch.data || []),
+        dailyActivityReports: toCamel(dar.data || []),
+        bibleClassAttendees: attendees,
+        proMonthlyStats: toCamel(pms.data || []),
+        proHistoryRecords: toCamel(phr.data || []),
+        ambassadors: toCamel(amb.data || []),
+        editAuthorizations: toCamel(ea.data || [])
+      };
     } catch (error) {
+      console.error("Erro fatal ao sincronizar com Supabase:", error);
       return null;
     }
   },
@@ -210,8 +149,6 @@ export const DataRepository = {
 
     const tableName = COLLECTION_TO_TABLE[collection];
     if (!tableName) return { success: false };
-    
-    console.log(`[DataRepository] Upserting to ${tableName}:`, items);
 
     // Garantir que temos IDs para todos os itens antes de converter para snake_case
     // Isso é vital para coleções que dependem do ID para salvar dados em tabelas relacionadas (ex: bibleClasses)
@@ -222,6 +159,7 @@ export const DataRepository = {
     });
 
     const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName], tableName));
+    console.log(`[DEBUG DataRepository] Payloads preparados para ${tableName}:`, payloads);
 
     // Separar em dois grupos: os que têm ID (Updates/Upserts) e os que não têm (Inserts puros)
     // Isso evita que o Postgrest preencha com 'null' o campo ID em um array misto
@@ -236,6 +174,7 @@ export const DataRepository = {
       const CHUNK_SIZE = 100;
       for (let i = 0; i < batch.length; i += CHUNK_SIZE) {
         const chunk = batch.slice(i, i + CHUNK_SIZE);
+        console.log(`[DEBUG Supabase] Enviando chunk para ${tableName} (${isUpsert ? 'UPSERT' : 'INSERT'}):`, chunk);
         
         // Se for app_config, garantir o ID
         if (tableName === 'app_config' && chunk.length > 0) {
@@ -246,7 +185,7 @@ export const DataRepository = {
              if (data && data.length > 0) {
                chunk[0].id = data[0].id;
                GLOBAL_ID_CACHE[tableName] = data[0].id;
-               if (typeof window !== 'undefined') localStorage.setItem(CONFIG_CACHE_KEY, data[0].id);
+               if (typeof window !== 'undefined') localStorage.setItem(CACHE_KEY, data[0].id);
              }
            }
         }
@@ -255,27 +194,27 @@ export const DataRepository = {
         const { data, error } = await query.select();
         
         if (error) {
-          const isNetworkError = error?.message?.includes('Failed to fetch') || String(error).includes('Failed to fetch');
-          if (isNetworkError) {
-             console.warn(`[DataRepository] Erro de rede (Failed to fetch) em ${tableName}.`);
-          } else {
-             console.error(`[DataRepository] Erro detalhado do Supabase em ${tableName}:`, {
-               message: error.message,
-               details: error.details,
-               hint: error.hint,
-               code: error.code,
-               payload: chunk
-             });
+          const errorDetails = {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+            tableName,
+            payloadSent: chunk
+          };
+          console.error(`ERRO CRÍTICO no Supabase (${tableName}):`, errorDetails);
+          
+          // Tentar extrair mais informações se for erro de tipo ou constraint
+          if (error.code === '23502') { // NOT NULL violation
+             console.error(`DICA: Coluna obrigatória ausente em ${tableName}. Verifique o payload.`);
           }
+          
           return false;
         }
         if (data) {
           allUpsertedData.push(...toCamel(data));
         }
       }
-      localStorage.removeItem(SYNC_LAST_SYNC_KEY);
-      localStorage.removeItem('app_data_cache');
-      localStorage.removeItem('last_sync_timestamp');
       return true;
     };
 
@@ -302,7 +241,7 @@ export const DataRepository = {
                     .eq('class_id', cls.id);
                 
                 if (fetchError) {
-                    handleSupabaseError(fetchError, `upsertRecord(${collection}) - fetch attendees`);
+                    console.error("Erro ao buscar participantes atuais:", fetchError);
                     continue;
                 }
 
@@ -321,9 +260,7 @@ export const DataRepository = {
                         .from('bible_class_attendees')
                         .delete()
                         .in('id', idsToRemove);
-                    if (delError) {
-                        handleSupabaseError(delError, `upsertRecord(${collection}) - delete attendees`);
-                    }
+                    if (delError) console.error("Erro ao remover participantes:", delError);
                 }
 
                 // 4. Adicionar os novos
@@ -351,16 +288,13 @@ export const DataRepository = {
                             staff_id: staffId,
                             participant_id: participantId,
                             date: cls.date,
-                            cycle_month: cycleMonth,
-                            unit: cls.unit
+                            cycle_month: cycleMonth
                         };
                     });
 
                     const cleanPayload = attendeesPayload.map(p => cleanAndConvertToSnake(p, TABLE_SCHEMAS['bible_class_attendees'], 'bible_class_attendees'));
                     const { error: insError } = await supabase.from('bible_class_attendees').insert(cleanPayload);
-                    if (insError) {
-                        handleSupabaseError(insError, `upsertRecord(${collection}) - insert attendees`);
-                    }
+                    if (insError) console.error("Erro ao inserir novos participantes:", insError);
                 }
             }
         }
@@ -368,7 +302,7 @@ export const DataRepository = {
 
     if (collection === 'config' && allUpsertedData.length > 0) {
         if (typeof window !== 'undefined') {
-            localStorage.setItem(CONFIG_DATA_CACHE_KEY, JSON.stringify(allUpsertedData[0]));
+            localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(allUpsertedData[0]));
         }
     }
 
@@ -383,12 +317,7 @@ export const DataRepository = {
       .eq('email', email.toLowerCase().trim())
       .maybeSingle();
     
-    if (error) {
-      handleSupabaseError(error, `getUserByEmail(${email})`);
-      return null;
-    }
-    
-    if (!data) return null;
+    if (error || !data) return null;
     return toCamel(data);
   },
 
@@ -397,21 +326,10 @@ export const DataRepository = {
     const tableName = COLLECTION_TO_TABLE[collection];
     if (!tableName) return false;
     
-    console.log(`[DataRepository] Tentando deletar: collection=${collection}, tableName=${tableName}, id=${id}`);
-    
     // IDs numéricos (nas tabelas PRO) podem ser passados como string, o Postgres faz o cast na query
-    if (!tableName.startsWith('pro_') && !tableName.startsWith('visit_requests') && !isValidUUID(id)) {
-        console.warn(`[DataRepository] ID inválido para deleção: ${id}`);
-        return false;
-    }
+    if (!tableName.startsWith('pro_') && !tableName.startsWith('visit_requests') && !isValidUUID(id)) return false;
     
     const { error } = await supabase.from(tableName).delete().eq('id', id);
-    if (error) {
-        handleSupabaseError(error, `deleteRecord(${collection}, ${id})`);
-    } else {
-        localStorage.removeItem('app_data_cache');
-        localStorage.removeItem('last_sync_timestamp');
-    }
     return !error;
   },
 
@@ -433,9 +351,7 @@ export const DataRepository = {
     }
 
     const { error } = await query;
-    if (error) {
-      handleSupabaseError(error, `deleteRecordsByFilter(${collection})`);
-    }
+    if (error) console.error(`Erro ao deletar registros filtrados em ${tableName}:`, error);
     return !error;
   },
 

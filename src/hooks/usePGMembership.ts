@@ -14,13 +14,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   const { config, saveRecord } = useApp();
   const { showToast } = useToast();
   
-  // Normalização Universal: Garante YYYY-MM-01 sem desvios de fuso horário
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    if (config.activeCompetenceMonth) return config.activeCompetenceMonth;
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA');
-  });
-  
+  const [selectedMonth, setSelectedMonth] = useState(config.activeCompetenceMonth || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [activeTab, setActiveTab] = useState<'staff' | 'providers'>('staff');
   const [selectedSectorName, setSelectedSectorName] = useState('');
   const [staffSearch, setStaffSearch] = useState('');
@@ -44,33 +38,9 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     return () => clearTimeout(handler);
   }, [providerSearch]);
 
-  // Sincroniza com a competência ativa se ela mudar no config (carregamento inicial)
-  useEffect(() => {
-    if (config.activeCompetenceMonth) {
-        setSelectedMonth(config.activeCompetenceMonth);
-    }
-  }, [config.activeCompetenceMonth]);
-
-  // Lógica Robusta de Fechamento:
-  // 1. O mês está fechado se for anterior à competência ativa configurada
-  // 2. OU se houver qualquer snapshot de fechamento (geral ou por unidade) para este mês
-  const activeMonth = config.activeCompetenceMonth || new Date().toLocaleDateString('en-CA').substring(0, 7) + '-01';
-  
-  const hasClosingSnapshot = proMonthlyStats.some(s => s.month === selectedMonth && (s.unit === unit || s.targetId === 'all'));
-  
-  const isMonthClosed = (selectedMonth < activeMonth) || hasClosingSnapshot;
-  const isFutureMonth = selectedMonth > activeMonth && !hasClosingSnapshot;
-  const isOpenMonth = selectedMonth === activeMonth && !hasClosingSnapshot;
-
-  useEffect(() => {
-    console.log('DEBUG [PGMembership]:', {
-      selectedMonth,
-      activeMonth: config.activeCompetenceMonth,
-      isMonthClosed,
-      isFutureMonth,
-      isOpenMonth
-    });
-  }, [selectedMonth, config.activeCompetenceMonth, isMonthClosed, isFutureMonth, isOpenMonth]);
+  const isMonthClosed = selectedMonth < (config.activeCompetenceMonth || '');
+  const isFutureMonth = selectedMonth > (config.activeCompetenceMonth || '');
+  const isOpenMonth = selectedMonth === (config.activeCompetenceMonth || '');
 
   // --- ESTADOS OTIMISTAS (UI Instantânea) ---
   const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());
@@ -172,31 +142,32 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
         }
       }
 
-      // 2. MOVIMENTAÇÃO: Verificar se já existe matrícula ativa (Pode haver mais de uma por erro)
-      const activeMemberships = membersList.filter(m => cleanId((m as any)[idField]) === cleanId(personId) && !m.leftAt);
+      // 2. MOVIMENTAÇÃO: Verificar se já existe matrícula ativa
+      const activeMembership = membersList.find(m => cleanId((m as any)[idField]) === cleanId(personId) && !m.leftAt);
 
-      if (activeMemberships.length > 0) {
-        const { lastDayMs: oldLastDay } = getCycleDates(selectedMonth);
-        const updates: any[] = [];
-
-        // Encerra TODAS as matrículas ativas anteriores para evitar duplicidade
-        activeMemberships.forEach(m => {
-          updates.push({ ...m, leftAt: oldLastDay });
-        });
-
-        // Cria a nova matrícula no grupo atual
-        updates.push({
-          groupId: currentPG.id,
-          [idField]: personId,
-          joinedAt: firstDayMs,
-          cycleMonth: selectedMonth,
-          leftAt: null,
-          isError: false
-        });
-
-        const success = await saveRecord(collection, updates);
-        if (success) showToast("Matrícula atualizada e duplicidades encerradas!", "success");
-        
+      if (activeMembership) {
+        if (activeMembership.cycleMonth === selectedMonth) {
+          // MESMO MÊS: Apenas atualiza o PG (Ajuste Direto)
+          const update = { ...activeMembership, groupId: currentPG.id, joinedAt: firstDayMs };
+          const success = await saveRecord(collection, [update]);
+          if (success) showToast("Matrícula atualizada!", "success");
+        } else {
+          // MÊS DIFERENTE: Encerra o antigo (Histórico) e cria novo
+          const { lastDayMs: oldLastDay } = getCycleDates(activeMembership.cycleMonth);
+          
+          const closeOld = { ...activeMembership, leftAt: oldLastDay };
+          const createNew: any = {
+            groupId: currentPG.id,
+            [idField]: personId,
+            joinedAt: firstDayMs,
+            cycleMonth: selectedMonth,
+            leftAt: null,
+            isError: false
+          };
+          
+          const success = await saveRecord(collection, [closeOld, createNew]);
+          if (success) showToast("Nova matrícula com histórico preservado!", "success");
+        }
         if (type === 'provider') setProviderSearch('');
       } else {
         // 3. NOVA MATRÍCULA: Sem histórico prévio
