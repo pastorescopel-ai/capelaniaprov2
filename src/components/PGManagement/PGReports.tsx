@@ -789,11 +789,29 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
       <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div>
-                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">{reportHeaderInfo.title}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">{reportHeaderInfo.title}</h2>
+                  {(() => {
+                    const s = new Date(startDate + 'T12:00:00');
+                    const mStr = new Date(s.getFullYear(), s.getMonth(), 1).toISOString().split('T')[0];
+                    return config.activeCompetenceMonth && mStr < config.activeCompetenceMonth ? (
+                      <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-amber-200">
+                        <i className="fas fa-lock mr-1"></i> Mês Fechado
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
                 <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">{reportHeaderInfo.periodLabel}</p>
                 <p className="text-emerald-600 text-xs font-black uppercase mt-1">{activePGCount} PGs Ativos</p>
             </div>
             <div className="flex flex-wrap gap-3">
+              <button 
+                onClick={() => setFilterCritical(!filterCritical)} 
+                className={`px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all flex items-center gap-3 ${filterCritical ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 border border-slate-100'}`}
+              >
+                  <i className={`fas ${filterCritical ? 'fa-check-circle' : 'fa-bullseye'}`}></i>
+                  {filterCritical ? 'Gargalos Ativados' : 'Meta < 80%'}
+              </button>
               <button 
                 onClick={handlePrintNoLeaderAction} 
                 disabled={!!isGenerating}
@@ -859,11 +877,20 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
           {reportData.map(data => (
               <div key={data.sector.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col justify-between">
                   <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h4 className="font-black text-slate-800 uppercase text-sm leading-tight">{data.sector.name}</h4>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">Cobertura: {Math.round(data.coverage)}%</p>
+                      <div className="flex-1">
+                        <h4 className="font-black text-slate-800 uppercase text-xs leading-tight mb-1">{data.sector.name}</h4>
+                        <div className="flex items-center justify-between mb-1">
+                           <p className="text-[9px] font-bold text-slate-400 uppercase">Cobertura: {Math.round(data.coverage)}%</p>
+                           <span className={`w-2 h-2 rounded-full ${data.coverage >= 80 ? 'bg-emerald-500' : data.coverage >= 50 ? 'bg-amber-400' : 'bg-rose-500'}`}></span>
+                        </div>
+                        <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden relative">
+                           <div 
+                             className={`h-full rounded-full ${data.coverage >= 80 ? 'bg-emerald-500' : data.coverage >= 50 ? 'bg-amber-400' : 'bg-rose-500'}`} 
+                             style={{ width: `${Math.min(data.coverage, 100)}%` }}
+                           ></div>
+                           <div className="absolute top-0 bottom-0 w-0.5 bg-slate-300 left-[80%]"></div>
+                        </div>
                       </div>
-                      <span className={`w-3 h-3 rounded-full ${data.coverage >= 80 ? 'bg-emerald-500' : data.coverage >= 50 ? 'bg-amber-400' : 'bg-rose-500'}`}></span>
                   </div>
                   <div className="flex gap-1 flex-wrap">
                       {data.pgs.map((pg: any) => (
