@@ -38,9 +38,10 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     return () => clearTimeout(handler);
   }, [providerSearch]);
 
-  const isMonthClosed = selectedMonth < (config.activeCompetenceMonth || '');
-  const isFutureMonth = selectedMonth > (config.activeCompetenceMonth || '');
-  const isOpenMonth = selectedMonth === (config.activeCompetenceMonth || '');
+  const activeComp = config.activeCompetenceMonth || new Date().toISOString().split('T')[0].substring(0, 7) + '-01';
+  const isMonthClosed = selectedMonth < activeComp;
+  const isFutureMonth = selectedMonth > activeComp;
+  const isOpenMonth = selectedMonth === activeComp;
 
   // --- ESTADOS OTIMISTAS (UI Instantânea) ---
   const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());

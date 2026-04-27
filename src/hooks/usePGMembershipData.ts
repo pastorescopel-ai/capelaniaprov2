@@ -298,10 +298,24 @@ export const usePGMembershipData = ({
     }
     
     // --- MODO HISTÓRICO (Mês Fechado) ---
-    const historyForMonth = proHistoryRecords.filter((r: any) => r.month === selectedMonth && r.unit === unit && r.groupId === currentPG.id && r.isEnrolled);
+    if (isMonthClosed) {
+      const historyForMonth = proHistoryRecords.filter((r: any) => 
+        r.month === selectedMonth && 
+        r.unit === unit && 
+        r.groupId === currentPG.id && 
+        r.isEnrolled
+      );
 
-    if (isMonthClosed && historyForMonth.length > 0) {
-      return historyForMonth.map((r: any) => ({
+      // Deduplicação garantida por staffId
+      const seen = new Set();
+      const uniqueHistory = historyForMonth.filter((r: any) => {
+        if (!r.staffId) return true;
+        const duplicate = seen.has(r.staffId);
+        seen.add(r.staffId);
+        return !duplicate;
+      });
+
+      return uniqueHistory.map((r: any) => ({
         id: r.id,
         staffName: r.staffName,
         staffId: r.staffId,
