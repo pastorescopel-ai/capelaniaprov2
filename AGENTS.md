@@ -1,8 +1,8 @@
 # Instruções para o Agente - Capelania HAB
 
 ## Ponto de Restauração Estável
-A versão **4.2.0-PRO-FINAL** (05/04/2026) é considerada a versão final e funcional do sistema.
-Se houver erros graves em modificações futuras, consulte o arquivo `VERSION.md` e considere reverter para o estado funcional desta data.
+A versão **4.5.0-PRE-TENANCY-FINAL** (03/05/2026) é considerada a versão final e funcional do sistema mono-hospital.
+Se houver erros graves nas modificações para multi-tenancy, consulte o arquivo `VERSION.md` e restaure para o estado deste marco.
 
 ## Estrutura do Projeto
 - **App.tsx**: Componente principal com a lógica de rotas e autenticação.
