@@ -108,37 +108,34 @@ export const calculateDashboardMetrics = (
     };
   }
 
-  // 1. Filtrar setores e staff da unidade
-  const staffMap = new Map<string, any>();
-  const migrationDate = new Date('2026-04-04').getTime();
+  // 1. Filtrar staff da unidade com deduplicação rigorosa por ID
+  const staffMap = new Map<string, ProStaff>();
 
   proStaff.forEach(s => {
-    if (s.unit !== unit) return;
+    // REGRA SUPREMA: Se não é da unidade ou está inativo, ignora completamente.
+    // Isso garante que o dashboard reflita exatamente a contagem de "Ativos" do Supabase.
+    if (!s.unit || s.unit !== unit || s.active === false) return;
     
     const createdDate = getTimestamp(s.createdAt);
     const leftDate = getTimestamp(s.leftAt);
     
-    const hasLeftBeforeMonth = leftDate && leftDate < monthStart;
-    const wasCreatedBeforeEnd = createdDate && createdDate <= monthEnd;
+    // Filtro de Período Simples: Criado antes do fim do mês e não saiu antes do início
+    const wasCreatedInOrBeforeMonth = !createdDate || createdDate <= monthEnd;
+    const isStillInUnit = !leftDate || leftDate >= monthStart;
 
-    const isMigrationReset = !isCurrentMonth && 
-                             createdDate >= migrationDate && 
-                             (!leftDate || leftDate >= monthStart) &&
-                             selectedMonth >= '2026-02-01';
-
-    if (!hasLeftBeforeMonth && (wasCreatedBeforeEnd || isMigrationReset)) {
-      if (isCurrentMonth && s.active === false) return;
-
+    if (wasCreatedInOrBeforeMonth && isStillInUnit) {
       const idClean = cleanID(s.id);
       const existing = staffMap.get(idClean);
-      if (!existing || (s.active && !existing.active)) {
+      
+      // Deduplicação: Mantém apenas um registro por ID (o mais atual)
+      if (!existing || (createdDate && getTimestamp(existing.createdAt) < createdDate)) {
         staffMap.set(idClean, s);
       }
     }
   });
 
   const unitStaff = Array.from(staffMap.values());
-  const unitSectors = proSectors.filter(s => s.unit === unit && (isCurrentMonth ? s.active !== false : true));
+  const unitSectors = proSectors.filter(s => s.unit === unit && s.active !== false);
 
   const validSectorIds = new Set(unitSectors.map(s => cleanID(s.id)));
   const groupsById = new Map(proGroups.map(g => [cleanID(g.id), g]));
@@ -281,11 +278,11 @@ export const calculateDashboardMetrics = (
     const idCounts = new Map<string, number>();
     const duplicates: string[] = [];
     proStaff.forEach(s => {
-      if (s.unit === unit) {
+      if (s.unit === unit && s.active !== false) {
         const id = cleanID(s.id);
         const createdDate = getTimestamp(s.createdAt);
         const leftAt = getTimestamp(s.leftAt);
-        const wasActiveInMonth = createdDate <= monthEnd && (!leftAt || leftAt >= targetDate.getTime());
+        const wasActiveInMonth = createdDate <= monthEnd && (!leftAt || leftAt >= monthStart);
         if (wasActiveInMonth) {
           idCounts.set(id, (idCounts.get(id) || 0) + 1);
           if (idCounts.get(id) === 2) duplicates.push(id);

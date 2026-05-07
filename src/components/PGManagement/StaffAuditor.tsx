@@ -64,20 +64,40 @@ const StaffAuditor: React.FC<StaffAuditorProps> = ({ unit }) => {
   };
 
   const copySQLAudit = () => {
-    const sql = `-- AUDITORIA DE COLABORADORES ${unit} - ${new Date().toLocaleDateString()}\n` +
-                `SELECT unit, name, count(*), array_agg(id) as ids\n` +
-                `FROM pro_staff\n` +
-                `WHERE unit = '${unit}' AND active = true\n` +
-                `GROUP BY unit, name\n` +
-                `HAVING count(*) > 1;\n\n` +
-                `-- Contagem Geral Ativa\n` +
-                `SELECT unit, count(*) as total_ativos\n` +
-                `FROM pro_staff\n` +
-                `WHERE active = true\n` +
-                `GROUP BY unit;`;
+    const sql = `-- 1. RASTREIO DE DUPLICATAS ATIVAS (POR NOME/UNIDADE)
+-- Este script identifica quem está sendo contado mais de uma vez na unidade selecionada
+SELECT 
+  unit, 
+  name, 
+  count(*) as ocorrencias, 
+  array_agg(id) as IDs_detectados
+FROM pro_staff
+WHERE active = true 
+  AND unit = '${unit}'
+GROUP BY unit, name
+HAVING count(*) > 1;
+
+-- 2. CONTAGEM REAL (ABRIL/2026) - ESPELHO DO DASHBOARD
+-- Este script deve retornar exatamente 1514 (HAB) ou 178 (HABA)
+SELECT 
+  unit, 
+  count(DISTINCT id) as total_colaboradores_reais
+FROM pro_staff
+WHERE unit = '${unit}' 
+  AND active = true
+  AND (created_at <= '2026-04-30T23:59:59Z' OR created_at IS NULL)
+  AND (left_at > '2026-04-01T00:00:00Z' OR left_at IS NULL)
+GROUP BY unit;
+
+-- 3. VALIDAR IDs COM MÚLTIPLAS UNIDADES (CAUSA DE INFLAÇÃO)
+SELECT id, name, count(DISTINCT unit) as unidades
+FROM pro_staff
+WHERE active = true
+GROUP BY id, name
+HAVING count(DISTINCT unit) > 1;`;
     
     navigator.clipboard.writeText(sql);
-    showToast("Script SQL copiado! Use no Editor SQL do Supabase.", "info");
+    showToast("Script SQL de Rastreio (Abril) copiado!", "info");
   };
 
   return (
@@ -145,6 +165,67 @@ const StaffAuditor: React.FC<StaffAuditorProps> = ({ unit }) => {
             </div>
         </div>
       </div>
+
+      {audit.crossUnitDuplicates.length > 0 && (
+        <div className="bg-white rounded-[2.5rem] border border-rose-100 p-8 shadow-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-base-50 flex items-center justify-center text-rose-600 border border-rose-100">
+              <i className="fas fa-random text-xs"></i>
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-rose-800 uppercase tracking-tight">Rastreado: Conflito de Unidade (Transferências)</h4>
+              <p className="text-[10px] text-rose-400 font-bold uppercase tracking-widest">Mesma matrícula ativa em múltiplas unidades</p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            {audit.crossUnitDuplicates.map((dup, i) => (
+              <div key={i} className="p-4 bg-rose-50/30 border border-rose-100 rounded-2xl">
+                <h5 className="font-black text-slate-800 text-sm uppercase">{dup.name}</h5>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-[9px] font-black bg-white px-2 py-1 rounded border border-rose-200 text-rose-600">ID: {dup.id}</span>
+                  <div className="flex gap-1">
+                    {dup.units.map(u => (
+                      <span key={u} className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${u === unit ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'}`}>
+                        {u}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[9px] font-bold text-rose-400 mt-2 italic">Atenção: Este colaborador está inflando a contagem de ambas as unidades simultaneamente.</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {audit.futureRecords.length > 0 && (
+        <div className="bg-white rounded-[2.5rem] border border-blue-100 p-8 shadow-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100">
+              <i className="fas fa-forward text-xs"></i>
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-blue-800 uppercase tracking-tight">Rastreado: Registros Criados em Maio</h4>
+              <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Colaboradores criados após 30/04 mas aparecendo em Abril</p>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 p-4 rounded-2xl">
+            <p className="text-[10px] text-slate-500 font-medium italic mb-3">
+              Estes registros foram criados após 30/04/2026. Se eles aparecem em Abril, é devido ao filtro de redundância de migração do dashboard.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {audit.futureRecords.slice(0, 8).map((s, idx) => (
+                <div key={idx} className="bg-white p-2 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-600 uppercase">
+                  {s.name}
+                </div>
+              ))}
+            </div>
+            {audit.futureRecords.length > 8 && <p className="text-[10px] text-blue-500 font-black mt-2">+{audit.futureRecords.length - 8} outros</p>}
+          </div>
+        </div>
+      )}
 
       {audit.duplicates.length > 0 && (
         <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm">

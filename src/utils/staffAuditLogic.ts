@@ -8,8 +8,9 @@ export interface AuditResult {
   expectedCount: number;
   difference: number;
   duplicates: { name: string; ids: string[]; records: ProStaff[] }[];
+  crossUnitDuplicates: { id: string; name: string; units: string[] }[];
+  futureRecords: ProStaff[];
   inactiveButMarkedActive: ProStaff[];
-  potentialOutdated: ProStaff[];
 }
 
 export const auditStaffData = (
@@ -17,19 +18,18 @@ export const auditStaffData = (
   proStaff: ProStaff[],
   expectedCount: number
 ): AuditResult => {
-  const unitStaff = proStaff.filter(s => s.unit === unit);
+  const allStaff = proStaff;
+  const unitStaff = allStaff.filter(s => s.unit === unit);
   
-  // 1. Contagem Básica de Ativos
-  // Consideramos ativos aqueles que não têm leftAt ou leftAt no futuro
   const now = Date.now();
-  const activeStaff = unitStaff.filter(s => {
+  const activeUnitStaff = unitStaff.filter(s => {
     const leftAt = s.leftAt ? (typeof s.leftAt === 'number' ? s.leftAt : new Date(s.leftAt).getTime()) : null;
     return s.active !== false && (!leftAt || leftAt > now);
   });
 
-  // 2. Detecção de Duplicatas por Nome
+  // 1. Duplicatas por Nome (In-Unit)
   const nameMap = new Map<string, ProStaff[]>();
-  activeStaff.forEach(s => {
+  activeUnitStaff.forEach(s => {
     const norm = normalizeString(s.name);
     if (!nameMap.has(norm)) nameMap.set(norm, []);
     nameMap.get(norm)?.push(s);
@@ -46,21 +46,46 @@ export const auditStaffData = (
     }
   });
 
-  // 3. Registros Inativos que podem estar sendo contados
-  // No dashboard, a lógica às vezes é permissiva com datas de migração
-  const inactiveButMarkedActive = unitStaff.filter(s => s.active === false && !s.leftAt);
+  // 2. Duplicatas de ID entre Unidades (Pessoa transferida mas ativa em ambas)
+  const idCrossMap = new Map<string, Set<string>>();
+  const idNameMap = new Map<string, string>();
+  
+  allStaff.forEach(s => {
+    if (s.active !== false) {
+      const cid = cleanID(s.id);
+      if (!idCrossMap.has(cid)) idCrossMap.set(cid, new Set());
+      idCrossMap.get(cid)?.add(s.unit || 'Sem Unidade');
+      idNameMap.set(cid, s.name);
+    }
+  });
+
+  const crossUnitDuplicates: { id: string; name: string; units: string[] }[] = [];
+  idCrossMap.forEach((units, id) => {
+    if (units.size > 1 && units.has(unit)) {
+      crossUnitDuplicates.push({
+        id,
+        name: idNameMap.get(id) || 'N/A',
+        units: Array.from(units)
+      });
+    }
+  });
+
+  // 3. Registros de "Futuro" ou Criados após Abril mas aparecendo (Cálculo de competitência)
+  // Baseando em Abril/2026 como limite
+  const aprilEnd = new Date('2026-04-30T23:59:59Z').getTime();
+  const futureRecords = activeUnitStaff.filter(s => {
+    const created = s.createdAt ? new Date(s.createdAt).getTime() : 0;
+    return created > aprilEnd && created < now;
+  });
 
   return {
     unit,
-    dbCount: activeStaff.length,
+    dbCount: activeUnitStaff.length,
     expectedCount,
-    difference: activeStaff.length - expectedCount,
+    difference: activeUnitStaff.length - expectedCount,
     duplicates,
-    inactiveButMarkedActive,
-    potentialOutdated: activeStaff.filter(s => {
-        // Se foi criado há muito tempo e não tem movimentação recente (exemplo hipotético)
-        // Mas o critério principal é a diferença de contagem
-        return false; 
-    })
+    crossUnitDuplicates,
+    futureRecords,
+    inactiveButMarkedActive: unitStaff.filter(s => s.active === false && !s.leftAt)
   };
 };
