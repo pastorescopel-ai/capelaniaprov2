@@ -90,6 +90,104 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
     }
   };
 
+  const [isRepairing, setIsRepairing] = useState(false);
+
+  const inactiveStaffCount = useMemo(() => (proData.staff || []).filter(s => s.unit === activeAuditUnit && !s.active).length, [proData.staff, activeAuditUnit]);
+  const inactiveGroupsCount = useMemo(() => (proData.groups || []).filter(g => g.unit === activeAuditUnit && !g.active).length, [proData.groups, activeAuditUnit]);
+
+  const runIntegrityRepair = async () => {
+    // 1. Identificar qualquer Staff inativo nesta unidade
+    const inactiveStaff = (proData.staff || []).filter(s => 
+      s.unit === activeAuditUnit && 
+      !s.active
+    );
+
+    if (inactiveStaff.length === 0) {
+      showToast(`Nenhum colaborador inativo foi detectado na unidade ${activeAuditUnit}. Verifique se a unidade selecionada está correta.`, "info");
+      return;
+    }
+
+    const staffNames = inactiveStaff.slice(0, 5).map(s => s.name).join(', ') + (inactiveStaff.length > 5 ? '...' : '');
+
+    if (!window.confirm(`Detectados ${inactiveStaff.length} colaboradores inativos em ${activeAuditUnit} (Ex: ${staffNames}).\n\nDeseja reativá-los e restaurar suas matrículas de PG agora?`)) return;
+    
+    setIsRepairing(true);
+    try {
+      const now = Date.now();
+      let restoredStaff = 0;
+      let restoredMemberships = 0;
+
+      for (const staff of inactiveStaff) {
+        // Reativar Colaborador
+        await saveRecord('proStaff', { 
+          ...staff, 
+          active: true, 
+          leftAt: null, 
+          updatedAt: now,
+          notes: (staff.notes || '') + ' [REPARO DE EMERGÊNCIA: Reativado via AdminTools]'
+        });
+        restoredStaff++;
+
+        // Reativar todas as matrículas fechadas deste colaborador
+        const closedMemberships = proGroupMembers.filter(m => 
+          cleanID(m.staffId) === cleanID(staff.id) && 
+          m.leftAt
+        );
+
+        for (const membership of closedMemberships) {
+          await saveRecord('proGroupMembers', {
+            ...membership,
+            leftAt: null,
+            updatedAt: now
+          });
+          restoredMemberships++;
+        }
+      }
+
+      showToast(`SUCESSO: ${restoredStaff} colaboradores e ${restoredMemberships} matrículas restauradas em ${activeAuditUnit}!`, "success");
+      await onRefreshData();
+    } catch (err) {
+      showToast("Falha no reparo: " + (err as Error).message, "warning");
+    } finally {
+      setIsRepairing(false);
+    }
+  };
+
+  const runPGRepair = async () => {
+    const inactiveGroups = (proData.groups || []).filter(g => 
+      g.unit === activeAuditUnit && 
+      !g.active
+    );
+
+    if (inactiveGroups.length === 0) {
+      showToast(`Nenhum PG inativo encontrado em ${activeAuditUnit}.`, "info");
+      return;
+    }
+
+    if (!window.confirm(`Deseja reativar ${inactiveGroups.length} PGs (Pequenos Grupos) inativos em ${activeAuditUnit}?`)) return;
+    
+    setIsRepairing(true);
+    try {
+      const now = Date.now();
+      let restored = 0;
+      for (const group of inactiveGroups) {
+        await saveRecord('proGroups', { 
+          ...group, 
+          active: true, 
+          updatedAt: now 
+        });
+        restored++;
+      }
+
+      showToast(`SUCESSO: ${restored} PGs reativados em ${activeAuditUnit}!`, "success");
+      await onRefreshData();
+    } catch (err) {
+      showToast("Erro no reparo: " + (err as Error).message, "warning");
+    } finally {
+      setIsRepairing(false);
+    }
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formatMonthLabel = (iso: string) => {
@@ -1020,6 +1118,52 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
                   <i className="fas fa-check-circle mr-2"></i> Nenhuma duplicata detectada
                 </div>
               )}
+            </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col items-center text-center gap-6 shadow-sm hover:border-amber-400 transition-all group w-full">
+            <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
+              <i className="fas fa-undo-alt"></i>
+            </div>
+            <div className="flex-1 space-y-2">
+              <h3 className="text-slate-800 font-black uppercase text-sm tracking-tight">Reparo de Emergência (RH)</h3>
+              <p className="text-slate-500 font-medium text-[10px] leading-relaxed">
+                  Recupera colaboradores e matrículas de PGs desativados acidentalmente.
+              </p>
+              <div className="flex gap-2 justify-center mt-2">
+                <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[9px] font-bold uppercase">{inactiveStaffCount} Inativos</span>
+                <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-bold uppercase">{inactiveGroupsCount} PGs Off</span>
+              </div>
+            </div>
+
+            <div className="flex bg-slate-50 p-1 rounded-xl gap-1 w-full">
+              {['HAB', 'HABA'].map(u => (
+                <button 
+                  key={u} 
+                  onClick={() => setActiveAuditUnit(u as any)}
+                  className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeAuditUnit === u ? 'bg-white shadow text-amber-600' : 'text-slate-400'}`}
+                >
+                  Unidade {u}
+                </button>
+              ))}
+            </div>
+
+            <div className="w-full flex flex-col gap-3 mt-auto">
+              <button 
+                  onClick={runIntegrityRepair}
+                  disabled={isRepairing}
+                  className="w-full py-4 bg-amber-600 text-white font-black rounded-xl uppercase text-[9px] tracking-widest shadow-sm hover:bg-amber-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                  <i className={`fas ${isRepairing ? 'fa-spinner fa-spin' : 'fa-user-plus'}`}></i> 
+                  {isRepairing ? 'Restaurando...' : 'Resgatar Colaboradores'}
+              </button>
+              <button 
+                  onClick={runPGRepair}
+                  disabled={isRepairing}
+                  className="w-full py-3 bg-white border border-amber-200 text-amber-600 font-black rounded-xl uppercase text-[8px] tracking-widest hover:bg-amber-50 transition-all flex items-center justify-center gap-2"
+              >
+                  <i className="fas fa-users-viewfinder"></i> Reativar PGs Órfãos
+              </button>
             </div>
         </div>
 
