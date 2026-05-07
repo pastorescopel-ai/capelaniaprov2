@@ -119,6 +119,7 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
                             <i className="fab fa-whatsapp absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 text-lg"></i>
                             <input 
                                 type="text" 
+                                autoComplete="off"
                                 value={form.leaderPhone} 
                                 onChange={e => form.setLeaderPhone(e.target.value)} 
                                 placeholder="(00) 00000-0000"
@@ -132,6 +133,7 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
                             <i className="fas fa-map-marker-alt absolute left-4 top-1/2 -translate-y-1/2 text-blue-500"></i>
                             <input 
                                 type="text" 
+                                autoComplete="off"
                                 value={form.meetingLocation} 
                                 onChange={e => form.setMeetingLocation(e.target.value)} 
                                 placeholder="Ex: Refeitório, Sala 3, Auditório..."

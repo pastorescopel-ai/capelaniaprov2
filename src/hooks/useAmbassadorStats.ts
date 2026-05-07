@@ -19,7 +19,7 @@ export const useAmbassadorStats = (
       const snapshots = proMonthlyStats.filter(s => s.month === selectedMonth && s.type === 'sector');
       if (snapshots.length > 0) {
         snapshots.forEach(snap => {
-          const sector = proSectors.find(s => s.id === snap.targetId);
+          const sector = proSectors.find(s => String(s.id) === String(snap.targetId));
           if (sector && dataByUnit[snap.unit]) {
             dataByUnit[snap.unit].sectors[snap.targetId] = {
               id: snap.targetId,

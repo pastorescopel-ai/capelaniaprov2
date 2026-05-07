@@ -41,6 +41,11 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   });
   const [syncState, setSyncState] = useState<{isOpen: boolean; status: SyncStatus; title: string; message: string; error?: string;}>({ isOpen: false, status: 'idle', title: '', message: '' });
   
+  // Modal de Setores (Novo)
+  const [sectorModal, setSectorModal] = useState<{ isOpen: boolean; mode: 'add' | 'edit'; sector?: ProSector }>({ isOpen: false, mode: 'add' });
+  const [sectorName, setSectorName] = useState('');
+  const [sectorId, setSectorId] = useState('');
+
   const [previewData, setPreviewData] = useState<ProcessedRow[]>([]);
   const [skippedRows, setSkippedRows] = useState<SkippedRow[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -232,6 +237,87 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
       setPreviewData(newData);
   };
 
+  const handleOpenAddSector = () => {
+    setSectorModal({ isOpen: true, mode: 'add' });
+    setSectorName('');
+    setSectorId('');
+  };
+
+  const handleOpenEditSector = (sector: ProSector) => {
+    setSectorModal({ isOpen: true, mode: 'edit', sector });
+    setSectorName(sector.name);
+    setSectorId(String(sector.id));
+  };
+
+  const handleSaveSector = async () => {
+    if (!proData || !onSavePro) return;
+    if (!sectorId || !sectorName) {
+      showToast("ID e Nome são obrigatórios.", "warning");
+      return;
+    }
+
+    const cleanId = cleanID(sectorId);
+    let updatedSectors = [...proData.sectors];
+
+    if (sectorModal.mode === 'add') {
+      // Verificar se ID já existe na unidade
+      if (proData.sectors.some(s => cleanID(s.id) === cleanId && s.unit === activeUnit)) {
+        showToast("Este ID de setor já existe nesta unidade.", "error");
+        return;
+      }
+      
+      const newSector: ProSector = {
+        id: cleanId,
+        name: sectorName,
+        unit: activeUnit,
+        active: true,
+        cycleMonth: selectedMonth,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      updatedSectors.push(newSector);
+    } else if (sectorModal.mode === 'edit' && sectorModal.sector) {
+      updatedSectors = updatedSectors.map(s => {
+        if (s.id === sectorModal.sector?.id && s.unit === activeUnit) {
+          return { ...s, name: sectorName, id: cleanId, updatedAt: Date.now() };
+        }
+        return s;
+      });
+    }
+
+    const success = await onSavePro(proData.staff, updatedSectors, proData.groups);
+    if (success) {
+      showToast(`Setor ${sectorModal.mode === 'add' ? 'adicionado' : 'atualizado'} com sucesso!`, "success");
+      setSectorModal({ isOpen: false, mode: 'add' });
+    }
+  };
+
+  const handleDeleteSector = async (sector: ProSector) => {
+    if (!proData || !onSavePro) return;
+    
+    // Verificar se há staff ou PGs vinculados
+    const hasStaff = proData.staff.some(s => cleanID(s.id) === cleanID(sector.id) && s.unit === activeUnit);
+    const hasGroups = proData.groups.some(g => cleanID(g.id) === cleanID(sector.id) && g.unit === activeUnit);
+    
+    const confirmMsg = (hasStaff || hasGroups) 
+      ? `Este setor possui vínculos ativos. Desativar o setor deixará esses registros órfãos. Confirmar desativação?`
+      : `Tem certeza que deseja excluir o setor ${sector.name}?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    const updatedSectors = proData.sectors.map(s => {
+      if (s.id === sector.id && s.unit === activeUnit) {
+        return { ...s, active: false, leftAt: Date.now(), updatedAt: Date.now() };
+      }
+      return s;
+    });
+
+    const success = await onSavePro(proData.staff, updatedSectors, proData.groups);
+    if (success) {
+      showToast("Setor desativado com sucesso!", "success");
+    }
+  };
+
   const displayData = useMemo(() => {
       let source: any[] = [];
       if (previewData.length > 0) return previewData;
@@ -311,6 +397,16 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                 <input type="file" ref={fileInputRef} accept=".xlsx,.csv" className="hidden" onChange={(e) => e.target.files?.[0] && handleProcessFile(e.target.files[0])} />
                 <button onClick={() => fileInputRef.current?.click()} disabled={isReadingFile} className="px-6 py-3 bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 shadow-lg hover:bg-black transition-all"><i className={`fas ${isReadingFile ? 'fa-spinner fa-spin' : 'fa-file-excel'}`}></i> {isReadingFile ? 'Lendo...' : 'Carregar Planilha'}</button>
                 
+                {activeTab === 'sectors' && (
+                  <button 
+                    onClick={handleOpenAddSector}
+                    className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-lg hover:bg-emerald-600 transition-all active:scale-95"
+                    title="Adicionar Setor Manualmente"
+                  >
+                    <i className="fas fa-plus"></i>
+                  </button>
+                )}
+
                 <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
                   <label className="text-[9px] font-black text-slate-400 uppercase px-2">Mês de Referência:</label>
                   <input 
@@ -331,7 +427,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
         
         <div className="overflow-x-auto">
             <table className="w-full text-left">
-                <thead><tr className="text-[9px] font-black uppercase text-slate-400 border-b"><th className="p-4">ID (Limpo)</th><th className="p-4">Nome</th>{activeTab === 'staff' && <th className="p-4">Vínculo de Setor</th>}<th className="p-4">Mês Ref.</th>{activeTab !== 'staff' && <th className="p-4">Unidade</th>}</tr></thead>
+                <thead><tr className="text-[9px] font-black uppercase text-slate-400 border-b"><th className="p-4">ID (Limpo)</th><th className="p-4">Nome</th>{activeTab === 'staff' && <th className="p-4">Vínculo de Setor</th>}<th className="p-4">Mês Ref.</th>{activeTab !== 'staff' && <th className="p-4">Unidade</th>}<th className="p-4 text-right">Ações</th></tr></thead>
                 <tbody className="divide-y">{currentItems.map((item, i) => (
                     <tr key={i} className={`hover:bg-slate-50 transition-colors ${item.sectorStatus === 'error' ? 'bg-amber-50' : ''}`}>
                         <td className="p-4 text-xs font-mono font-bold text-blue-600">{item.id}</td><td className="p-4 text-sm font-bold text-slate-700">{item.name}</td>
@@ -346,6 +442,20 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                           </span>
                         </td>
                         {activeTab !== 'staff' && <td className="p-4 text-xs font-bold text-slate-400">{item.unit}</td>}
+                        <td className="p-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                             {activeTab === 'sectors' && (
+                               <>
+                                 <button onClick={() => handleOpenEditSector(item)} className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm flex items-center justify-center" title="Editar Setor">
+                                   <i className="fas fa-edit text-[10px]"></i>
+                                 </button>
+                                 <button onClick={() => handleDeleteSector(item)} className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm flex items-center justify-center" title="Excluir Setor">
+                                   <i className="fas fa-trash-alt text-[10px]"></i>
+                                 </button>
+                               </>
+                             )}
+                          </div>
+                        </td>
                     </tr>
                 ))}</tbody>
             </table>
@@ -395,6 +505,63 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
           </div>
         )}
       </section>
+
+      {/* Modal de Setor */}
+      {sectorModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-200">
+            <div className="p-8 bg-slate-50 border-b border-slate-100 flex justify-between items-center text-slate-800">
+              <h3 className="font-black uppercase text-sm tracking-widest">
+                {sectorModal.mode === 'add' ? 'Adicionar Novo Setor' : 'Editar Setor'}
+              </h3>
+              <button onClick={() => setSectorModal({ isOpen: false, mode: 'add' })} className="text-slate-400 hover:text-slate-600">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">ID do Setor (Código Base)</label>
+                <input 
+                  type="text" 
+                  value={sectorId}
+                  onChange={(e) => setSectorId(e.target.value)}
+                  placeholder="Ex: 101"
+                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all"
+                  disabled={sectorModal.mode === 'edit'} // ID é imutável na edição por segurança conforme pedido
+                />
+                {sectorModal.mode === 'edit' && <p className="text-[9px] text-slate-400 italic ml-2">* O ID é a chave base e não pode ser alterado aqui por integridade.</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nome do Setor</label>
+                <input 
+                  type="text" 
+                  value={sectorName}
+                  onChange={(e) => setSectorName(e.target.value)}
+                  placeholder="Ex: UTI ADULTO"
+                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all text-slate-800"
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  onClick={() => setSectorModal({ isOpen: false, mode: 'add' })}
+                  className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleSaveSector}
+                  className="flex-[2] py-4 bg-blue-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 active:scale-95"
+                >
+                  Confirmar {sectorModal.mode === 'add' ? 'Adição' : 'Alteração'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

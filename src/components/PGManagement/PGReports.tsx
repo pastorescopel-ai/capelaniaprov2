@@ -19,6 +19,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
   // Filtros
   const [selectedTarget, setSelectedTarget] = useState<{type: 'sector' | 'pg' | 'leader', id: string, label: string} | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterCritical, setFilterCritical] = useState(false);
@@ -76,7 +77,10 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
     // 0. Verificar se existe histórico para o mês selecionado (Snapshot de Fechamento)
     const monthStr = new Date(sDate.getFullYear(), sDate.getMonth(), 1).toISOString().split('T')[0];
     console.log(`[DEBUG] PGReports - monthStr: ${monthStr}`);
-    const isClosed = config.activeCompetenceMonth && monthStr < config.activeCompetenceMonth;
+    
+    // O mês só é considerado fechado se houver um registro explícito de fechamento (all) em proMonthlyStats
+    const isClosed = proHistoryRecords.some(r => r.month === monthStr && r.unit === unit);
+    
     const historyForMonth = proHistoryRecords.filter(r => r.month === monthStr && r.unit === unit);
     console.log(`[DEBUG] PGReports - historyForMonth.length: ${historyForMonth.length}`);
 
@@ -537,7 +541,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
   const generateActivityReportHtml = () => {
     const sDate = new Date(startDate + 'T12:00:00');
     const monthStr = new Date(sDate.getFullYear(), sDate.getMonth(), 1).toISOString().split('T')[0];
-    const isClosed = config.activeCompetenceMonth && monthStr < config.activeCompetenceMonth;
+    const isClosed = proHistoryRecords.some(r => r.month === monthStr && r.unit === unit);
 
     const allGroups = proGroups.filter(g => g.unit === unit).sort((a, b) => a.name.localeCompare(b.name));
     const activePGs: any[] = [];
@@ -794,11 +798,16 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
                   {(() => {
                     const s = new Date(startDate + 'T12:00:00');
                     const mStr = new Date(s.getFullYear(), s.getMonth(), 1).toISOString().split('T')[0];
-                    return config.activeCompetenceMonth && mStr < config.activeCompetenceMonth ? (
-                      <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-amber-200">
-                        <i className="fas fa-lock mr-1"></i> Mês Fechado
+                    const isClosedInDB = proHistoryRecords.some(r => r.month === mStr && r.unit === unit);
+                    return isClosedInDB ? (
+                      <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-emerald-200">
+                        <i className="fas fa-check-circle mr-1"></i> Mês Encerrado
                       </span>
-                    ) : null;
+                    ) : (
+                      <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-amber-200">
+                        <i className="fas fa-lock-open mr-1"></i> Ciclo Aberto
+                      </span>
+                    );
                   })()}
                 </div>
                 <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">{reportHeaderInfo.periodLabel}</p>
@@ -855,18 +864,59 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
             
             <div className="space-y-1 relative">
                 <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Filtrar por Setor, PG ou Líder</label>
-                <input 
-                    type="text" 
-                    placeholder="Buscar..." 
-                    value={searchTerm}
-                    onChange={e => { setSearchTerm(e.target.value); setSelectedTarget(null); }}
-                    className="w-full p-4 rounded-xl bg-white border-none font-bold text-xs shadow-sm outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-                {searchTerm && (
-                    <div className="absolute z-10 w-full bg-white mt-1 rounded-xl shadow-lg border border-slate-100 max-h-60 overflow-y-auto">
-                        {filteredOptions.map(o => (
-                            <button key={o.id} onClick={() => { setSelectedTarget(o); setSearchTerm(o.label); }} className="w-full text-left p-3 text-xs hover:bg-slate-50 border-b border-slate-50">{o.label}</button>
-                        ))}
+                <div className="relative group">
+                  <input 
+                      type="text" 
+                      placeholder="Buscar..." 
+                      value={searchTerm}
+                      autoComplete="off"
+                      onChange={e => { 
+                        setSearchTerm(e.target.value); 
+                        setSelectedTarget(null); 
+                        setShowDropdown(true);
+                      }}
+                      onFocus={() => setShowDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                      className="w-full p-4 rounded-xl bg-white border-none font-bold text-xs shadow-sm outline-none focus:ring-2 focus:ring-blue-500 pr-10" 
+                  />
+                  {searchTerm && (
+                    <button 
+                      onClick={() => { setSearchTerm(''); setSelectedTarget(null); }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+                    >
+                      <i className="fas fa-times-circle"></i>
+                    </button>
+                  )}
+                </div>
+                {showDropdown && (searchTerm || filteredOptions.length > 0) && (
+                    <div className="absolute z-50 w-full bg-white mt-1 rounded-xl shadow-2xl border border-slate-100 max-h-80 overflow-y-auto no-scrollbar animate-in slide-in-from-top-2 duration-200">
+                        <div className="p-2">
+                          {filteredOptions.map((o, idx) => {
+                              const showHeader = idx === 0 || filteredOptions[idx-1].type !== o.type;
+                              return (
+                                <React.Fragment key={`${o.type}-${o.id}-${idx}`}>
+                                  {showHeader && (
+                                    <div className={`px-3 py-1.5 text-[8px] font-black uppercase tracking-widest bg-slate-50 text-slate-400 rounded-md mb-1 mt-1 ${idx > 0 ? 'mt-3' : ''}`}>
+                                      {o.type === 'sector' ? 'Setores' : o.type === 'pg' ? 'Pequenos Grupos' : 'Líderes'}
+                                    </div>
+                                  )}
+                                  <button 
+                                      type="button"
+                                      onMouseDown={(e) => { 
+                                          e.preventDefault();
+                                          setSelectedTarget(o); 
+                                          setSearchTerm(o.label); 
+                                          setShowDropdown(false);
+                                      }} 
+                                      className="w-full text-left p-3 text-[11px] font-bold text-slate-700 hover:bg-blue-600 hover:text-white rounded-xl transition-all mb-0.5 flex items-center justify-between group"
+                                  >
+                                      <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                                      <i className="fas fa-chevron-right text-[8px] opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                                  </button>
+                                </React.Fragment>
+                              );
+                          })}
+                        </div>
                     </div>
                 )}
             </div>

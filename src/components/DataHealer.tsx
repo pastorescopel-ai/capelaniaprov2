@@ -1,14 +1,14 @@
 
 import React from 'react';
 import { useDataHealer } from '../hooks/useDataHealer';
-import HealerPeopleTab from './DataHealer/HealerPeopleTab';
-import HealerStudiesTab from './DataHealer/HealerStudiesTab';
-import HealerAttendeesTab from './DataHealer/HealerAttendeesTab';
-import HealerSectorsTab from './DataHealer/HealerSectorsTab';
-import HealerPGsTab from './DataHealer/HealerPGsTab';
-import HealerMergeTab from './DataHealer/HealerMergeTab';
-import HealerAmbassadorsTab from './DataHealer/HealerAmbassadorsTab';
-import HealerMembershipsTab from './DataHealer/HealerMembershipsTab';
+import HealerPeopleTab from './HealerTabs/HealerPeopleTab';
+import HealerStudiesTab from './HealerTabs/HealerStudiesTab';
+import HealerAttendeesTab from './HealerTabs/HealerAttendeesTab';
+import HealerSectorsTab from './HealerTabs/HealerSectorsTab';
+import HealerPGsTab from './HealerTabs/HealerPGsTab';
+import HealerMergeTab from './HealerTabs/HealerMergeTab';
+import HealerAmbassadorsTab from './HealerTabs/HealerAmbassadorsTab';
+import HealerMembershipsTab from './HealerTabs/HealerMembershipsTab';
 
 const DataHealer: React.FC = () => {
   const {
@@ -40,7 +40,8 @@ const DataHealer: React.FC = () => {
     handleUniversalMerge,
     handleSyncTemporalCycle,
     handleFixDuplicateMembership,
-    handleFixAttendeeDates
+    handleFixAttendeeDates,
+    selectedUnit, setSelectedUnit
   } = useDataHealer();
 
   // Tema dinâmico
@@ -60,6 +61,24 @@ const DataHealer: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-32 max-w-5xl mx-auto">
+      
+      {/* UNIT SELECTOR TOP FLOATING */}
+      <div className="flex justify-center mb-[-1rem] relative z-20">
+        <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-[2rem] border border-slate-200 shadow-xl flex gap-1">
+          <button 
+            onClick={() => setSelectedUnit('HAB')}
+            className={`px-8 py-2.5 rounded-full text-[11px] font-black uppercase tracking-[0.15em] transition-all ${selectedUnit === 'HAB' ? 'bg-slate-800 text-white shadow-lg scale-105' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            HAB
+          </button>
+          <button 
+            onClick={() => setSelectedUnit('HABA')}
+            className={`px-8 py-2.5 rounded-full text-[11px] font-black uppercase tracking-[0.15em] transition-all ${selectedUnit === 'HABA' ? 'bg-slate-800 text-white shadow-lg scale-105' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            HABA
+          </button>
+        </div>
+      </div>
       
       {/* HEADER DE AUDITORIA COM SCORE DE SAÚDE */}
       <div className={`bg-white border border-slate-100 p-8 rounded-[3rem] shadow-xl flex flex-col md:flex-row items-center justify-between gap-8 transition-all duration-500 relative overflow-hidden`}>

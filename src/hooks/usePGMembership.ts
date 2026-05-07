@@ -39,7 +39,11 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   }, [providerSearch]);
 
   const activeComp = config.activeCompetenceMonth || new Date().toISOString().split('T')[0].substring(0, 7) + '-01';
-  const isMonthClosed = selectedMonth < activeComp;
+  
+  // O mês só é considerado fechado se houver um registro explícito de fechamento no banco (proMonthlyStats)
+  // e se for um mês passado. Se não houver fechamento, ele permanece aberto para ajustes.
+  const isMonthClosed = proMonthlyStats.some(s => s.month === selectedMonth && (s as any).type === 'pg' && (s as any).targetId === 'all');
+  
   const isFutureMonth = selectedMonth > activeComp;
   const isOpenMonth = selectedMonth === activeComp;
 

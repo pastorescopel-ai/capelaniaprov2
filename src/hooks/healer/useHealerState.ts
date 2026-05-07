@@ -3,6 +3,7 @@ import { ParticipantType } from '../../types';
 import { HealerTab, PersonType } from '../useDataHealer';
 
 export const useHealerState = () => {
+  const [selectedUnit, setSelectedUnit] = useState<'HAB' | 'HABA'>('HAB');
   const [activeTab, setActiveTab] = useState<HealerTab>('people');
   const [activeStudyTab, setActiveStudyTab] = useState<ParticipantType>(ParticipantType.STAFF);
   const [targetMap, setTargetMap] = useState<Record<string, string>>({});
@@ -22,6 +23,7 @@ export const useHealerState = () => {
   const [mergeTargetId, setMergeTargetId] = useState<string>('');
 
   return {
+    selectedUnit, setSelectedUnit,
     activeTab, setActiveTab,
     activeStudyTab, setActiveStudyTab,
     targetMap, setTargetMap,

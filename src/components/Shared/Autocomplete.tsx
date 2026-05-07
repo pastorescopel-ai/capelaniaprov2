@@ -96,6 +96,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   return (
     <div className="relative">
       <input 
+        autoComplete="off"
         required={required} // Usa a prop dinâmica aqui
         placeholder={placeholder}
         value={inputValue || ''}
@@ -103,7 +104,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
             const val = e.target.value;
             setInputValue(val); 
             onChange(val); 
-            setOpen(true); 
+            if (!open) setOpen(true); 
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={(e) => {
@@ -112,13 +113,16 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
                 validateInput(inputValue);
                 setOpen(false);
             }
+            if (e.key === 'Escape') {
+                setOpen(false);
+            }
         }}
         onBlur={() => {
            // Delay para permitir que o clique na opção ocorra antes do blur fechar/validar
            setTimeout(() => {
              setOpen(false);
              validateInput(inputValue);
-           }, 250);
+           }, 200);
         }}
         className={className || "w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500/20 font-medium text-slate-800 transition-all placeholder:text-slate-400"}
       />
@@ -130,6 +134,12 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
               const isOfficial = o.category === 'RH';
               const showHeader = idx === 0 || filtered[idx-1].category !== o.category;
               
+              const handleSelect = () => {
+                onChange(o.value); // Define o valor limpo (ex: Nome)
+                if(onSelectOption) onSelectOption(o.label); // Passa o label completo (com matrícula) para processamento
+                setOpen(false);
+              };
+
               return (
                 <React.Fragment key={o.label + idx}>
                   {/* Header de Categoria */}
@@ -157,10 +167,9 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
                       }`} 
                     onMouseDown={(e) => { 
                       e.preventDefault(); 
-                      onChange(o.value); // Define o valor limpo (ex: Nome)
-                      if(onSelectOption) onSelectOption(o.label); // Passa o label completo (com matrícula) para processamento
-                      setOpen(false); 
+                      handleSelect();
                     }}
+                    onClick={handleSelect}
                   >
                     <div className="min-w-0 flex-1 pr-2">
                       <span className={`block text-sm uppercase tracking-tight whitespace-normal break-words leading-tight ${isOfficial ? 'font-black' : 'font-bold'}`}>

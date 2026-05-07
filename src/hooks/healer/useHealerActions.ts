@@ -109,17 +109,33 @@ export const useHealerActions = (
       }
   };
 
-  const handleHealSector = async (badName: string) => {
-      const targetLabel = targetMap[badName];
-      const selectedSector = proSectors.find((s: any) => s.name === targetLabel);
-      if (!selectedSector) { showToast("Selecione um setor oficial da lista.", "warning"); return; }
+  const handleHealSector = async (orphan: any) => {
+      const targetId = targetMap[orphan.display];
+      if (!targetId) { showToast("Selecione um setor oficial da lista.", "warning"); return; }
+      
+      const selectedSector = proSectors.find((s: any) => String(s.id) === String(targetId) || s.name === targetId);
+      if (!selectedSector) { 
+        showToast("Setor de destino não encontrado. Selecione novamente.", "warning"); 
+        return; 
+      }
 
       setIsProcessing(true);
       try {
-          const result = await healSectorConnection(badName, selectedSector.id);
+          let result: string;
+          if (orphan.type === 'id') {
+              // Se for um órfão de ID, precisamos de uma função que substitua o ID antigo pelo novo
+              // Vou usar uma versão modificada ou uma nova função RPC se necessário, 
+              // mas para já vou tentar usar a lógica existente ou injetar uma nova
+              result = await healSectorConnection(orphan.originalValue, selectedSector.id, true);
+          } else {
+              // Se for órfão de NOME
+              result = await healSectorConnection(orphan.originalValue, selectedSector.id, false);
+          }
+          
           showToast(result, "success");
-          setResolvedItems((prev: any) => new Set(prev).add(badName));
-          setTargetMap((prev: any) => { const n = {...prev}; delete n[badName]; return n; });
+          setResolvedItems((prev: any) => new Set(prev).add(orphan.display));
+          if (orphan.type === 'id') setResolvedItems((prev: any) => new Set(prev).add(`id:${orphan.originalValue}`));
+          setTargetMap((prev: any) => { const n = {...prev}; delete n[orphan.display]; return n; });
       } catch (e: any) { showToast("Erro: " + e.message, "error"); }
       finally { setIsProcessing(false); }
   };

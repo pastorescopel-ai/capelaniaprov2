@@ -152,16 +152,48 @@ export const useDataMaintenance = (
     return data;
   };
 
-  const healSectorConnection = async (badName: string, targetSectorId: string): Promise<string> => {
+  const healSectorConnection = async (badValue: string, targetSectorId: string, isIdBased: boolean = false): Promise<string> => {
     if (!supabase) return "Erro Conexão";
-    const numericId = cleanId(targetSectorId);
-    const { data, error } = await supabase.rpc('heal_sector_global', {
-        bad_name: badName,
-        target_sector_id: numericId
-    });
-    if (error) throw new Error(error.message);
-    await reloadCallback(false);
-    return data;
+    const numericTargetId = cleanId(targetSectorId);
+    
+    if (isIdBased) {
+        const oldId = parseInt(cleanId(badValue));
+        const newId = parseInt(numericTargetId);
+        
+        // Tabelas que usam sector_id como referência
+        const tables = [
+            'bible_study_sessions', 
+            'bible_classes', 
+            'small_group_sessions', 
+            'staff_visits', 
+            'visit_requests',
+            'pro_staff',
+            'pro_groups',
+            'pro_group_locations',
+            'activity_schedules'
+        ];
+        
+        let totalUpdated = 0;
+        for (const table of tables) {
+            const { data, error } = await supabase
+                .from(table)
+                .update({ sector_id: newId })
+                .eq('sector_id', oldId)
+                .select();
+            if (!error && data) totalUpdated += data.length;
+        }
+        
+        await reloadCallback(false);
+        return `Cura por ID concluída! ${totalUpdated} registros vinculados ao novo ID ${newId}.`;
+    } else {
+        const { data, error } = await supabase.rpc('heal_sector_global', {
+            bad_name: badValue,
+            target_sector_id: numericTargetId
+        });
+        if (error) throw new Error(error.message);
+        await reloadCallback(false);
+        return data;
+    }
   };
 
   const linkStudySessionIdentity = async (orphanName: string, targetStaffId: string, targetSectorId: string | null, participantType: string): Promise<string> => {

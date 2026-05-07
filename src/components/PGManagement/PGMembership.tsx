@@ -155,6 +155,7 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
                 <div className="relative">
                   <input 
                     type="text"
+                    autoComplete="off"
                     value={staffSearch}
                     onChange={e => { setStaffSearch(e.target.value); setSelectedSectorName(''); }}
                     placeholder="Nome ou Matrícula..."
@@ -171,6 +172,7 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
               <label className="text-[10px] font-black uppercase tracking-widest text-blue-600">1. Buscar ou Cadastrar Prestador</label>
               <input 
                 type="text"
+                autoComplete="off"
                 value={providerSearch}
                 onChange={e => setProviderSearch(e.target.value)}
                 placeholder="Digite o nome do prestador..."

@@ -13,6 +13,7 @@ export interface ProContextType {
   proProviders: ProProviderModel[];
   proMonthlyStats: ProMonthlyStats[];
   proHistoryRecords: ProHistoryRecord[];
+  ambassadors: any[];
   setProStaff: React.Dispatch<React.SetStateAction<ProStaff[]>>;
   setProSectors: React.Dispatch<React.SetStateAction<ProSector[]>>;
   setProGroups: React.Dispatch<React.SetStateAction<ProGroup[]>>;
@@ -23,6 +24,7 @@ export interface ProContextType {
   setProProviders: React.Dispatch<React.SetStateAction<ProProviderModel[]>>;
   setProMonthlyStats: React.Dispatch<React.SetStateAction<ProMonthlyStats[]>>;
   setProHistoryRecords: React.Dispatch<React.SetStateAction<ProHistoryRecord[]>>;
+  setAmbassadors: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 export const ProContext = createContext<ProContextType | undefined>(undefined);
