@@ -42,6 +42,7 @@ const AuditoriaSectorsTab: React.FC<AuditoriaSectorsTabProps> = ({
         ) : (
           sectorOrphans.map((orphan, index) => {
             const isIdOrphan = orphan.type === 'id';
+            const isMismatch = orphan.type === 'mismatch';
             const displayValue = orphan.display;
             const originalValue = orphan.originalValue;
             
@@ -49,15 +50,33 @@ const AuditoriaSectorsTab: React.FC<AuditoriaSectorsTabProps> = ({
               <div key={index} className="p-6 flex flex-col xl:flex-row items-center gap-6 hover:bg-slate-50 transition-colors group">
                 <div className="flex-1 w-full xl:w-1/3">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase ${isIdOrphan ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                      <i className={`fas ${isIdOrphan ? 'fa-id-card' : 'fa-exclamation-triangle'}`}></i> 
-                      {isIdOrphan ? 'ID Inexistente' : 'Nome Desconhecido'}
+                    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase ${
+                      isIdOrphan ? 'bg-red-100 text-red-700' : 
+                      isMismatch ? 'bg-indigo-100 text-indigo-700' :
+                      'bg-amber-100 text-amber-700'
+                    }`}>
+                      <i className={`fas ${
+                        isIdOrphan ? 'fa-id-card' : 
+                        isMismatch ? 'fa-sync-alt' :
+                        'fa-exclamation-triangle'
+                      }`}></i> 
+                      {isIdOrphan ? 'ID Inexistente' : isMismatch ? 'Ajuste de Nome' : 'Nome Desconhecido'}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase">{orphan.count} registros</span>
                   </div>
                   <div className="font-black text-slate-800 uppercase text-lg leading-tight">
                     {displayValue} {originalValue !== 'N/A' && <span className="text-slate-400 font-bold ml-2 text-sm">({isIdOrphan ? `Nome: ${originalValue}` : `ID: ${originalValue}`})</span>}
                   </div>
+                  
+                  {isMismatch && (
+                    <div className="mt-2 p-2 bg-indigo-50 rounded-xl border border-indigo-100">
+                      <div className="text-[10px] font-black text-indigo-400 uppercase leading-none mb-1">Novo Nome Sugerido</div>
+                      <div className="text-xs font-bold text-indigo-700 uppercase italic">
+                        <i className="fas fa-magic mr-1"></i> {orphan.proposedName}
+                      </div>
+                    </div>
+                  )}
+
                   {isIdOrphan && <div className="text-[10px] font-bold text-slate-400 uppercase mt-1">Vincule este ID antigo a um setor atual</div>}
                   
                   <button 

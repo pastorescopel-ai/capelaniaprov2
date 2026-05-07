@@ -92,11 +92,22 @@ const AuditoriaAttendeesTab: React.FC<AuditoriaAttendeesTabProps> = ({
                     </div>
                   </div>
                   <div className="font-black text-slate-800 uppercase text-lg leading-tight">
-                    {name} {personId ? `(Matrícula: ${personId})` : ''}
+                    {name} {personId ? `(ID: ${personId})` : ''}
                   </div>
+                  
                   <div className="mt-2 text-xs font-bold text-violet-600 bg-violet-50 p-2 rounded-lg inline-block">
                     <i className="fas fa-layer-group mr-2"></i> Encontrado em {attendeeCount} aulas
                   </div>
+
+                  {targetMap[name] && (
+                    <div className="mt-3 p-2 bg-violet-100/50 rounded-xl border border-violet-100">
+                      <div className="text-[10px] font-black text-violet-400 uppercase leading-none mb-1">Vínculo Sugerido</div>
+                      <div className="text-xs font-bold text-violet-700 uppercase italic flex items-center gap-2">
+                        <i className="fas fa-magic"></i> 
+                        <span>{targetMap[name]}</span>
+                      </div>
+                    </div>
+                  )}
 
                   <button 
                     onClick={() => handleDeletePersonOrphan(name)}

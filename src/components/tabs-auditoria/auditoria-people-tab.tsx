@@ -74,11 +74,30 @@ const AuditoriaPeopleTab: React.FC<AuditoriaPeopleTabProps> = ({
                     </div>
                   </div>
                   <div className="font-black text-slate-800 uppercase text-lg leading-tight">
-                    {name} {personId ? `(Matrícula: ${personId})` : ''}
+                    {name} {personId ? `(ID: ${personId})` : ''}
                   </div>
-                  <div className="mt-2 text-xs font-bold text-slate-400">
+                  
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {item.sectors && Array.from(item.sectors).map((s: any, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-bold uppercase">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="mt-2 text-xs font-bold text-slate-400 italic">
                     Encontrado em <span className="text-slate-600 underline decoration-slate-200 decoration-2">{count || (item.sources.class + item.sources.study + item.sources.visit + item.sources.group)}</span> registros
                   </div>
+
+                  {targetMap[name] && (
+                    <div className="mt-3 p-2 bg-rose-50 rounded-xl border border-rose-100">
+                      <div className="text-[10px] font-black text-rose-400 uppercase leading-none mb-1">Vínculo Sugerido</div>
+                      <div className="text-xs font-bold text-rose-700 uppercase italic flex items-center gap-2">
+                        <i className="fas fa-magic"></i> 
+                        <span>{targetMap[name]}</span>
+                      </div>
+                    </div>
+                  )}
                   
                   <button 
                     onClick={() => handleDeletePersonOrphan(name)}

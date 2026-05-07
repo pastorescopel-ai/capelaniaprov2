@@ -196,20 +196,29 @@ export const useHealerCalculations = (
           
           const idStr = id ? String(id) : undefined;
           const cleanName = name?.trim();
-          const isIdInvalid = idStr && !officialIds.has(idStr);
-          const isNameInvalid = cleanName && !officialNamesNormalized.has(normalizeString(cleanName));
+          
+          const officialByList = proSectors.filter((s: any) => s.unit === selectedUnit);
+          const officialById = idStr ? officialByList.find((s: any) => String(s.id) === idStr) : null;
+          
+          const isIdUnknown = idStr && !officialIds.has(idStr);
+          const isNameUnknown = cleanName && !officialNamesNormalized.has(normalizeString(cleanName));
+          
+          // Caso novo: ID existe oficial mas nome é diferente (Mudança de nomenclatura)
+          const isNameMismatch = !!(officialById && cleanName && normalizeString(officialById.name) !== normalizeString(cleanName));
 
-          if ((isIdInvalid || isNameInvalid) && !resolvedItems.has(cleanName || '') && !resolvedItems.has(`id:${idStr}`)) {
-              const type = isIdInvalid ? 'id' : 'name';
-              const display = isIdInvalid ? `ID: ${idStr}` : (cleanName || "Sem Nome");
+          if ((isIdUnknown || isNameUnknown || isNameMismatch) && !resolvedItems.has(cleanName || '') && !resolvedItems.has(`id:${idStr}`)) {
+              const type = isIdUnknown ? 'id' : (isNameMismatch ? 'mismatch' : 'name');
+              const display = isIdUnknown ? `ID: ${idStr}` : (cleanName || "Sem Nome");
               const key = `${type}:${idStr || ''}:${cleanName || ''}`;
               
               if (!orphans.has(key)) {
                   orphans.set(key, { 
                       type, 
                       count: 0, 
-                      originalValue: type === 'id' ? (cleanName || 'N/A') : (idStr || 'N/A'),
-                      display
+                      originalValue: (type === 'id' || type === 'mismatch') ? idStr : cleanName,
+                      display,
+                      proposedName: officialById?.name || null,
+                      proposedId: officialById?.id || null
                   });
               }
               orphans.get(key)!.count++;
@@ -332,16 +341,24 @@ export const useHealerCalculations = (
             const next = { ...prev };
             let changed = false;
             sectorOrphans.forEach(orphan => {
-                if (!next[orphan]) {
-                    const normOrphan = normalizeString(orphan);
-                    const match = proSectors.find((s: any) => {
-                        if (s.unit !== selectedUnit) return false;
-                        const normSec = normalizeString(s.name);
-                        return normSec.includes(normOrphan) || normOrphan.includes(normSec) || normSec.startsWith(normOrphan.substring(0, 5));
-                    });
-                    if (match) {
-                        next[orphan] = match.name;
+                const key = orphan.display;
+                if (!next[key]) {
+                    // 1. Prioridade para proposta por ID
+                    if (orphan.proposedName) {
+                        next[key] = orphan.proposedName;
                         changed = true;
+                    } else {
+                        // 2. Busca fuzzy por nome
+                        const normOrphan = normalizeString(key);
+                        const match = proSectors.find((s: any) => {
+                            if (s.unit !== selectedUnit) return false;
+                            const normSec = normalizeString(s.name);
+                            return normSec.includes(normOrphan) || normOrphan.includes(normSec) || normSec.startsWith(normOrphan.substring(0, 5));
+                        });
+                        if (match) {
+                            next[key] = match.name;
+                            changed = true;
+                        }
                     }
                 }
             });

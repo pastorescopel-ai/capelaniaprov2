@@ -122,19 +122,13 @@ export const useHealerActions = (
       setIsProcessing(true);
       try {
           let result: string;
-          if (orphan.type === 'id') {
-              // Se for um órfão de ID, precisamos de uma função que substitua o ID antigo pelo novo
-              // Vou usar uma versão modificada ou uma nova função RPC se necessário, 
-              // mas para já vou tentar usar a lógica existente ou injetar uma nova
-              result = await healSectorConnection(orphan.originalValue, selectedSector.id, true);
-          } else {
-              // Se for órfão de NOME
-              result = await healSectorConnection(orphan.originalValue, selectedSector.id, false);
-          }
+          const healById = orphan.type === 'id' || orphan.type === 'mismatch';
+          
+          result = await healSectorConnection(orphan.originalValue, selectedSector.id, healById);
           
           showToast(result, "success");
           setResolvedItems((prev: any) => new Set(prev).add(orphan.display));
-          if (orphan.type === 'id') setResolvedItems((prev: any) => new Set(prev).add(`id:${orphan.originalValue}`));
+          if (healById) setResolvedItems((prev: any) => new Set(prev).add(`id:${orphan.originalValue}`));
           setTargetMap((prev: any) => { const n = {...prev}; delete n[orphan.display]; return n; });
       } catch (e: any) { showToast("Erro: " + e.message, "error"); }
       finally { setIsProcessing(false); }
