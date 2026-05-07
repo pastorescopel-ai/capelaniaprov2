@@ -12,6 +12,7 @@ interface AuditoriaPeopleTabProps {
   officialPatientOptions: any[];
   officialProviderOptions: any[];
   handleProcessPerson: (name: string) => void;
+  handleDeletePersonOrphan: (name: string) => void;
   isProcessing: boolean;
 }
 
@@ -25,6 +26,7 @@ const AuditoriaPeopleTab: React.FC<AuditoriaPeopleTabProps> = ({
   officialPatientOptions,
   officialProviderOptions,
   handleProcessPerson,
+  handleDeletePersonOrphan,
   isProcessing
 }) => {
   return (
@@ -46,6 +48,7 @@ const AuditoriaPeopleTab: React.FC<AuditoriaPeopleTabProps> = ({
         ) : (
           filteredPeopleList.map((item, index) => {
             const name = item.name;
+            const personId = item.id;
             const currentType = personTypeMap[name] || 'Colaborador';
             const count = item.count;
 
@@ -70,10 +73,22 @@ const AuditoriaPeopleTab: React.FC<AuditoriaPeopleTabProps> = ({
                       ))}
                     </div>
                   </div>
-                  <div className="font-black text-slate-800 uppercase text-lg leading-tight">{name}</div>
-                  <div className="mt-2 text-xs font-bold text-slate-400">
-                    Encontrado em <span className="text-slate-600 underline decoration-slate-200 decoration-2">{count}</span> registros
+                  <div className="font-black text-slate-800 uppercase text-lg leading-tight">
+                    {name} {personId ? `(Matrícula: ${personId})` : ''}
                   </div>
+                  <div className="mt-2 text-xs font-bold text-slate-400">
+                    Encontrado em <span className="text-slate-600 underline decoration-slate-200 decoration-2">{count || (item.sources.class + item.sources.study + item.sources.visit + item.sources.group)}</span> registros
+                  </div>
+                  
+                  <button 
+                    onClick={() => handleDeletePersonOrphan(name)}
+                    disabled={isProcessing}
+                    className="mt-3 flex items-center gap-2 text-[9px] font-black uppercase text-rose-400 hover:text-rose-600 transition-colors disabled:opacity-50"
+                    title="Excluir ou limpar este nome de todos os registros onde aparece"
+                  >
+                    <i className="fas fa-trash-alt"></i>
+                    Apagar Registros Incorretos
+                  </button>
                 </div>
 
                 <div className="hidden xl:block text-slate-300">

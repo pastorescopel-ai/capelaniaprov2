@@ -41,6 +41,8 @@ const DataHealer: React.FC = () => {
     handleSyncTemporalCycle,
     handleFixDuplicateMembership,
     handleFixAttendeeDates,
+    handleDeletePersonOrphan,
+    handleDeleteSectorOrphan,
     selectedUnit, setSelectedUnit
   } = useDataHealer();
 
@@ -278,18 +280,13 @@ const DataHealer: React.FC = () => {
                   filteredPeopleList={filteredPeopleList}
                   personTypeMap={personTypeMap}
                   setPersonTypeMap={setPersonTypeMap}
-                  isHealthy={isHealthy}
                   targetMap={targetMap}
                   setTargetMap={setTargetMap}
-                  sectorMap={sectorMap}
-                  setSectorMap={setSectorMap}
                   officialStaffOptions={officialStaffOptions}
                   officialPatientOptions={officialPatientOptions}
                   officialProviderOptions={officialProviderOptions}
-                  officialSectorOptions={officialSectorOptions}
                   handleProcessPerson={handleProcessPerson}
-                  getSourceRecords={getSourceRecords}
-                  handleDeleteSourceRecord={handleDeleteSourceRecord}
+                  handleDeletePersonOrphan={handleDeletePersonOrphan}
                   isProcessing={isProcessing}
                 />
               )}
@@ -305,6 +302,7 @@ const DataHealer: React.FC = () => {
                   officialPatientOptions={officialPatientOptions}
                   officialProviderOptions={officialProviderOptions}
                   handleProcessPerson={handleProcessPerson}
+                  handleDeletePersonOrphan={handleDeletePersonOrphan}
                   handleFixAttendeeDates={handleFixAttendeeDates}
                   isProcessing={isProcessing}
                 />
@@ -316,6 +314,7 @@ const DataHealer: React.FC = () => {
                   setTargetMap={setTargetMap}
                   officialSectorOptions={officialSectorOptions}
                   handleHealSector={handleHealSector}
+                  handleDeleteSectorOrphan={handleDeleteSectorOrphan}
                   isProcessing={isProcessing}
                 />
               )}

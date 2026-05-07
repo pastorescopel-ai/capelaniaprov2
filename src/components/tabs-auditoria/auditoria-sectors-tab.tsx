@@ -7,6 +7,7 @@ interface AuditoriaSectorsTabProps {
   setTargetMap: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   officialSectorOptions: any[];
   handleHealSector: (orphan: any) => void;
+  handleDeleteSectorOrphan: (orphan: any) => void;
   isProcessing: boolean;
 }
 
@@ -16,6 +17,7 @@ const AuditoriaSectorsTab: React.FC<AuditoriaSectorsTabProps> = ({
   setTargetMap,
   officialSectorOptions,
   handleHealSector,
+  handleDeleteSectorOrphan,
   isProcessing
 }) => {
   return (
@@ -41,6 +43,8 @@ const AuditoriaSectorsTab: React.FC<AuditoriaSectorsTabProps> = ({
           sectorOrphans.map((orphan, index) => {
             const isIdOrphan = orphan.type === 'id';
             const displayValue = orphan.display;
+            const originalValue = orphan.originalValue;
+            
             return (
               <div key={index} className="p-6 flex flex-col xl:flex-row items-center gap-6 hover:bg-slate-50 transition-colors group">
                 <div className="flex-1 w-full xl:w-1/3">
@@ -51,8 +55,20 @@ const AuditoriaSectorsTab: React.FC<AuditoriaSectorsTabProps> = ({
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase">{orphan.count} registros</span>
                   </div>
-                  <div className="font-black text-slate-800 uppercase text-lg leading-tight">{displayValue}</div>
+                  <div className="font-black text-slate-800 uppercase text-lg leading-tight">
+                    {displayValue} {originalValue !== 'N/A' && <span className="text-slate-400 font-bold ml-2 text-sm">({isIdOrphan ? `Nome: ${originalValue}` : `ID: ${originalValue}`})</span>}
+                  </div>
                   {isIdOrphan && <div className="text-[10px] font-bold text-slate-400 uppercase mt-1">Vincule este ID antigo a um setor atual</div>}
+                  
+                  <button 
+                    onClick={() => handleDeleteSectorOrphan(orphan)}
+                    disabled={isProcessing}
+                    className="mt-3 flex items-center gap-2 text-[9px] font-black uppercase text-rose-400 hover:text-rose-600 transition-colors disabled:opacity-50"
+                    title="Excluir todos os registros vinculados a este setor incorreto"
+                  >
+                    <i className="fas fa-trash-alt"></i>
+                    Apagar Registros Incorretos
+                  </button>
                 </div>
 
                 <div className="hidden xl:block text-slate-300">

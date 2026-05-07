@@ -396,6 +396,101 @@ export const useHealerActions = (
     }
   };
 
+  const getSectorSourceRecords = (orphan: any) => {
+    const records: any[] = [];
+    const isIdOrphan = orphan.type === 'id';
+    const val = orphan.originalValue;
+
+    if (isIdOrphan) {
+      bibleStudies.forEach((s: any) => { if (String(s.sectorId) === String(val)) records.push({ type: 'Estudo Bíblico', date: s.date, id: s.id, collection: 'bibleStudies' }); });
+      staffVisits.forEach((v: any) => { if (String(v.sectorId) === String(val)) records.push({ type: 'Visita Colaborador', date: v.date, id: v.id, collection: 'staffVisits' }); });
+      smallGroups.forEach((g: any) => { if (String(g.sectorId) === String(val)) records.push({ type: 'Pequeno Grupo', date: g.date, id: g.id, collection: 'smallGroups' }); });
+      bibleClasses.forEach((c: any) => { if (String(c.sectorId) === String(val)) records.push({ type: 'Aula Bíblica', date: c.date, id: c.id, collection: 'bibleClasses' }); });
+      visitRequests.forEach((vr: any) => { if (String(vr.sectorId) === String(val)) records.push({ type: 'Solicitação Visita', date: vr.requestDate, id: vr.id, collection: 'visitRequests' }); });
+    } else {
+      const norm = normalizeString(val);
+      bibleStudies.forEach((s: any) => { if (s.sector && normalizeString(s.sector) === norm) records.push({ type: 'Estudo Bíblico', date: s.date, id: s.id, collection: 'bibleStudies' }); });
+      staffVisits.forEach((v: any) => { if (v.sector && normalizeString(v.sector) === norm) records.push({ type: 'Visita Colaborador', date: v.date, id: v.id, collection: 'staffVisits' }); });
+      smallGroups.forEach((g: any) => { if (g.sector && normalizeString(g.sector) === norm) records.push({ type: 'Pequeno Grupo', date: g.date, id: g.id, collection: 'smallGroups' }); });
+      bibleClasses.forEach((c: any) => { if (c.sector && normalizeString(c.sector) === norm) records.push({ type: 'Aula Bíblica', date: c.date, id: c.id, collection: 'bibleClasses' }); });
+      visitRequests.forEach((vr: any) => { if (vr.sectorName && normalizeString(vr.sectorName) === norm) records.push({ type: 'Solicitação Visita', date: vr.requestDate, id: vr.id, collection: 'visitRequests' }); });
+    }
+
+    return records;
+  };
+
+  const handleDeleteSectorOrphan = async (orphan: any) => {
+    const records = getSectorSourceRecords(orphan);
+    if (records.length === 0) {
+      showToast("Nenhum registro encontrado para este setor.", "info");
+      return;
+    }
+
+    if (!confirm(`ATENÇÃO: Você está prestes a APAGAR ${records.length} registros que utilizam este setor "${orphan.display}".\n\nEsta ação é irreversível. Deseja continuar?`)) return;
+
+    setIsProcessing(true);
+    try {
+      let count = 0;
+      for (const rec of records) {
+        const success = await deleteRecord(rec.collection, rec.id);
+        if (success) count++;
+      }
+      showToast(`${count} registros apagados com sucesso.`, "success");
+      setResolvedItems((prev: any) => new Set(prev).add(orphan.display));
+      await loadFromCloud(false);
+    } catch (e: any) {
+      showToast("Erro ao apagar registros: " + e.message, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeletePersonOrphan = async (orphanName: string) => {
+    const records = getSourceRecords(orphanName);
+    if (records.length === 0) {
+      showToast("Nenhum registro encontrado para esta pessoa.", "info");
+      return;
+    }
+
+    if (!confirm(`ATENÇÃO: Você está prestes a APAGAR ${records.length} registros (visitas, estudos, etc.) vinculados ao nome "${orphanName}".\n\nEsta ação é irreversível. Deseja continuar?`)) return;
+
+    setIsProcessing(true);
+    try {
+      let count = 0;
+      for (const rec of records) {
+        let success = false;
+        if (rec.actionType === 'remove_from_array' && rec.collection === 'bibleClasses') {
+          const cls = bibleClasses.find((c: any) => c.id === rec.id);
+          if (cls) {
+            const updatedStudents = (cls.students || []).filter((s: any) => normalizeString(s) !== normalizeString(orphanName));
+            await saveRecord('bibleClasses', { ...cls, students: updatedStudents });
+            success = true;
+          }
+        } else if (rec.actionType === 'clear_field' && rec.collection === 'proGroups') {
+          const pg = proGroups.find((g: any) => g.id === rec.id);
+          if (pg) {
+            const updates = { ...pg };
+            delete updates.leader;
+            if (normalizeString(pg.currentLeader) === normalizeString(orphanName)) updates.currentLeader = '';
+            await saveRecord('proGroups', updates);
+            success = true;
+          }
+        } else {
+          success = await deleteRecord(rec.collection, rec.id);
+        }
+        if (success) count++;
+      }
+      showToast(`${count} registros processados/apagados para "${orphanName}".`, "success");
+      setResolvedItems((prev: any) => new Set(prev).add(orphanName));
+      setResolvedItems((prev: any) => new Set(prev).add(normalizeString(orphanName)));
+      await loadFromCloud(false);
+    } catch (e: any) {
+      showToast("Erro ao processar exclusões: " + e.message, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return {
     handleProcessPerson,
     handleHealSector,
@@ -406,6 +501,9 @@ export const useHealerActions = (
     handleUniversalMerge,
     handleSyncTemporalCycle,
     handleFixDuplicateMembership,
-    handleFixAttendeeDates
+    handleFixAttendeeDates,
+    getSectorSourceRecords,
+    handleDeleteSectorOrphan,
+    handleDeletePersonOrphan
   };
 };

@@ -121,9 +121,9 @@ export const useHealerCalculations = (
         if (participantType === ParticipantType.PROVIDER || participantType === ParticipantType.PATIENT) return;
 
         const norm = normalizeString(cleanName);
-        const isMatchSearch = normSearch && norm.includes(normSearch);
-        
-        const hasIdLink = rawName && rawName.match(/\(\d+\)$/);
+        const isMatchSearch = !!(normSearch && norm.includes(normSearch));
+        const hasIdLink = rawName && rawName.match(/\((\d+)\)$/);
+        const extractedId = hasIdLink ? hasIdLink[1] : null;
         const isOfficiallyListed = officialNamesNormalized.has(norm);
         
         if (isOfficiallyListed && !isMatchSearch && !showAllHistory) return;
@@ -135,7 +135,7 @@ export const useHealerCalculations = (
             if (participantType && participantType !== 'Colaborador' && !showAllHistory && !isMatchSearch && isOfficiallyListed && hasIdLink) return;
 
             if (!orphanMap.has(cleanName)) {
-                orphanMap.set(cleanName, { sectors: new Set(), sources: { class: 0, study: 0, visit: 0, group: 0 } });
+                orphanMap.set(cleanName, { extractedId, sectors: new Set(), sources: { class: 0, study: 0, visit: 0, group: 0 } });
             }
             
             const entry = orphanMap.get(cleanName)!;
@@ -180,7 +180,7 @@ export const useHealerCalculations = (
     });
     
     return Array.from(orphanMap.entries())
-        .map(([name, data]) => ({ name, sectors: Array.from(data.sectors).sort(), sources: data.sources }))
+        .map(([name, data]) => ({ name, id: data.extractedId, sectors: Array.from(data.sectors).sort(), sources: data.sources }))
         .sort((a, b) => a.name.localeCompare(b.name));
   }, [bibleClasses, bibleStudies, staffVisits, smallGroups, visitRequests, proGroups, proStaff, proPatients, proProviders, showAllHistory, resolvedItems, searchQuery, selectedUnit]);
 
@@ -194,31 +194,25 @@ export const useHealerCalculations = (
       const checkSector = (name: string | undefined, id: string | undefined, unit: string) => {
           if (unit !== selectedUnit) return;
           
-          // 1. Verificar por ID primeiro (mais importante)
-          if (id) {
-              const idStr = String(id);
-              if (!officialIds.has(idStr) && !resolvedItems.has(`id:${idStr}`)) {
-                  const key = `ID: ${idStr}`;
-                  if (!orphans.has(key)) {
-                    orphans.set(key, { type: 'id', count: 0, originalValue: idStr });
-                  }
-                  orphans.get(key)!.count++;
-                  return; // Se tem ID e é inválido, priorizamos tratar o ID
-              }
-          }
+          const idStr = id ? String(id) : undefined;
+          const cleanName = name?.trim();
+          const isIdInvalid = idStr && !officialIds.has(idStr);
+          const isNameInvalid = cleanName && !officialNamesNormalized.has(normalizeString(cleanName));
 
-          // 2. Verificar por nome se não houver ID ou se o ID for válido mas o nome em cache estiver estranho
-          // (Geralmente focamos no nome apenas se o ID estiver ausente)
-          if (!id && name) {
-              const clean = name.trim();
-              if (!clean || resolvedItems.has(clean)) return;
-              const norm = normalizeString(clean);
-              if (!officialNamesNormalized.has(norm)) {
-                  if (!orphans.has(clean)) {
-                      orphans.set(clean, { type: 'name', count: 0, originalValue: clean });
-                  }
-                  orphans.get(clean)!.count++;
+          if ((isIdInvalid || isNameInvalid) && !resolvedItems.has(cleanName || '') && !resolvedItems.has(`id:${idStr}`)) {
+              const type = isIdInvalid ? 'id' : 'name';
+              const display = isIdInvalid ? `ID: ${idStr}` : (cleanName || "Sem Nome");
+              const key = `${type}:${idStr || ''}:${cleanName || ''}`;
+              
+              if (!orphans.has(key)) {
+                  orphans.set(key, { 
+                      type, 
+                      count: 0, 
+                      originalValue: type === 'id' ? (cleanName || 'N/A') : (idStr || 'N/A'),
+                      display
+                  });
               }
+              orphans.get(key)!.count++;
           }
       };
 

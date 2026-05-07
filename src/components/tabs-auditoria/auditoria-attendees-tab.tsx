@@ -13,6 +13,7 @@ interface AuditoriaAttendeesTabProps {
   officialPatientOptions: any[];
   officialProviderOptions: any[];
   handleProcessPerson: (name: string) => void;
+  handleDeletePersonOrphan: (name: string) => void;
   handleFixAttendeeDates: () => void;
   isProcessing: boolean;
 }
@@ -28,6 +29,7 @@ const AuditoriaAttendeesTab: React.FC<AuditoriaAttendeesTabProps> = ({
   officialPatientOptions,
   officialProviderOptions,
   handleProcessPerson,
+  handleDeletePersonOrphan,
   handleFixAttendeeDates,
   isProcessing
 }) => {
@@ -66,6 +68,7 @@ const AuditoriaAttendeesTab: React.FC<AuditoriaAttendeesTabProps> = ({
         ) : (
           attendeeOrphans.map((item, index) => {
             const name = item.name;
+            const personId = item.id;
             const attendeeCount = item.count;
             const currentType = personTypeMap[name] || "Colaborador";
 
@@ -88,10 +91,22 @@ const AuditoriaAttendeesTab: React.FC<AuditoriaAttendeesTabProps> = ({
                       ))}
                     </div>
                   </div>
-                  <div className="font-black text-slate-800 uppercase text-lg leading-tight">{name}</div>
+                  <div className="font-black text-slate-800 uppercase text-lg leading-tight">
+                    {name} {personId ? `(Matrícula: ${personId})` : ''}
+                  </div>
                   <div className="mt-2 text-xs font-bold text-violet-600 bg-violet-50 p-2 rounded-lg inline-block">
                     <i className="fas fa-layer-group mr-2"></i> Encontrado em {attendeeCount} aulas
                   </div>
+
+                  <button 
+                    onClick={() => handleDeletePersonOrphan(name)}
+                    disabled={isProcessing}
+                    className="mt-3 flex items-center gap-2 text-[9px] font-black uppercase text-rose-400 hover:text-rose-600 transition-colors disabled:opacity-50"
+                    title="Excluir ou limpar este nome de todos os registros onde aparece"
+                  >
+                    <i className="fas fa-trash-alt"></i>
+                    Apagar Registros Incorretos
+                  </button>
                 </div>
 
                 <div className="hidden xl:block text-slate-300">
