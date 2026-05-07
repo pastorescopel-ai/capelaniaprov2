@@ -1,14 +1,14 @@
 
 import React from 'react';
 import { useDataHealer } from '../hooks/useDataHealer';
-import HealerPeopleTab from './AuditoriaTabs/HealerPeopleTab';
-import HealerStudiesTab from './AuditoriaTabs/HealerStudiesTab';
-import HealerAttendeesTab from './AuditoriaTabs/HealerAttendeesTab';
-import HealerSectorsTab from './AuditoriaTabs/HealerSectorsTab';
-import HealerPGsTab from './AuditoriaTabs/HealerPGsTab';
-import HealerMergeTab from './AuditoriaTabs/HealerMergeTab';
-import HealerAmbassadorsTab from './AuditoriaTabs/HealerAmbassadorsTab';
-import HealerMembershipsTab from './AuditoriaTabs/HealerMembershipsTab';
+import AuditoriaPeopleTab from './AuditoriaTabs/AuditoriaPeopleTab';
+import AuditoriaStudiesTab from './AuditoriaTabs/AuditoriaStudiesTab';
+import AuditoriaAttendeesTab from './AuditoriaTabs/AuditoriaAttendeesTab';
+import AuditoriaSectorsTab from './AuditoriaTabs/AuditoriaSectorsTab';
+import AuditoriaPGsTab from './AuditoriaTabs/AuditoriaPGsTab';
+import AuditoriaMergeTab from './AuditoriaTabs/AuditoriaMergeTab';
+import AuditoriaAmbassadorsTab from './AuditoriaTabs/AuditoriaAmbassadorsTab';
+import AuditoriaMembershipsTab from './AuditoriaTabs/AuditoriaMembershipsTab';
 
 const DataHealer: React.FC = () => {
   const {
@@ -242,7 +242,7 @@ const DataHealer: React.FC = () => {
       {(totalOrphans > 0 || activeTab === 'merge') && (
           <div className="animate-in slide-in-from-bottom-4 duration-700">
               {activeTab === 'merge' && (
-                  <HealerMergeTab 
+                  <AuditoriaMergeTab 
                       mergeSourceType={mergeSourceType}
                       setMergeSourceType={setMergeSourceType}
                       mergeSourceId={mergeSourceId}
@@ -259,7 +259,7 @@ const DataHealer: React.FC = () => {
                   />
               )}
               {activeTab === 'studies' && (
-                <HealerStudiesTab 
+                <AuditoriaStudiesTab 
                   studyOrphans={studyOrphans}
                   activeStudyTab={activeStudyTab}
                   setActiveStudyTab={setActiveStudyTab}
@@ -274,7 +274,7 @@ const DataHealer: React.FC = () => {
               )}
 
               {activeTab === 'people' && (
-                <HealerPeopleTab 
+                <AuditoriaPeopleTab 
                   filteredPeopleList={filteredPeopleList}
                   personTypeMap={personTypeMap}
                   setPersonTypeMap={setPersonTypeMap}
@@ -293,9 +293,8 @@ const DataHealer: React.FC = () => {
                   isProcessing={isProcessing}
                 />
               )}
-
               {activeTab === 'attendees' && (
-                <HealerAttendeesTab 
+                <AuditoriaAttendeesTab 
                   attendeeOrphans={attendeeOrphans}
                   isLoadingAttendees={isLoadingAttendees}
                   personTypeMap={personTypeMap}
@@ -310,9 +309,8 @@ const DataHealer: React.FC = () => {
                   isProcessing={isProcessing}
                 />
               )}
-
               {activeTab === 'sectors' && (
-                <HealerSectorsTab 
+                <AuditoriaSectorsTab 
                   sectorOrphans={sectorOrphans}
                   targetMap={targetMap}
                   setTargetMap={setTargetMap}
@@ -321,21 +319,18 @@ const DataHealer: React.FC = () => {
                   isProcessing={isProcessing}
                 />
               )}
-
               {activeTab === 'ambassadors' && (
-                <HealerAmbassadorsTab />
+                <AuditoriaAmbassadorsTab />
               )}
-
               {activeTab === 'pgs' && (
-                <HealerPGsTab 
+                <AuditoriaPGsTab 
                   duplicatePGs={duplicatePGs}
                   handleMergePGs={handleMergePGs}
                   isProcessing={isProcessing}
                 />
               )}
-
               {activeTab === 'memberships' && (
-                <HealerMembershipsTab 
+                <AuditoriaMembershipsTab 
                   duplicateMemberships={duplicateMemberships}
                   handleFixDuplicateMembership={handleFixDuplicateMembership}
                   isProcessing={isProcessing}
