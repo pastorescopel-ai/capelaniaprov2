@@ -1,14 +1,14 @@
 
 import React from 'react';
 import { useDataHealer } from '../hooks/useDataHealer';
-import AuditoriaPeopleTab from './AuditoriaTabs/AuditoriaPeopleTab';
-import AuditoriaStudiesTab from './AuditoriaTabs/AuditoriaStudiesTab';
-import AuditoriaAttendeesTab from './AuditoriaTabs/AuditoriaAttendeesTab';
-import AuditoriaSectorsTab from './AuditoriaTabs/AuditoriaSectorsTab';
-import AuditoriaPGsTab from './AuditoriaTabs/AuditoriaPGsTab';
-import AuditoriaMergeTab from './AuditoriaTabs/AuditoriaMergeTab';
-import AuditoriaAmbassadorsTab from './AuditoriaTabs/AuditoriaAmbassadorsTab';
-import AuditoriaMembershipsTab from './AuditoriaTabs/AuditoriaMembershipsTab';
+import AuditoriaPeopleTab from './tabs-auditoria/auditoria-people-tab';
+import AuditoriaStudiesTab from './tabs-auditoria/auditoria-studies-tab';
+import AuditoriaAttendeesTab from './tabs-auditoria/auditoria-attendees-tab';
+import AuditoriaSectorsTab from './tabs-auditoria/auditoria-sectors-tab';
+import AuditoriaPGsTab from './tabs-auditoria/auditoria-pgs-tab';
+import AuditoriaMergeTab from './tabs-auditoria/auditoria-merge-tab';
+import AuditoriaAmbassadorsTab from './tabs-auditoria/auditoria-ambassadors-tab';
+import AuditoriaMembershipsTab from './tabs-auditoria/auditoria-memberships-tab';
 
 const DataHealer: React.FC = () => {
   const {
