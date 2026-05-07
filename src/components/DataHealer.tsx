@@ -1,14 +1,14 @@
 
 import React from 'react';
 import { useDataHealer } from '../hooks/useDataHealer';
-import HealerPeopleTab from './HealerTabs/HealerPeopleTab';
-import HealerStudiesTab from './HealerTabs/HealerStudiesTab';
-import HealerAttendeesTab from './HealerTabs/HealerAttendeesTab';
-import HealerSectorsTab from './HealerTabs/HealerSectorsTab';
-import HealerPGsTab from './HealerTabs/HealerPGsTab';
-import HealerMergeTab from './HealerTabs/HealerMergeTab';
-import HealerAmbassadorsTab from './HealerTabs/HealerAmbassadorsTab';
-import HealerMembershipsTab from './HealerTabs/HealerMembershipsTab';
+import HealerPeopleTab from './HealerTabs/HealerPeopleTab.tsx';
+import HealerStudiesTab from './HealerTabs/HealerStudiesTab.tsx';
+import HealerAttendeesTab from './HealerTabs/HealerAttendeesTab.tsx';
+import HealerSectorsTab from './HealerTabs/HealerSectorsTab.tsx';
+import HealerPGsTab from './HealerTabs/HealerPGsTab.tsx';
+import HealerMergeTab from './HealerTabs/HealerMergeTab.tsx';
+import HealerAmbassadorsTab from './HealerTabs/HealerAmbassadorsTab.tsx';
+import HealerMembershipsTab from './HealerTabs/HealerMembershipsTab.tsx';
 
 const DataHealer: React.FC = () => {
   const {
