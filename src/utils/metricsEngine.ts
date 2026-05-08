@@ -112,14 +112,14 @@ export const calculateDashboardMetrics = (
   const staffMap = new Map<string, ProStaff>();
 
   proStaff.forEach(s => {
-    // REGRA SUPREMA: Se não é da unidade ou está inativo, ignora completamente.
-    // Isso garante que o dashboard reflita exatamente a contagem de "Ativos" do Supabase.
+    // REGRA SUPREMA: Se não é da unidade ou está explicitamente INATIVO, ignora.
+    // Usamos 's.active === false' para garantir que nulos/undefined sejam incluídos (comportamento legado do banco).
     if (!s.unit || s.unit !== unit || s.active === false) return;
     
     const createdDate = getTimestamp(s.createdAt);
     const leftDate = getTimestamp(s.leftAt);
     
-    // Filtro de Período Simples: Criado antes do fim do mês e não saiu antes do início
+    // Filtro de Período: Criado antes do fim do mês e não saiu antes do início
     const wasCreatedInOrBeforeMonth = !createdDate || createdDate <= monthEnd;
     const isStillInUnit = !leftDate || leftDate >= monthStart;
 
@@ -127,8 +127,8 @@ export const calculateDashboardMetrics = (
       const idClean = cleanID(s.id);
       const existing = staffMap.get(idClean);
       
-      // Deduplicação: Mantém apenas um registro por ID (o mais atual)
-      if (!existing || (createdDate && getTimestamp(existing.createdAt) < createdDate)) {
+      // Deduplicação: Mantém apenas um registro por ID (o mais atual ou o que tiver data de criação)
+      if (!existing || (createdDate && (!getTimestamp(existing.createdAt) || getTimestamp(existing.createdAt) < createdDate))) {
         staffMap.set(idClean, s);
       }
     }

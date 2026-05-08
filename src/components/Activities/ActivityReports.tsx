@@ -366,7 +366,8 @@ const ActivityReports: React.FC = () => {
                         </span>
                       ))}
                       {report.completedCults?.map((sectorId, idx) => {
-                        const sectorName = proSectors.find(s => s.id === sectorId)?.name || 'Setor';
+                        const sectorObj = proSectors.find(s => s.id === sectorId);
+                        const sectorName = sectorObj ? `${sectorObj.name} [${sectorObj.unit}]` : 'Setor';
                         return (
                           <span 
                             key={`cult-${idx}`}

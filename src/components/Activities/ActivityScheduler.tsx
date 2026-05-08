@@ -457,7 +457,10 @@ const ActivityScheduler: React.FC = () => {
                                 <div className="min-w-0 flex-1">
                                   <p className="text-[10px] font-black text-slate-800 uppercase truncate">
                                     {type === 'cult' 
-                                      ? (sectors.find(sec => sec.id === s.location)?.name || 'Setor Removido')
+                                      ? (() => {
+                                          const sec = sectors.find(sec => sec.id === s.location);
+                                          return sec ? `${sec.name} [${sec.unit}]` : 'Setor Removido';
+                                        })()
                                       : (type === 'encontro' ? `Encontro HAB ${s.date ? `(${s.date.split('-')[2]})` : ''}` 
                                           : (type === 'visiteCantando' ? `Visite Cantando ${s.date ? `(${s.date.split('-')[2]})` : ''}` : s.location))
                                     }

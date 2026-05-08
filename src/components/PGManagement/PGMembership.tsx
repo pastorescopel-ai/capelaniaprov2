@@ -215,9 +215,14 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
                     {availableStaff.map(staff => (
                       <div key={staff.id} className="p-4 rounded-2xl flex items-center justify-between border bg-white border-blue-100 shadow-sm hover:border-blue-300 transition-all animate-in slide-in-from-left duration-300">
                         <div className="min-w-0 flex-1">
-                          <p className="font-bold text-slate-700 text-xs uppercase truncate">
+                          <p className="font-bold text-slate-700 text-xs uppercase truncate flex items-center gap-2">
                             {staff.name}
-                            <span className="ml-2 text-[8px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 uppercase tracking-tighter">{(staff as any).sectorName}</span>
+                            <span className="text-[8px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 uppercase tracking-tighter">{(staff as any).sectorName}</span>
+                            {staff.active === false && (
+                              <span className="text-[7px] font-black bg-rose-50 text-rose-600 px-1 border border-rose-100 rounded uppercase tracking-tighter shadow-sm animate-pulse">
+                                Inativo no RH
+                              </span>
+                            )}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
                             <p className="text-[9px] font-black text-indigo-500 bg-indigo-50 px-1.5 rounded uppercase">{cleanId(staff.id)}</p>

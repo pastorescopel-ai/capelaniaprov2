@@ -129,13 +129,14 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         proStaff.filter(s => s.unit === unit).forEach(staff => {
           const sector = proSectors.find(sec => sec.id === staff.sectorId);
           const isFromCurrentSector = sector?.name === currentSector;
+          const isInactive = staff.active === false;
           
           options.push({ 
             value: staff.name, 
-            label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, 
+            label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})${isInactive ? ' [INATIVO]' : ''}`, 
             subLabel: sector ? sector.name : 'Setor não informado', 
             category: isFromCurrentSector ? 'Setor Atual' : 'RH',
-            highlight: isFromCurrentSector
+            highlight: isFromCurrentSector && !isInactive
           });
           officialSet.add(normalizeString(staff.name));
         });

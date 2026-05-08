@@ -152,7 +152,7 @@ export const useDataMaintenance = (
     return data;
   };
 
-  const healSectorConnection = async (badValue: string, targetSectorId: string, isIdBased: boolean = false): Promise<string> => {
+  const healSectorConnection = async (badValue: string, targetSectorId: string, isIdBased: boolean = false, targetName?: string): Promise<string> => {
     if (!supabase) return "Erro Conexão";
     const numericTargetId = cleanId(targetSectorId);
     
@@ -170,14 +170,20 @@ export const useDataMaintenance = (
             'pro_staff',
             'pro_groups',
             'pro_group_locations',
+            'pro_history_records',
+            'ambassadors',
             'activity_schedules'
         ];
         
         let totalUpdated = 0;
         for (const table of tables) {
+            const updates: any = { sector_id: newId };
+            if (targetName && ['bible_study_sessions', 'bible_classes', 'small_group_sessions', 'staff_visits'].includes(table)) {
+                updates.sector = targetName;
+            }
             const { data, error } = await supabase
                 .from(table)
-                .update({ sector_id: newId })
+                .update(updates)
                 .eq('sector_id', oldId)
                 .select();
             if (!error && data) totalUpdated += data.length;
@@ -186,6 +192,15 @@ export const useDataMaintenance = (
         await reloadCallback(false);
         return `Cura por ID concluída! ${totalUpdated} registros vinculados ao novo ID ${newId}.`;
     } else {
+        // Reforço manual do nome e ID para garantir persistência imediata
+        const tablesWithName = ['bible_study_sessions', 'bible_classes', 'small_group_sessions', 'staff_visits'];
+        for (const table of tablesWithName) {
+            await supabase.from(table).update({ 
+                sector: targetName || badValue,
+                sector_id: numericTargetId 
+            }).ilike('sector', badValue);
+        }
+
         const { data, error } = await supabase.rpc('heal_sector_global', {
             bad_name: badValue,
             target_sector_id: numericTargetId

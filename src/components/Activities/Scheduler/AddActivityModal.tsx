@@ -281,7 +281,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
 
                       return (
                         <option key={sec.id} value={sec.id} disabled={isBlocked}>
-                          {sec.name} {isBlocked ? `(Bloqueado: ${blockedBy || 'Outro Capelão'})` : ''}
+                          {sec.name} [{sec.unit}] {isBlocked ? `(Bloqueado: ${blockedBy || 'Outro Capelão'})` : ''}
                         </option>
                       );
                     })}
@@ -316,7 +316,10 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
                     <div key={idx} className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-100">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-emerald-900 uppercase">
-                          {sectors.find(s => s.id === sel.location)?.name}
+                          {(() => {
+                            const s = sectors.find(s => s.id === sel.location);
+                            return s ? `${s.name} [${s.unit}]` : 'Setor Removido';
+                          })()}
                         </span>
                         {sel.time && (
                           <span className="text-[10px] font-bold text-emerald-600 bg-emerald-200/50 px-2 py-0.5 rounded-full">

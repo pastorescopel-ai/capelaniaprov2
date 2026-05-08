@@ -45,6 +45,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   const [sectorModal, setSectorModal] = useState<{ isOpen: boolean; mode: 'add' | 'edit'; sector?: ProSector }>({ isOpen: false, mode: 'add' });
   const [sectorName, setSectorName] = useState('');
   const [sectorId, setSectorId] = useState('');
+  const [sectorUnit, setSectorUnit] = useState<Unit>(activeUnit);
 
   const [previewData, setPreviewData] = useState<ProcessedRow[]>([]);
   const [skippedRows, setSkippedRows] = useState<SkippedRow[]>([]);
@@ -241,12 +242,14 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
     setSectorModal({ isOpen: true, mode: 'add' });
     setSectorName('');
     setSectorId('');
+    setSectorUnit(activeUnit);
   };
 
   const handleOpenEditSector = (sector: ProSector) => {
     setSectorModal({ isOpen: true, mode: 'edit', sector });
     setSectorName(sector.name);
     setSectorId(String(sector.id));
+    setSectorUnit(sector.unit || activeUnit);
   };
 
   const handleSaveSector = async () => {
@@ -260,16 +263,16 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
     let updatedSectors = [...proData.sectors];
 
     if (sectorModal.mode === 'add') {
-      // Verificar se ID já existe na unidade
-      if (proData.sectors.some(s => cleanID(s.id) === cleanId && s.unit === activeUnit)) {
-        showToast("Este ID de setor já existe nesta unidade.", "error");
+      // Verificar se ID já existe na unidade destino
+      if (proData.sectors.some(s => cleanID(s.id) === cleanId && s.unit === sectorUnit)) {
+        showToast(`Este ID de setor já existe na unidade ${sectorUnit}.`, "error");
         return;
       }
       
       const newSector: ProSector = {
         id: cleanId,
         name: sectorName,
-        unit: activeUnit,
+        unit: sectorUnit,
         active: true,
         cycleMonth: selectedMonth,
         createdAt: Date.now(),
@@ -278,8 +281,9 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
       updatedSectors.push(newSector);
     } else if (sectorModal.mode === 'edit' && sectorModal.sector) {
       updatedSectors = updatedSectors.map(s => {
-        if (s.id === sectorModal.sector?.id && s.unit === activeUnit) {
-          return { ...s, name: sectorName, id: cleanId, updatedAt: Date.now() };
+        // Encontra o setor antigo (usamos activeUnit para o filtro inicial mas agora permitimos mudar unit)
+        if (s.id === sectorModal.sector?.id && s.unit === sectorModal.sector?.unit) {
+          return { ...s, name: sectorName, id: cleanId, unit: sectorUnit, updatedAt: Date.now() };
         }
         return s;
       });
@@ -430,7 +434,15 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                 <thead><tr className="text-[9px] font-black uppercase text-slate-400 border-b"><th className="p-4">ID (Limpo)</th><th className="p-4">Nome</th>{activeTab === 'staff' && <th className="p-4">Vínculo de Setor</th>}<th className="p-4">Mês Ref.</th>{activeTab !== 'staff' && <th className="p-4">Unidade</th>}<th className="p-4 text-right">Ações</th></tr></thead>
                 <tbody className="divide-y">{currentItems.map((item, i) => (
                     <tr key={i} className={`hover:bg-slate-50 transition-colors ${item.sectorStatus === 'error' ? 'bg-amber-50' : ''}`}>
-                        <td className="p-4 text-xs font-mono font-bold text-blue-600">{item.id}</td><td className="p-4 text-sm font-bold text-slate-700">{item.name}</td>
+                        <td className="p-4 text-xs font-mono font-bold text-blue-600">{item.id}</td>
+                        <td className="p-4 text-sm font-bold text-slate-700">
+                          {item.name}
+                          {activeTab === 'sectors' && (
+                            <span className={`ml-2 text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-tighter shadow-sm ${item.unit === 'HAB' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                              {item.unit}
+                            </span>
+                          )}
+                        </td>
                         {activeTab === 'staff' && (
                           <>
                             <td className="p-4">{previewData.length > 0 ? (item.sectorStatus === 'ok' ? (<div className="flex items-center justify-between group"><div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]"><i className="fas fa-check"></i></div><div><span className="text-[10px] font-black text-slate-700 uppercase block">{item.linkedSectorName}</span>{item.sectorNameRaw && item.sectorNameRaw !== item.linkedSectorName && (<span className="text-[8px] text-slate-400 block strike">Excel: {item.sectorNameRaw}</span>)}</div></div><button onClick={() => handleManualSectorChange(i, '')} className="w-6 h-6 rounded-lg bg-slate-50 text-slate-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"><i className="fas fa-pencil-alt text-[10px]"></i></button></div>) : (<div className="space-y-1"><Autocomplete options={sectorOptions} value={item.sectorNameRaw || ''} onChange={(val) => handleManualSectorChange(i, val)} placeholder="⚠️ Vincular Setor..." required={false} className="w-full p-2 text-xs font-bold rounded-xl border-2 border-amber-300 bg-white" /><span className="text-[8px] font-bold text-rose-400">ID Excel: {item.sectorIdRaw || 'N/A'}</span></div>)) : (<span className="text-[10px] font-bold uppercase text-slate-500">{getSectorNameFromDB(item.sectorId)}</span>)}</td>
@@ -520,6 +532,23 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
             </div>
             
             <div className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Unidade</label>
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-sm">
+                  {[Unit.HAB, Unit.HABA].map(u => (
+                    <button
+                      key={u}
+                      onClick={() => setSectorUnit(u as Unit)}
+                      className={`flex-1 py-3 rounded-lg font-black text-[10px] uppercase transition-all ${
+                        sectorUnit === u ? 'bg-white text-blue-600 shadow-md' : 'text-slate-400'
+                      }`}
+                    >
+                      {u}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">ID do Setor (Código Base)</label>
                 <input 

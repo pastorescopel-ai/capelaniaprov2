@@ -24,7 +24,7 @@ export const auditStaffData = (
   const now = Date.now();
   const activeUnitStaff = unitStaff.filter(s => {
     const leftAt = s.leftAt ? (typeof s.leftAt === 'number' ? s.leftAt : new Date(s.leftAt).getTime()) : null;
-    return s.active !== false && (!leftAt || leftAt > now);
+    return s.active === true && (!leftAt || leftAt > now);
   });
 
   // 1. Duplicatas por Nome (In-Unit)

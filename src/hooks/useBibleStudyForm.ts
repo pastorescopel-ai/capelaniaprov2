@@ -67,7 +67,14 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     if (formData.participantType === ParticipantType.STAFF) {
         proStaff.filter(s => s.unit === unit).forEach(staff => {
           const sector = proSectors.find(sec => sec.id === staff.sectorId);
-          options.push({ value: staff.name, label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, subLabel: sector ? sector.name : 'Setor não informado', category: 'RH' as const });
+          const isInactive = staff.active === false;
+          options.push({ 
+            value: staff.name, 
+            label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})${isInactive ? ' [INATIVO]' : ''}`, 
+            subLabel: sector ? sector.name : 'Setor não informado', 
+            category: 'RH' as const,
+            highlight: !isInactive 
+          });
           officialSet.add(normalizeString(staff.name));
         });
     } else if (formData.participantType === ParticipantType.PATIENT) {

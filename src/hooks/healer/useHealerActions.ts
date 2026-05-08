@@ -31,10 +31,24 @@ export const useHealerActions = (
 
           setIsProcessing(true);
           try {
+              console.log(`[HEALER] Iniciando unificação: ${orphanName} -> ID ${targetId}`);
               const result = await unifyIdentityV6(orphanName, targetId, 'Colaborador');
               const isError = result.startsWith('Erro:');
               
               if (!isError) {
+                  // Reforço de persistência local para tabelas que o RPC pode omitir ou demorar a propagar
+                  if (targetId) {
+                      try {
+                          await saveRecord('bibleClassAttendees', 
+                              appData.bibleClassAttendees
+                                  .filter((a: any) => normalizeString(a.studentName) === normalizeString(orphanName) && !a.staffId)
+                                  .map((a: any) => ({ ...a, staffId: targetId }))
+                          );
+                      } catch (err) {
+                          console.warn("Erro ao atualizar presenças manualmente.");
+                      }
+                  }
+
                   const targetStaff = proStaff.find((s: any) => String(s.id).includes(targetId));
                   if (targetStaff) {
                       const normOrphan = normalizeString(orphanName);
@@ -54,7 +68,6 @@ export const useHealerActions = (
                           await saveRecord('smallGroups', { ...sg, leader: targetStaff.name });
                       }
 
-                      // Correção retroativa do participantType para registros que foram salvos incorretamente como Prestador/Paciente
                       const studiesToUpdate = bibleStudies.filter((s: any) => normalizeString(s.name) === normOrphan && s.participantType !== 'Colaborador');
                       for (const s of studiesToUpdate) {
                           await saveRecord('bibleStudies', { ...s, participantType: 'Colaborador' });
@@ -65,10 +78,15 @@ export const useHealerActions = (
                           await saveRecord('staffVisits', { ...v, participantType: 'Colaborador' });
                       }
                   }
-
+                  
+                  await loadFromCloud(true);
                   showToast(`Cura profunda concluída! ${result}`, "success");
-                  setResolvedItems((prev: any) => new Set(prev).add(orphanName));
-                  setResolvedItems((prev: any) => new Set(prev).add(normalizeString(orphanName)));
+                  setResolvedItems((prev: any) => {
+                      const next = new Set(prev);
+                      next.add(orphanName);
+                      next.add(normalizeString(orphanName));
+                      return next;
+                  });
                   setTargetMap((prev: any) => { const n = {...prev}; delete n[orphanName]; return n; });
               } else {
                   showToast(`Erro na unificação: ${result}`, "error");
@@ -124,11 +142,16 @@ export const useHealerActions = (
           let result: string;
           const healById = orphan.type === 'id' || orphan.type === 'mismatch';
           
-          result = await healSectorConnection(orphan.originalValue, selectedSector.id, healById);
+          result = await healSectorConnection(orphan.originalValue, selectedSector.id, healById, selectedSector.name);
           
+          await loadFromCloud(true);
           showToast(result, "success");
-          setResolvedItems((prev: any) => new Set(prev).add(orphan.display));
-          if (healById) setResolvedItems((prev: any) => new Set(prev).add(`id:${orphan.originalValue}`));
+          setResolvedItems((prev: any) => {
+            const next = new Set(prev);
+            next.add(orphan.display);
+            if (healById) next.add(`id:${orphan.originalValue}`);
+            return next;
+          });
           setTargetMap((prev: any) => { const n = {...prev}; delete n[orphan.display]; return n; });
       } catch (e: any) { showToast("Erro: " + e.message, "error"); }
       finally { setIsProcessing(false); }
@@ -157,8 +180,13 @@ export const useHealerActions = (
           }
 
           const msg = await linkStudySessionIdentity(orphanName, targetStaffId, sectorId, participantType);
+          await loadFromCloud(true);
           showToast(msg, "success");
-          setResolvedItems((prev: any) => new Set(prev).add(orphanName));
+          setResolvedItems((prev: any) => {
+            const next = new Set(prev);
+            next.add(orphanName);
+            return next;
+          });
       } catch (e: any) {
           showToast(e.message, "error");
       } finally {

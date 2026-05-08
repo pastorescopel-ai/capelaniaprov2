@@ -380,7 +380,8 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
                     const period = s.period || 'tarde';
                     const isCompleted = report.completedCults?.includes(`${s.location}:${period}`) || 
                                        (period === 'tarde' && report.completedCults?.includes(s.location));
-                    const sectorName = proSectors.find(sec => sec.id === s.location)?.name || 'Setor Removido';
+                    const sectorObj = proSectors.find(sec => sec.id === s.location);
+                    const sectorName = sectorObj ? `${sectorObj.name} [${sectorObj.unit}]` : 'Setor Removido';
                     return (
                       <button
                         key={`${s.location}-${period}`}
