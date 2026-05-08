@@ -8,6 +8,7 @@ interface AuditoriaSectorsTabProps {
   officialSectorOptions: any[];
   handleHealSector: (orphan: any) => void;
   handleDeleteSectorOrphan: (orphan: any) => void;
+  handleMoveSectorUnit: (orphan: any, unit: string) => void;
   isProcessing: boolean;
 }
 
@@ -18,6 +19,7 @@ const AuditoriaSectorsTab: React.FC<AuditoriaSectorsTabProps> = ({
   officialSectorOptions,
   handleHealSector,
   handleDeleteSectorOrphan,
+  handleMoveSectorUnit,
   isProcessing
 }) => {
   return (
@@ -114,6 +116,30 @@ const AuditoriaSectorsTab: React.FC<AuditoriaSectorsTabProps> = ({
                     <span>Vincular</span>
                   </button>
                 </div>
+
+                {isIdOrphan && (
+                  <div className="w-full xl:w-auto flex flex-col md:flex-row gap-2 xl:border-l xl:pl-6 border-slate-100">
+                    <div className="text-[8px] font-black text-slate-400 uppercase mb-1 md:hidden">Corrigir Unidade do Setor</div>
+                    <div className="flex gap-2">
+                       <button 
+                         onClick={() => handleMoveSectorUnit(orphan, 'HAB')}
+                         disabled={isProcessing}
+                         className="flex-1 px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-[8px] font-black uppercase hover:bg-blue-500 hover:text-white transition-all shadow-sm border border-transparent whitespace-nowrap"
+                         title="Este ID pertence ao HAB"
+                       >
+                         Mover p/ HAB
+                       </button>
+                       <button 
+                         onClick={() => handleMoveSectorUnit(orphan, 'HABA')}
+                         disabled={isProcessing}
+                         className="flex-1 px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-[8px] font-black uppercase hover:bg-rose-500 hover:text-white transition-all shadow-sm border border-transparent whitespace-nowrap"
+                         title="Este ID pertence ao HABA"
+                       >
+                         Mover p/ HABA
+                       </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })

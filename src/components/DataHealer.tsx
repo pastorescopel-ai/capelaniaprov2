@@ -43,6 +43,7 @@ const DataHealer: React.FC = () => {
     handleFixAttendeeDates,
     handleDeletePersonOrphan,
     handleDeleteSectorOrphan,
+    handleMoveSectorUnit,
     selectedUnit, setSelectedUnit
   } = useDataHealer();
 
@@ -315,6 +316,7 @@ const DataHealer: React.FC = () => {
                   officialSectorOptions={officialSectorOptions}
                   handleHealSector={handleHealSector}
                   handleDeleteSectorOrphan={handleDeleteSectorOrphan}
+                  handleMoveSectorUnit={handleMoveSectorUnit}
                   isProcessing={isProcessing}
                 />
               )}
