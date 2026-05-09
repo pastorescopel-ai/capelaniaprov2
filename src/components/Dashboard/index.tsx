@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Config } from '../../types';
+import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Config, Unit } from '../../types';
 import { useApp } from '../../hooks/useApp';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import Mural from './Mural';
@@ -9,8 +9,10 @@ import StatCards from './StatCards';
 import ImpactCharts from './ImpactCharts';
 import VisitGoalWidget from './VisitGoalWidget';
 import VisitRequestsWidget from './VisitRequestsWidget';
+import DashboardActivityHistory from '../PGManagement/DashboardActivityHistory';
 
 interface DashboardProps {
+  unit: Unit;
   studies: BibleStudy[];
   classes: BibleClass[];
   groups: SmallGroup[];
@@ -25,7 +27,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
-  studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onGoToReturnHistory, onUpdateConfig 
+  unit, studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onGoToReturnHistory, onUpdateConfig 
 }) => {
   const { visitRequests, users, isInitialized, proMonthlyStats } = useApp(); 
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().split('T')[0].substring(0, 7));
@@ -127,6 +129,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         { name: 'PGs', val: monthlyGroups.length },
         { name: 'Visitas', val: monthlyVisits.length },
       ]} globalData={globalImpact} />
+
+      {/* Histórico de Atividades Recentes */}
+      <DashboardActivityHistory unit={unit} />
     </div>
   );
 };

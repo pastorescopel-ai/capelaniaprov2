@@ -62,70 +62,95 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
   const studentOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
+    const usedNames = new Set<string>();
     const officialSet = new Set<string>();
 
+    // 0. Preparar sets de nomes para priorização (Filtro por Unidade e Categoria)
+    const filteredHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) === formData.participantType && s.unit === unit);
+    const personalHistoryNames = new Set(filteredHistory.filter(s => s.userId === formData.userId).map(s => normalizeString(s.name)));
+
+    // 1. Processar Lista Oficial (RH/Pacientes/Prestadores) com merge de histórico pessoal
     if (formData.participantType === ParticipantType.STAFF) {
-        proStaff.filter(s => s.unit === unit).forEach(staff => {
+        proStaff.filter(s => s.unit === unit && s.active !== false).forEach(staff => {
+          const norm = normalizeString(staff.name);
+          officialSet.add(norm);
+          usedNames.add(norm);
+          
+          const isMyStudent = personalHistoryNames.has(norm);
           const sector = proSectors.find(sec => sec.id === staff.sectorId);
           const isInactive = staff.active === false;
+
           options.push({ 
             value: staff.name, 
             label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})${isInactive ? ' [INATIVO]' : ''}`, 
             subLabel: sector ? sector.name : 'Setor não informado', 
-            category: 'RH' as const,
-            highlight: !isInactive 
+            category: isMyStudent ? 'MyStudents' : 'RH',
+            highlight: isMyStudent && !isInactive // Destaque apenas se for MEU aluno e estiver ATIVO
           });
-          officialSet.add(normalizeString(staff.name));
         });
     } else if (formData.participantType === ParticipantType.PATIENT) {
         proPatients.filter(p => p.unit === unit).forEach(p => {
-            options.push({ value: p.name, label: p.name, subLabel: "Paciente", category: "RH" as const });
-            officialSet.add(normalizeString(p.name));
+            const norm = normalizeString(p.name);
+            officialSet.add(norm);
+            usedNames.add(norm);
+            const isMyStudent = personalHistoryNames.has(norm);
+            options.push({ 
+              value: p.name, 
+              label: p.name, 
+              subLabel: "Paciente", 
+              category: isMyStudent ? "MyStudents" : "RH",
+              highlight: isMyStudent
+            });
         });
     } else if (formData.participantType === ParticipantType.PROVIDER) {
         proProviders.filter(p => p.unit === unit).forEach(p => {
-            options.push({ value: p.name, label: p.name, subLabel: p.sector || "Prestador", category: "RH" as const });
-            officialSet.add(normalizeString(p.name));
+            const norm = normalizeString(p.name);
+            officialSet.add(norm);
+            usedNames.add(norm);
+            const isMyStudent = personalHistoryNames.has(norm);
+            options.push({ 
+              value: p.name, 
+              label: p.name, 
+              subLabel: p.sector || "Prestador", 
+              category: isMyStudent ? "MyStudents" : "RH",
+              highlight: isMyStudent
+            });
         });
     }
     
-    // Filtra histórico APENAS da categoria atual (Integridade Categórica)
-    const filteredHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) === formData.participantType && s.unit === unit);
-    const otherHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) !== formData.participantType && s.unit === unit);
-    
-    const personalHistory = filteredHistory.filter(s => s.userId === formData.userId);
-    const uniqueHistoryNames = new Set<string>();
-    
-    // 1. Primeiro, adiciona os alunos DO CAPELÃO SELECIONADO (Destaque Amarelo)
-    personalHistory.forEach(s => {
-      const norm = normalizeString(s.name);
-      if (s.name && !uniqueHistoryNames.has(norm)) {
-        uniqueHistoryNames.add(norm);
-        options.push({ 
-          value: s.name, 
-          label: s.name, 
-          subLabel: s.sector, 
-          category: 'MyStudents' as const,
-          highlight: true 
-        });
-      }
+    // 2. Alunos do Pessoal (não constantes na lista oficial)
+    personalHistoryNames.forEach(normName => {
+        if (!officialSet.has(normName)) {
+            const hist = filteredHistory.find(h => normalizeString(h.name) === normName && h.userId === formData.userId);
+            if (hist && !usedNames.has(normName)) {
+                usedNames.add(normName);
+                options.push({ 
+                  value: hist.name, 
+                  label: hist.name, 
+                  subLabel: hist.sector, 
+                  category: 'MyStudents', 
+                  highlight: true 
+                });
+            }
+        }
     });
 
-    // 2. Depois, adiciona o resto do histórico geral (sem destaque)
+    // 3. Histórico Geral (Outros capelães, mesma categoria)
     filteredHistory.forEach(s => {
       const norm = normalizeString(s.name);
-      if (s.name && !uniqueHistoryNames.has(norm) && !officialSet.has(norm)) {
-        uniqueHistoryNames.add(norm);
-        options.push({ value: s.name, label: s.name, subLabel: s.sector, category: 'History' as const });
+      if (s.name && !usedNames.has(norm) && !officialSet.has(norm)) {
+        usedNames.add(norm);
+        options.push({ value: s.name, label: s.name, subLabel: s.sector, category: 'History' });
       }
     });
 
-    // 3. Por fim, adiciona alunos de outras abas (Migração)
+    // 4. Migração: Histórico de outras abas (Ex: era paciente agora é colaborador)
+    const otherHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) !== formData.participantType && s.unit === unit);
     otherHistory.forEach(s => {
       const norm = normalizeString(s.name);
-      if (s.name && !uniqueHistoryNames.has(norm) && !officialSet.has(norm)) {
-        uniqueHistoryNames.add(norm);
-        options.push({ value: s.name, label: s.name, subLabel: `${s.sector || 'Sem setor'} (Migrar)`, category: 'Migration' as const });
+      if (s.name && !usedNames.has(norm) && !officialSet.has(norm)) {
+        usedNames.add(norm);
+        options.push({ value: s.name, label: s.name, subLabel: `${s.sector || 'Sem setor'} (Migrar)`, category: 'Migration' });
       }
     });
 

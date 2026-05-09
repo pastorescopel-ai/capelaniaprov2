@@ -104,17 +104,18 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
 
             // Usar chave composta unit|id para evitar colisões entre unidades
             currentDB.forEach(item => { 
-                const key = `${item.unit}|${cleanID(item.id)}`; 
+                // Usamos o cleanID atualizado (que remove zeros) para a chave de busca
+                const cleanedId = cleanID(item.id);
+                const key = `${item.unit}|${cleanedId}`; 
                 
                 if (map.has(key) && item.unit === activeUnit) {
-                    // Se já existe um registro que limpa para o mesmo ID nesta unidade,
-                    // marcamos este como duplicata para ser desativado no banco.
                     const existing = map.get(key);
-                    // Mantemos o que for "mais ativo" ou o primeiro encontrado
+                    // Regra de Ouro: Mantemos o que estiver ATIVO ou o registro original se ambos forem iguais
                     if (!existing.active && item.active) {
                         duplicatesToDeactivate.push({ ...existing, active: false, leftAt: Date.now(), updatedAt: Date.now() });
                         map.set(key, item);
                     } else {
+                        // Se o que já está no mapa for melhor, descartamos este como duplicata inativa
                         duplicatesToDeactivate.push({ ...item, active: false, leftAt: Date.now(), updatedAt: Date.now() });
                     }
                 } else {
@@ -123,18 +124,21 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
             });
 
             incomingList.forEach(incoming => {
-                const key = `${activeUnit}|${incoming.id}`; 
+                const cleanedIncomingId = cleanID(incoming.id);
+                const key = `${activeUnit}|${cleanedIncomingId}`; 
                 const existing = map.get(key);
                 const importTimestamp = new Date(selectedMonth + 'T12:00:00').getTime();
 
                 if (existing) {
                     const updated = { 
-                        ...existing, 
+                        ...existing,
+                        // Vital: Preservamos o ID do banco se ele já for limpo, 
+                        // mas se o do Excel for mais completo, poderíamos atualizar. 
+                        // Aqui mantemos o 'existing.id' para não quebrar referências de outras tabelas.
                         name: incoming.name, 
                         active: true, 
                         cycleMonth: selectedMonth,
                         updatedAt: Date.now(),
-                        // Se estava inativo, removemos a data de saída
                         leftAt: null
                     };
                     // Se não tem createdAt ou se o existente é no futuro (erro de lançamento), setamos para o mês atual

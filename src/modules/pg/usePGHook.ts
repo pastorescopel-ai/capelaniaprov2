@@ -1,3 +1,4 @@
+// Hook for Small Group data management
 import { useState } from 'react';
 import { User } from '../../types';
 import { useApp } from '../../hooks/useApp';

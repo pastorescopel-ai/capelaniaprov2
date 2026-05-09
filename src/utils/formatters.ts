@@ -16,9 +16,11 @@ export const cleanID = (val: any): string => {
   str = str.replace(/^(HAB|HABA|A)[-\s]*/i, '');
   
   // 2. Remove apenas espaços, caracteres de controle e caracteres invisíveis especiais
-  // Mantém pontos, traços e barras para evitar colisões indevidas (ex: 123.456 vs 123456)
   // eslint-disable-next-line no-control-regex
   str = str.replace(/[\s\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, '');
+
+  // 3. Remove zeros à esquerda para evitar divergências de formatação do Excel (00123 vs 123)
+  str = str.replace(/^0+/, '');
 
   return str;
 };

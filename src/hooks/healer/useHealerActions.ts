@@ -139,10 +139,9 @@ export const useHealerActions = (
 
       setIsProcessing(true);
       try {
-          let result: string;
           const healById = orphan.type === 'id' || orphan.type === 'mismatch';
           
-          result = await healSectorConnection(orphan.originalValue, selectedSector.id, healById, selectedSector.name);
+          const result = await healSectorConnection(orphan.originalValue, selectedSector.id, healById, selectedSector.name);
           
           await loadFromCloud(true);
           showToast(result, "success");

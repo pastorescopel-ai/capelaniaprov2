@@ -230,9 +230,9 @@ export const usePGMembershipData = ({
       // Ativo se entrou antes do fim do mês (ou reset de migração) e não saiu antes do início do mês
       const wasActive = (joined <= monthBoundaries.end || isMigrationReset) && left >= monthBoundaries.start;
       
-      // Se o mês selecionado NÃO estiver fechado, permitimos ver inativos na busca mas marcados (sem filtrar aqui)
+      // Se o mês selecionado NÃO estiver fechado, ocultamos inativos do RH para evitar matrículas indevidas
       if (!isMonthClosed) {
-        return wasActive;
+        return wasActive && s.active !== false;
       }
       
       return wasActive;

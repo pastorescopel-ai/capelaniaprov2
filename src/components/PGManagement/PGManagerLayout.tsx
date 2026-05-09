@@ -50,7 +50,7 @@ const PGManagerLayout: React.FC = () => {
   };
 
   const tabs = [
-    { id: 'dashboard', label: 'Visão Geral', icon: 'fas fa-chart-pie' },
+    { id: 'dashboard', label: 'Visão Geral (Painel PGs)', icon: 'fas fa-chart-pie' },
     { id: 'membership', label: 'Matrícula', icon: 'fas fa-user-plus' },
     { id: 'leaders', label: 'Líderes', icon: 'fas fa-users' },
     { id: 'ops', label: 'Agenda PG', icon: 'fas fa-calendar-check' },

@@ -1,3 +1,4 @@
+// Main application content manager
 import React, { lazy, Suspense, useMemo } from 'react';
 import ErrorBoundary from './ErrorBoundary';
 import { Unit, User } from '../types';
@@ -102,6 +103,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       case 'dashboard':
         return (
           <Dashboard 
+            unit={currentUnit}
             studies={bibleStudies} 
             classes={bibleClasses} 
             groups={smallGroups} 
