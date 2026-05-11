@@ -110,6 +110,10 @@ export const useExcelProcessor = () => {
           const idxName = findColumnIndex(headers, ['NOME', 'COLABORADOR', 'FUNCIONARIO', 'DESCRIÇÃO']);
           const idxSecId = findColumnIndex(headers, ['ID SETOR', 'COD SETOR', 'COD DEPARTAMENTO', 'CODIGO SETOR', 'CENTRO CUSTO']);
           const idxSecName = findColumnIndex(headers, ['SETOR', 'NOME SETOR', 'DEPARTAMENTO']);
+          
+          // Colunas Opcionais de PG (Para recuperação de desastres ou migração rápida)
+          const idxPGName = findColumnIndex(headers, ['PG', 'PEQUENO GRUPO', 'GRUPO PG']);
+          const idxIsLeader = findColumnIndex(headers, ['LIDER', 'LIDERANÇA', 'É LIDER']);
 
           if (idxId === -1 || idxName === -1) {
               throw new Error("Colunas obrigatórias (ID e Nome) não encontradas.");
@@ -158,6 +162,15 @@ export const useExcelProcessor = () => {
                   const sNameRaw = row[idxSecName] ? String(row[idxSecName]).trim() : '';
                   item.sectorIdRaw = sIdRaw;
                   item.sectorNameRaw = sNameRaw;
+
+                  // Capturar PG e Liderança se houver na planilha
+                  if (idxPGName !== -1 && row[idxPGName]) {
+                    (item as any).pgNameRaw = String(row[idxPGName]).trim();
+                  }
+                  if (idxIsLeader !== -1 && row[idxIsLeader]) {
+                    const lVal = String(row[idxIsLeader]).toUpperCase();
+                    (item as any).isLeaderRaw = lVal.includes('SIM') || lVal.includes('1') || lVal === 'X';
+                  }
                   
                   let match = null;
                   if (sIdRaw && proData) match = proData.sectors.find((s:any) => s.unit === activeUnit && cleanID(s.id) === sIdRaw);

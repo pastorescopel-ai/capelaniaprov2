@@ -18,7 +18,7 @@ interface PGClosingProps {
 const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
   const { 
     users, bibleStudies, bibleClasses, smallGroups, staffVisits, ambassadors,
-    saveRecord, deleteRecordsByFilter, loadFromCloud 
+    saveRecord, deleteRecordsByFilter, loadFromCloud
   } = useApp();
   
   const { 

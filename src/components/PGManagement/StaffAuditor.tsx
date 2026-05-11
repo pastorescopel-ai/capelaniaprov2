@@ -16,14 +16,14 @@ const StaffAuditor: React.FC<StaffAuditorProps> = ({ unit }) => {
   const [isCleaning, setIsCleaning] = useState(false);
   const { config } = useApp();
 
-  const expectedValues = {
+  const expectedValues = useMemo(() => ({
     'HAB': 1514,
     'HABA': 178
-  };
+  } as Record<string, number>), []);
 
   const audit = useMemo(() => {
     return auditStaffData(unit, proStaff, expectedValues[unit] || 0);
-  }, [unit, proStaff]);
+  }, [unit, proStaff, expectedValues]);
 
   const handleDeactivateDuplicate = async (id: string, name: string) => {
     if (!confirm(`Deseja marcar o registro "${name}" (ID: ${id}) como INATIVO?\nIsso removerá ele da contagem do dashboard.`)) return;

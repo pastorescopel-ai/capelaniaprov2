@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useTransition, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useTransition } from 'react';
 import { Unit } from '../../types';
 import PGDashboard from './PGDashboard';
 import PGMembership from './PGMembership';

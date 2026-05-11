@@ -97,7 +97,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
     setSyncState({ isOpen: true, status: 'processing', title: 'Sincronizando', message: 'Calculando diferenças e salvando...' });
     
     try {
-        const stats = { updated: 0, deactivated: 0, new: 0 };
+        const stats = { updated: 0, deactivated: 0, new: 0, rematriculated: 0 };
         const mergeData = (currentDB: any[], incomingList: ProcessedRow[], type: 'staff'|'sector'|'pg') => {
             const map = new Map<string, any>();
             const duplicatesToDeactivate: any[] = [];
@@ -182,13 +182,8 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                             value.updatedAt = Date.now(); 
                             stats.deactivated++; 
 
-                            // Cascata: Inativar matrículas em PGs
-                            if (type === 'staff') {
-                                const memberships = proGroupMembers.filter(m => cleanID(m.staffId) === cleanID(value.id) && !m.leftAt);
-                                memberships.forEach(m => {
-                                    saveRecord('proGroupMembers', { ...m, leftAt: previousMonthEnd });
-                                });
-                            }
+                            // Apenas marcamos como inativo no RH, mas NÃO encerramos as matrículas em PGs automaticamente
+                            // Isso preserva o histórico solicitado pelo usuário e evita perdas por planilhas incompletas.
                         }
                     }
                 }
@@ -201,7 +196,92 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
 
         if (activeTab === 'staff') {
             const finalStaff = mergeData(proData.staff, previewData, 'staff');
-            await onSavePro(finalStaff, proData.sectors, proData.groups, saveOptions);
+            const success = await onSavePro(finalStaff, proData.sectors, proData.groups, saveOptions);
+            
+            if (success) {
+                // AUTO-REMATRICULAÇÃO: Trazer matrículas do mês anterior ou do último disponível
+                const now = new Date(selectedMonth + 'T12:00:00');
+                const currentActiveStaffIds = new Set(finalStaff.filter(s => s.active !== false && s.unit === activeUnit).map(s => cleanID(s.id)));
+                const existingTargetMemberships = new Set((proGroupMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.staffId)}|${cleanID(m.groupId)}`));
+                const newMemberships: ProGroupMember[] = [];
+
+                // 1. Prioridade: Se a planilha ATUAL já tem informação de PG, usa ela (Recuperação Direta)
+                const spreadsheetMemberships = previewData.filter(p => (p as any).pgNameRaw);
+                if (spreadsheetMemberships.length > 0) {
+                    setSyncState(prev => ({ ...prev, message: `Staff atualizado. Importando ${spreadsheetMemberships.length} matrículas detectadas na planilha...` }));
+                    
+                    spreadsheetMemberships.forEach(p => {
+                        const sid = cleanID(p.id);
+                        const pgName = (p as any).pgNameRaw;
+                        const isLeader = (p as any).isLeaderRaw;
+                        
+                        const matchedPG = proData.groups.find(g => g.unit === activeUnit && normalizeString(g.name) === normalizeString(pgName));
+                        
+                        if (matchedPG) {
+                            const key = `${sid}|${cleanID(matchedPG.id)}`;
+                            if (!existingTargetMemberships.has(key)) {
+                                newMemberships.push({
+                                    id: crypto.randomUUID(),
+                                    groupId: matchedPG.id,
+                                    staffId: sid,
+                                    cycleMonth: selectedMonth,
+                                    isLeader: !!isLeader,
+                                    joinedAt: Date.now(),
+                                    createdAt: Date.now(),
+                                    updatedAt: Date.now()
+                                });
+                                existingTargetMemberships.add(key);
+                            }
+                        }
+                    });
+                }
+
+                // 2. Fallback: Se não tem nada na planilha, tenta propagar do mês anterior (Auto-Rematriculação)
+                if (newMemberships.length === 0) {
+                    // Tenta encontrar o mês mais recente com dados (limite de 12 meses atrás)
+                    let sourceMonthRecentral = "";
+                    for (let i = 1; i <= 12; i++) {
+                        const temp = new Date(now);
+                        temp.setMonth(temp.getMonth() - i);
+                        const iso = temp.toISOString().split('T')[0];
+                        const hasData = (proData.memberships || []).some(m => m.cycleMonth === iso);
+                        if (hasData) {
+                            sourceMonthRecentral = iso;
+                            break;
+                        }
+                    }
+
+                    if (sourceMonthRecentral) {
+                        const sourceMemberships = (proData.memberships || []).filter(m => m.cycleMonth === sourceMonthRecentral && !m.leftAt);
+                        setSyncState(prev => ({ ...prev, message: `Staff atualizado. Propagando ${sourceMemberships.length} matrículas de ${formatMonthLabel(sourceMonthRecentral)}...` }));
+                        
+                        sourceMemberships.forEach(oldM => {
+                            const sid = cleanID(oldM.staffId);
+                            if (currentActiveStaffIds.has(sid)) {
+                                const key = `${sid}|${cleanID(oldM.groupId)}`;
+                                if (!existingTargetMemberships.has(key)) {
+                                    newMemberships.push({
+                                        id: crypto.randomUUID(),
+                                        groupId: oldM.groupId,
+                                        staffId: oldM.staffId,
+                                        cycleMonth: selectedMonth,
+                                        isLeader: oldM.isLeader,
+                                        joinedAt: oldM.joinedAt || Date.now(),
+                                        createdAt: Date.now(),
+                                        updatedAt: Date.now()
+                                    });
+                                    existingTargetMemberships.add(key);
+                                }
+                            }
+                        });
+                    }
+                }
+
+                if (newMemberships.length > 0) {
+                    const res = await saveRecord('proGroupMembers', newMemberships);
+                    if (res) stats.rematriculated = newMemberships.length;
+                }
+            }
         } else if (activeTab === 'sectors') {
             const finalSectors = mergeData(proData.sectors, previewData, 'sector');
             await onSavePro(proData.staff, finalSectors, proData.groups, saveOptions);
@@ -210,7 +290,12 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
             await onSavePro(proData.staff, proData.sectors, finalGroups, saveOptions);
         }
 
-        setSyncState({ isOpen: true, status: 'success', title: 'Sincronização Blindada', message: `Sucesso!\n\nNovos/Atualizados: ${stats.updated + stats.new}\nRemovidos da lista (Inativos): ${stats.deactivated}\nIgnorados (Divergências): ${skippedRows.length}` });
+        setSyncState({ 
+            isOpen: true, 
+            status: 'success', 
+            title: 'Sincronização Blindada', 
+            message: `Sucesso!\n\nNovos/Atualizados: ${stats.updated + stats.new}\nRemovidos da lista (Inativos): ${stats.deactivated}${stats.rematriculated > 0 ? `\nRematriculados (Auto): ${stats.rematriculated}` : ''}\nIgnorados (Divergências): ${skippedRows.length}` 
+        });
         setPreviewData([]); 
     } catch (e: any) {
         setSyncState({ isOpen: true, status: 'error', title: 'Erro ao Salvar', message: "Falha na sincronização.", error: e.message });

@@ -1,19 +1,14 @@
 
-import React, { useMemo, useState, memo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, memo } from 'react';
 import { Unit, ProHistoryRecord } from '../../types';
 import { usePro } from '../../contexts/ProContext';
 import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { getTimestamp, normalizeString, cleanID, formatMonthLabel } from '../../utils/formatters';
 import StatusModal from './StatusModal';
-
-interface PGDashboardProps {
-  unit: Unit;
-}
-
 import { calculateDashboardMetrics } from '../../utils/metricsEngine';
 
-const PGDashboard: React.FC<PGDashboardProps> = memo(({ unit }) => {
+const PGDashboard = memo(({ unit }: { unit: Unit }) => {
   const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, proMonthlyStats, proHistoryRecords } = usePro();
   const { config } = useApp();
   const { currentUser } = useAuth();

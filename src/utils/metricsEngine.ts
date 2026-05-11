@@ -140,6 +140,7 @@ export const calculateDashboardMetrics = (
   const validSectorIds = new Set(unitSectors.map(s => cleanID(s.id)));
   const groupsById = new Map(proGroups.map(g => [cleanID(g.id), g]));
   
+  const migrationDate = new Date('2026-04-04').getTime();
   const enrolledStaffIds = new Set<string>();
   const memberGroupIdsBySector = new Map<string, Set<string>>();
   const activePGIds = new Set<string>();
@@ -154,9 +155,9 @@ export const calculateDashboardMetrics = (
     const mCreatedAt = getTimestamp(m.createdAt);
     
     const effectiveJoined = mJoinedAt || mCreatedAt;
-    const isCycleMatch = !m.cycleMonth || mCycleDate <= monthEnd;
+    const isCycleMatch = m.cycleMonth === selectedMonth;
     const isMigrationReset = !isCurrentMonth && !mJoinedAt && mCreatedAt >= migrationDate && (!mLeftDate || mLeftDate >= monthStart);
-    const isPeriodMatch = (effectiveJoined <= monthEnd || isMigrationReset) && (!mLeftDate || mLeftDate >= monthStart);
+    const isPeriodMatch = !m.cycleMonth && (effectiveJoined <= monthEnd || isMigrationReset) && (!mLeftDate || mLeftDate >= monthStart);
 
     if (isCycleMatch || isPeriodMatch) {
       enrolledStaffIds.add(cleanID(m.staffId));
@@ -172,8 +173,8 @@ export const calculateDashboardMetrics = (
     const mLeftDate = getTimestamp(m.leftAt);
     const mJoinedDate = getTimestamp(m.joinedAt || m.createdAt);
 
-    const isCycleMatch = !m.cycleMonth || mCycleDate <= monthEnd;
-    const isPeriodMatch = mJoinedDate <= monthEnd && (!mLeftDate || mLeftDate >= targetDate.getTime());
+    const isCycleMatch = m.cycleMonth === selectedMonth;
+    const isPeriodMatch = !m.cycleMonth && mJoinedDate <= monthEnd && (!mLeftDate || mLeftDate >= targetDate.getTime());
 
     if (isCycleMatch || isPeriodMatch) {
       activePGIds.add(cleanID(m.groupId));

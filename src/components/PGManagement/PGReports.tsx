@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, memo } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { Unit } from '../../types';
 import { usePro } from '../../contexts/ProContext';
 import { useApp } from '../../hooks/useApp';
@@ -11,7 +11,7 @@ interface PGReportsProps {
   unit: Unit;
 }
 
-const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
+const PGReports = memo(({ unit }: PGReportsProps) => {
   const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, proHistoryRecords } = usePro();
   const { config } = useApp();
   const { generatePdf, generateZipOfPdfs, isGenerating, progress } = useDocumentGenerator();
@@ -62,7 +62,7 @@ const PGReports: React.FC<PGReportsProps> = memo(({ unit }) => {
     };
   }, [startDate, endDate]);
 
-  const reportResult = useMemo(() => {
+  const reportResult = React.useMemo(() => {
     const sectors = proSectors.filter(s => s.unit === unit).sort((a,b) => a.name.localeCompare(b.name));
     let activePGCount = 0;
     const startTimestamp = new Date(startDate + 'T00:00:00').getTime();
