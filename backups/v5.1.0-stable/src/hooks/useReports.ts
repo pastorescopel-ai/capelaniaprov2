@@ -1,0 +1,359 @@
+import { useState, useMemo } from 'react';
+import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, ActivityFilter } from '../types';
+import { useReportLogic } from './useReportLogic';
+import { resolveDynamicName, normalizeString } from '../utils/formatters';
+import { generateExecutiveHTML } from '../utils/pdfTemplates';
+import { useDocumentGenerator } from './useDocumentGenerator';
+import { usePro } from '../contexts/ProContext';
+import { getBrandedHeaderByProfile } from '../utils/reportTemplates';
+
+interface UseReportsProps {
+  studies: BibleStudy[];
+  classes: BibleClass[];
+  groups: SmallGroup[];
+  visits: StaffVisit[];
+  users: User[];
+  config: Config;
+}
+
+export const useReports = ({ studies, classes, groups, visits, users, config }: UseReportsProps) => {
+  const { generatePdf, generateExcel, isGenerating } = useDocumentGenerator();
+  const { proGroups, proGroupMembers, proStaff, proSectors, proProviders, proGroupProviderMembers, proMonthlyStats } = usePro();
+  
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
+
+  const getStartOfMonth = () => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  };
+
+  const [filters, setFilters] = useState({
+    startDate: getStartOfMonth(),
+    endDate: new Date().toISOString().split('T')[0],
+    selectedChaplain: 'all', 
+    selectedUnit: 'all', 
+    selectedActivity: ActivityFilter.TODAS, 
+    selectedStatus: 'all', 
+    selectedPG: 'all'
+  });
+
+  const { filteredData, auditList, totalStats: liveStats } = useReportLogic(studies, classes, groups, visits, users, filters as any);
+  const pColor = config.primaryColor || '#005a9c';
+
+  // --- LÓGICA DE TRAVAMENTO DE DADOS (SNAPSHOTS) ---
+  const finalStats = useMemo(() => {
+    // 1. Verificar se o período é um mês cheio (ex: 2024-03-01 até 2024-03-31)
+    const start = new Date(filters.startDate + 'T12:00:00');
+    const end = new Date(filters.endDate + 'T12:00:00');
+    
+    const isFullMonth = start.getDate() === 1 && 
+                       end.getDate() >= 28 && 
+                       start.getMonth() === end.getMonth() && 
+                       start.getFullYear() === end.getFullYear();
+
+    if (isFullMonth) {
+      const monthISO = filters.startDate;
+      // Buscar snapshots de sumário para o mês
+      const snapshots = proMonthlyStats.filter(s => s.month === monthISO && s.type === 'summary');
+      
+      // Filtrar pela unidade selecionada
+      const targetSnapshots = filters.selectedUnit === 'all' 
+        ? snapshots 
+        : snapshots.filter(s => s.unit === filters.selectedUnit);
+
+      if (targetSnapshots.length > 0) {
+        // Agregar dados dos snapshots (caso seja 'all units')
+        const aggregated = targetSnapshots.reduce((acc, s) => {
+          const metrics = s.snapshotData?.performanceMetrics;
+          if (metrics) {
+            acc.studies += metrics.totalBibleStudies || 0;
+            acc.classes += metrics.totalBibleClasses || 0;
+            acc.groups += metrics.totalSmallGroups || 0;
+            acc.visits += metrics.totalStaffVisits || 0;
+            acc.students += metrics.totalUniqueStudents || 0;
+            acc.pgPercentages.push(metrics.pgPercentage || 0);
+          }
+          return acc;
+        }, { studies: 0, classes: 0, groups: 0, visits: 0, students: 0, pgPercentages: [] as number[] });
+
+        const avgPgPercentage = aggregated.pgPercentages.length > 0 
+          ? aggregated.pgPercentages.reduce((a, b) => a + b, 0) / aggregated.pgPercentages.length 
+          : 0;
+
+        // Agregar estatísticas por capelão dos snapshots
+        const aggregatedChaplainStatsMap = new Map<string, any>();
+        targetSnapshots.forEach(s => {
+          s.snapshotData?.performanceMetrics.chaplainStats?.forEach((cs: any) => {
+            if (!aggregatedChaplainStatsMap.has(cs.userId)) {
+              aggregatedChaplainStatsMap.set(cs.userId, { ...cs, hab: { total: 0, students: 0 }, haba: { total: 0, students: 0 } });
+            }
+            const entry = aggregatedChaplainStatsMap.get(cs.userId);
+            if (s.unit === Unit.HAB) {
+              entry.hab = { total: cs.total, students: cs.students, studies: cs.studies, classes: cs.classes, groups: cs.groups, visits: cs.visits };
+            } else {
+              entry.haba = { total: cs.total, students: cs.students, studies: cs.studies, classes: cs.classes, groups: cs.groups, visits: cs.visits };
+            }
+          });
+        });
+
+        const finalChaplainStats = Array.from(aggregatedChaplainStatsMap.values())
+          .map(s => ({
+            ...s,
+            name: s.userName,
+            user: users.find(u => u.id === s.userId) || { id: s.userId, name: s.userName },
+            totalActions: (s.hab?.total || 0) + (s.haba?.total || 0),
+            students: (s.hab?.students || 0) + (s.haba?.students || 0),
+            maxVal: Math.max((s.hab?.total || 0) + (s.haba?.total || 0), 1)
+          }))
+          .filter(s => filters.selectedChaplain === 'all' || s.userId === filters.selectedChaplain)
+          .sort((a, b) => b.totalActions - a.totalActions);
+
+        return {
+          stats: {
+            ...liveStats,
+            studies: aggregated.studies,
+            classes: aggregated.classes,
+            groups: aggregated.groups,
+            visits: aggregated.visits,
+            totalStudentsPeriod: aggregated.students,
+            pgPercentage: avgPgPercentage,
+            isLocked: true
+          },
+          chaplainStats: finalChaplainStats
+        };
+      }
+    }
+
+    // Se não for mês cheio ou não houver snapshot, usa liveStats + cálculo de PG atual
+    const unitStaff = proStaff.filter(s => (filters.selectedUnit === 'all' || s.unit === filters.selectedUnit) && s.active !== false);
+    const enrolledStaff = proGroupMembers.filter(m => {
+        const staff = proStaff.find(s => String(s.id) === String(m.staffId));
+        return staff && (filters.selectedUnit === 'all' || staff.unit === filters.selectedUnit) && !m.leftAt;
+    }).length;
+    const currentPgPercentage = unitStaff.length > 0 ? (enrolledStaff / unitStaff.length) * 100 : 0;
+
+    return {
+      stats: {
+        ...liveStats,
+        pgPercentage: currentPgPercentage,
+        isLocked: false
+      },
+      chaplainStats: null // Indica que deve usar o cálculo live
+    };
+  }, [filters.startDate, filters.endDate, filters.selectedUnit, filters.selectedChaplain, proMonthlyStats, liveStats, proStaff, proGroupMembers, users]);
+
+  const totalStats = finalStats.stats;
+
+  const chaplainStats = useMemo(() => {
+    if (finalStats.chaplainStats) return finalStats.chaplainStats;
+
+    return users.map(userObj => {
+      const uid = userObj.id;
+      const filterByUid = (list: any[]) => list.filter(i => i.userId === uid);
+      const getUnitStats = (unit: Unit) => {
+        const uS = filterByUid(filteredData.studies).filter(i => (i.unit || Unit.HAB) === unit);
+        const uC = filterByUid(filteredData.classes).filter(i => (i.unit || Unit.HAB) === unit);
+        const uG = filterByUid(filteredData.groups).filter(i => (i.unit || Unit.HAB) === unit);
+        const uV = filterByUid(filteredData.visits).filter(i => (i.unit || Unit.HAB) === unit);
+        const names = new Set<string>();
+        uS.forEach(s => s.name && names.add(normalizeString(s.name)));
+        uC.forEach(c => c.students?.forEach((n: any) => n && names.add(normalizeString(n))));
+        return { students: names.size, studies: uS.length, classes: uC.length, groups: uG.length, visits: uV.length, total: uS.length + uC.length + uG.length + uV.length };
+      };
+      const hab = getUnitStats(Unit.HAB);
+      const haba = getUnitStats(Unit.HABA);
+      return { user: userObj, name: userObj.name, totalActions: hab.total + haba.total, hab, haba, students: hab.students + haba.students, maxVal: Math.max(hab.total + haba.total, 1) };
+    }).filter(s => filters.selectedChaplain === 'all' || s.user.id === filters.selectedChaplain)
+      .filter(s => filters.selectedChaplain !== 'all' || s.totalActions > 0 || s.students > 0).sort((a, b) => b.totalActions - a.totalActions);
+  }, [users, filteredData, filters.selectedChaplain, finalStats.chaplainStats]);
+
+  const formatDate = (d: string) => d.split('T')[0].split('-').reverse().join('/');
+
+  const handleExportExcel = () => {
+    const studiesData = filteredData.studies.map(s => ({ Data: formatDate(s.date), Aluno: s.name, WhatsApp: s.whatsapp, Unidade: s.unit, Setor: s.sector, Guia: s.guide, Licao: s.lesson, Status: s.status, Capelao: users.find(u => u.id === s.userId)?.name }));
+    generateExcel(studiesData, "Estudos", `Relatorio_Estudos_${filters.startDate}`);
+  };
+
+  const handleGenerateOfficialReport = async () => {
+    setLoadingAction('official');
+    let habTotal = 0, habaTotal = 0;
+    chaplainStats.forEach(s => { habTotal += s.hab.total; habaTotal += s.haba.total; });
+    
+    const html = generateExecutiveHTML({
+      config, filters, totalStats, chaplainStats, 
+      unitTotals: { hab: habTotal, haba: habaTotal }, 
+      pColor
+    });
+    
+    await generatePdf(html);
+    setLoadingAction(null);
+  };
+
+  const handleGeneratePGReport = async () => {
+    setLoadingAction('pg_report');
+    
+    // Identificar se o período selecionado corresponde a um mês fechado (snapshot)
+    // Usamos a data de início como referência para buscar o histórico
+    const historyForPeriod = proHistoryRecords.filter(r => 
+      r.month === filters.startDate && 
+      (filters.selectedUnit === 'all' || r.unit === filters.selectedUnit)
+    );
+
+    const isUsingHistory = historyForPeriod.length > 0;
+
+    const targetPGs = filters.selectedPG === 'all' 
+      ? proGroups.filter(g => g.unit === filters.selectedUnit || filters.selectedUnit === 'all')
+      : proGroups.filter(g => g.id === filters.selectedPG);
+
+    targetPGs.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+    let html = `<div style="background: #f1f5f9; padding: 20px;">`;
+
+    for (const pg of targetPGs) {
+      let membersList: any[] = [];
+
+      if (isUsingHistory) {
+        // Usar dados do histórico (Snapshot imutável)
+        const historyMembers = historyForPeriod.filter(r => r.groupId === pg.id);
+        membersList = historyMembers.map(r => ({
+          name: r.staffName,
+          sectorName: r.sectorName,
+          isLeader: normalizeString(r.staffName || '') === normalizeString(pg.currentLeader || ''),
+          type: 'Colaborador'
+        }));
+      } else {
+        // Usar dados atuais (Mês aberto)
+        const activeStaffMembers = proGroupMembers.filter(m => m.groupId === pg.id && !m.leftAt);
+        const activeProviderMembers = proGroupProviderMembers.filter(m => m.groupId === pg.id && !m.leftAt);
+
+        membersList = [
+          ...activeStaffMembers.map(m => {
+            const staff = proStaff.find(s => s.id === m.staffId);
+            const sector = proSectors.find(s => s.id === staff?.sectorId);
+            return {
+              name: staff?.name || 'Desconhecido',
+              sectorName: sector?.name || 'Sem Setor',
+              isLeader: normalizeString(staff?.name || '') === normalizeString(pg.currentLeader || ''),
+              type: 'Colaborador'
+            };
+          }),
+          ...activeProviderMembers.map(m => {
+            const provider = proProviders.find(p => p.id === m.providerId);
+            return {
+              name: provider?.name || 'Desconhecido',
+              sectorName: 'Prestador',
+              isLeader: normalizeString(provider?.name || '') === normalizeString(pg.currentLeader || ''),
+              type: 'Prestador'
+            };
+          })
+        ];
+      }
+
+      membersList.sort((a, b) => {
+        if (a.isLeader && !b.isLeader) return -1;
+        if (!a.isLeader && b.isLeader) return 1;
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+
+      const leaderName = pg.currentLeader || 'Sem Líder Definido';
+
+      html += `
+        <div class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 15mm; background: white; box-sizing: border-box; font-family: sans-serif; position: relative; margin-bottom: 20px;">
+          ${getBrandedHeaderByProfile(config, 'smallGroups', `Unidade: ${pg.unit || 'Todas'} | Referência: ${isUsingHistory ? 'Histórico Fechado' : 'Dados Atuais'}`)}
+          
+          <div style="background: #f8fafc; padding: 20px; border-left: 8px solid ${pColor}; border-radius: 0 12px 12px 0; margin-bottom: 25px;">
+            <h2 style="font-size: 24px; font-weight: 900; color: #1e293b; margin: 0 0 5px 0; text-transform: uppercase;">${pg.name}</h2>
+            <p style="font-size: 14px; color: #475569; margin: 0; font-weight: bold;">Líder: <span style="color: ${pColor};">${leaderName}</span></p>
+            <p style="font-size: 10px; color: #94a3b8; margin: 5px 0 0 0; text-transform: uppercase;">Total de Membros: ${membersList.length}</p>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+            <thead>
+              <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; color: #475569; text-transform: uppercase;">
+                <th style="padding: 12px; text-align: left; width: 50%;">Nome do Membro</th>
+                <th style="padding: 12px; text-align: left; width: 30%;">Setor / Vínculo</th>
+                <th style="padding: 12px; text-align: center; width: 20%;">Assinatura</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${membersList.length > 0 ? membersList.map((m, index) => `
+                <tr style="border-bottom: 1px solid #e2e8f0; background: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                  <td style="padding: 12px; font-weight: ${m.isLeader ? '900' : '500'}; color: ${m.isLeader ? pColor : '#334155'}; text-transform: uppercase;">
+                    ${m.name} ${m.isLeader ? '<span style="font-size: 8px; background: #dbeafe; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; margin-left: 5px;">LÍDER</span>' : ''}
+                  </td>
+                  <td style="padding: 12px; font-weight: 700; color: #64748b;">
+                    ${m.sectorName}
+                  </td>
+                  <td style="padding: 12px; border-left: 1px solid #e2e8f0;">
+                    <!-- Espaço para assinatura -->
+                  </td>
+                </tr>
+              `).join('') : `
+                <tr>
+                  <td colspan="3" style="padding: 20px; text-align: center; color: #94a3b8; font-style: italic;">Nenhum membro matriculado neste PG.</td>
+                </tr>
+              `}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    if (targetPGs.length === 0) {
+      html += `
+        <div class="pdf-page" style="width: 210mm; height: 297mm; padding: 15mm; background: white; box-sizing: border-box; font-family: sans-serif; display: flex; align-items: center; justify-content: center;">
+          <h2 style="color: #94a3b8;">Nenhum PG encontrado para os filtros selecionados.</h2>
+        </div>
+      `;
+    }
+
+    html += `</div>`;
+    
+    await generatePdf(html);
+    setLoadingAction(null);
+  };
+
+  const handleGenerateAudit = async (type: 'students' | 'visits') => {
+    setLoadingAction(type);
+    const data = type === 'students' ? auditList : filteredData.visits.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const ROWS_PER_PAGE = 22;
+    const totalPages = Math.ceil(data.length / ROWS_PER_PAGE) || 1;
+    let html = `<div style="background: #f1f5f9; padding: 20px;">`;
+    
+    for (let p = 0; p < totalPages; p++) {
+      html += `<div class="pdf-page" style="width: 210mm; height: 297mm; padding: 15mm; background: white; box-sizing: border-box; font-family: sans-serif; position: relative;">
+          ${getBrandedHeaderByProfile(config, 'chaplaincy', `Página ${p + 1} de ${totalPages}`)}
+          <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+            <thead><tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #64748b; text-transform: uppercase;"><th style="padding: 10px; text-align: left;">Data</th><th style="padding: 10px; text-align: left;">Setor / Unid</th><th style="padding: 10px; text-align: left;">Nome / Motivo</th><th style="padding: 10px; text-align: left;">Capelão</th><th style="padding: 10px; text-align: right;">Status</th></tr></thead>
+            <tbody>
+              ${data.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE).map((item: any) => {
+                const dateFmt = new Date(item.date).toLocaleDateString();
+                const nameStr = type === 'students' ? (item.isClass ? item.studentsList.join(', ') : item.name) : item.staffName;
+                const chaplainStr = type === 'students' ? item.chaplain : (users.find(u => u.id === item.userId)?.name || 'N/I');
+                return `<tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px;">${dateFmt}</td><td style="padding: 8px; font-weight: 700;">${resolveDynamicName(item.sector)}<br/><span style="font-size: 7px; color: #94a3b8;">${item.unit}</span></td><td style="padding: 8px; font-weight: 900; text-transform: uppercase;">${nameStr}</td><td style="padding: 8px;">${chaplainStr.split(' ')[0]}</td><td style="padding: 8px; text-align: right; font-weight: 900; color: ${item.status === RecordStatus.TERMINO ? '#f43f5e' : '#10b981'};">${item.status || 'OK'}</td></tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+      </div>`;
+    }
+    html += `</div>`;
+    
+    await generatePdf(html);
+    setLoadingAction(null);
+  };
+
+  return {
+    filters,
+    setFilters,
+    loadingAction,
+    isGenerating,
+    pColor,
+    proGroups,
+    totalStats: finalStats.stats,
+    chaplainStats,
+    handleExportExcel,
+    handleGenerateOfficialReport,
+    handleGeneratePGReport,
+    handleGenerateAudit
+  };
+};
