@@ -266,7 +266,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                                         staffId: oldM.staffId,
                                         cycleMonth: selectedMonth,
                                         isLeader: oldM.isLeader,
-                                        joinedAt: oldM.joinedAt || Date.now(),
+                                        joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
                                         createdAt: Date.now(),
                                         updatedAt: Date.now()
                                     });

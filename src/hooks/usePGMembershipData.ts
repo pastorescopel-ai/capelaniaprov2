@@ -103,8 +103,8 @@ export const usePGMembershipData = ({
 
     // 1. Se o registro tem um ciclo específico
     if (m.cycleMonth) {
-      // Retorna verdadeiro se o ciclo bate OU se as datas reais mostram que ele estava lá
-      return m.cycleMonth <= selectedMonth || wasActiveInPeriod;
+      // Retorna verdadeiro se o ciclo é EXATAMENTE o selecionado E não foi encerrado antes do início do mês
+      return m.cycleMonth === selectedMonth && left >= monthBoundaries.start;
     }
 
     // 2. Fallback para registros sem cycleMonth
