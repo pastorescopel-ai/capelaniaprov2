@@ -104,11 +104,14 @@ export const usePGMembershipData = ({
     // 1. Se o registro tem um ciclo específico
     if (m.cycleMonth) {
       // Retorna verdadeiro se o ciclo é EXATAMENTE o selecionado E não foi encerrado antes do início do mês
-      return m.cycleMonth === selectedMonth && left >= monthBoundaries.start;
+      // E ignora registros marcados como erro de cadastro OU com saída retroativa (leftAt: 1)
+      const isActuallyError = m.isError === true || m.leftAt === 1;
+      return m.cycleMonth === selectedMonth && left >= monthBoundaries.start && !isActuallyError;
     }
 
-    // 2. Fallback para registros sem cycleMonth
-    return wasActiveInPeriod;
+    // 2. Fallback para registros sem cycleMonth (Respeita isError e saída retroativa)
+    const isActuallyError = m.isError === true || m.leftAt === 1;
+    return wasActiveInPeriod && !isActuallyError;
   }, [selectedMonth, monthBoundaries]);
 
   const currentSector = useMemo(() => 

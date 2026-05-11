@@ -127,7 +127,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
 
       const { firstDayMs } = getCycleDates(selectedMonth);
 
-      // 1. PRIORIDADE: Destravar registros com erro (isError: true)
+    // 1. PRIORIDADE: Destravar registros com erro (isError: true)
       const errorRecord = membersList.find(m => cleanId((m as any)[idField]) === cleanId(personId) && m.isError);
       
       if (errorRecord) {
@@ -137,50 +137,67 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
           joinedAt: firstDayMs,
           cycleMonth: selectedMonth,
           leftAt: null, 
-          isError: false 
+          isError: false,
+          updatedAt: Date.now()
         };
         const success = await saveRecord(collection, [update]);
         if (success) {
-          showToast("Registro destravado e matriculado!", "success");
+          showToast("Matrícula reativada no novo grupo!", "success");
           if (type === 'provider') setProviderSearch('');
           return;
         }
       }
 
-      // 2. MOVIMENTAÇÃO: Verificar se já existe matrícula ativa (pode haver mais de uma por erro anterior)
-      const allActiveMemberships = membersList.filter(m => cleanId((m as any)[idField]) === cleanId(personId) && !m.leftAt);
-      const activeMembership = allActiveMemberships[0];
+      // 2. MOVIMENTAÇÃO: Verificar todos os registros ativos no mês na unidade inteira
+      const unitGroupIds = new Set(proGroups.filter(g => g.unit === unit).map(g => g.id));
+      
+      // Busca registros que "existem" no mês selecionado (ativos, com ciclo ou que cruzam o período)
+      const { start: mStart, end: mEnd } = getCycleDates(selectedMonth).firstDayMs !== undefined 
+        ? { start: getCycleDates(selectedMonth).firstDayMs, end: getCycleDates(selectedMonth).lastDayMs }
+        : { start: 0, end: 0 };
 
-      if (allActiveMemberships.length > 0) {
-        if (activeMembership.cycleMonth === selectedMonth) {
-          // MESMO MÊS: Apenas atualiza o PG (Ajuste Direto)
-          // Se houver mais de um no mesmo mês (erro), encerra os outros
-          const updates = allActiveMemberships.map((m, idx) => {
-            if (idx === 0) return { ...m, groupId: currentPG.id, joinedAt: firstDayMs };
-            return { ...m, leftAt: firstDayMs - 1000 }; // Fecha duplicidades para que não apareçam no mês
-          });
+      const allRelevantMemberships = membersList.filter(m => {
+        const isSamePerson = cleanId((m as any)[idField]) === cleanId(personId);
+        if (!isSamePerson) return false;
+        
+        const isSameUnit = unitGroupIds.has(m.groupId);
+        if (!isSameUnit) return false;
 
-          const success = await saveRecord(collection, updates);
-          if (success) showToast("Matrícula atualizada!", "success");
-        } else {
-          // MÊS DIFERENTE: Encerra TODOS os antigos (Histórico) e cria novo
-          const updatesToClose = allActiveMemberships.map(m => {
-            const { lastDayMs: oldLastDay } = getCycleDates(m.cycleMonth || selectedMonth);
-            return { ...m, leftAt: oldLastDay };
-          });
-
-          const createNew: any = {
-            groupId: currentPG.id,
-            [idField]: personId,
-            joinedAt: firstDayMs,
-            cycleMonth: selectedMonth,
-            leftAt: null,
-            isError: false
+        // Está no mesmo ciclo OU não tem saída definida OU a saída é dentro/após o mês
+        const hasLeft = m.leftAt && m.leftAt > 1;
+        const leftDate = hasLeft ? m.leftAt : Infinity;
+        const isActiveInMonth = (m.cycleMonth === selectedMonth) || (leftDate >= mStart && !m.isError);
+        
+        return isActiveInMonth;
+      });
+      
+      if (allRelevantMemberships.length > 0) {
+        // Se já existe no mês selecionado, fazemos o "Hard Move" (Limpa antigos e atualiza para o novo)
+        const updates = allRelevantMemberships.map((m, idx) => {
+          // Mantemos apenas um registro vivo (o primeiro que encontrarmos ou o que já estava no ciclo)
+          const isPrimary = idx === 0;
+          if (isPrimary) {
+            return { 
+              ...m, 
+              groupId: currentPG.id, 
+              joinedAt: firstDayMs, 
+              cycleMonth: selectedMonth,
+              leftAt: null, 
+              isError: false, 
+              updatedAt: Date.now() 
+            };
+          }
+          // Todos os outros registros duplicados são "mortos" retroativamente
+          return { 
+            ...m, 
+            leftAt: 1, 
+            isError: true, 
+            updatedAt: Date.now() 
           };
-          
-          const success = await saveRecord(collection, [...updatesToClose, createNew]);
-          if (success) showToast("Nova matrícula com histórico preservado!", "success");
-        }
+        });
+
+        const success = await saveRecord(collection, updates);
+        if (success) showToast("Membro transferido com sucesso!", "success");
         if (type === 'provider') setProviderSearch('');
       } else {
         // 3. NOVA MATRÍCULA: Sem histórico prévio
@@ -249,18 +266,34 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     
     setPendingRemovals(prev => new Set(prev).add(memberId));
     
-    // Busca todas as matrículas ativas deste colaborador neste PG (para limpar duplicatas)
-    const activeMemberships = membersList.filter(m => 
-      cleanId((m as any)[idField]) === cleanId(personId) && 
-      m.groupId === currentPG?.id && 
-      !m.leftAt
-    );
+    // Busca TODAS as matrículas que interferem no mês selecionado para este colaborador na unidade
+    const unitGroupIds = new Set(proGroups.filter(g => g.unit === unit).map(g => g.id));
+    const { firstDayMs: mStart } = getCycleDates(selectedMonth);
     
+    // Filtra todos os registros desse colaborador que tocam o mês atual
+    const activeMemberships = membersList.filter(m => {
+      const isSamePerson = cleanId((m as any)[idField]) === cleanId(personId);
+      if (!isSamePerson) return false;
+      
+      const isSameUnit = unitGroupIds.has(m.groupId);
+      if (!isSameUnit) return false;
+
+      const hasLeft = m.leftAt && m.leftAt > 1;
+      const leftDate = hasLeft ? m.leftAt : Infinity;
+
+      // É relevante se: está ativo sem data de saída, OU se a saída é posterior ao início do mês, 
+      // OU se é o ciclo atual. Ignoramos os já marcados como erro.
+      return (m.cycleMonth === selectedMonth || leftDate >= mStart) && !m.isError;
+    });
+    
+    // Se não encontrou por lógica global mas tem um id específico, tenta por ID para segurança
     if (activeMemberships.length === 0 && memberId) {
         const byId = membersList.find(m => m.id === memberId && !m.leftAt);
         if (byId) activeMemberships.push(byId);
     }
     
+    // Se for uma exclusão direcionada de um PG específico vinda da UI, mas encontramos múltiplos,
+    // vamos garantir que todos os IDs encontrados entrem no estado de "pendente" para a UI atualizar
     activeMemberships.forEach(m => setPendingRemovals(prev => new Set(prev).add(m.id)));
     
     setMemberToRemove(null);
@@ -268,15 +301,31 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     
     try {
       if (activeMemberships.length > 0) {
-          // ENCERRAMENTO DE CICLO (SOFT DELETE): Baseado no mês selecionado
-          // Define a data de saída como o meio-dia do último dia do mês selecionado
+          // ENCERRAMENTO OU ERRO
           const { lastDayMs } = getCycleDates(selectedMonth);
+          const firstDayMs = getCycleDates(selectedMonth).firstDayMs;
           
-          const updates = activeMemberships.map(m => ({ 
-            ...m, 
-            leftAt: lastDayMs,
-            isError: removalType === 'error'
-          }));
+          const updates = activeMemberships.map(m => {
+            if (removalType === 'error') {
+              // Se for erro, "mata" o registro retroativamente para que não conte em nada
+              return { 
+                ...m, 
+                leftAt: 1, // 01/01/1970
+                isError: true,
+                updatedAt: Date.now()
+              };
+            } else {
+              // Se for transferência, encerra no final do mês ou na data atual se preferir
+              // O usuário pediu "registrar a data de mudança", vamos usar a data atual ou fim do mês? 
+              // Mantendo o padrão de ciclo de fechamento: fim do mês.
+              return { 
+                ...m, 
+                leftAt: lastDayMs,
+                isError: false,
+                updatedAt: Date.now()
+              };
+            }
+          });
           
           const success = await saveRecord(collection, updates);
           

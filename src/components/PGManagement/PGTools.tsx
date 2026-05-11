@@ -4,7 +4,7 @@ import { Unit, ProGroup } from '../../types';
 import { useApp } from '../../hooks/useApp';
 import { useToast } from '../../contexts/ToastContext';
 import { cleanID } from '../../utils/formatters';
-import StaffAuditor from './StaffAuditor';
+import PGDuplicateResolver from './PGDuplicateResolver';
 
 interface PGToolsProps {
   unit: Unit;
@@ -160,7 +160,7 @@ const PGTools: React.FC<PGToolsProps> = ({ unit }) => {
         </div>
       </div>
 
-      <StaffAuditor unit={unit} />
+      <PGDuplicateResolver unit={unit} />
     </div>
   );
 };
