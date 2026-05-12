@@ -314,5 +314,5 @@ export function usePGReportsData({
         }),
         activePGCount: activePGCount
     };
-  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, proHistoryRecords, unit, searchTerm, selectedTarget, startDate, endDate, filterCritical, config.activeCompetenceMonth]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, proHistoryRecords, unit, searchTerm, selectedTarget, startDate, endDate, filterCritical]);
 }
