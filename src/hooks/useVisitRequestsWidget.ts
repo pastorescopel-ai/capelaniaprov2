@@ -15,11 +15,11 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
   const { saveRecord, deleteRecord, proGroups, proSectors, proGroupLocations, proStaff, smallGroups, isInitialized } = useApp();
   const { showToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
-  const isSyncingRef = useRef(false);
+  const syncingIdsRef = useRef<Set<string>>(new Set());
   const [selectedRequest, setSelectedRequest] = useState<VisitRequest | null>(null);
   const [actionType, setActionType] = useState<'assign' | 'delete' | null>(null);
   const [selectedChaplainId, setSelectedChaplainId] = useState('');
-
+  
   // Lógica de Auto-Confirmação em Background
   // Se um PG já foi registrado no histórico para o mesmo dia e unidade, 
   // o agendamento deve ser marcado como confirmado automaticamente.
@@ -29,6 +29,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     const syncGhostRequests = async () => {
       const ghostRequests = requests.filter(req => {
         if (req.status !== 'assigned') return false;
+        if (syncingIdsRef.current.has(req.id)) return false; // Lock check
         
         const reqDate = ensureISODate(req.date);
         const normName = normalizeString(req.pgName);
@@ -41,21 +42,21 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       });
 
       if (ghostRequests.length > 0) {
-        if (isSyncingRef.current) return; // Lock check
-        isSyncingRef.current = true;
         console.log(`[Auto-Sync] Sincronizando ${ghostRequests.length} agendamentos já realizados.`);
         console.log(`[Auto-Sync] ghostRequests calculados:`, ghostRequests);
-        try {
-          for (const req of ghostRequests) {
-            try {
-              console.log(`[Auto-Sync] Tentando salvar request ID ${req.id}:`, req);
-              await saveRecord('visitRequests', { ...req, status: 'confirmed', isRead: true });
-            } catch (err) {
-              console.error("Erro na auto-confirmação:", err);
-            }
+        
+        for (const req of ghostRequests) {
+          syncingIdsRef.current.add(req.id); // Track in-flight
+          
+          try {
+            console.log(`[Auto-Sync] Tentando salvar request ID ${req.id}:`, req);
+            await saveRecord('visitRequests', { ...req, status: 'confirmed', isRead: true });
+          } catch (err) {
+            console.error("Erro na auto-confirmação para", req.id, ":", err);
+            syncingIdsRef.current.delete(req.id); // Release on fail
           }
-        } finally {
-          isSyncingRef.current = false;
+          // Note: not deleting from syncingIdsRef if success because the request
+          // will be updated by Supabase to 'confirmed', so filtered out anyway.
         }
       }
     };
