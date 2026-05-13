@@ -35,9 +35,12 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
   const chaplains = useMemo(() => users, [users]);
   
   const activeRequests = useMemo(() => {
-    return visitRequests
+    console.log(`[DEBUG PGOps] visitRequests length: ${visitRequests.length}, unit: ${unit}`);
+    const filtered = visitRequests
         .filter(r => r.unit === unit && r.status !== 'confirmed' && r.status !== 'declined')
         .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    console.log(`[DEBUG PGOps] activeRequests filtrado length: ${filtered.length}`);
+    return filtered;
   }, [visitRequests, unit]);
 
   const leaderInfo = useMemo(() => inferPGDetails(form.selectedPG), [inferPGDetails, form.selectedPG]);

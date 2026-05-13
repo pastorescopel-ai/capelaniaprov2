@@ -91,7 +91,10 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
         sg.unit === req.unit
       );
 
-      if (isAlreadyRegistered) return false;
+      if (isAlreadyRegistered) {
+        console.log(`[DEBUG VisitRequestsWidget] Request ${req.id} (${req.pgName}) hidden, isAlreadyRegistered: true`);
+        return false;
+      }
 
       if (currentUser.role === UserRole.ADMIN) return true;
       return req.assignedChaplainId === currentUser.id;
@@ -133,6 +136,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
         assignedChaplainId: assignedId || req.assignedChaplainId,
         isRead: false
       };
+      console.log(`[DEBUG VisitRequestsWidget] handleUpdateStatus para ID ${req.id}, novo status: ${newStatus}, updatedReq:`, updatedReq);
       await saveRecord('visitRequests', updatedReq);
       showToast('Escala atualizada com sucesso.', 'success');
       setSelectedRequest(null);

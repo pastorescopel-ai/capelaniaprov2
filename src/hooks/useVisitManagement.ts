@@ -91,6 +91,7 @@ export const useVisitManagement = (
         isRead: false
       };
 
+      console.log(`[DEBUG VisitManagement] requestData sendo enviado:`, JSON.stringify(requestData, null, 2));
       const success = await saveRecord('visitRequests', requestData);
       if (success) {
         showToast(editingRequestId ? 'Agendamento atualizado!' : 'Visita agendada!', "success");
