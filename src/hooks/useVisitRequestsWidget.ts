@@ -26,44 +26,46 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
   useEffect(() => {
     if (!isInitialized || requests.length === 0 || smallGroups.length === 0) return;
 
-    const syncGhostRequests = async () => {
-      const ghostRequests = requests.filter(req => {
-        if (req.status !== 'assigned') return false;
-        if (syncingIdsRef.current.has(req.id)) return false; // Lock check
+    // const syncGhostRequests = async () => {
+    //   const ghostRequests = requests.filter(req => {
+    //     if (req.status !== 'assigned') return false;
+    //     if (req.isRead) return false; // Skip if already read
+    //     if (syncingIdsRef.current.has(req.id)) return false; // Lock check
         
-        const reqDate = ensureISODate(req.date);
-        const normName = normalizeString(req.pgName);
+    //     const reqDate = ensureISODate(req.date);
+    //     const normName = normalizeString(req.pgName);
         
-        return smallGroups.some(sg => 
-          normalizeString(sg.groupName) === normName &&
-          ensureISODate(sg.date) === reqDate &&
-          sg.unit === req.unit
-        );
-      });
+    //     return smallGroups.some(sg => 
+    //       normalizeString(sg.groupName) === normName &&
+    //       ensureISODate(sg.date) === reqDate &&
+    //       sg.unit === req.unit
+    //     );
+    //   });
 
-      if (ghostRequests.length > 0) {
-        console.log(`[Auto-Sync] Sincronizando ${ghostRequests.length} agendamentos já realizados. IDs em processo:`, Array.from(syncingIdsRef.current));
-        console.log(`[Auto-Sync] ghostRequests calculados:`, ghostRequests);
+    //   if (ghostRequests.length > 0) {
+    //     console.log(`[Auto-Sync] Sincronizando ${ghostRequests.length} agendamentos já realizados. IDs em processo:`, Array.from(syncingIdsRef.current));
+    //     console.log(`[Auto-Sync] ghostRequests calculados:`, ghostRequests);
         
-        for (const req of ghostRequests) {
-          syncingIdsRef.current.add(req.id); // Track in-flight
+    //     for (const req of ghostRequests) {
+    //       syncingIdsRef.current.add(req.id); // Track in-flight
           
-          try {
-            console.log(`[Auto-Sync] Tentando salvar request ID ${req.id}:`, req);
-            await saveRecord('visitRequests', { ...req, isRead: true });
-            console.log(`[Auto-Sync] Sucesso ao marcar como lido ID ${req.id}`);
-          } catch (err) {
-            console.error("Erro na auto-confirmação para", req.id, ":", err);
-          } finally {
-            syncingIdsRef.current.delete(req.id); // Clean up track
-          }
-        }
-      }
-    };
+    //       try {
+    //         console.log(`[Auto-Sync] Tentando salvar request ID ${req.id}:`, req);
+    //         await saveRecord('visitRequests', { ...req, isRead: true });
+    //         console.log(`[Auto-Sync] Sucesso ao marcar como lido ID ${req.id}`);
+    //       } catch (err) {
+    //         console.error("Erro na auto-confirmação para", req.id, ":", err);
+    //       } finally {
+    //         syncingIdsRef.current.delete(req.id); // Clean up track
+    //       }
+    //     }
+    //   }
+    // };
 
-    // Pequeno delay para evitar concorrência com o salvamento imediato do form
-    const timer = setTimeout(syncGhostRequests, 2000);
-    return () => clearTimeout(timer);
+    // // Pequeno delay para evitar concorrência com o salvamento imediato do form
+    // const timer = setTimeout(syncGhostRequests, 2000);
+    // return () => clearTimeout(timer);
+
   }, [requests, smallGroups, isInitialized, saveRecord]);
 
   const { inferPGDetails } = usePGInference(
