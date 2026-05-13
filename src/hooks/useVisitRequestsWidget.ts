@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { User, VisitRequest, UserRole } from '../types';
 import { useApp } from './useApp';
 import { useToast } from '../contexts/ToastContext';
@@ -15,7 +15,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
   const { saveRecord, deleteRecord, proGroups, proSectors, proGroupLocations, proStaff, smallGroups, isInitialized } = useApp();
   const { showToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false); // Adicionar isSyncing
+  const isSyncingRef = useRef(false);
   const [selectedRequest, setSelectedRequest] = useState<VisitRequest | null>(null);
   const [actionType, setActionType] = useState<'assign' | 'delete' | null>(null);
   const [selectedChaplainId, setSelectedChaplainId] = useState('');
@@ -41,8 +41,8 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       });
 
       if (ghostRequests.length > 0) {
-        if (isSyncing) return; // Lock check
-        setIsSyncing(true);
+        if (isSyncingRef.current) return; // Lock check
+        isSyncingRef.current = true;
         console.log(`[Auto-Sync] Sincronizando ${ghostRequests.length} agendamentos já realizados.`);
         console.log(`[Auto-Sync] ghostRequests calculados:`, ghostRequests);
         try {
@@ -55,7 +55,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
             }
           }
         } finally {
-          setIsSyncing(false);
+          isSyncingRef.current = false;
         }
       }
     };
@@ -63,7 +63,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     // Pequeno delay para evitar concorrência com o salvamento imediato do form
     const timer = setTimeout(syncGhostRequests, 2000);
     return () => clearTimeout(timer);
-  }, [requests, smallGroups, isInitialized, saveRecord, isSyncing]);
+  }, [requests, smallGroups, isInitialized, saveRecord]);
 
   const { inferPGDetails } = usePGInference(
     requests[0]?.unit || 'HAB',
