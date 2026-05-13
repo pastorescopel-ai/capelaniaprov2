@@ -48,6 +48,9 @@ export const DataRepository = {
         hasMore = false;
       }
     }
+    if (tableName === 'visit_requests') {
+       console.log(`[DEBUG DataRepository - VISIT_REQUESTS] Fetch concluído, total recebido: ${allData.length}`);
+    }
     return { data: allData, error: null };
   },
 
@@ -163,6 +166,9 @@ export const DataRepository = {
 
     const payloads = items.map(i => cleanAndConvertToSnake(i, TABLE_SCHEMAS[tableName], tableName));
     console.log(`[DEBUG DataRepository] Payloads preparados para ${tableName}:`, payloads);
+    if (tableName === 'visit_requests') {
+       console.log(`[DEBUG DataRepository - VISIT_REQUESTS] IDs enviados:`, payloads.map(p => p.id));
+    }
 
     // Separar em dois grupos: os que têm ID (Updates/Upserts) e os que não têm (Inserts puros)
     // Isso evita que o Postgrest preencha com 'null' o campo ID em um array misto
