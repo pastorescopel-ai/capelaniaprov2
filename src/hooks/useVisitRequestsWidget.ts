@@ -42,7 +42,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       });
 
       if (ghostRequests.length > 0) {
-        console.log(`[Auto-Sync] Sincronizando ${ghostRequests.length} agendamentos já realizados.`);
+        console.log(`[Auto-Sync] Sincronizando ${ghostRequests.length} agendamentos já realizados. IDs em processo:`, Array.from(syncingIdsRef.current));
         console.log(`[Auto-Sync] ghostRequests calculados:`, ghostRequests);
         
         for (const req of ghostRequests) {
@@ -50,13 +50,13 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
           
           try {
             console.log(`[Auto-Sync] Tentando salvar request ID ${req.id}:`, req);
-            await saveRecord('visitRequests', { ...req, status: 'confirmed', isRead: true });
+            await saveRecord('visitRequests', { ...req, isRead: true });
+            console.log(`[Auto-Sync] Sucesso ao marcar como lido ID ${req.id}`);
           } catch (err) {
             console.error("Erro na auto-confirmação para", req.id, ":", err);
-            syncingIdsRef.current.delete(req.id); // Release on fail
+          } finally {
+            syncingIdsRef.current.delete(req.id); // Clean up track
           }
-          // Note: not deleting from syncingIdsRef if success because the request
-          // will be updated by Supabase to 'confirmed', so filtered out anyway.
         }
       }
     };
