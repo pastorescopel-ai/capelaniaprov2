@@ -15,6 +15,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
   const { saveRecord, deleteRecord, proGroups, proSectors, proGroupLocations, proStaff, smallGroups, isInitialized } = useApp();
   const { showToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false); // Adicionar isSyncing
   const [selectedRequest, setSelectedRequest] = useState<VisitRequest | null>(null);
   const [actionType, setActionType] = useState<'assign' | 'delete' | null>(null);
   const [selectedChaplainId, setSelectedChaplainId] = useState('');
@@ -40,13 +41,19 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       });
 
       if (ghostRequests.length > 0) {
+        if (isSyncing) return; // Lock check
+        setIsSyncing(true);
         console.log(`[Auto-Sync] Sincronizando ${ghostRequests.length} agendamentos já realizados.`);
-        for (const req of ghostRequests) {
-          try {
-            await saveRecord('visitRequests', { ...req, status: 'confirmed', isRead: true });
-          } catch (err) {
-            console.error("Erro na auto-confirmação:", err);
+        try {
+          for (const req of ghostRequests) {
+            try {
+              await saveRecord('visitRequests', { ...req, status: 'confirmed', isRead: true });
+            } catch (err) {
+              console.error("Erro na auto-confirmação:", err);
+            }
           }
+        } finally {
+          setIsSyncing(false);
         }
       }
     };
@@ -54,7 +61,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     // Pequeno delay para evitar concorrência com o salvamento imediato do form
     const timer = setTimeout(syncGhostRequests, 2000);
     return () => clearTimeout(timer);
-  }, [requests, smallGroups, isInitialized, saveRecord]);
+  }, [requests, smallGroups, isInitialized, saveRecord, isSyncing]);
 
   const { inferPGDetails } = usePGInference(
     requests[0]?.unit || 'HAB',
