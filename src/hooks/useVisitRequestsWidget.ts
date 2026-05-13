@@ -126,6 +126,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       setSelectedRequest(null);
       setActionType(null);
     } catch (e) {
+      console.error("[useVisitRequestsWidget] Erro ao atualizar escala:", e);
       showToast('Erro ao atualizar escala.', 'error');
     } finally {
       setIsProcessing(false);
@@ -140,6 +141,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       setSelectedRequest(null);
       setActionType(null);
     } catch (e) {
+      console.error("[useVisitRequestsWidget] Erro ao remover agendamento:", e);
       showToast('Erro ao remover agendamento.', 'error');
     } finally {
       setIsProcessing(false);

@@ -18,7 +18,10 @@ export const DataRepository = {
       .select('*')
       .range(0, 999);
       
-    if (firstError) return { data: [], error: firstError };
+    if (firstError) {
+      console.error(`[DataRepository] Erro ao buscar primeira página de ${tableName}:`, firstError);
+      return { data: [], error: firstError };
+    }
     if (!firstBatch || firstBatch.length < 1000) return { data: firstBatch || [], error: null };
     
     // Se atingiu 1000, precisamos buscar mais
@@ -34,7 +37,7 @@ export const DataRepository = {
         .range(from, from + step - 1);
         
       if (error) {
-        console.error(`Erro ao paginar ${tableName}:`, error);
+        console.error(`[DataRepository] Erro ao paginar ${tableName} no range ${from}-${from + step - 1}:`, error);
         return { data: allData, error };
       }
       if (data) {

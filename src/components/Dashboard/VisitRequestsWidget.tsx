@@ -117,7 +117,7 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
                 </div>
               </div>
               
-              {onRegisterMission && req.assignedChaplainId === currentUser.id && (
+              {onRegisterMission && (currentUser.role === UserRole.ADMIN || req.assignedChaplainId === currentUser.id) && (
                 <div className="flex gap-2 mt-auto">
                   <Button 
                     onClick={() => onRegisterMission(req)} 
