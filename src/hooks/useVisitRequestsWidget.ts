@@ -44,9 +44,11 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
         if (isSyncing) return; // Lock check
         setIsSyncing(true);
         console.log(`[Auto-Sync] Sincronizando ${ghostRequests.length} agendamentos já realizados.`);
+        console.log(`[Auto-Sync] ghostRequests calculados:`, ghostRequests);
         try {
           for (const req of ghostRequests) {
             try {
+              console.log(`[Auto-Sync] Tentando salvar request ID ${req.id}:`, req);
               await saveRecord('visitRequests', { ...req, status: 'confirmed', isRead: true });
             } catch (err) {
               console.error("Erro na auto-confirmação:", err);
