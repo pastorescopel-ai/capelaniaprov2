@@ -255,7 +255,6 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       if (pendingAgenda) {
         const agendaResult = await saveRecord('visitRequests', { 
           ...pendingAgenda, 
-          status: 'confirmed', 
           isRead: true 
         });
         
