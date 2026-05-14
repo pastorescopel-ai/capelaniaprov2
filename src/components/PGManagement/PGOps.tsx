@@ -30,16 +30,14 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
     handleCancelEdit,
     handleSaveVisit,
     handleDeleteVisit
-  } = useVisitManagement(saveRecord, deleteRecord);
+  } = useVisitManagement(saveRecord, deleteRecord, visitRequests);
 
   const chaplains = useMemo(() => users, [users]);
   
   const activeRequests = useMemo(() => {
-    console.log(`[DEBUG PGOps] visitRequests length: ${visitRequests.length}, unit: ${unit}`);
     const filtered = visitRequests
         .filter(r => r.unit === unit && r.status !== 'confirmed' && r.status !== 'declined')
         .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    console.log(`[DEBUG PGOps] activeRequests filtrado length: ${filtered.length}`);
     return filtered;
   }, [visitRequests, unit]);
 

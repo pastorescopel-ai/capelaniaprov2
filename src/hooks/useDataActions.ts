@@ -63,11 +63,9 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
   }, [setters, setIsSyncing]);
 
   const saveRecord = useCallback(async (collection: string, item: any) => {
-    console.log(`[DEBUG DataActions] Iniciando saveRecord para coleçao: ${collection}, item:`, item);
     const result = await DataRepository.upsertRecord(collection, item);
 
     if (result.success && result.data) {
-      console.log(`[DEBUG DataActions] Sucesso ao salvar em ${collection}, resposta:`, result.data.map(item => ({ id: item.id, status: item.status })));
       const updatedItems = result.data;
       const setter = setters[collection];
       

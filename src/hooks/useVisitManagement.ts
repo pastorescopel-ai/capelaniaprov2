@@ -1,12 +1,13 @@
 
 import { useState, useCallback } from 'react';
-import { VisitRequest, Unit, User } from '../types';
+import { VisitRequest, Unit } from '../types';
 import { useToast } from '../contexts/ToastContext';
-import { ensureISODate } from '../utils/formatters';
+import { ensureISODate, normalizeString } from '../utils/formatters';
 
 export const useVisitManagement = (
   saveRecord: (collection: string, item: any) => Promise<boolean>,
-  deleteRecord: (collection: string, id: string) => Promise<boolean>
+  deleteRecord: (collection: string, id: string) => Promise<boolean>,
+  visitRequests: VisitRequest[]
 ) => {
   const { showToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -83,7 +84,7 @@ export const useVisitManagement = (
         unit: unit,
         date: `${visitDate}T00:00:00Z`,
         scheduledTime: visitTime,
-        status: 'assigned',
+        status: editingRequestId ? 'assigned' : 'assigned', // Still assigned if editing, or assigned if creating
         assignedChaplainId: selectedChaplainId,
         requestNotes: notes || "Visita de acompanhamento designada pela gestão.",
         sectorId: pgDetails.sectorId,
@@ -91,8 +92,19 @@ export const useVisitManagement = (
         isRead: false
       };
 
-      console.log(`[DEBUG VisitManagement] requestData sendo enviado:`, JSON.stringify(requestData, null, 2));
       const success = await saveRecord('visitRequests', requestData);
+      
+      // Auto-confirmar se encontrar uma requisição pendente existente
+      const matchingReq = visitRequests.find(v => 
+        normalizeString(v.pgName) === normalizeString(selectedPG) && 
+        ensureISODate(v.date) === visitDate &&
+        v.status !== 'confirmed'
+      );
+      
+      if (matchingReq) {
+        await saveRecord('visitRequests', { ...matchingReq, status: 'confirmed', isRead: true });
+      }
+
       if (success) {
         showToast(editingRequestId ? 'Agendamento atualizado!' : 'Visita agendada!', "success");
         handleCancelEdit();
@@ -106,7 +118,7 @@ export const useVisitManagement = (
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedPG, selectedChaplainId, leaderPhone, meetingLocation, visitDate, visitTime, notes, editingRequestId, saveRecord, showToast, handleCancelEdit]);
+  }, [selectedPG, selectedChaplainId, leaderPhone, meetingLocation, visitDate, visitTime, notes, editingRequestId, saveRecord, showToast, handleCancelEdit, visitRequests]);
 
   const handleDeleteVisit = useCallback(async (id: string) => {
     setIsProcessing(true);
