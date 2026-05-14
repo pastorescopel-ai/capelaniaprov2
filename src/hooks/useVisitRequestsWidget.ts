@@ -85,7 +85,9 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       // Filtro Visual Imediato: Se já existe registro no histórico, oculta do Dashboard
       const reqDate = ensureISODate(req.date);
       const normName = normalizeString(req.pgName);
-      const isAlreadyRegistered = smallGroups.some(sg => 
+      
+      // Apenas consideramos "já registrado" se não tiver sido designado para um capelão
+      const isAlreadyRegistered = req.status !== 'assigned' && smallGroups.some(sg => 
         normalizeString(sg.groupName) === normName &&
         ensureISODate(sg.date) === reqDate &&
         sg.unit === req.unit
