@@ -94,17 +94,6 @@ export const useVisitManagement = (
 
       const success = await saveRecord('visitRequests', requestData);
       
-      // Auto-confirmar se encontrar uma requisição pendente existente
-      const matchingReq = visitRequests.find(v => 
-        normalizeString(v.pgName) === normalizeString(selectedPG) && 
-        ensureISODate(v.date) === visitDate &&
-        v.status !== 'confirmed'
-      );
-      
-      if (matchingReq) {
-        await saveRecord('visitRequests', { ...matchingReq, status: 'confirmed', isRead: true });
-      }
-
       if (success) {
         showToast(editingRequestId ? 'Agendamento atualizado!' : 'Visita agendada!', "success");
         handleCancelEdit();

@@ -86,8 +86,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       const reqDate = ensureISODate(req.date);
       const normName = normalizeString(req.pgName);
       
-      // Apenas consideramos "já registrado" se não tiver sido designado para um capelão
-      const isAlreadyRegistered = req.status !== 'assigned' && smallGroups.some(sg => 
+      const isAlreadyRegistered = smallGroups.some(sg => 
         normalizeString(sg.groupName) === normName &&
         ensureISODate(sg.date) === reqDate &&
         sg.unit === req.unit

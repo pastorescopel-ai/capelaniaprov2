@@ -53,8 +53,9 @@ const App: React.FC = () => {
     });
   };
 
-  const handleRegisterMission = (visit: any) => {
+  const handleRegisterMission = async (visit: any) => {
     skipClearRef.current = true;
+    
     // Definir o item de edição com uma flag especial de missão
     setEditingItem({
       ...visit,

@@ -253,9 +253,10 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
           })[0];
 
       if (pendingAgenda) {
-        console.log(`[DEBUG SmallGroupForm] Agendamento encontrado para confirmação:`, pendingAgenda);
+        // Agendamento encontrado para confirmação
         const agendaResult = await saveRecord('visitRequests', { 
           ...pendingAgenda, 
+          status: 'confirmed',
           isRead: true 
         });
         
