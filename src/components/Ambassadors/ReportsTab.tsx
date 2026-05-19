@@ -161,7 +161,7 @@ const ReportsTab: React.FC<ReportsTabProps> = ({
               return b.percent - a.percent;
             })
             .map((sector: any) => (
-              <div key={sector.name} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:border-blue-200 transition-all group">
+              <div key={sector.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:border-blue-200 transition-all group">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                   <div>
                     <h4 className="font-black text-slate-800 text-lg uppercase tracking-tight">{sector.name}</h4>

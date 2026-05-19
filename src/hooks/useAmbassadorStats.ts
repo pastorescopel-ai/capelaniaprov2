@@ -14,28 +14,7 @@ export const useAmbassadorStats = (
       [Unit.HABA]: { total: 0, sectors: {} as Record<string, { id: string, name: string, count: number, totalStaff: number, percent: number }> }
     };
 
-    // 1. Verificar se existem snapshots para o mês selecionado
-    if (selectedMonth) {
-      const snapshots = proMonthlyStats.filter(s => s.month === selectedMonth && s.type === 'sector');
-      if (snapshots.length > 0) {
-        snapshots.forEach(snap => {
-          const sector = proSectors.find(s => String(s.id) === String(snap.targetId));
-          if (sector && dataByUnit[snap.unit]) {
-            dataByUnit[snap.unit].sectors[snap.targetId] = {
-              id: snap.targetId,
-              name: sector.name,
-              count: snap.totalParticipants,
-              totalStaff: snap.totalStaff,
-              percent: snap.percentage
-            };
-            dataByUnit[snap.unit].total += snap.totalParticipants;
-          }
-        });
-        return dataByUnit;
-      }
-    }
-
-    // Lógica de Seleção de Staff (Fallback se não houver snapshot): 
+    // Lógica original:
     // 1. Tenta pegar o staff importado especificamente para o mês selecionado
     // 2. Se não houver, usa o staff marcado como "Ativo" (última importação realizada)
     const getStaffForUnit = (unit: Unit) => {
@@ -81,7 +60,7 @@ export const useAmbassadorStats = (
     });
 
     return dataByUnit;
-  }, [ambassadors, proSectors, proStaff, proMonthlyStats, selectedMonth]);
+  }, [ambassadors, proSectors, proStaff, selectedMonth]);
 
   const getChartData = (unit: Unit) => {
     return Object.values(stats[unit].sectors)
