@@ -71,14 +71,36 @@ export const formatDateBR = (val: any): string => {
 
 /**
  * Garante que o valor seja uma string no formato YYYY-MM-DD, 
- * aceitando tanto strings ISO quanto timestamps numéricos.
+ * de forma extremamente robusta contra variações de fuso horário e navegadores.
  */
 export const ensureISODate = (val: any): string => {
   if (!val) return "";
   if (typeof val === 'number') {
-    return new Date(val).toLocaleDateString('en-CA');
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return "";
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
-  return String(val).split('T')[0];
+  
+  const str = String(val).trim();
+  
+  // 1. Tentar capturar o padrão YYYY-MM-DD via regex para evitar qualquer distorção de fuso horário
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    return `${match[1]}-${match[2]}-${match[3]}`;
+  }
+  
+  // 2. Tentar capturar o padrão DD/MM/YYYY
+  const matchBR = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (matchBR) {
+    return `${matchBR[3]}-${matchBR[2]}-${matchBR[1]}`;
+  }
+  
+  // 3. Fallback seguro usando o construtor Date do JS
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  return "";
 };
 
 export const getFirstName = (fullName: string) => {

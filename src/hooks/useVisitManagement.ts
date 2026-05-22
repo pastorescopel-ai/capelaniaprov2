@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { VisitRequest, Unit } from '../types';
 import { useToast } from '../contexts/ToastContext';
-import { ensureISODate, normalizeString } from '../utils/formatters';
+import { ensureISODate, normalizeString, toSafeDateISO } from '../utils/formatters';
 
 export const useVisitManagement = (
   saveRecord: (collection: string, item: any) => Promise<boolean>,
@@ -82,7 +82,7 @@ export const useVisitManagement = (
         leaderName: pgDetails.leaderName || 'Líder não registrado',
         leaderPhone: leaderPhone,
         unit: unit,
-        date: `${visitDate}T00:00:00Z`,
+        date: toSafeDateISO(visitDate),
         scheduledTime: visitTime,
         status: editingRequestId ? 'assigned' : 'assigned', // Still assigned if editing, or assigned if creating
         assignedChaplainId: selectedChaplainId,

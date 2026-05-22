@@ -76,7 +76,10 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     proStaff
   );
 
-  const todayStr = new Date().toLocaleDateString('en-CA');
+  const todayStr = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }, []);
 
   const myRequests = useMemo(() => {
     return requests.filter(req => {
@@ -86,11 +89,13 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       const reqDate = ensureISODate(req.date);
       const normName = normalizeString(req.pgName);
       
-      const isAlreadyRegistered = smallGroups.some(sg => 
-        normalizeString(sg.groupName) === normName &&
-        ensureISODate(sg.date) === reqDate &&
-        sg.unit === req.unit
-      );
+      const isAlreadyRegistered = reqDate && normName && smallGroups.some(sg => {
+        const sgDate = ensureISODate(sg.date);
+        return sgDate && 
+          normalizeString(sg.groupName) === normName &&
+          sgDate === reqDate &&
+          sg.unit === req.unit;
+      });
 
       if (isAlreadyRegistered) {
         return false;
