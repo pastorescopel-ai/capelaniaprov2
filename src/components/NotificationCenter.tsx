@@ -6,6 +6,7 @@ import { useToast } from '../contexts/ToastContext';
 import { UserRole, VisitRequest } from '../types';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { usePGInference } from '../hooks/usePGInference';
+import { normalizeString, ensureISODate } from '../utils/formatters';
 
 interface NotificationCenterProps {
   onGoToReturnHistory?: (visit?: any) => void;
@@ -40,10 +41,27 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
     if (!currentUser || !visitRequests) return [];
     return (visitRequests || []).filter(req => {
       if (req.status === 'confirmed' || req.status === 'declined') return false;
+
+      // Filtro de Visita Já Registrada (Sincronizado com Dashboard)
+      const reqDate = ensureISODate(req.date);
+      const normName = normalizeString(req.pgName);
+      
+      const isAlreadyRegistered = reqDate && normName && smallGroups.some(sg => {
+        const sgDate = ensureISODate(sg.date);
+        return sgDate && 
+          normalizeString(sg.groupName) === normName &&
+          sgDate === reqDate &&
+          sg.unit === req.unit;
+      });
+
+      if (isAlreadyRegistered) {
+        return false;
+      }
+
       if (currentUser.role === UserRole.ADMIN) return true;
       return req.assignedChaplainId === currentUser.id;
-    }).sort((a, b) => new Date(a.date).getTime() - new Date(a.date).getTime());
-  }, [visitRequests, currentUser]);
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [visitRequests, currentUser, smallGroups]);
 
   const getEnhancedInfo = useCallback((req: VisitRequest) => {
     // 1. Tenta usar os dados já presentes na escala
