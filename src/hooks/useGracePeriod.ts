@@ -7,12 +7,6 @@ export const useGracePeriod = (normalizedRole: string) => {
   const [isCritical, setIsCritical] = useState(false);
 
   useEffect(() => {
-    if (normalizedRole === 'ADMIN') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsGracePeriod(false);
-      return;
-    }
-
     const calculateTime = () => {
       const today = new Date();
       const currentYear = today.getFullYear();
