@@ -389,9 +389,12 @@ export function generateLeadersReportHtml(proGroups: any[], proStaff: any[], pro
                 sector = proSectors.find(sec => sec.id === g.sectorId);
             }
             
+            const leaderPhone = staff?.whatsapp || g.leaderPhone || '-';
+            
             return {
                 pgName: g.name,
                 leaderName: leaderName,
+                leaderPhone: leaderPhone,
                 sectorName: sector ? sector.name : 'Sem Setor Definido'
             };
         })
@@ -422,6 +425,7 @@ export function generateLeadersReportHtml(proGroups: any[], proStaff: any[], pro
                   <thead>
                     <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc;">
                       <th style="padding: 10px 15px; font-weight: 800; color: #475569; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;">Líder do PG</th>
+                      <th style="padding: 10px 15px; font-weight: 800; color: #475569; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;">Celular</th>
                       <th style="padding: 10px 15px; font-weight: 800; color: #475569; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;">Pequeno Grupo</th>
                       <th style="padding: 10px 15px; font-weight: 800; color: #475569; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;">Setor do Líder</th>
                     </tr>
@@ -430,6 +434,7 @@ export function generateLeadersReportHtml(proGroups: any[], proStaff: any[], pro
                     ${pageItems.length > 0 ? pageItems.map(item => `
                       <tr style="border-bottom: 1px solid #f1f5f9;">
                         <td style="padding: 12px 15px; font-weight: 700; color: #1e293b; text-transform: uppercase;">${item.leaderName}</td>
+                        <td style="padding: 12px 15px; font-weight: 600; color: #475569;">${item.leaderPhone}</td>
                         <td style="padding: 12px 15px; font-weight: 600; color: #0284c7;">${item.pgName}</td>
                         <td style="padding: 12px 15px; font-weight: 600; color: #475569; text-transform: uppercase;">
                           <span style="background: #f1f5f9; padding: 4px 10px; border-radius: 8px; font-size: 11px; border: 1px solid #e2e8f0;">
@@ -439,7 +444,7 @@ export function generateLeadersReportHtml(proGroups: any[], proStaff: any[], pro
                       </tr>
                     `).join('') : `
                       <tr>
-                        <td colspan="3" style="padding: 24px; text-align: center; color: #94a3b8; font-style: italic;">
+                        <td colspan="4" style="padding: 24px; text-align: center; color: #94a3b8; font-style: italic;">
                           Nenhum Pequeno Grupo ativo encontrado nesta unidade.
                         </td>
                       </tr>
