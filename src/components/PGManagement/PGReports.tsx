@@ -9,7 +9,8 @@ import { usePGReportsData } from '../../hooks/usePGReportsData';
 import { 
   generateSectorHtml, 
   generateActivityReportHtml, 
-  generateNoLeaderReportHtml 
+  generateNoLeaderReportHtml,
+  generateLeadersReportHtml 
 } from '../../utils/pgReportGenerators';
 
 interface PGReportsProps {
@@ -101,6 +102,11 @@ const PGReports = memo(({ unit }: PGReportsProps) => {
     await generatePdf(html, `PGs_Ativos_Sem_Lideres_${unit}_${startDate}.pdf`);
   };
 
+  const handlePrintLeadersAction = async () => {
+    const html = generateLeadersReportHtml(proGroups, proStaff, proSectors, unit, reportHeaderInfo, config);
+    await generatePdf(html, `Relacao_Lideres_PGs_${unit}_${startDate}.pdf`);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       
@@ -150,6 +156,14 @@ const PGReports = memo(({ unit }: PGReportsProps) => {
               >
                   {isGenerating ? <i className="fas fa-circle-notch fa-spin"></i> : <i className="fas fa-list-check"></i>}
                   Atividade de PGs
+              </button>
+              <button 
+                onClick={handlePrintLeadersAction} 
+                disabled={!!isGenerating}
+                className="px-6 py-4 bg-sky-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:brightness-110 transition-all flex items-center gap-3 disabled:opacity-50"
+              >
+                  {isGenerating ? <i className="fas fa-circle-notch fa-spin"></i> : <i className="fas fa-user-tie"></i>}
+                  Relação de Líderes
               </button>
               <button 
                 onClick={handlePrintAction} 

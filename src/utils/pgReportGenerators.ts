@@ -371,3 +371,89 @@ export function generateNoLeaderReportHtml(proGroups: any[], proGroupMembers: an
     `;
     return html;
 }
+
+export function generateLeadersReportHtml(proGroups: any[], proStaff: any[], proSectors: any[], unit: string, reportHeaderInfo: any, config: any) {
+    const list = proGroups
+        .filter(g => g.unit === unit && g.active !== false)
+        .map(g => {
+            const leaderName = g.currentLeader || g.leader || 'Sem Líder Definido';
+            const staff = proStaff.find(s => 
+                s.unit === unit && 
+                normalizeString(s.name) === normalizeString(leaderName)
+            );
+            let sector = null;
+            if (staff && staff.sectorId) {
+                sector = proSectors.find(sec => sec.id === staff.sectorId);
+            }
+            if (!sector && g.sectorId) {
+                sector = proSectors.find(sec => sec.id === g.sectorId);
+            }
+            
+            return {
+                pgName: g.name,
+                leaderName: leaderName,
+                sectorName: sector ? sector.name : 'Sem Setor Definido'
+            };
+        })
+        .sort((a, b) => a.leaderName.localeCompare(b.leaderName));
+
+    const itemsPerPage = 18;
+    const pages: any[][] = [];
+    for (let i = 0; i < list.length; i += itemsPerPage) {
+        pages.push(list.slice(i, i + itemsPerPage));
+    }
+
+    if (pages.length === 0) {
+        pages.push([]);
+    }
+
+    let html = '';
+    pages.forEach((pageItems, pageIdx) => {
+        html += `
+          <div class="pdf-page" style="width: 210mm; min-height: 297mm; background: white; box-sizing: border-box; font-family: 'Inter', sans-serif; color: #1e293b; display: block; overflow: hidden; line-height: 1.6; page-break-after: always; position: relative;">
+              ${getBrandedHeaderByProfile(config, 'smallGroups', `Relação de Líderes por Setor - ${reportHeaderInfo.periodLabel} ${pages.length > 1 ? `(${pageIdx + 1}/${pages.length})` : ''}`)}
+              <div style="padding: 0 20mm 20mm 20mm;">
+                <div style="font-size: 18px; font-weight: 900; text-transform: uppercase; border-bottom: 4px solid ${config.primaryColor || '#0284c7'}; padding-bottom: 15px; margin-bottom: 25px; color: ${config.primaryColor || '#0284c7'}; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.05em;">
+                  <span>Líderes de Pequenos Grupos</span>
+                  <span style="font-size: 14px; background: #f0f9ff; color: #0369a1; padding: 6px 16px; border-radius: 24px; border: 1px solid #bae6fd;">${list.length} PGs</span>
+                </div>
+                
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                  <thead>
+                    <tr style="border-bottom: 2px solid #e2e8f0; background: #f8fafc;">
+                      <th style="padding: 10px 15px; font-weight: 800; color: #475569; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;">Líder do PG</th>
+                      <th style="padding: 10px 15px; font-weight: 800; color: #475569; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;">Pequeno Grupo</th>
+                      <th style="padding: 10px 15px; font-weight: 800; color: #475569; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;">Setor do Líder</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${pageItems.length > 0 ? pageItems.map(item => `
+                      <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 12px 15px; font-weight: 700; color: #1e293b; text-transform: uppercase;">${item.leaderName}</td>
+                        <td style="padding: 12px 15px; font-weight: 600; color: #0284c7;">${item.pgName}</td>
+                        <td style="padding: 12px 15px; font-weight: 600; color: #475569; text-transform: uppercase;">
+                          <span style="background: #f1f5f9; padding: 4px 10px; border-radius: 8px; font-size: 11px; border: 1px solid #e2e8f0;">
+                            ${item.sectorName}
+                          </span>
+                        </td>
+                      </tr>
+                    `).join('') : `
+                      <tr>
+                        <td colspan="3" style="padding: 24px; text-align: center; color: #94a3b8; font-style: italic;">
+                          Nenhum Pequeno Grupo ativo encontrado nesta unidade.
+                        </td>
+                      </tr>
+                    `}
+                  </tbody>
+                </table>
+                
+                <div style="position: absolute; bottom: 20mm; left: 20mm; right: 20mm;">
+                  ${getBrandedFooter()}
+                </div>
+              </div>
+          </div>
+        `;
+    });
+
+    return html;
+}
