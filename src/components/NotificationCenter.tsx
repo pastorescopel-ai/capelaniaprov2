@@ -145,9 +145,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
           <div className="p-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
             <div>
               <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Novas Escalas</h4>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{unreadCount} escalas para PG</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{filteredRequests.length} escalas pendentes</p>
             </div>
-            {unreadCount > 0 && <button onClick={handleMarkAllAsRead} className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Limpar</button>}
+            {filteredRequests.some(req => !req.isRead) && <button onClick={handleMarkAllAsRead} className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Limpar</button>}
           </div>
 
           <div className="max-h-[400px] overflow-y-auto no-scrollbar py-2">

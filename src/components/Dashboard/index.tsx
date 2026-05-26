@@ -110,7 +110,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Escala de Visitas PG (VisitRequestsWidget) */}
       <VisitRequestsWidget 
-        requests={visitRequests} 
+        requests={(visitRequests || []).filter(req => req.unit === unit)} 
         currentUser={currentUser} 
         users={users} 
         onRegisterMission={onRegisterMission} 
