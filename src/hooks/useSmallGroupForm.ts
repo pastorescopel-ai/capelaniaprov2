@@ -238,19 +238,22 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       }
 
       // 1. Tentar encontrar o agendamento pelo ID preservado (mais seguro)
-      // 2. Fallback: buscar por nome e proximidade de data
+      // 2. Fallback: buscar por nome e proximidade de data (máximo de 3 dias de diferença)
+      const matchedRequests = visitRequests
+        .filter(req => 
+          req.status === 'assigned' && 
+          req.assignedChaplainId === currentUser.id && 
+          normalizeString(req.pgName) === normalizeString(formData.groupName)
+        )
+        .map(req => {
+          const diff = Math.abs(new Date(req.date).getTime() - new Date(formData.date).getTime());
+          return { req, diff };
+        })
+        .filter(item => item.diff <= 3 * 24 * 60 * 60 * 1000) // Tolerância máxima de 3 dias para auto-confirmação automática
+        .sort((a, b) => a.diff - b.diff);
+
       const pendingAgenda = (formData.visitRequestId ? visitRequests.find(r => r.id === formData.visitRequestId) : null) || 
-        visitRequests
-          .filter(req => 
-            req.status === 'assigned' && 
-            req.assignedChaplainId === currentUser.id && 
-            normalizeString(req.pgName) === normalizeString(formData.groupName)
-          )
-          .sort((a, b) => {
-            const diffA = Math.abs(new Date(a.date).getTime() - new Date(formData.date).getTime());
-            const diffB = Math.abs(new Date(b.date).getTime() - new Date(formData.date).getTime());
-            return diffA - diffB;
-          })[0];
+        (matchedRequests.length > 0 ? matchedRequests[0].req : null);
 
       if (pendingAgenda) {
         // Agendamento encontrado para confirmação

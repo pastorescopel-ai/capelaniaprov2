@@ -136,6 +136,39 @@ export const useAppData = () => {
     }
   }, [loadFromCloud, isInitialized]);
 
+  // Auto-refresh inteligente ao focar ou reativar a janela (crucial para o iOS/Safari PWA)
+  useEffect(() => {
+    let lastRefresh = 0;
+    const throttleTime = 5000; // Evita múltiplas chamadas consecutivas em menos de 5s
+
+    const triggerRefresh = () => {
+      const now = Date.now();
+      if (now - lastRefresh > throttleTime) {
+        lastRefresh = now;
+        console.log("🔄 Reativando/Focando app: Atualizando dados do Supabase...");
+        refreshData();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        triggerRefresh();
+      }
+    };
+
+    const handleFocus = () => {
+      triggerRefresh();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refreshData]);
+
   // Sincronização automática de estudantes nas classes bíblicas
   useEffect(() => {
     setBibleClasses(prevClasses => {

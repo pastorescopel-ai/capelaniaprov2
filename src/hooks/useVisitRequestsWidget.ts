@@ -94,7 +94,8 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
         return sgDate && 
           normalizeString(sg.groupName) === normName &&
           sgDate === reqDate &&
-          sg.unit === req.unit;
+          sg.unit === req.unit &&
+          req.assignedChaplainId && sg.userId === req.assignedChaplainId; // Garante que a reunião encontrada foi de fato registrada pelo capelão designado para a visita
       });
 
       if (isAlreadyRegistered) {
