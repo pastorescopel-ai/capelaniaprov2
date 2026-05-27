@@ -52,7 +52,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
           normalizeString(sg.groupName) === normName &&
           sgDate === reqDate &&
           sg.unit === req.unit &&
-          req.assignedChaplainId && sg.userId === req.assignedChaplainId; // Garante que a reunião encontrada foi de fato registrada pelo capelão designado para a visita
+          req.assignedChaplainId && String(sg.userId) === String(req.assignedChaplainId); // Garante que a reunião encontrada foi de fato registrada pelo capelão designado para a visita
       });
 
       if (isAlreadyRegistered) {

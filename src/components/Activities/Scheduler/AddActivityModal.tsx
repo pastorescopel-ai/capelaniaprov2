@@ -64,6 +64,26 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
     setSelectedLocations(prev => prev.includes(loc) ? prev.filter(l => l !== loc) : [...prev, loc]);
   };
 
+  const handleTimeChange = (timeValue: string, isSector: boolean = false) => {
+    if (isSector) {
+      setCurrentSectorTime(timeValue);
+    } else {
+      setNewActivityTime(timeValue);
+    }
+
+    if (timeValue) {
+      const [hourStr] = timeValue.split(':');
+      const hour = parseInt(hourStr, 10);
+      if (!isNaN(hour)) {
+        if (hour >= 7 && hour <= 12) {
+          setSelectedPeriod('manha');
+        } else if (hour >= 14 && hour <= 18) {
+          setSelectedPeriod('tarde');
+        }
+      }
+    }
+  };
+
   const handleConfirm = () => {
     const newSchedules: any[] = [];
 
@@ -292,7 +312,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
                   <input
                     type="time"
                     value={currentSectorTime}
-                    onChange={e => setCurrentSectorTime(e.target.value)}
+                    onChange={e => handleTimeChange(e.target.value, true)}
                     className="w-full p-3 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500/20 outline-none"
                   />
                 </div>
@@ -346,7 +366,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
               <input
                 type="time"
                 value={newActivityTime}
-                onChange={e => setNewActivityTime(e.target.value)}
+                onChange={e => handleTimeChange(e.target.value, false)}
                 className="w-full p-4 bg-slate-50 border-none rounded-2xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
               />
             </div>

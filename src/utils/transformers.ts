@@ -41,7 +41,7 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at', 'left_at', 'is_error', 'cycle_month', 'created_at', 'updated_at'],
   pro_group_provider_members: ['id', 'group_id', 'provider_id', 'joined_at', 'left_at', 'is_error', 'cycle_month', 'created_at', 'updated_at'],
   ambassadors: ['id', 'registration_id', 'name', 'sector_id', 'unit', 'completion_date', 'cycle_month', 'created_at', 'updated_at'],
-  activity_schedules: ['id', 'user_id', 'unit', 'month', 'day_of_week', 'activity_type', 'location', 'time', 'created_at', 'updated_at'],
+  activity_schedules: ['id', 'user_id', 'unit', 'month', 'day_of_week', 'activity_type', 'location', 'period', 'time', 'date', 'responsible_name', 'responsible_whatsapp', 'created_at', 'updated_at'],
   daily_activity_reports: ['id', 'user_id', 'date', 'unit', 'completed_blueprints', 'completed_cults', 'completed_encontro', 'completed_visite_cantando', 'palliative_count', 'surgical_count', 'pediatric_count', 'uti_count', 'terminal_count', 'clinical_count', 'observations', 'created_at', 'updated_at'],
   pro_monthly_stats: ['id', 'month', 'type', 'target_id', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'unit', 'snapshot_data', 'created_at', 'updated_at'],
   edit_authorizations: ['id', 'user_id', 'user_name', 'allowed_tabs', 'month_to_unlock', 'expiry_date', 'created_by', 'created_at', 'updated_at'],

@@ -239,6 +239,13 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
 
       // 1. Tentar encontrar o agendamento pelo ID preservado (mais seguro)
       // 2. Fallback: buscar por nome e proximidade de data (máximo de 3 dias de diferença)
+      const parseToMidnightDate = (dStr: any) => {
+        const iso = ensureISODate(dStr);
+        if (!iso) return null;
+        const [y, m, d] = iso.split('-').map(Number);
+        return new Date(Date.UTC(y, m - 1, d));
+      };
+
       const matchedRequests = visitRequests
         .filter(req => 
           req.status === 'assigned' && 
@@ -246,7 +253,10 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
           normalizeString(req.pgName) === normalizeString(formData.groupName)
         )
         .map(req => {
-          const diff = Math.abs(new Date(req.date).getTime() - new Date(formData.date).getTime());
+          const reqD = parseToMidnightDate(req.date);
+          const formD = parseToMidnightDate(formData.date);
+          if (!reqD || !formD) return { req, diff: Infinity };
+          const diff = Math.abs(reqD.getTime() - formD.getTime());
           return { req, diff };
         })
         .filter(item => item.diff <= 3 * 24 * 60 * 60 * 1000) // Tolerância máxima de 3 dias para auto-confirmação automática
