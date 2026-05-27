@@ -3,7 +3,7 @@ import { User, VisitRequest, UserRole } from '../types';
 import { useApp } from './useApp';
 import { useToast } from '../contexts/ToastContext';
 import { usePGInference } from './usePGInference';
-import { normalizeString, ensureISODate } from '../utils/formatters';
+import { normalizeString, ensureISODate, getTimestamp } from '../utils/formatters';
 
 interface UseVisitRequestsWidgetProps {
   requests: VisitRequest[];
@@ -101,15 +101,17 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
         return false;
       }
 
-      if (currentUser.role === UserRole.ADMIN) return true;
-      return req.assignedChaplainId === currentUser.id;
+      const isUserAdmin = String(currentUser.role).toUpperCase() === 'ADMIN';
+      if (isUserAdmin) return true;
+      
+      return req.assignedChaplainId && String(req.assignedChaplainId) === String(currentUser.id);
     }).sort((a, b) => {
-      const aIsMine = a.assignedChaplainId === currentUser.id;
-      const bIsMine = b.assignedChaplainId === currentUser.id;
+      const aIsMine = a.assignedChaplainId && String(a.assignedChaplainId) === String(currentUser.id);
+      const bIsMine = b.assignedChaplainId && String(b.assignedChaplainId) === String(currentUser.id);
       if (aIsMine && !bIsMine) return -1;
       if (!aIsMine && bIsMine) return 1;
       
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
+      return getTimestamp(a.date) - getTimestamp(b.date);
     });
   }, [requests, currentUser, smallGroups]);
 

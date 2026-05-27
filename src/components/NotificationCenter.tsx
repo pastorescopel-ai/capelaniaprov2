@@ -6,7 +6,7 @@ import { useToast } from '../contexts/ToastContext';
 import { UserRole, VisitRequest } from '../types';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { usePGInference } from '../hooks/usePGInference';
-import { normalizeString, ensureISODate } from '../utils/formatters';
+import { normalizeString, ensureISODate, getTimestamp } from '../utils/formatters';
 
 interface NotificationCenterProps {
   onGoToReturnHistory?: (visit?: any) => void;
@@ -58,9 +58,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
         return false;
       }
 
-      if (currentUser.role === UserRole.ADMIN) return true;
-      return req.assignedChaplainId === currentUser.id;
-    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const isUserAdmin = String(currentUser.role).toUpperCase() === 'ADMIN';
+      if (isUserAdmin) return true;
+      
+      return req.assignedChaplainId && String(req.assignedChaplainId) === String(currentUser.id);
+    }).sort((a, b) => getTimestamp(a.date) - getTimestamp(b.date));
   }, [visitRequests, currentUser, smallGroups]);
 
   const getEnhancedInfo = useCallback((req: VisitRequest) => {
@@ -103,13 +105,17 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
   }, [filteredRequests, goalReminders, returnCount]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: any) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   const handleMarkAllAsRead = async () => {
@@ -130,7 +136,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
   };
 
   const formatDate = (d: string) => {
-    try { return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { return d; }
+    try {
+      const timestamp = getTimestamp(d);
+      if (!timestamp) return d;
+      return new Date(timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch { return d; }
   };
 
   return (

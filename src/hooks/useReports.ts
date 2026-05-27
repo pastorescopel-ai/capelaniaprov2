@@ -126,11 +126,16 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
 
     // Se não for mês cheio ou não houver snapshot, usa liveStats + cálculo de PG atual
     const unitStaff = proStaff.filter(s => (filters.selectedUnit === 'all' || s.unit === filters.selectedUnit) && s.active !== false);
-    const enrolledStaff = proGroupMembers.filter(m => {
-        const staff = proStaff.find(s => String(s.id) === String(m.staffId));
-        return staff && (filters.selectedUnit === 'all' || staff.unit === filters.selectedUnit) && !m.leftAt;
-    }).length;
-    const currentPgPercentage = unitStaff.length > 0 ? (enrolledStaff / unitStaff.length) * 100 : 0;
+    const enrolledStaffIds = new Set(
+      proGroupMembers
+        .filter(m => {
+            const staff = proStaff.find(s => String(s.id) === String(m.staffId));
+            return staff && (filters.selectedUnit === 'all' || staff.unit === filters.selectedUnit) && !m.leftAt;
+        })
+        .map(m => String(m.staffId))
+    );
+    const enrolledStaffCount = enrolledStaffIds.size;
+    const currentPgPercentage = unitStaff.length > 0 ? (enrolledStaffCount / unitStaff.length) * 100 : 0;
 
     return {
       stats: {

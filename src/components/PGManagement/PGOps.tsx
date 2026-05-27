@@ -9,6 +9,7 @@ import ConfirmationModal from '../Shared/ConfirmationModal';
 import { usePGInference } from '../../hooks/usePGInference';
 import { useVisitManagement } from '../../hooks/useVisitManagement';
 import VisitHistoryList from './VisitHistoryList';
+import { getTimestamp } from '../../utils/formatters';
 
 interface PGOpsProps {
   unit: Unit;
@@ -37,7 +38,7 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
   const activeRequests = useMemo(() => {
     const filtered = visitRequests
         .filter(r => r.unit === unit && r.status !== 'confirmed' && r.status !== 'declined')
-        .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        .sort((a,b) => getTimestamp(b.date) - getTimestamp(a.date));
     return filtered;
   }, [visitRequests, unit]);
 
