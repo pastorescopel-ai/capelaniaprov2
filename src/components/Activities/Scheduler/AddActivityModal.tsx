@@ -48,6 +48,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
   const [sectorSelections, setSectorSelections] = useState<{location: string, time: string}[]>([]);
   const [currentSector, setCurrentSector] = useState('');
   const [currentSectorTime, setCurrentSectorTime] = useState('');
+  const [sectorSearch, setSectorSearch] = useState('');
   const [modalUserId, setModalUserId] = useState(selectedUser || '');
   const [selectedDays, setSelectedDays] = useState<number[]>(addingActivity?.dayOfWeek ? [addingActivity.dayOfWeek] : []);
 
@@ -283,28 +284,41 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
               <div className="flex gap-2 items-end">
                 <div className="flex-1 space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Setor</label>
+                  <input
+                    type="text"
+                    placeholder="Buscar setor..."
+                    value={sectorSearch}
+                    onChange={e => setSectorSearch(e.target.value)}
+                    className="w-full p-2 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-bold outline-none transition-all placeholder:text-slate-400"
+                  />
                   <select
                     value={currentSector}
                     onChange={e => setCurrentSector(e.target.value)}
                     className="w-full p-3 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500/20 outline-none"
                   >
                     <option value="">Selecione um setor...</option>
-                    {sectors.map(sec => {
-                      const conflictingSchedule = globalSchedulesForMonth.find(s => 
-                        s.activityType === 'cult' && 
-                        String(s.location) === String(sec.id) && 
-                        selectedDays.map(Number).includes(Number(s.dayOfWeek)) &&
-                        (s.period || 'tarde') === selectedPeriod
+                    {(() => {
+                      const filteredSectors = sectors.filter(sec => 
+                        sec.name.toLowerCase().includes(sectorSearch.toLowerCase()) ||
+                        sec.unit.toLowerCase().includes(sectorSearch.toLowerCase())
                       );
-                      const isBlocked = !!conflictingSchedule;
-                      const blockedBy = conflictingSchedule ? chaplains.find(c => c.id === conflictingSchedule.userId)?.name : null;
+                      return filteredSectors.map(sec => {
+                        const conflictingSchedule = globalSchedulesForMonth.find(s => 
+                          s.activityType === 'cult' && 
+                          String(s.location) === String(sec.id) && 
+                          selectedDays.map(Number).includes(Number(s.dayOfWeek)) &&
+                          (s.period || 'tarde') === selectedPeriod
+                        );
+                        const isBlocked = !!conflictingSchedule;
+                        const blockedBy = conflictingSchedule ? chaplains.find(c => c.id === conflictingSchedule.userId)?.name : null;
 
-                      return (
-                        <option key={sec.id} value={sec.id} disabled={isBlocked}>
-                          {sec.name} [{sec.unit}] {isBlocked ? `(Bloqueado: ${blockedBy || 'Outro Capelão'})` : ''}
-                        </option>
-                      );
-                    })}
+                        return (
+                          <option key={sec.id} value={sec.id} disabled={isBlocked}>
+                            {sec.name} [{sec.unit}] {isBlocked ? `(Bloqueado: ${blockedBy || 'Outro Capelão'})` : ''}
+                          </option>
+                        );
+                      });
+                    })()}
                   </select>
                 </div>
                 <div className="w-24 space-y-2">

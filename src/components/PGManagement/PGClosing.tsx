@@ -6,6 +6,8 @@ import { useApp } from '../../hooks/useApp';
 import { usePro } from '../../contexts/ProContext';
 import { useBible } from '../../contexts/BibleContext';
 import { getTimestamp, cleanID } from '../../utils/formatters';
+import { toCamel } from '../../utils/transformers';
+import { DataRepository } from '../../services/dataRepository';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 import GlobalCloseMonthModal from '../Admin/GlobalCloseMonthModal';
 import GlobalReopenMonthModal from '../Admin/GlobalReopenMonthModal';
@@ -362,31 +364,51 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
 
   const handleForceSync = async () => {
     setIsForceSyncModalOpen(false);
-    setSyncState({ isOpen: true, status: 'processing', title: 'Sincronizando Matrículas', message: 'Garantindo que todas as matrículas ativas estejam vinculadas ao mês selecionado...' });
+    setSyncState({ isOpen: true, status: 'processing', title: 'Sincronizando Matrículas', message: 'Carregando dados mais recentes e processando rematrículas...' });
     
     try {
-      let success = true;
+      // Garantir dados atualizados antes de processar
+      await loadFromCloud(true);
       
-      if (proGroupMembers.length > 0) {
-        const toSyncCLT = proGroupMembers.filter(m => !m.leftAt).map(m => ({
-            ...m,
-            cycleMonth: selectedCloseMonth,
-            joinedAt: m.joinedAt || new Date(selectedCloseMonth + 'T12:00:00').getTime(),
-            isError: false
-        }));
-        const resCLT = await saveRecord('proGroupMembers', toSyncCLT);
-        if (!resCLT) success = false;
-      }
+      const now = new Date(selectedCloseMonth + 'T12:00:00');
+      const prevMonthDate = new Date(now);
+      prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+      const prevMonthISO = prevMonthDate.toISOString().split('T')[0];
 
-      if (proGroupProviderMembers.length > 0) {
-        const toSyncProv = proGroupProviderMembers.filter(m => !m.leftAt).map((m: any) => ({
-            ...m,
-            cycleMonth: selectedCloseMonth,
-            joinedAt: m.joinedAt || new Date(selectedCloseMonth + 'T12:00:00').getTime(),
-            isError: false
-        }));
-        const resProv = await saveRecord('proGroupProviderMembers', toSyncProv);
-        if (!resProv) success = false;
+      // BUSCAR HISTÓRICO DO MÊS ANTERIOR DIRETAMENTE DO SUPABASE
+      const historyRes = await DataRepository.fetchFullTable('pro_history_records', 199999);
+      const prevMonthHistory = toCamel(historyRes.data || []).filter((h: any) => h.month === prevMonthISO && h.isEnrolled === true);
+      
+      const currentMemberships = proGroupMembers.filter(m => m.cycleMonth === selectedCloseMonth);
+      const currentStaffIdsInPGs = new Set(currentMemberships.map(m => cleanID(m.staffId)));
+
+      const newMembershipsToSync: any[] = [];
+      
+      prevMonthHistory.forEach(oldRecord => {
+          const sid = cleanID(oldRecord.staffId);
+          // Só sincroniza se ele NÃO estiver já matriculado neste mês atual
+          if (!currentStaffIdsInPGs.has(sid)) {
+             // Verificar se ainda é colaborador ativo (assumindo que o proStaff está atualizado)
+             const isStillActive = proStaff.some(s => cleanID(s.id) === sid && s.active !== false && s.unit === unit);
+             if (isStillActive) {
+                newMembershipsToSync.push({
+                    id: crypto.randomUUID(),
+                    groupId: oldRecord.groupId,
+                    staffId: oldRecord.staffId,
+                    cycleMonth: selectedCloseMonth,
+                    isLeader: false, // Não conseguimos garantir isLeader do histórico
+                    joinedAt: Date.now(),
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                });
+                currentStaffIdsInPGs.add(sid);
+             }
+          }
+      });
+
+      let success = true;
+      if (newMembershipsToSync.length > 0) {
+        success = await saveRecord('proGroupMembers', newMembershipsToSync);
       }
 
       if (success) {
@@ -394,7 +416,9 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
             isOpen: true, 
             status: 'success', 
             title: 'Sincronização Concluída', 
-            message: `Todas as matrículas ativas foram migradas para o ciclo de ${formatMonthLabel(selectedCloseMonth)}.` 
+            message: newMembershipsToSync.length > 0 
+                ? `${newMembershipsToSync.length} colaboradores foram automaticamente rematriculados conforme histórico.` 
+                : "Todas as matrículas ativas já estão sincronizadas." 
         });
         await loadFromCloud(true);
       } else {

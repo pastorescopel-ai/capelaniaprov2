@@ -3,7 +3,7 @@ import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { Unit, DailyActivityReport, UserRole } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
-import { CheckCircle, Circle, Plus, Minus, Save, MapPin, Users, HeartPulse, Calendar, Download } from 'lucide-react';
+import { CheckCircle, Circle, Plus, Minus, Save, MapPin, Users, HeartPulse, Calendar, Download, Search } from 'lucide-react';
 import { generateDailyChecklistHTML } from '../../utils/activityTemplates';
 import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
 
@@ -85,7 +85,7 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
     activitySchedules.filter(s => 
       s.userId === selectedUser && 
       s.month === currentMonth && 
-      (s.date === selectedDate || (!s.date && s.dayOfWeek === currentDayOfWeek))
+      ((s.date && s.date.substring(0, 10) === selectedDate) || (!s.date && s.dayOfWeek === currentDayOfWeek))
     ),
     [activitySchedules, selectedUser, currentMonth, currentDayOfWeek, selectedDate]
   );
@@ -248,10 +248,28 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
     return Math.round((completedItems / totalItems) * 100);
   }, [scheduledActivities, report, selectedUser, users]);
 
-  const blueprints = scheduledActivities.filter(s => s.activityType === 'blueprint');
-  const cults = scheduledActivities.filter(s => s.activityType === 'cult');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const blueprints = useMemo(() => {
+    const raw = scheduledActivities.filter(s => s.activityType === 'blueprint');
+    if (!searchTerm) return raw;
+    return raw.filter(s => s.location.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [scheduledActivities, searchTerm]);
+
+  const cults = useMemo(() => {
+    const raw = scheduledActivities.filter(s => s.activityType === 'cult');
+    if (!searchTerm) return raw;
+    return raw.filter(s => {
+      const sectorObj = proSectors.find(sec => sec.id === s.location);
+      const sectorName = sectorObj?.name || '';
+      return sectorName.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+  }, [scheduledActivities, proSectors, searchTerm]);
+
   const encontros = scheduledActivities.filter(s => s.activityType === 'encontro');
   const visiteCantandos = scheduledActivities.filter(s => s.activityType === 'visiteCantando');
+
+  const matchesFilter = blueprints.length > 0 || cults.length > 0 || encontros.length > 0 || visiteCantandos.length > 0;
 
   return (
     <div className="space-y-6">
@@ -332,7 +350,19 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
           <div className="grid md:grid-cols-2 gap-8">
             {/* Atividades Agendadas */}
             <div className="space-y-6">
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-100 pb-2">Atividades Agendadas</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-2">
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Atividades Agendadas</h3>
+                <div className="relative w-full sm:max-w-[200px]">
+                  <input
+                    type="text"
+                    placeholder="Buscar setor..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full py-1.5 pl-8 pr-3 text-[11px] font-bold bg-slate-50 hover:bg-slate-100/70 border border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl outline-none transition-all placeholder:text-slate-400"
+                  />
+                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                </div>
+              </div>
               
               {blueprints.length > 0 && (
                 <div className="space-y-2">
@@ -434,17 +464,58 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
                     <HeartPulse className="text-rose-500" size={16} />
                     <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Visite Cantando</h4>
                   </div>
-                  <button
-                    onClick={handleToggleVisiteCantando}
-                    className={`w-full flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${
-                      report.completedVisiteCantando 
-                        ? 'bg-rose-50 border-rose-500 text-rose-900' 
-                        : 'bg-white border-slate-100 text-slate-600 hover:border-rose-200'
-                    }`}
-                  >
-                    <span className="text-[10px] font-black uppercase">Visite Cantando</span>
-                    {report.completedVisiteCantando ? <CheckCircle size={16} /> : <Circle size={16} />}
-                  </button>
+                  {visiteCantandos.map((s, idx) => {
+                    const period = s.period || 'tarde';
+                    const isCompleted = report.completedVisiteCantando;
+                    return (
+                      <button
+                        key={s.id || idx}
+                        onClick={handleToggleVisiteCantando}
+                        className={`w-full flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${
+                          isCompleted 
+                            ? 'bg-rose-50 border-rose-500 text-rose-900' 
+                            : 'bg-white border-slate-100 text-slate-600 hover:border-rose-200'
+                        }`}
+                      >
+                        <div className="flex flex-col items-start text-left">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase">Visite Cantando</span>
+                            <span className={`text-[7px] font-black px-1 rounded uppercase ${period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}`}>
+                              {period === 'manha' ? 'Manhã' : 'Tarde'}
+                            </span>
+                          </div>
+
+                          <div className="mt-1.5 space-y-1">
+                            {s.time && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[8px] font-black uppercase text-slate-400">Horário:</span>
+                                <span className={`text-[9px] font-bold ${isCompleted ? 'text-rose-700' : 'text-slate-700'}`}>{s.time}</span>
+                              </div>
+                            )}
+                            {s.responsibleName && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[8px] font-black uppercase text-slate-400">Responsável:</span>
+                                <span className={`text-[9px] font-bold ${isCompleted ? 'text-rose-700' : 'text-slate-700'}`}>{s.responsibleName}</span>
+                              </div>
+                            )}
+                            {s.responsibleWhatsApp && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[8px] font-black uppercase text-slate-400">WhatsApp:</span>
+                                <span className={`text-[9px] font-bold ${isCompleted ? 'text-rose-700' : 'text-slate-700'}`}>{s.responsibleWhatsApp}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {isCompleted ? <CheckCircle size={16} /> : <Circle size={16} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {!matchesFilter && (
+                <div className="text-center py-8 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                  <p className="text-xs text-slate-400 font-bold">Nenhuma atividade correspondente.</p>
                 </div>
               )}
             </div>

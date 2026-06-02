@@ -26,7 +26,7 @@ const DailyActivitiesReminder: React.FC<DailyActivitiesReminderProps> = ({ curre
     const scheduled = activitySchedules.filter(s => 
       s.userId === currentUser.id && 
       s.month === monthStr && 
-      (s.date === todayISO || (!s.date && s.dayOfWeek === dayOfWeek))
+      ((s.date && s.date.substring(0, 10) === todayISO) || (!s.date && s.dayOfWeek === dayOfWeek))
     );
 
     // 2. Get today's report

@@ -39,13 +39,7 @@ const AdminPanel: React.FC = () => {
   ) => {
     setIsSaving(true);
     try {
-      // Se solicitado, removemos registros de meses futuros para evitar duplicidade/erro de lançamento
-      if (options?.deleteFutureCycleMonth && options.unit) {
-        // Removemos qualquer registro daquela unidade que tenha cycleMonth > mes_selecionado
-        // Isso limpa lançamentos errados feitos em meses posteriores (ex: lançou em Abril mas era Março)
-        await deleteRecordsByFilter('proStaff', { unit: options.unit, cycle_month: { gt: options.deleteFutureCycleMonth } });
-        await deleteRecordsByFilter('proGroupMembers', { cycle_month: { gt: options.deleteFutureCycleMonth } });
-      }
+      // Sempre mantemos o histórico futuro e ativo intacto. Nunca deletamos registros de meses posteriores.
 
       // Salvar apenas no Supabase (Tabelas Relacionais)
       await saveToCloud({

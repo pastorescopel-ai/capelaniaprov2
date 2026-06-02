@@ -65,6 +65,44 @@ export const isValidUUID = (uuid: string) => {
   return s.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) || s.match(/^\d+$/);
 };
 
+export const deserializeScheduleTime = (timeStr: string | null | undefined) => {
+  if (!timeStr) {
+    return {
+      time: undefined,
+      period: 'tarde',
+      date: undefined,
+      responsibleName: undefined,
+      responsibleWhatsApp: undefined
+    };
+  }
+  
+  if (timeStr.includes('||')) {
+    const parts = timeStr.split('||');
+    return {
+      time: parts[0] || undefined,
+      period: (parts[1] as 'manha' | 'tarde') || 'tarde',
+      date: parts[2] || undefined,
+      responsibleName: parts[3] || undefined,
+      responsibleWhatsApp: parts[4] || undefined
+    };
+  } else {
+    // Legacy support: deduce period from time
+    let period: 'manha' | 'tarde' = 'tarde';
+    const [hourStr] = timeStr.split(':');
+    const hour = parseInt(hourStr, 10);
+    if (!isNaN(hour) && hour >= 7 && hour <= 12) {
+      period = 'manha';
+    }
+    return {
+      time: timeStr || undefined,
+      period: period,
+      date: undefined,
+      responsibleName: undefined,
+      responsibleWhatsApp: undefined
+    };
+  }
+};
+
 const keyCache: Record<string, string> = {};
 
 export const toCamel = (obj: any): any => {
@@ -84,6 +122,8 @@ export const toCamel = (obj: any): any => {
       // Business Rule: HABA and HAB must be uppercase
       if (camelKey === 'attendsHaba') {
         camelKey = 'attendsHaba'; // Special case for users table
+      } else if (camelKey === 'responsibleWhatsapp') {
+        camelKey = 'responsibleWhatsApp';
       } else {
         camelKey = camelKey.replace(/Haba/g, 'HABA').replace(/Hab/g, 'HAB');
       }
@@ -117,6 +157,7 @@ export const toCamel = (obj: any): any => {
 
     newObj[keyCache[key]] = toCamel(val);
   }
+
   return newObj;
 };
 
@@ -129,7 +170,7 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
     let snakeKey = key.includes('_') ? key : key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
     
     // Fix HABA/HAB conversion artifacts
-    snakeKey = snakeKey.replace(/_h_a_b_a/g, '_haba').replace(/_h_a_b/g, '_hab');
+    snakeKey = snakeKey.replace(/_h_a_b_a/g, '_haba').replace(/_h_a_b/g, '_hab').replace(/_whats_app/g, '_whatsapp');
     
     if (snakeKey.toLowerCase() === 'id') snakeKey = 'id';
 

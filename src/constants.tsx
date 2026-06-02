@@ -48,7 +48,11 @@ export const BLUEPRINT_LOCATIONS = [
   "Internamento",
   "Microfone Internamento",
   "Microfone Centro Cirúrgico",
-  "Sala de Espera do Centro Cirúrgico"
+  "Sala de Espera do Centro Cirúrgico",
+  "PSA",
+  "PSI",
+  "CMI",
+  "Setor ADM"
 ];
 
 export const INITIAL_CONFIG: Config = {

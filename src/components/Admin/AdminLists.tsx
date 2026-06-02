@@ -36,7 +36,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   };
   
   const [activeTab, setActiveTab] = useState<'staff' | 'sectors' | 'pgs'>('staff');
-  const [importMode, setImportMode] = useState<'sync' | 'incremental'>('sync');
+  const [importMode, setImportMode] = useState<'sync' | 'incremental'>('incremental');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     return config.activeCompetenceMonth || new Date().toISOString().split('T')[0];
   });
@@ -203,13 +203,15 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                 // AUTO-REMATRICULAÇÃO: Trazer matrículas do mês anterior ou do último disponível
                 const now = new Date(selectedMonth + 'T12:00:00');
                 const currentActiveStaffIds = new Set(finalStaff.filter(s => s.active !== false && s.unit === activeUnit).map(s => cleanID(s.id)));
+                
+                // MANTEMOS as matrículas já existentes para este mês
                 const existingTargetMemberships = new Set((proGroupMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.staffId)}|${cleanID(m.groupId)}`));
                 const newMemberships: ProGroupMember[] = [];
 
                 // 1. Prioridade: Se a planilha ATUAL já tem informação de PG, usa ela (Recuperação Direta)
                 const spreadsheetMemberships = previewData.filter(p => (p as any).pgNameRaw);
                 if (spreadsheetMemberships.length > 0) {
-                    setSyncState(prev => ({ ...prev, message: `Staff atualizado. Importando ${spreadsheetMemberships.length} matrículas detectadas na planilha...` }));
+                    setSyncState(prev => ({ ...prev, message: `Staff atualizado. Processando matrículas detectadas na planilha...` }));
                     
                     spreadsheetMemberships.forEach(p => {
                         const sid = cleanID(p.id);
@@ -220,6 +222,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                         
                         if (matchedPG) {
                             const key = `${sid}|${cleanID(matchedPG.id)}`;
+                            // SÓ adicionamos se NÃO existir no banco
                             if (!existingTargetMemberships.has(key)) {
                                 newMemberships.push({
                                     id: crypto.randomUUID(),
@@ -237,119 +240,37 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                     });
                 }
 
-                // 2. Fallback: Se não tem nada na planilha, tenta propagar do histórico oficial ou membraria ativa (Auto-Rematriculação)
-                if (newMemberships.length === 0) {
-                    const now = new Date(selectedMonth + 'T12:00:00');
-                    let sourceMonthRecentral = "";
-                    let historyData: ProHistoryRecord[] = [];
+                // 2. Fallback: Propagar matrículas ativas do mês imediatamente anterior para garantir continuidade
+                const prevMonthDate = new Date(now);
+                prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+                const prevMonthISO = prevMonthDate.toISOString().split('T')[0];
 
-                    // Tenta encontrar o mês mais recente com dados de histórico (limite de 12 meses atrás)
-                    for (let i = 1; i <= 12; i++) {
-                        const temp = new Date(now);
-                        temp.setMonth(temp.getMonth() - i);
-                        const iso = temp.toISOString().split('T')[0];
+                const existingPrevMonthMemberships = (proGroupMembers || []).filter(m => m.cycleMonth === prevMonthISO && !m.leftAt);
+                
+                setSyncState(prev => ({ ...prev, message: `Staff atualizado. Preservando matrículas ativas...` }));
+                
+                existingPrevMonthMemberships.forEach(oldM => {
+                    const sid = cleanID(oldM.staffId);
+                    if (currentActiveStaffIds.has(sid)) {
+                        const key = `${sid}|${cleanID(oldM.groupId)}`;
+                        // SÓ migramos se o colaborador já não tiver uma matrícula vinculada no mês novo
+                        const alreadyHasNewMembership = (proGroupMembers || []).some(m => m.cycleMonth === selectedMonth && cleanID(m.staffId) === sid);
                         
-                        // Primeiro tenta no Histórico Oficial (Snapshot) - Apenas STAFF
-                        const historyForMonth = (proData.history || []).filter(h => h.month === iso && h.unit === activeUnit && h.isEnrolled);
-                        if (historyForMonth.length > 0) {
-                            sourceMonthRecentral = iso;
-                            historyData = historyForMonth;
-                            break;
-                        }
-
-                        // Fallback para Membraria Ativa se não houver snapshot
-                        const hasData = (proData.memberships || []).some(m => m.cycleMonth === iso);
-                        if (hasData) {
-                            sourceMonthRecentral = iso;
-                            break;
+                        if (!alreadyHasNewMembership && !existingTargetMemberships.has(key)) {
+                            newMemberships.push({
+                                id: crypto.randomUUID(),
+                                groupId: oldM.groupId,
+                                staffId: oldM.staffId,
+                                cycleMonth: selectedMonth,
+                                isLeader: oldM.isLeader,
+                                joinedAt: Date.now(),
+                                createdAt: Date.now(),
+                                updatedAt: Date.now()
+                            });
+                            existingTargetMemberships.add(key);
                         }
                     }
-
-                    if (sourceMonthRecentral) {
-                        const sourceLabel = formatMonthLabel(sourceMonthRecentral);
-                        
-                        // 2.1 Replicação de STAFF
-                        if (historyData.length > 0) {
-                            setSyncState(prev => ({ ...prev, message: `Staff atualizado. Replicando ${historyData.length} matrículas do Snapshot Oficial de ${sourceLabel}...` }));
-                            
-                            historyData.forEach(snapshot => {
-                                const sid = cleanID(snapshot.staffId);
-                                if (currentActiveStaffIds.has(sid) && snapshot.groupId) {
-                                    const key = `${sid}|${cleanID(snapshot.groupId)}`;
-                                    if (!existingTargetMemberships.has(key)) {
-                                        newMemberships.push({
-                                            id: crypto.randomUUID(),
-                                            groupId: snapshot.groupId,
-                                            staffId: snapshot.staffId,
-                                            cycleMonth: selectedMonth,
-                                            joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
-                                            createdAt: Date.now(),
-                                            updatedAt: Date.now()
-                                        });
-                                        existingTargetMemberships.add(key);
-                                    }
-                                }
-                            });
-                        } else {
-                            // Fallback para proData.memberships (Comportamento original preservado)
-                            const sourceMemberships = (proData.memberships || []).filter(m => m.cycleMonth === sourceMonthRecentral && !m.leftAt);
-                            setSyncState(prev => ({ ...prev, message: `Staff atualizado. Propagando ${sourceMemberships.length} matrículas ativas de ${sourceLabel}...` }));
-                            
-                            sourceMemberships.forEach(oldM => {
-                                const sid = cleanID(oldM.staffId);
-                                if (currentActiveStaffIds.has(sid)) {
-                                    const key = `${sid}|${cleanID(oldM.groupId)}`;
-                                    if (!existingTargetMemberships.has(key)) {
-                                        newMemberships.push({
-                                            id: crypto.randomUUID(),
-                                            groupId: oldM.groupId,
-                                            staffId: oldM.staffId,
-                                            cycleMonth: selectedMonth,
-                                            isLeader: oldM.isLeader,
-                                            joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
-                                            createdAt: Date.now(),
-                                            updatedAt: Date.now()
-                                        });
-                                        existingTargetMemberships.add(key);
-                                    }
-                                }
-                            });
-                        }
-
-                        // 2.2 Replicação de PRESTADORES (ESSENCIAL PARA GRUPOS COMO SERVOS DE FÉ)
-                        const sourceProviderMemberships = (proData.providerMemberships || []).filter(m => m.cycleMonth === sourceMonthRecentral && !m.leftAt);
-                        if (sourceProviderMemberships.length > 0) {
-                            const newProviderMemberships: ProGroupProviderMember[] = [];
-                            const activeProviderIds = new Set((proData.providers || []).filter(p => p.unit === activeUnit && p.active !== false).map(p => cleanID(p.id)));
-                            const existingTargetProviderMemberships = new Set((proGroupProviderMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.providerId)}|${cleanID(m.groupId)}`));
-
-                            sourceProviderMemberships.forEach(oldM => {
-                                const pid = cleanID(oldM.providerId);
-                                if (activeProviderIds.has(pid)) {
-                                    const key = `${pid}|${cleanID(oldM.groupId)}`;
-                                    if (!existingTargetProviderMemberships.has(key)) {
-                                        newProviderMemberships.push({
-                                            id: crypto.randomUUID(),
-                                            groupId: oldM.groupId,
-                                            providerId: oldM.providerId,
-                                            cycleMonth: selectedMonth,
-                                            joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
-                                            createdAt: Date.now(),
-                                            updatedAt: Date.now()
-                                        });
-                                        existingTargetProviderMemberships.add(key);
-                                    }
-                                }
-                            });
-
-                            if (newProviderMemberships.length > 0) {
-                                setSyncState(prev => ({ ...prev, message: `Replicando ${newProviderMemberships.length} matrículas de Prestadores (ex: Servos de Fé)...` }));
-                                await saveRecord('proGroupProviderMembers', newProviderMemberships);
-                                stats.rematriculated += newProviderMemberships.length;
-                            }
-                        }
-                    }
-                }
+                });
 
                 if (newMemberships.length > 0) {
                     const res = await saveRecord('proGroupMembers', newMemberships);
@@ -530,23 +451,23 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                     <button 
                         onClick={() => setImportMode('sync')}
                         className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${importMode === 'sync' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-                        title="Desativa quem não estiver na planilha (Padrão RH)"
+                        title="Inativa colaboradores que não estão na planilha, mantendo histórico de matrículas 100% blindado."
                     >
-                        Sincronização Total
+                        Sincronização Segura (Padrão RH)
                     </button>
                     <button 
                         onClick={() => setImportMode('incremental')}
                         className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${importMode === 'incremental' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-                        title="Apenas adiciona/atualiza, mantém os atuais ativos"
+                        title="Apenas insere novos e atualiza dados existentes, sem inativar nenhum colaborador."
                     >
-                        Apenas Atualização
+                        Apenas Inserir / Atualizar
                     </button>
                 </div>
             </div>
-            <div className="text-[9px] font-bold text-slate-400 italic max-w-md text-right">
+            <div className="text-[9px] font-bold text-slate-500 italic max-w-md text-right leading-relaxed">
                 {importMode === 'sync' 
-                    ? "* Recomendado para atualizações mensais do RH. Quem não estiver no Excel será marcado como Inativo." 
-                    : "* Recomendado para ajustes pontuais. Mantém todos os colaboradores atuais e apenas atualiza os que estão no Excel."}
+                    ? "✓ Sincronização Inteligente: Ativa/atualiza os listados no Excel, e marca como inativos os demitidos. Suas matrículas em PGs e histórico mensal estão 100% protegidos contra exclusão." 
+                    : "✓ Apenas Inserir/Atualizar: Mantém todos os colaboradores atuais como ativos e apenas acrescenta novos ou atualiza os que estão no arquivo Excel."}
             </div>
         </div>
 
