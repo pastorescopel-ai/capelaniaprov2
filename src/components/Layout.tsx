@@ -55,7 +55,19 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
         <div className="flex items-center space-x-3 md:space-x-4">
           <div className="flex items-center justify-center overflow-hidden h-8 md:h-12 min-w-[32px] md:min-w-[40px]">
             {logoSrc ? (
-              <img src={logoSrc} className="h-full w-auto object-contain" alt="Logo" />
+              <img 
+                src={logoSrc} 
+                className="h-full w-auto object-contain" 
+                alt="Logo" 
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  console.warn(
+                    `[Capelania Diagnóstico] O Logo falhou ao carregar em Layout (Cabeçalho/Navegação)!\n` +
+                    `URL tentada: "${target.src}"\n` +
+                    `Causa provável: Se a URL contiver 'aistudio.google.com/_/upload', este é um link temporário do Google AI Studio que já expirou no servidor. Recomendamos fazer um novo upload da imagem ou usar o logo padrão.`
+                  );
+                }}
+              />
             ) : (
               <div className="w-8 h-8 md:w-10 md:h-10 bg-[#005a9c] rounded-lg md:rounded-xl flex items-center justify-center shadow-lg">
                 <i className="fas fa-hospital-symbol text-white text-sm md:text-xl"></i>

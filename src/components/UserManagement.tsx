@@ -91,6 +91,53 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
                   <option value={UserRole.ADMIN}>Administrador</option>
                 </select>
               </div>
+
+              {/* Seção: Metas de Visitas */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-4">
+                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                  <i className="fas fa-bullseye text-blue-500"></i> Metas de Visitas PRO
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 ml-1 uppercase">Intervalo da Meta</label>
+                    <select 
+                      value={editingUser.visitGoalPeriod || 'daily'} 
+                      onChange={e => setEditingUser({...editingUser, visitGoalPeriod: e.target.value as 'daily' | 'weekly'})} 
+                      className="w-full p-3 rounded-xl bg-white border border-slate-200 font-bold text-xs"
+                    >
+                      <option value="daily">Diário</option>
+                      <option value="weekly">Semanal</option>
+                    </select>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 ml-1 uppercase">Alvo de Visitas</label>
+                    <input 
+                      type="number" 
+                      min={0}
+                      value={editingUser.dailyVisitGoal ?? 2} 
+                      onChange={e => setEditingUser({...editingUser, dailyVisitGoal: Math.max(0, parseInt(e.target.value, 10) || 0)})} 
+                      className="w-full p-3 rounded-xl bg-white border border-slate-200 font-bold text-xs"
+                      placeholder="Ex: 2"
+                    />
+                  </div>
+                </div>
+
+                {editingUser.attendsHaba && (
+                  <div className="space-y-1 pt-2 border-t border-slate-200/50">
+                    <label className="text-[9px] font-black text-slate-400 ml-1 uppercase">Meta Mensal Subunidade (HABA)</label>
+                    <input 
+                      type="number" 
+                      min={0}
+                      value={editingUser.subunitMonthlyVisitGoal ?? 8} 
+                      onChange={e => setEditingUser({...editingUser, subunitMonthlyVisitGoal: Math.max(0, parseInt(e.target.value, 10) || 0)})} 
+                      className="w-full p-3 rounded-xl bg-white border border-slate-200 font-bold text-xs"
+                      placeholder="Ex: 8"
+                    />
+                  </div>
+                )}
+              </div>
               
               <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-4">
                 <div className="flex items-center justify-between">
@@ -164,6 +211,19 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
             </select>
           </div>
           
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Intervalo da Meta</label>
+            <select value={newUser.visitGoalPeriod || 'daily'} onChange={e => setNewUser({...newUser, visitGoalPeriod: e.target.value as 'daily' | 'weekly'})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs">
+              <option value="daily">Diário</option>
+              <option value="weekly">Semanal</option>
+            </select>
+          </div>
+          
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Meta de Visitas</label>
+            <input type="number" min={0} value={newUser.dailyVisitGoal ?? 2} onChange={e => setNewUser({...newUser, dailyVisitGoal: Math.max(0, parseInt(e.target.value, 10) || 0)})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs" placeholder="Ex: 2" />
+          </div>
+          
           <div className="lg:col-span-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -179,22 +239,36 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
             </div>
             
             {newUser.attendsHaba && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                <label className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest">Selecione os dias de atendimento no HABA</label>
-                <div className="flex gap-2 max-w-md">
-                  {dayOptions.map(day => (
-                    <button
-                      key={day.value}
-                      onClick={() => toggleHabaDay(day.value, false)}
-                      className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${
-                        (newUser.habaDays || []).includes(day.value)
-                          ? 'bg-indigo-500 text-white shadow-md'
-                          : 'bg-white text-indigo-400 border border-indigo-100'
-                      }`}
-                    >
-                      {day.label}
-                    </button>
-                  ))}
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest block font-black">Dias de Atendimento (HABA)</label>
+                  <div className="flex gap-2 max-w-md">
+                    {dayOptions.map(day => (
+                      <button
+                        key={day.value}
+                        onClick={() => toggleHabaDay(day.value, false)}
+                        className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${
+                          (newUser.habaDays || []).includes(day.value)
+                            ? 'bg-indigo-500 text-white shadow-md'
+                            : 'bg-white text-indigo-400 border border-indigo-100'
+                        }`}
+                      >
+                        {day.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="max-w-md space-y-1">
+                  <label className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest block font-black">Meta Mensal Subunidade (HABA)</label>
+                  <input 
+                    type="number" 
+                    min={0}
+                    value={newUser.subunitMonthlyVisitGoal ?? 8} 
+                    onChange={e => setNewUser({...newUser, subunitMonthlyVisitGoal: Math.max(0, parseInt(e.target.value, 10) || 0)})} 
+                    className="w-full p-3 rounded-xl bg-white border border-indigo-200 font-bold text-xs" 
+                    placeholder="Ex: 8" 
+                  />
                 </div>
               </div>
             )}
@@ -227,11 +301,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
                     <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
                       {u.role === UserRole.INTERN ? 'Estagiário' : u.role === UserRole.ADMIN ? 'Admin' : 'Capelão'}
                     </span>
+                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <i className="fas fa-bullseye text-emerald-500"></i> Meta: {u.dailyVisitGoal ?? 2}/{u.visitGoalPeriod === 'weekly' ? 'Sem' : 'Dia'}
+                    </span>
                     {u.attendsHaba && (
                       <>
                         <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                         <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md flex items-center gap-1">
-                          <i className="fas fa-map-marker-alt"></i> HABA
+                          <i className="fas fa-map-marker-alt text-indigo-400"></i> HABA: {u.subunitMonthlyVisitGoal ?? 8}/Mês
                         </span>
                       </>
                     )}

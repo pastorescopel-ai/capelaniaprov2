@@ -58,8 +58,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
                 className="max-w-full max-h-32 object-contain" 
                 alt="Logo do Sistema" 
                 onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                  const target = e.currentTarget;
+                  console.warn(
+                    `[Capelania Diagnóstico] O Logo falhou ao carregar na Tela de Login!\n` +
+                    `URL tentada: "${target.src}"\n` +
+                    `Causa provável: Se a URL contiver 'aistudio.google.com/_/upload', este é um link temporário do Google AI Studio que já expirou no servidor. Recomendamos fazer um novo upload da imagem ou usar o logo padrão.`
+                  );
+                  target.style.display = 'none';
+                  target.nextElementSibling?.classList.remove('hidden');
                 }}
               />
             ) : null}

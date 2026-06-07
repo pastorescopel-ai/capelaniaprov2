@@ -5,6 +5,11 @@ import { StaffVisit, User } from '../types';
 export const useVisitGoals = (userVisits: StaffVisit[], currentUser: User | null) => {
   return useMemo(() => {
     if (!currentUser) return { goals: [], accumulated: null };
+
+    // Obter as metas dinâmicas do usuário (com defaults resilientes)
+    const dailyGoalVal = currentUser.dailyVisitGoal ?? 2;
+    const monthlyHABAGoalVal = currentUser.subunitMonthlyVisitGoal ?? 8;
+    const goalPeriod = currentUser.visitGoalPeriod ?? 'daily';
     
     const now = new Date();
     const dayOfWeek = now.getDay(); // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sab
@@ -12,7 +17,6 @@ export const useVisitGoals = (userVisits: StaffVisit[], currentUser: User | null
     const habaDays = currentUser?.habaDays || [];
     const isHabaDay = isHabaChaplain && habaDays.includes(dayOfWeek);
     const isIntern = currentUser?.role === 'INTERN';
-    const isChaplain = currentUser?.role === 'CHAPLAIN';
 
     // Visitas de hoje (Contabiliza StaffVisit)
     const todayStr = now.toISOString().split('T')[0];
@@ -36,16 +40,20 @@ export const useVisitGoals = (userVisits: StaffVisit[], currentUser: User | null
 
     const activeGoals = [];
 
-    // Regra Capelão HABA
+    // Regra de Metas e Exibição baseada em Período/HABA
     if (isHabaChaplain) {
       if (!isHabaDay) {
-        activeGoals.push({ label: 'Meta Diária (HAB)', current: todaysVisitsCount, target: 2, type: 'daily' });
+        if (goalPeriod === 'weekly') {
+          activeGoals.push({ label: 'Meta Semanal (HAB)', current: weeklyVisitsCount, target: dailyGoalVal, type: 'weekly' });
+        } else {
+          activeGoals.push({ label: 'Meta Diária (HAB)', current: todaysVisitsCount, target: dailyGoalVal, type: 'daily' });
+        }
       }
-      activeGoals.push({ label: 'Meta Mensal (HABA)', current: monthlyHABAVisitsCount, target: 8, type: 'monthly' });
-    } else if (isIntern) {
-      activeGoals.push({ label: 'Meta Semanal (HAB)', current: weeklyVisitsCount, target: 2, type: 'weekly' });
-    } else if (isChaplain) {
-      activeGoals.push({ label: 'Meta Diária (HAB)', current: todaysVisitsCount, target: 2, type: 'daily' });
+      activeGoals.push({ label: 'Meta Mensal (HABA)', current: monthlyHABAVisitsCount, target: monthlyHABAGoalVal, type: 'monthly' });
+    } else if (goalPeriod === 'weekly' || isIntern) {
+      activeGoals.push({ label: 'Meta Semanal (HAB)', current: weeklyVisitsCount, target: dailyGoalVal, type: 'weekly' });
+    } else {
+      activeGoals.push({ label: 'Meta Diária (HAB)', current: todaysVisitsCount, target: dailyGoalVal, type: 'daily' });
     }
 
     // --- LÓGICA DE ACÚMULO (BACKLOG DE VISITAS) ---
@@ -66,7 +74,7 @@ export const useVisitGoals = (userVisits: StaffVisit[], currentUser: User | null
     let expectedVisits = 0;
     
     if (isHabaChaplain) {
-      // Capelão HABA: 2 visitas por dia apenas nos dias que NÃO são de HABA
+      // Capelão HABA: metas nos dias que NÃO são de HABA
       let countNonHabaDays = 0;
       const curDate = new Date(startOfMonth.getTime());
       while (curDate <= now) {
@@ -74,13 +82,18 @@ export const useVisitGoals = (userVisits: StaffVisit[], currentUser: User | null
         if (dWeek !== 0 && dWeek !== 6 && !habaDays.includes(dWeek)) countNonHabaDays++;
         curDate.setDate(curDate.getDate() + 1);
       }
-      expectedVisits = countNonHabaDays * 2;
-    } else if (isIntern) {
-      // Estagiário: 2 visitas por semana
-      expectedVisits = Math.ceil(now.getDate() / 7) * 2;
+      if (goalPeriod === 'weekly') {
+        const currentWeekNumber = Math.ceil(now.getDate() / 7);
+        expectedVisits = currentWeekNumber * dailyGoalVal;
+      } else {
+        expectedVisits = countNonHabaDays * dailyGoalVal;
+      }
+    } else if (goalPeriod === 'weekly' || isIntern) {
+      // Semanal: dailyGoalVal visitas por semana
+      expectedVisits = Math.ceil(now.getDate() / 7) * dailyGoalVal;
     } else {
-      // Capelão Padrão: 2 visitas por dia útil (Seg-Sex)
-      expectedVisits = workingDaysSoFar * 2;
+      // Diário: dailyGoalVal visitas por dia útil (Seg-Sex)
+      expectedVisits = workingDaysSoFar * dailyGoalVal;
     }
     
     // Visitas feitas no mês atual (apenas HAB para a meta diária/semanal padrão)
@@ -97,7 +110,7 @@ export const useVisitGoals = (userVisits: StaffVisit[], currentUser: User | null
       current: monthlyVisitsCount,
       deficit: deficit,
       historicalTotal: historicalTotal,
-      status: deficit <= 0 ? 'success' : deficit <= 4 ? 'warning' : 'critical'
+      status: deficit <= 0 ? 'success' : deficit <= (dailyGoalVal * 2) ? 'warning' : 'critical'
     };
 
     return { goals: activeGoals, accumulated };

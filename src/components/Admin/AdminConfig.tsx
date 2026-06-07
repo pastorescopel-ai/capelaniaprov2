@@ -42,7 +42,19 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ config, setConfig, mode = 'ba
                 <input ref={appLogoInputRef} type="file" accept="image/*" onChange={(e) => handleUpload(e, 'app')} className="hidden" />
               </div>
               <div className="h-24 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden relative">
-                <img src={config.appLogoUrl || DEFAULT_APP_LOGO} className="h-16 object-contain" alt="App Logo" />
+                <img 
+                  src={config.appLogoUrl || DEFAULT_APP_LOGO} 
+                  className="h-16 object-contain" 
+                  alt="App Logo" 
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    console.warn(
+                      `[Capelania Diagnóstico] O Logo do App falhou ao carregar!\n` +
+                      `URL tentada: "${target.src}"\n` +
+                      `Causa provável: Se a URL contiver 'aistudio.google.com/_/upload', este é um link temporário do Google AI Studio que já expirou no servidor. Recomendamos fazer um novo upload da imagem ou usar o logo padrão.`
+                    );
+                  }}
+                />
                 {!config.appLogoUrl && <span className="absolute bottom-1 right-2 text-[8px] font-bold text-amber-500 uppercase">Padrão</span>}
               </div>
             </div>
@@ -62,7 +74,19 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ config, setConfig, mode = 'ba
                 <input ref={reportLogoInputRef} type="file" accept="image/*" onChange={(e) => handleUpload(e, 'report')} className="hidden" />
               </div>
               <div className="h-24 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden relative">
-                <img src={config.reportLogoUrl || DEFAULT_APP_LOGO} className="h-16 object-contain" alt="Report Logo" />
+                <img 
+                  src={config.reportLogoUrl || DEFAULT_APP_LOGO} 
+                  className="h-16 object-contain" 
+                  alt="Report Logo" 
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    console.warn(
+                      `[Capelania Diagnóstico] O Logo do Relatório falhou ao carregar!\n` +
+                      `URL tentada: "${target.src}"\n` +
+                      `Causa provável: Se a URL contiver 'aistudio.google.com/_/upload', este é um link temporário do Google AI Studio que já expirou no servidor. Recomendamos fazer um novo upload da imagem ou usar o logo padrão.`
+                    );
+                  }}
+                />
                 {!config.reportLogoUrl && <span className="absolute bottom-1 right-2 text-[8px] font-bold text-amber-500 uppercase">Padrão</span>}
               </div>
             </div>

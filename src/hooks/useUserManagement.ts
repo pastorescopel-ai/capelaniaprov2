@@ -12,7 +12,7 @@ interface UseUserManagementProps {
 
 export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementProps) => {
   const { deleteRecord, proStaff, proSectors } = useApp();
-  const [newUser, setNewUser] = useState<Partial<User>>({ name: '', email: '', password: '', role: UserRole.CHAPLAIN, attendsHaba: false, habaDays: [] });
+  const [newUser, setNewUser] = useState<Partial<User>>({ name: '', email: '', password: '', role: UserRole.CHAPLAIN, attendsHaba: false, habaDays: [], dailyVisitGoal: 2, subunitMonthlyVisitGoal: 8, visitGoalPeriod: 'daily' });
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -52,11 +52,14 @@ export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementPro
         role: newUser.role || UserRole.CHAPLAIN,
         profilePic: '',
         attendsHaba: newUser.attendsHaba || false,
-        habaDays: newUser.habaDays || []
+        habaDays: newUser.habaDays || [],
+        dailyVisitGoal: newUser.dailyVisitGoal ?? 2,
+        subunitMonthlyVisitGoal: newUser.subunitMonthlyVisitGoal ?? 8,
+        visitGoalPeriod: newUser.visitGoalPeriod || 'daily'
       };
 
       await onUpdateUsers([...users, userToAdd]);
-      setNewUser({ name: '', email: '', password: '', role: UserRole.CHAPLAIN, attendsHaba: false, habaDays: [] });
+      setNewUser({ name: '', email: '', password: '', role: UserRole.CHAPLAIN, attendsHaba: false, habaDays: [], dailyVisitGoal: 2, subunitMonthlyVisitGoal: 8, visitGoalPeriod: 'daily' });
       showToast('Usuário cadastrado com sucesso!', 'success');
     } catch (e) {
       showToast('Erro ao cadastrar usuário.', 'error');
