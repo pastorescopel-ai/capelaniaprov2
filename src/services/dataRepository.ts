@@ -10,48 +10,109 @@ const GLOBAL_ID_CACHE: Record<string, string> = {
 
 export const DataRepository = {
   async fetchFullTable(tableName: string, maxRows = 100000) {
-    if (!supabase) return { data: [], error: null };
-    
-    // Primeira busca para ver se precisamos paginar
-    const { data: firstBatch, error: firstError } = await supabase
-      .from(tableName)
-      .select('*')
-      .range(0, 999);
-      
-    if (firstError) {
-      console.error(`[DataRepository] Erro ao buscar primeira página de ${tableName}:`, firstError);
-      return { data: [], error: firstError };
+    if (!supabase) {
+      try {
+        const cached = localStorage.getItem(`capelania_offline_${tableName}`);
+        if (cached) return { data: JSON.parse(cached), error: null };
+      } catch (e) {
+        console.warn(`[DataRepository] Erro ao carregar cache local de contingência:`, e);
+      }
+      return { data: null, error: null };
     }
-    if (!firstBatch || firstBatch.length < 1000) return { data: firstBatch || [], error: null };
     
-    // Se atingiu 1000, precisamos buscar mais
-    let allData = [...firstBatch];
-    let from = 1000;
-    const step = 1000;
-    let hasMore = true;
-    
-    while (hasMore && allData.length < maxRows) {
-      const { data, error } = await supabase
+    try {
+      // Primeira busca para ver se precisamos paginar
+      const { data: firstBatch, error: firstError } = await supabase
         .from(tableName)
         .select('*')
-        .range(from, from + step - 1);
+        .range(0, 999);
         
-      if (error) {
-        console.error(`[DataRepository] Erro ao paginar ${tableName} no range ${from}-${from + step - 1}:`, error);
-        return { data: allData, error };
+      if (firstError) {
+        // Se houver falha de fetch (ex: sem internet), tenta carregar do cache local
+        if (
+          firstError.message?.includes('fetch') || 
+          firstError.message?.includes('Failed to fetch') || 
+          firstError.message?.includes('NetworkError') || 
+          !navigator.onLine
+        ) {
+          try {
+            const cached = localStorage.getItem(`capelania_offline_${tableName}`);
+            if (cached) {
+              console.log(`[DataRepository] 📶 Rede offline. Carregado do cache de contingência para: ${tableName}`);
+              return { data: JSON.parse(cached), error: null };
+            }
+          } catch (e) {
+            console.error(`[DataRepository] Erro ao ler cache offline para ${tableName}:`, e);
+          }
+        }
+        console.error(`[DataRepository] Erro ao buscar primeira página de ${tableName}:`, firstError);
+        return { data: null, error: firstError };
       }
-      if (data) {
-        allData = [...allData, ...data];
-        if (data.length < step) hasMore = false;
-        else from += step;
-      } else {
-        hasMore = false;
+      
+      if (!firstBatch || firstBatch.length < 1000) {
+        const result = firstBatch || [];
+        try {
+          localStorage.setItem(`capelania_offline_${tableName}`, JSON.stringify(result));
+        } catch (e) {
+          console.warn(`[DataRepository] Falha ao salvar cache para ${tableName}:`, e);
+        }
+        return { data: result, error: null };
       }
+      
+      // Se atingiu 1000, precisamos buscar mais
+      let allData = [...firstBatch];
+      let from = 1000;
+      const step = 1000;
+      let hasMore = true;
+      
+      while (hasMore && allData.length < maxRows) {
+        try {
+          const { data, error } = await supabase
+            .from(tableName)
+            .select('*')
+            .range(from, from + step - 1);
+            
+          if (error) {
+            console.error(`[DataRepository] Erro ao paginar ${tableName} no range ${from}-${from + step - 1}:`, error);
+            hasMore = false;
+            break;
+          }
+          if (data) {
+            allData = [...allData, ...data];
+            if (data.length < step) hasMore = false;
+            else from += step;
+          } else {
+            hasMore = false;
+          }
+        } catch (err) {
+          console.error(`[DataRepository] Exceção na paginação de ${tableName}:`, err);
+          hasMore = false;
+          break;
+        }
+      }
+      
+      try {
+        localStorage.setItem(`capelania_offline_${tableName}`, JSON.stringify(allData));
+      } catch (e) {
+        console.warn(`[DataRepository] Falha ao salvar cache para ${tableName}:`, e);
+      }
+      
+      if (tableName === 'visit_requests') {
+         console.log(`[DEBUG DataRepository - VISIT_REQUESTS] Fetch concluído, total recebido: ${allData.length}`);
+      }
+      return { data: allData, error: null };
+    } catch (err: any) {
+      console.warn(`[DataRepository] Exceção fatal ao ler ${tableName}, buscando cache contingência:`, err);
+      try {
+        const cached = localStorage.getItem(`capelania_offline_${tableName}`);
+        if (cached) {
+          return { data: JSON.parse(cached), error: null };
+        }
+      } catch (e) {
+        console.error(`[DataRepository] Erro ao carregar cache de exceção para ${tableName}:`, e);
+      }
+      return { data: null, error: err };
     }
-    if (tableName === 'visit_requests') {
-       console.log(`[DEBUG DataRepository - VISIT_REQUESTS] Fetch concluído, total recebido: ${allData.length}`);
-    }
-    return { data: allData, error: null };
   },
 
   async syncAll() {
@@ -59,7 +120,7 @@ export const DataRepository = {
     try {
       const MAX_ROWS = 49999;
 
-      // Executa as queries em paralelo, mas trata erros individualmente para não quebrar o app todo
+      // Executa as queries em paralelo, mas trata erros individualmente e previne rejeição do Promise.all
       const results = await Promise.all([
         DataRepository.fetchFullTable('users', MAX_ROWS),
         DataRepository.fetchFullTable('bible_study_sessions', MAX_ROWS),
@@ -67,7 +128,13 @@ export const DataRepository = {
         DataRepository.fetchFullTable('small_group_sessions', MAX_ROWS),
         DataRepository.fetchFullTable('staff_visits', MAX_ROWS),
         DataRepository.fetchFullTable('visit_requests', MAX_ROWS),
-        supabase.from('app_config').select('*').limit(1),
+        (async () => {
+          try {
+            return await supabase.from('app_config').select('*').limit(1);
+          } catch (err: any) {
+            return { data: null, error: err };
+          }
+        })(),
         DataRepository.fetchFullTable('pro_sectors', MAX_ROWS),
         DataRepository.fetchFullTable('pro_staff', MAX_ROWS),
         DataRepository.fetchFullTable('pro_patients', MAX_ROWS),
@@ -79,8 +146,8 @@ export const DataRepository = {
         DataRepository.fetchFullTable('bible_class_attendees', MAX_ROWS),
         DataRepository.fetchFullTable('activity_schedules', MAX_ROWS),
         DataRepository.fetchFullTable('daily_activity_reports', MAX_ROWS),
-        DataRepository.fetchFullTable('pro_monthly_stats', 99999), // Limite maior para histórico
-        DataRepository.fetchFullTable('pro_history_records', 199999), // Limite muito maior para histórico detalhado
+        DataRepository.fetchFullTable('pro_monthly_stats', 99999), 
+        DataRepository.fetchFullTable('pro_history_records', 199999), 
         DataRepository.fetchFullTable('ambassadors', MAX_ROWS),
         DataRepository.fetchFullTable('edit_authorizations', MAX_ROWS)
       ]);
@@ -103,44 +170,46 @@ export const DataRepository = {
         }
       }
 
-      const classes = toCamel(bc.data || []);
-      const attendees = toCamel(bca.data || []);
+      const classes = bc.data ? toCamel(bc.data) : null;
+      const attendees = bca.data ? toCamel(bca.data) : null;
       
-      classes.forEach((cls: any) => {
-          cls.students = attendees
-            .filter((a: any) => a.classId === cls.id)
-            .map((a: any) => {
-                const id = a.staffId || a.participantId;
-                if (id && !String(a.studentName).includes(`(${id})`)) {
-                    return `${a.studentName} (${id})`;
-                }
-                return a.studentName;
-            });
-      });
+      if (classes && attendees) {
+        classes.forEach((cls: any) => {
+            cls.students = attendees
+              .filter((a: any) => a.classId === cls.id)
+              .map((a: any) => {
+                  const id = a.staffId || a.participantId;
+                  if (id && !String(a.studentName).includes(`(${id})`)) {
+                      return `${a.studentName} (${id})`;
+                  }
+                  return a.studentName;
+              });
+        });
+      }
 
       return {
-        users: toCamel(u.data || []),
-        bibleStudies: toCamel(bs.data || []),
+        users: u.data ? toCamel(u.data) : null,
+        bibleStudies: bs.data ? toCamel(bs.data) : null,
         bibleClasses: classes, 
-        smallGroups: toCamel(sg.data || []),
-        staffVisits: toCamel(sv.data || []),
-        visitRequests: toCamel(vr.data || []),
+        smallGroups: sg.data ? toCamel(sg.data) : null,
+        staffVisits: sv.data ? toCamel(sv.data) : null,
+        visitRequests: vr.data ? toCamel(vr.data) : null,
         config: c.data && c.data.length > 0 ? toCamel(c.data[0]) : null,
-        proSectors: toCamel(ps.data || []),
-        proStaff: toCamel(pst.data || []),
-        proPatients: toCamel(pp.data || []),
-        proProviders: toCamel(pr.data || []),
-        proGroups: toCamel(pg.data || []),
-        proGroupLocations: toCamel(pgl.data || []),
-        proGroupMembers: toCamel(pgm.data || []),
-        proGroupProviderMembers: toCamel(pgpm.data || []),
-        activitySchedules: toCamel(asch.data || []),
-        dailyActivityReports: toCamel(dar.data || []),
+        proSectors: ps.data ? toCamel(ps.data) : null,
+        proStaff: pst.data ? toCamel(pst.data) : null,
+        proPatients: pp.data ? toCamel(pp.data) : null,
+        proProviders: pr.data ? toCamel(pr.data) : null,
+        proGroups: pg.data ? toCamel(pg.data) : null,
+        proGroupLocations: pgl.data ? toCamel(pgl.data) : null,
+        proGroupMembers: pgm.data ? toCamel(pgm.data) : null,
+        proGroupProviderMembers: pgpm.data ? toCamel(pgpm.data) : null,
+        activitySchedules: asch.data ? toCamel(asch.data) : null,
+        dailyActivityReports: dar.data ? toCamel(dar.data) : null,
         bibleClassAttendees: attendees,
-        proMonthlyStats: toCamel(pms.data || []),
-        proHistoryRecords: toCamel(phr.data || []),
-        ambassadors: toCamel(amb.data || []),
-        editAuthorizations: toCamel(ea.data || [])
+        proMonthlyStats: pms.data ? toCamel(pms.data) : null,
+        proHistoryRecords: phr.data ? toCamel(phr.data) : null,
+        ambassadors: amb.data ? toCamel(amb.data) : null,
+        editAuthorizations: ea.data ? toCamel(ea.data) : null
       };
     } catch (error) {
       console.error("Erro fatal ao sincronizar com Supabase:", error);

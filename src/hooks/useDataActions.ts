@@ -18,7 +18,7 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
           staffVisits: data.staffVisits?.length || 0
         });
         Object.entries(data).forEach(([key, val]) => {
-          if (setters[key]) {
+          if (val !== null && setters[key]) {
             setters[key](val);
           }
         });
@@ -39,19 +39,19 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
     try {
       const data = await DataRepository.syncAll();
       if (data) {
-        setters.bibleStudies(data.bibleStudies);
-        setters.bibleClasses(data.bibleClasses);
-        setters.smallGroups(data.smallGroups);
-        setters.staffVisits(data.staffVisits);
-        setters.visitRequests(data.visitRequests);
-        setters.proGroups(data.proGroups);
-        setters.proStaff(data.proStaff);
-        setters.proSectors(data.proSectors);
-        setters.proGroupMembers(data.proGroupMembers);
-        setters.proGroupLocations(data.proGroupLocations);
-        setters.proMonthlyStats(data.proMonthlyStats);
-        setters.proHistoryRecords(data.proHistoryRecords);
-        setters.config(data.config);
+        if (data.bibleStudies !== null) setters.bibleStudies(data.bibleStudies);
+        if (data.bibleClasses !== null) setters.bibleClasses(data.bibleClasses);
+        if (data.smallGroups !== null) setters.smallGroups(data.smallGroups);
+        if (data.staffVisits !== null) setters.staffVisits(data.staffVisits);
+        if (data.visitRequests !== null) setters.visitRequests(data.visitRequests);
+        if (data.proGroups !== null) setters.proGroups(data.proGroups);
+        if (data.proStaff !== null) setters.proStaff(data.proStaff);
+        if (data.proSectors !== null) setters.proSectors(data.proSectors);
+        if (data.proGroupMembers !== null) setters.proGroupMembers(data.proGroupMembers);
+        if (data.proGroupLocations !== null) setters.proGroupLocations(data.proGroupLocations);
+        if (data.proMonthlyStats !== null) setters.proMonthlyStats(data.proMonthlyStats);
+        if (data.proHistoryRecords !== null) setters.proHistoryRecords(data.proHistoryRecords);
+        if (data.config !== null) setters.config(data.config);
       }
       return { success: true };
     } catch (err) {

@@ -114,6 +114,12 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
 
+    // Expõe uma função global no console do navegador para testar e validar o visual/comportamento da atualização
+    (window as any).__simularAtualizacaoCapelania = () => {
+      console.log('[Capelania AutoUpdate] 🧪 Simulação de atualização ativada manualmente pelo Console!');
+      setHasUpdate(true);
+    };
+
     return () => {
       clearTimeout(initTimeout);
       if (checkIntervalRef.current) {
@@ -121,6 +127,7 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
+      delete (window as any).__simularAtualizacaoCapelania;
     };
   }, [checkForUpdates]);
 
