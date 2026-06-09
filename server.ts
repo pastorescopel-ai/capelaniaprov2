@@ -162,8 +162,19 @@ async function startServer() {
       }
     });
   } else {
-    // Servir arquivos estáticos em produção
-    app.use(express.static(_dirname, { index: false }));
+    // Servir arquivos estáticos em produção com controle inteligente de heranças de cache
+    app.use(express.static(_dirname, { 
+      index: false,
+      setHeaders: (res, filePath) => {
+        // Evita cache persistente de service worker, manifesto e html no navegador
+        if (filePath.endsWith('.html') || filePath.includes('sw.js') || filePath.includes('manifest') || filePath.includes('registerSW')) {
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+        } else if (filePath.includes('/assets/')) {
+          // Arquivos do Vite com hashes no nome são imutáveis e podem ser cacheados de forma agressiva
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      }
+    }));
     
     app.get("*all", (req, res) => {
       try {
@@ -178,7 +189,11 @@ async function startServer() {
           if (replaced === html) {
             console.warn("⚠️ CONFIG_INJECTION placeholder not found in production index.html");
           }
-          res.status(200).set({ "Content-Type": "text/html" }).end(replaced);
+          // Garante que o index.html NUNCA seja cacheado pelo navegador ou proxy
+          res.status(200).set({ 
+            "Content-Type": "text/html",
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+          }).end(replaced);
         } else {
           res.status(404).send("Index not found");
         }

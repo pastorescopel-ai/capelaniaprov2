@@ -11,6 +11,7 @@ import { useBible } from './contexts/BibleContext';
 import { usePro } from './contexts/ProContext';
 import { useAuth } from './contexts/AuthContext';
 import { useAppFlow } from './hooks/useAppFlow';
+import { AppUpdateChecker } from './components/AppUpdateChecker';
 
 import { ensureISODate } from './utils/formatters';
 
@@ -208,6 +209,9 @@ const App: React.FC = () => {
           onGoToReturnHistory={handleGoToReturnHistory}
           getVisibleHistory={getVisibleHistory}
         />
+
+        {/* Verificador de Atualizações em Tempo Real */}
+        <AppUpdateChecker config={config} />
 
       </div>
     </Layout>
