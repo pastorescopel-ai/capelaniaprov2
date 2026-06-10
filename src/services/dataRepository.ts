@@ -4,19 +4,73 @@ import { TABLE_SCHEMAS, toCamel, cleanAndConvertToSnake, isValidUUID, COLLECTION
 const CACHE_KEY = 'capelania_pro_config_id';
 const DATA_CACHE_KEY = 'capelania_pro_config_data';
 
+const MEMORY_CACHE: Record<string, any> = {};
+
+function safeSetLocalStorage(key: string, value: any, tableName: string) {
+  try {
+    const serialized = JSON.stringify(value);
+    localStorage.setItem(key, serialized);
+  } catch (e: any) {
+    // Registra temporariamente no cache de memória local para a sessão atual
+    MEMORY_CACHE[key] = value;
+    
+    if (e.name === 'QuotaExceededError' || e.code === 22) {
+      // Mensagem explicativa e amigável uma única vez
+      if (typeof window !== 'undefined' && !(window as any).__quotaExceededLogged) {
+        (window as any).__quotaExceededLogged = true;
+        console.info(
+          `[Capelania OS] ℹ️ Cota de armazenamento local offline do navegador excedida (~5MB atingidos). ` +
+          `Os dados excedentes de tabelas históricas de auditoria foram direcionados ao cache de memória temporária com sucesso.`
+        );
+      }
+      
+      // Limpa dados antigos ou não-críticos do localStorage para tentar abrir espaço para configurações críticas
+      const heavyTables = ['pro_history_records', 'pro_monthly_stats', 'staff_visits', 'bible_class_attendees'];
+      if (heavyTables.includes(tableName)) {
+        try {
+          localStorage.removeItem(`capelania_offline_${tableName}`);
+        } catch (err: any) {
+          if (console.debug) {
+            console.debug("Item já removido do localStorage:", err.message);
+          }
+        }
+      }
+    } else {
+      console.warn(`[DataRepository] Falha ao salvar cache para ${tableName}:`, e);
+    }
+  }
+}
+
+function safeGetLocalStorage(key: string, tableName: string): any {
+  if (MEMORY_CACHE[key] !== undefined) {
+    return MEMORY_CACHE[key];
+  }
+  try {
+    const cached = localStorage.getItem(key);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (e) {
+    console.warn(`[DataRepository] Erro ao carregar cache do localStorage para ${tableName}:`, e);
+  }
+  return null;
+}
+
 const GLOBAL_ID_CACHE: Record<string, string> = {
-  app_config: typeof window !== 'undefined' ? localStorage.getItem(CACHE_KEY) || '' : ''
+  app_config: typeof window !== 'undefined' ? (() => {
+    try {
+      return localStorage.getItem(CACHE_KEY) || '';
+    } catch (_) {
+      return '';
+    }
+  })() : ''
 };
 
 export const DataRepository = {
   async fetchFullTable(tableName: string, maxRows = 100000) {
     if (!supabase) {
-      try {
-        const cached = localStorage.getItem(`capelania_offline_${tableName}`);
-        if (cached) return { data: JSON.parse(cached), error: null };
-      } catch (e) {
-        console.warn(`[DataRepository] Erro ao carregar cache local de contingência:`, e);
-      }
+      const cached = safeGetLocalStorage(`capelania_offline_${tableName}`, tableName);
+      if (cached) return { data: cached, error: null };
       return { data: null, error: null };
     }
     
@@ -28,34 +82,30 @@ export const DataRepository = {
         .range(0, 999);
         
       if (firstError) {
+        const errMsg = firstError.message || String(firstError);
+        const isNetworkErr = 
+          errMsg.includes('fetch') || 
+          errMsg.includes('Failed to fetch') || 
+          errMsg.includes('NetworkError') || 
+          !navigator.onLine;
+
         // Se houver falha de fetch (ex: sem internet), tenta carregar do cache local
-        if (
-          firstError.message?.includes('fetch') || 
-          firstError.message?.includes('Failed to fetch') || 
-          firstError.message?.includes('NetworkError') || 
-          !navigator.onLine
-        ) {
-          try {
-            const cached = localStorage.getItem(`capelania_offline_${tableName}`);
-            if (cached) {
-              console.log(`[DataRepository] 📶 Rede offline. Carregado do cache de contingência para: ${tableName}`);
-              return { data: JSON.parse(cached), error: null };
-            }
-          } catch (e) {
-            console.error(`[DataRepository] Erro ao ler cache offline para ${tableName}:`, e);
+        if (isNetworkErr) {
+          const cached = safeGetLocalStorage(`capelania_offline_${tableName}`, tableName);
+          if (cached) {
+            console.log(`[DataRepository] 📶 Rede offline. Carregado do cache de contingência para: ${tableName}`);
+            return { data: cached, error: null };
           }
+          console.warn(`[DataRepository] Rede offline ao buscar primeira página de ${tableName} (sem cache):`, errMsg);
+        } else {
+          console.error(`[DataRepository] Erro ao buscar primeira página de ${tableName}:`, firstError);
         }
-        console.error(`[DataRepository] Erro ao buscar primeira página de ${tableName}:`, firstError);
         return { data: null, error: firstError };
       }
       
       if (!firstBatch || firstBatch.length < 1000) {
         const result = firstBatch || [];
-        try {
-          localStorage.setItem(`capelania_offline_${tableName}`, JSON.stringify(result));
-        } catch (e) {
-          console.warn(`[DataRepository] Falha ao salvar cache para ${tableName}:`, e);
-        }
+        safeSetLocalStorage(`capelania_offline_${tableName}`, result, tableName);
         return { data: result, error: null };
       }
       
@@ -73,7 +123,18 @@ export const DataRepository = {
             .range(from, from + step - 1);
             
           if (error) {
-            console.error(`[DataRepository] Erro ao paginar ${tableName} no range ${from}-${from + step - 1}:`, error);
+            const errMsg = error.message || String(error);
+            const isNetworkErr = 
+              errMsg.includes('fetch') || 
+              errMsg.includes('Failed to fetch') || 
+              errMsg.includes('NetworkError') || 
+              !navigator.onLine;
+
+            if (isNetworkErr) {
+              console.warn(`[DataRepository] Rede offline durante paginação de ${tableName} no range ${from}-${from + step - 1}:`, errMsg);
+            } else {
+              console.error(`[DataRepository] Erro ao paginar ${tableName} no range ${from}-${from + step - 1}:`, error);
+            }
             hasMore = false;
             break;
           }
@@ -84,32 +145,46 @@ export const DataRepository = {
           } else {
             hasMore = false;
           }
-        } catch (err) {
-          console.error(`[DataRepository] Exceção na paginação de ${tableName}:`, err);
+        } catch (err: any) {
+          const errMsg = err?.message || String(err);
+          const isNetworkErr = 
+            errMsg.includes('fetch') || 
+            errMsg.includes('Failed to fetch') || 
+            errMsg.includes('NetworkError') || 
+            !navigator.onLine;
+
+          if (isNetworkErr) {
+            console.warn(`[DataRepository] Rede offline (exceção) na paginação de ${tableName}:`, errMsg);
+          } else {
+            console.error(`[DataRepository] Exceção na paginação de ${tableName}:`, err);
+          }
           hasMore = false;
           break;
         }
       }
       
-      try {
-        localStorage.setItem(`capelania_offline_${tableName}`, JSON.stringify(allData));
-      } catch (e) {
-        console.warn(`[DataRepository] Falha ao salvar cache para ${tableName}:`, e);
-      }
+      safeSetLocalStorage(`capelania_offline_${tableName}`, allData, tableName);
       
       if (tableName === 'visit_requests') {
          console.log(`[DEBUG DataRepository - VISIT_REQUESTS] Fetch concluído, total recebido: ${allData.length}`);
       }
       return { data: allData, error: null };
     } catch (err: any) {
-      console.warn(`[DataRepository] Exceção fatal ao ler ${tableName}, buscando cache contingência:`, err);
-      try {
-        const cached = localStorage.getItem(`capelania_offline_${tableName}`);
-        if (cached) {
-          return { data: JSON.parse(cached), error: null };
-        }
-      } catch (e) {
-        console.error(`[DataRepository] Erro ao carregar cache de exceção para ${tableName}:`, e);
+      const errMsg = err?.message || String(err);
+      const isNetworkErr = 
+        errMsg.includes('fetch') || 
+        errMsg.includes('Failed to fetch') || 
+        errMsg.includes('NetworkError') || 
+        !navigator.onLine;
+
+      if (isNetworkErr) {
+        console.warn(`[DataRepository] Rede offline ao ler ${tableName} (exceção fatal), buscando cache de contingência:`, errMsg);
+      } else {
+        console.warn(`[DataRepository] Exceção fatal ao ler ${tableName}, buscando cache contingência:`, err);
+      }
+      const cached = safeGetLocalStorage(`capelania_offline_${tableName}`, tableName);
+      if (cached) {
+        return { data: cached, error: null };
       }
       return { data: null, error: err };
     }
@@ -152,12 +227,23 @@ export const DataRepository = {
         DataRepository.fetchFullTable('edit_authorizations', MAX_ROWS)
       ]);
 
-      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar, pms, phr, amb, ea] = results;
+      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar, pms, phr, amb, ea ] = results;
 
       // Log de erros para debug (invisível ao usuário)
       results.forEach((res, idx) => {
         if (res.error) {
-          console.error(`Query ${idx} falhou:`, res.error.message);
+          const errMsg = res.error.message || String(res.error);
+          const isNetworkErr = 
+            errMsg.includes('fetch') || 
+            errMsg.includes('Failed to fetch') || 
+            errMsg.includes('NetworkError') || 
+            !navigator.onLine;
+
+          if (isNetworkErr) {
+            console.warn(`Query transiente/offline ${idx} em andamento:`, errMsg);
+          } else {
+            console.error(`Query ${idx} falhou:`, errMsg);
+          }
         }
       });
 
@@ -165,8 +251,13 @@ export const DataRepository = {
         const configId = c.data[0].id;
         GLOBAL_ID_CACHE['app_config'] = configId;
         if (typeof window !== 'undefined') {
-          localStorage.setItem(CACHE_KEY, configId);
-          localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(toCamel(c.data[0])));
+          try {
+            localStorage.setItem(CACHE_KEY, configId);
+            localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(toCamel(c.data[0])));
+          } catch (e: any) {
+            MEMORY_CACHE[CACHE_KEY] = configId;
+            MEMORY_CACHE[DATA_CACHE_KEY] = toCamel(c.data[0]);
+          }
         }
       }
 
@@ -380,7 +471,11 @@ export const DataRepository = {
 
     if (collection === 'config' && allUpsertedData.length > 0) {
         if (typeof window !== 'undefined') {
-            localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(allUpsertedData[0]));
+            try {
+                localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(allUpsertedData[0]));
+            } catch (e: any) {
+                MEMORY_CACHE[DATA_CACHE_KEY] = allUpsertedData[0];
+            }
         }
     }
 
