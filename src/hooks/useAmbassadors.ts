@@ -18,52 +18,82 @@ export const useAmbassadors = (proSectors: any[]) => {
 
   const fetchAmbassadors = useCallback(async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('ambassadors')
-      .select('*')
-      .eq('cycle_month', selectedMonth);
-    
-    if (error) {
-      showToast('Erro ao carregar embaixadores', 'error');
-    } else {
-      const formatted: Ambassador[] = data.map((d: any) => ({
-        id: d.id,
-        name: d.name,
-        registrationId: d.registration_id,
-        email: d.email,
-        sectorId: d.sector_id ? String(d.sector_id) : null,
-        unit: d.unit,
-        completionDate: d.completion_date,
-        cycleMonth: d.cycle_month,
-        createdAt: d.created_at
-      }));
-      setAmbassadors(formatted);
+    try {
+      const { data, error } = await supabase
+        .from('ambassadors')
+        .select('*')
+        .eq('cycle_month', selectedMonth);
+      
+      if (error) {
+        showToast('Erro ao carregar embaixadores', 'error');
+      } else if (data) {
+        const formatted: Ambassador[] = data.map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          registrationId: d.registration_id,
+          email: d.email,
+          sectorId: d.sector_id ? String(d.sector_id) : null,
+          unit: d.unit,
+          completionDate: d.completion_date,
+          cycleMonth: d.cycle_month,
+          createdAt: d.created_at
+        }));
+        setAmbassadors(formatted);
+      }
+    } catch (err: any) {
+      console.warn('[useAmbassadors] Falha na rede ao carregar embaixadores:', err.message || err);
+      // Tenta recuperar do cache offline local se disponível
+      try {
+        const cached = localStorage.getItem('capelania_offline_ambassadors');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const filtered = parsed.filter((d: any) => d.cycleMonth === selectedMonth || d.cycle_month === selectedMonth);
+          setAmbassadors(filtered);
+        }
+      } catch (e: any) {
+        if (console.debug) {
+          console.debug("Cache offline de embaixadores não disponível:", e.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, [showToast, selectedMonth]);
 
   useEffect(() => {
-    fetchAmbassadors();
+    if (supabase) {
+      fetchAmbassadors();
+    }
   }, [fetchAmbassadors]);
 
   const deleteAmbassador = async (id: string) => {
-    const { error } = await supabase.from('ambassadors').delete().eq('id', id);
-    if (error) showToast('Erro ao excluir', 'error');
-    else {
-      showToast('Excluído com sucesso', 'success');
-      setAmbassadors(prev => prev.filter(a => a.id !== id));
+    try {
+      const { error } = await supabase.from('ambassadors').delete().eq('id', id);
+      if (error) {
+        showToast('Erro ao excluir', 'error');
+      } else {
+        showToast('Excluído com sucesso', 'success');
+        setAmbassadors(prev => prev.filter(a => a.id !== id));
+      }
+    } catch (err) {
+      showToast('Erro de conexão ao excluir embaixador', 'error');
     }
   };
 
   const deleteCycleAmbassadors = async (cycleMonth: string) => {
-    const { error } = await supabase.from('ambassadors').delete().eq('cycle_month', cycleMonth);
-    if (error) {
-      showToast('Erro ao limpar ciclo', 'error');
+    try {
+      const { error } = await supabase.from('ambassadors').delete().eq('cycle_month', cycleMonth);
+      if (error) {
+        showToast('Erro ao limpar ciclo', 'error');
+        return false;
+      }
+      showToast('Ciclo limpo com sucesso', 'success');
+      fetchAmbassadors();
+      return true;
+    } catch (err) {
+      showToast('Erro de conexão ao limpar ciclo', 'error');
       return false;
     }
-    showToast('Ciclo limpo com sucesso', 'success');
-    fetchAmbassadors();
-    return true;
   };
 
   const processImport = async (onSuccess: () => void, cycleMonth: string) => {
