@@ -236,10 +236,24 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
             const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
             if (staff) dataToSubmit.sectorId = staff.sectorId;
         }
+
+        // AUTO-RECOVERY DE STAFF ID: Garante que o staffId correto seja persistido no banco
+        dataToSubmit.providerId = '';
+        if (!dataToSubmit.staffId) {
+            const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
+            if (staff) dataToSubmit.staffId = staff.id;
+        }
     } else {
         if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast("WhatsApp é obrigatório para prestadores.", "warning"); return; }
         if (!isValidWhatsApp(formData.whatsapp)) { showToast("Por favor, insira um número de WhatsApp válido.", "error"); return; }
         dataToSubmit.sector = '';
+
+        // AUTO-RECOVERY DE PROVIDER ID: Garante que o providerId correto seja persistido no banco
+        dataToSubmit.staffId = '';
+        if (!dataToSubmit.providerId) {
+            const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
+            if (provider) dataToSubmit.providerId = provider.id;
+        }
     }
 
     if (isRecordLocked(formData.date, currentUser.role, 'staffVisits', editAuthorizations)) {

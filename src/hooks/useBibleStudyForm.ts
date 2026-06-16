@@ -336,17 +336,23 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
     const dataToSubmit = { ...formData, unit, participantType: formData.participantType };
 
-    // RECUPERAÇÃO DE ID: Se o ID estiver vazio, tenta encontrar pelo nome (Case Insensitive)
-    if (!dataToSubmit.staffId && !dataToSubmit.participantId) {
-        if (isStaff) {
+    // RECUPERAÇÃO DE ID: Garante tratamento isolado e limpeza completa dos IDs redundantes (Ponto de Integridade)
+    if (isStaff) {
+        dataToSubmit.participantId = '';
+        if (!dataToSubmit.staffId) {
             const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
             if (staff) dataToSubmit.staffId = staff.id;
-        } else if (formData.participantType === ParticipantType.PATIENT) {
-            const patient = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
-            if (patient) dataToSubmit.participantId = patient.id;
-        } else if (formData.participantType === ParticipantType.PROVIDER) {
-            const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
-            if (provider) dataToSubmit.participantId = provider.id;
+        }
+    } else {
+        dataToSubmit.staffId = '';
+        if (!dataToSubmit.participantId) {
+            if (formData.participantType === ParticipantType.PATIENT) {
+                const patient = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
+                if (patient) dataToSubmit.participantId = patient.id;
+            } else if (formData.participantType === ParticipantType.PROVIDER) {
+                const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
+                if (provider) dataToSubmit.participantId = provider.id;
+            }
         }
     }
 

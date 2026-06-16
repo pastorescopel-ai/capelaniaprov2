@@ -180,7 +180,17 @@ export const useHealerCalculations = (
     });
     
     return Array.from(orphanMap.entries())
-        .map(([name, data]) => ({ name, id: data.extractedId, sectors: Array.from(data.sectors).sort(), sources: data.sources }))
+        .map(([name, data]) => {
+            const normName = normalizeString(name);
+            const crossStaff = proStaff.find((s: any) => normalizeString(s.name) === normName && s.unit !== selectedUnit);
+            return {
+                name,
+                id: data.extractedId,
+                sectors: Array.from(data.sectors).sort(),
+                sources: data.sources,
+                crossUnitStaff: crossStaff ? { id: crossStaff.id, name: crossStaff.name, unit: crossStaff.unit } : null
+            };
+        })
         .sort((a, b) => a.name.localeCompare(b.name));
   }, [bibleClasses, bibleStudies, staffVisits, smallGroups, visitRequests, proGroups, proStaff, proPatients, proProviders, showAllHistory, resolvedItems, searchQuery, selectedUnit]);
 

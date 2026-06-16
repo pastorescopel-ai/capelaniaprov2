@@ -357,17 +357,23 @@ const ActivityReports: React.FC = () => {
                   <div className="space-y-3">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Atividades Concluídas</p>
                     <div className="flex flex-wrap gap-2">
-                      {report.completedBlueprints?.map((loc, idx) => (
-                        <span 
-                          key={`bp-${idx}`}
-                          className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tight border bg-indigo-50 text-indigo-600 border-indigo-100"
-                        >
-                          {loc}
-                        </span>
-                      ))}
+                      {report.completedBlueprints?.map((loc, idx) => {
+                        const [locationName, period] = loc.split(':');
+                        const periodLabel = period ? (period === 'manha' ? ' (Manhã)' : ' (Tarde)') : '';
+                        return (
+                          <span 
+                            key={`bp-${idx}`}
+                            className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tight border bg-indigo-50 text-indigo-600 border-indigo-100"
+                          >
+                            {locationName}{periodLabel}
+                          </span>
+                        );
+                      })}
                       {report.completedCults?.map((sectorId, idx) => {
-                        const sectorObj = proSectors.find(s => s.id === sectorId);
-                        const sectorName = sectorObj ? `${sectorObj.name} [${sectorObj.unit}]` : 'Setor';
+                        const [realId, period] = sectorId.split(':');
+                        const sectorObj = proSectors.find(s => s.id === realId);
+                        const periodLabel = period ? (period === 'manha' ? ' (Manhã)' : ' (Tarde)') : '';
+                        const sectorName = sectorObj ? `${sectorObj.name} [${sectorObj.unit}]${periodLabel}` : 'Setor';
                         return (
                           <span 
                             key={`cult-${idx}`}

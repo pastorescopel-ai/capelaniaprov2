@@ -13,6 +13,7 @@ interface AuditoriaPeopleTabProps {
   officialProviderOptions: any[];
   handleProcessPerson: (name: string) => void;
   handleDeletePersonOrphan: (name: string) => void;
+  handleTransferRecordsUnit?: (name: string, targetUnit: string) => void;
   isProcessing: boolean;
 }
 
@@ -27,6 +28,7 @@ const AuditoriaPeopleTab: React.FC<AuditoriaPeopleTabProps> = ({
   officialProviderOptions,
   handleProcessPerson,
   handleDeletePersonOrphan,
+  handleTransferRecordsUnit,
   isProcessing
 }) => {
   return (
@@ -96,6 +98,25 @@ const AuditoriaPeopleTab: React.FC<AuditoriaPeopleTabProps> = ({
                         <i className="fas fa-magic"></i> 
                         <span>{targetMap[name]}</span>
                       </div>
+                    </div>
+                  )}
+
+                  {item.crossUnitStaff && (
+                    <div className="mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                      <div className="text-[9px] font-black text-amber-600 uppercase leading-none mb-1">
+                        💡 Cadastro em Outra Unidade
+                      </div>
+                      <div className="text-[11px] font-bold text-amber-800 leading-tight">
+                        Pertence ao RH oficial do <strong className="uppercase">{item.crossUnitStaff.unit}</strong>:
+                      </div>
+                      <button
+                        onClick={() => handleTransferRecordsUnit?.(name, item.crossUnitStaff.unit)}
+                        disabled={isProcessing}
+                        className="mt-2 w-full py-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-[9px] font-black uppercase tracking-wider rounded-lg transition-all shadow-md flex items-center justify-center gap-1 disabled:opacity-50"
+                      >
+                        <i className="fas fa-exchange-alt"></i>
+                        Transferir registros para {item.crossUnitStaff.unit}
+                      </button>
                     </div>
                   )}
                   

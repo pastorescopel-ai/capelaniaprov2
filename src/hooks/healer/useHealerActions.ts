@@ -1,5 +1,6 @@
 import { normalizeString } from '../../utils/formatters';
 import { useToast } from '../../contexts/ToastContext';
+import { supabase } from '../../services/supabaseClient';
 
 export const useHealerActions = (
   appData: any,
@@ -545,6 +546,93 @@ export const useHealerActions = (
     }
   };
 
+  const handleTransferRecordsUnit = async (orphanName: string, targetUnit: string) => {
+      const norm = normalizeString(orphanName);
+      const check = (name: string | undefined) => name && normalizeString(name) === norm;
+
+      // Coletamos quais registros têm a unidade diferente da unidade-alvo (targetUnit)
+      const studiesToUpdate = bibleStudies.filter((s: any) => check(s.name) && s.unit !== targetUnit);
+      const visitsToUpdate = staffVisits.filter((v: any) => check(v.staffName) && v.unit !== targetUnit);
+      const groupsToUpdate = smallGroups.filter((g: any) => check(g.leader) && g.unit !== targetUnit);
+      const requestsToUpdate = visitRequests.filter((vr: any) => check(vr.leaderName) && vr.unit !== targetUnit);
+      const proGroupsToUpdate = proGroups.filter((pg: any) => (check(pg.leader) || check(pg.currentLeader)) && pg.unit !== targetUnit);
+
+      const totalToTransfer = studiesToUpdate.length + visitsToUpdate.length + groupsToUpdate.length + requestsToUpdate.length + proGroupsToUpdate.length;
+
+      if (totalToTransfer === 0) {
+          showToast("Nenhum lançamento pendente encontrado em outras unidades para transferir.", "info");
+          return;
+      }
+
+      if (!confirm(`Deseja transferir todos os ${totalToTransfer} lançamentos de "${orphanName}" para a sua unidade oficial (${targetUnit}) no banco de dados?`)) {
+          return;
+      }
+
+      setIsProcessing(true);
+      try {
+          let updatedCount = 0;
+
+          // 1. Estudos Bíblicos
+          for (const s of studiesToUpdate) {
+              const success = await saveRecord('bibleStudies', { ...s, unit: targetUnit });
+              if (success) updatedCount++;
+          }
+
+          // 2. Visitas
+          for (const v of visitsToUpdate) {
+              const success = await saveRecord('staffVisits', { ...v, unit: targetUnit });
+              if (success) updatedCount++;
+          }
+
+          // 3. Pequenos Grupos
+          for (const g of groupsToUpdate) {
+              const success = await saveRecord('smallGroups', { ...g, unit: targetUnit });
+              if (success) updatedCount++;
+          }
+
+          // 4. Solicitações de Visita
+          for (const vr of requestsToUpdate) {
+              const success = await saveRecord('visitRequests', { ...vr, unit: targetUnit });
+              if (success) updatedCount++;
+          }
+
+          // 5. Cadastro Mestre PG
+          for (const pg of proGroupsToUpdate) {
+              const success = await saveRecord('proGroups', { ...pg, unit: targetUnit });
+              if (success) updatedCount++;
+          }
+
+          // Carregar também bible_class_attendees correspondentes onde a unidade não bate
+          if (supabase) {
+              const { data: attendees } = await supabase
+                  .from('bible_class_attendees')
+                  .select('*')
+                  .eq('student_name', orphanName)
+                  .neq('unit', targetUnit);
+                  
+              if (attendees && attendees.length > 0) {
+                  const chunk = attendees.map((a: any) => ({ ...a, unit: targetUnit }));
+                  await saveRecord('bibleClassAttendees', chunk);
+                  updatedCount += attendees.length;
+              }
+          }
+
+          await loadFromCloud(true);
+          showToast(`Sucesso! ${updatedCount} lançamentos de "${orphanName}" transferidos para ${targetUnit}.`, "success");
+          
+          setResolvedItems((prev: any) => {
+              const next = new Set(prev);
+              next.add(orphanName);
+              next.add(normalizeString(orphanName));
+              return next;
+          });
+      } catch (e: any) {
+          showToast("Erro ao transferir lançamentos: " + e.message, "error");
+      } finally {
+          setIsProcessing(false);
+      }
+  };
+
   return {
     handleProcessPerson,
     handleHealSector,
@@ -559,6 +647,7 @@ export const useHealerActions = (
     getSectorSourceRecords,
     handleDeleteSectorOrphan,
     handleMoveSectorUnit,
-    handleDeletePersonOrphan
+    handleDeletePersonOrphan,
+    handleTransferRecordsUnit
   };
 };
