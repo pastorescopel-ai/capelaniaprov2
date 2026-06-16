@@ -5,6 +5,7 @@ import { PersonType } from '../../hooks/useDataHealer';
 interface AuditoriaMembershipsTabProps {
   duplicateMemberships: any[];
   handleFixDuplicateMembership: (personId: string, type: string, keepId: string) => void;
+  handleBatchFixDuplicateMemberships: (duplicateMemberships: any[]) => void;
   isProcessing: boolean;
   proGroups: any[];
 }
@@ -12,9 +13,27 @@ interface AuditoriaMembershipsTabProps {
 const AuditoriaMembershipsTab: React.FC<AuditoriaMembershipsTabProps> = ({
   duplicateMemberships,
   handleFixDuplicateMembership,
+  handleBatchFixDuplicateMemberships,
   isProcessing,
   proGroups
 }) => {
+  const automaticFixableCount = React.useMemo(() => {
+    let count = 0;
+    duplicateMemberships.forEach(dup => {
+      const groupMap = new Map<string, number>();
+      dup.memberships.forEach((m: any) => {
+        const gid = String(m.groupId);
+        groupMap.set(gid, (groupMap.get(gid) || 0) + 1);
+      });
+      groupMap.forEach((mCount) => {
+        if (mCount > 1) {
+          count += (mCount - 1);
+        }
+      });
+    });
+    return count;
+  }, [duplicateMemberships]);
+
   if (duplicateMemberships.length === 0) {
     return (
       <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-12 text-center">
@@ -29,7 +48,7 @@ const AuditoriaMembershipsTab: React.FC<AuditoriaMembershipsTabProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 mb-6">
+      <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 mb-2">
         <div className="flex items-start gap-4">
           <div className="p-3 bg-emerald-100 rounded-xl">
             <i className="fas fa-info-circle text-emerald-600"></i>
@@ -42,6 +61,34 @@ const AuditoriaMembershipsTab: React.FC<AuditoriaMembershipsTabProps> = ({
           </div>
         </div>
       </div>
+
+      {automaticFixableCount > 0 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-xl text-blue-600">
+              <i className="fas fa-magic"></i>
+            </div>
+            <div>
+              <h4 className="font-bold text-blue-900">Resolução em Lote Disponível</h4>
+              <p className="text-sm text-blue-700">
+                Encontramos <strong>{automaticFixableCount}</strong> {automaticFixableCount === 1 ? 'matrícula duplicada' : 'matrículas duplicadas'} no mesmo PG. Você pode resolvê-las mantendo apenas o vínculo mais antigo.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleBatchFixDuplicateMemberships(duplicateMemberships)}
+            disabled={isProcessing}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 shrink-0 disabled:opacity-50"
+          >
+            <i className="fas fa-bolt"></i>
+            Resolver Tudo ({automaticFixableCount})
+          </button>
+        </motion.div>
+      )}
       <div className="grid grid-cols-1 gap-4">
         {duplicateMemberships.map((dup, idx) => (
           <motion.div

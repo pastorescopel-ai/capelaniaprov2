@@ -369,6 +369,98 @@ export const useHealerActions = (
     }
   };
 
+  const handleBatchFixDuplicateMemberships = async (duplicateMemberships: any[]) => {
+    if (!duplicateMemberships || duplicateMemberships.length === 0) {
+      showToast("Não há duplicidades para resolver.", "info");
+      return;
+    }
+
+    const staffUpdates: any[] = [];
+    const providerUpdates: any[] = [];
+    let resolvedPeopleCount = 0;
+    let totalRemovedCount = 0;
+
+    duplicateMemberships.forEach(dup => {
+      // Group this person's memberships by groupId
+      const groupMap = new Map<string, any[]>();
+      dup.memberships.forEach((m: any) => {
+        const gid = String(m.groupId);
+        if (!groupMap.has(gid)) {
+          groupMap.set(gid, []);
+        }
+        groupMap.get(gid)!.push(m);
+      });
+
+      let hasResolve = false;
+      groupMap.forEach((list) => {
+        if (list.length > 1) {
+          // Sort list oldest-first
+          const sorted = [...list].sort((a, b) => {
+            const aTime = a.joinedAt ? new Date(a.joinedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+            const bTime = b.joinedAt ? new Date(b.joinedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+            return aTime - bTime;
+          });
+
+          // Keep the oldest, others are error duplicates
+          const keep = sorted[0];
+          const toRemove = sorted.slice(1);
+
+          toRemove.forEach((r: any) => {
+            const updated = {
+              ...r,
+              isError: true,
+              leftAt: Date.now()
+            };
+            if (dup.type === 'staff') {
+              staffUpdates.push(updated);
+            } else {
+              providerUpdates.push(updated);
+            }
+            totalRemovedCount++;
+          });
+          hasResolve = true;
+        }
+      });
+
+      if (hasResolve) {
+        resolvedPeopleCount++;
+      }
+    });
+
+    if (totalRemovedCount === 0) {
+      showToast("Nenhuma duplicidade no mesmo PG foi encontrada para resolução automática (onde o PG é idêntico e apenas as datas de matrícula mudam).", "info");
+      return;
+    }
+
+    if (!confirm(`Foram encontradas ${totalRemovedCount} matrículas duplicadas no mesmo PG (referentes a ${resolvedPeopleCount} pessoas).\n\nDeseja resolver todas automaticamente, mantendo de cada colaborador apenas o registro de matrícula mais antigo?`)) {
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      let success = true;
+      if (staffUpdates.length > 0) {
+        const ok = await saveRecord('proGroupMembers', staffUpdates);
+        if (!ok) success = false;
+      }
+      if (providerUpdates.length > 0) {
+        const ok = await saveRecord('proGroupProviderMembers', providerUpdates);
+        if (!ok) success = false;
+      }
+
+      if (success) {
+        showToast(`Sucesso! ${totalRemovedCount} matrículas duplicadas foram resolvidas mantendo o vínculo mais antigo.`, "success");
+        await loadFromCloud(true);
+      } else {
+        showToast("Erro ao salvar algumas atualizações de matrículas.", "error");
+      }
+    } catch (e: any) {
+      showToast("Erro: " + e.message, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleFixAttendeeDates = async () => {
     const attendeesToFix = (appData.bibleClassAttendees || []).filter((a: any) => !a.date || !a.cycleMonth);
     
@@ -643,6 +735,7 @@ export const useHealerActions = (
     handleUniversalMerge,
     handleSyncTemporalCycle,
     handleFixDuplicateMembership,
+    handleBatchFixDuplicateMemberships,
     handleFixAttendeeDates,
     getSectorSourceRecords,
     handleDeleteSectorOrphan,

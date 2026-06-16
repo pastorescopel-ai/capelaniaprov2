@@ -40,6 +40,7 @@ const DataHealer: React.FC = () => {
     handleUniversalMerge,
     handleSyncTemporalCycle,
     handleFixDuplicateMembership,
+    handleBatchFixDuplicateMemberships,
     handleFixAttendeeDates,
     handleDeletePersonOrphan,
     handleDeleteSectorOrphan,
@@ -336,6 +337,7 @@ const DataHealer: React.FC = () => {
                 <AuditoriaMembershipsTab 
                   duplicateMemberships={duplicateMemberships}
                   handleFixDuplicateMembership={handleFixDuplicateMembership}
+                  handleBatchFixDuplicateMemberships={handleBatchFixDuplicateMemberships}
                   isProcessing={isProcessing}
                   proGroups={proGroups}
                 />
