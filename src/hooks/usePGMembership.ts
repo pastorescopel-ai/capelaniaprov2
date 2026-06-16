@@ -163,10 +163,12 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
         const isSameUnit = unitGroupIds.has(m.groupId);
         if (!isSameUnit) return false;
 
-        // Está no mesmo ciclo OU não tem saída definida OU a saída é dentro/após o mês
+        // Está no mesmo ciclo (ou ciclo anterior) OU não tem saída definida OU a saída é dentro/após o mês
         const hasLeft = m.leftAt && m.leftAt > 1;
         const leftDate = hasLeft ? m.leftAt : Infinity;
-        const isActiveInMonth = (m.cycleMonth === selectedMonth) || (leftDate >= mStart && !m.isError);
+        const cycleVal = m.cycleMonth ? m.cycleMonth.substring(0, 7) : '';
+        const selectedVal = selectedMonth.substring(0, 7);
+        const isActiveInMonth = (m.cycleMonth && cycleVal <= selectedVal) || (leftDate >= mStart && !m.isError);
         
         return isActiveInMonth;
       });
@@ -282,8 +284,10 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       const leftDate = hasLeft ? m.leftAt : Infinity;
 
       // É relevante se: está ativo sem data de saída, OU se a saída é posterior ao início do mês, 
-      // OU se é o ciclo atual. Ignoramos os já marcados como erro.
-      return (m.cycleMonth === selectedMonth || leftDate >= mStart) && !m.isError;
+      // OU se é o ciclo atual ou anterior. Ignoramos os já marcados como erro.
+      const cycleVal = m.cycleMonth ? m.cycleMonth.substring(0, 7) : '';
+      const selectedVal = selectedMonth.substring(0, 7);
+      return ((m.cycleMonth && cycleVal <= selectedVal) || leftDate >= mStart) && !m.isError;
     });
     
     // Se não encontrou por lógica global mas tem um id específico, tenta por ID para segurança

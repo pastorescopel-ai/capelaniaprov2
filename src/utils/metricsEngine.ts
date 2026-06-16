@@ -155,7 +155,9 @@ export const calculateDashboardMetrics = (
     const mCreatedAt = getTimestamp(m.createdAt);
     
     const effectiveJoined = mJoinedAt || mCreatedAt;
-    const isCycleMatch = m.cycleMonth === selectedMonth;
+    const mCycleVal = m.cycleMonth ? m.cycleMonth.substring(0, 7) : '';
+    const selectedVal = selectedMonth.substring(0, 7);
+    const isCycleMatch = m.cycleMonth && mCycleVal <= selectedVal && (!mLeftDate || mLeftDate >= monthStart);
     const isMigrationReset = !isCurrentMonth && !mJoinedAt && mCreatedAt >= migrationDate && (!mLeftDate || mLeftDate >= monthStart);
     const isPeriodMatch = !m.cycleMonth && (effectiveJoined <= monthEnd || isMigrationReset) && (!mLeftDate || mLeftDate >= monthStart);
 
@@ -173,7 +175,9 @@ export const calculateDashboardMetrics = (
     const mLeftDate = getTimestamp(m.leftAt);
     const mJoinedDate = getTimestamp(m.joinedAt || m.createdAt);
 
-    const isCycleMatch = m.cycleMonth === selectedMonth;
+    const mCycleVal = m.cycleMonth ? m.cycleMonth.substring(0, 7) : '';
+    const selectedVal = selectedMonth.substring(0, 7);
+    const isCycleMatch = m.cycleMonth && mCycleVal <= selectedVal && (!mLeftDate || mLeftDate >= targetDate.getTime());
     const isPeriodMatch = !m.cycleMonth && mJoinedDate <= monthEnd && (!mLeftDate || mLeftDate >= targetDate.getTime());
 
     if (isCycleMatch || isPeriodMatch) {

@@ -103,10 +103,12 @@ export const usePGMembershipData = ({
 
     // 1. Se o registro tem um ciclo específico
     if (m.cycleMonth) {
-      // Retorna verdadeiro se o ciclo é EXATAMENTE o selecionado E não foi encerrado antes do início do mês
-      // E ignora registros marcados como erro de cadastro OU com saída retroativa (leftAt: 1)
+      // Option B: A matrícula deve persistir para os meses seguintes.
+      // Se o ciclo de início é menor ou igual ao mês selecionado, ela continua ativa
       const isActuallyError = m.isError === true || m.leftAt === 1;
-      return m.cycleMonth === selectedMonth && left >= monthBoundaries.start && !isActuallyError;
+      const cycleVal = m.cycleMonth.substring(0, 7);
+      const selectedVal = selectedMonth.substring(0, 7);
+      return cycleVal <= selectedVal && left >= monthBoundaries.start && !isActuallyError;
     }
 
     // 2. Fallback para registros sem cycleMonth (Respeita isError e saída retroativa)

@@ -417,11 +417,16 @@ export const useHealerCalculations = (
     staffMap.forEach((list, sid) => {
       if (list.length > 1) {
         const person = proStaff.find((s: any) => String(s.id) === sid);
+        const sortedList = [...list].sort((a, b) => {
+          const aTime = a.joinedAt ? new Date(a.joinedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+          const bTime = b.joinedAt ? new Date(b.joinedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+          return aTime - bTime;
+        });
         duplicates.push({
           personName: person?.name || `ID: ${sid}`,
           personId: sid,
           type: 'staff',
-          memberships: list
+          memberships: sortedList
         });
       }
     });
@@ -439,11 +444,16 @@ export const useHealerCalculations = (
     providerMap.forEach((list, pid) => {
       if (list.length > 1) {
         const person = proProviders.find((p: any) => String(p.id) === pid);
+        const sortedList = [...list].sort((a, b) => {
+          const aTime = a.joinedAt ? new Date(a.joinedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+          const bTime = b.joinedAt ? new Date(b.joinedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+          return aTime - bTime;
+        });
         duplicates.push({
           personName: person?.name || `ID: ${pid}`,
           personId: pid,
           type: 'provider',
-          memberships: list
+          memberships: sortedList
         });
       }
     });
