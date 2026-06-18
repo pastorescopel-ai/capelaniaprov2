@@ -9,6 +9,7 @@ export interface AutocompleteOption {
   subLabel?: string;  // Informação secundária (Setor)
   category?: 'RH' | 'History' | 'MyStudents' | 'MyClasses' | 'Migration';
   highlight?: boolean; // Nova flag para destacar em amarelo
+  disabled?: boolean;  // Nova prop para desabilitar seleção
 }
 
 interface AutocompleteProps {
@@ -33,13 +34,19 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   className 
 }) => {
   const [open, setOpen] = useState(false);
-  const [inputValue, setInputValue] = useState(value);
+  const [prevValue, setPrevValue] = useState(value);
+  const [inputValue, setInputValue] = useState(() => {
+    const matched = options.find(o => String(o.value) === String(value));
+    return matched ? matched.label : value;
+  });
   const [debouncedValue, setDebouncedValue] = useState(value);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    setInputValue(value);
-  }, [value]);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    const matched = options.find(o => String(o.value) === String(value));
+    setInputValue(matched ? matched.label : value);
+  }
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -156,8 +163,11 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
 
                   <button 
                     type="button" 
+                    disabled={o.disabled}
                     className={`w-full text-left p-3 transition-all rounded-xl flex items-center justify-between group mb-1 border-2 border-transparent
-                      ${o.highlight
+                      ${o.disabled
+                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-50'
+                        : o.highlight
                         ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
                         : isOfficial 
                         ? 'hover:bg-blue-600 hover:text-white text-slate-800' 
@@ -166,10 +176,14 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
                         : 'hover:bg-slate-100 text-slate-700'
                       }`} 
                     onMouseDown={(e) => { 
+                      if (o.disabled) {
+                        e.preventDefault();
+                        return;
+                      }
                       e.preventDefault(); 
                       handleSelect();
                     }}
-                    onClick={handleSelect}
+                    onClick={o.disabled ? undefined : handleSelect}
                   >
                     <div className="min-w-0 flex-1 pr-2">
                       <span className={`block text-sm uppercase tracking-tight whitespace-normal break-words leading-tight ${isOfficial ? 'font-black' : 'font-bold'}`}>

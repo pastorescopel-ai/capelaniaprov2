@@ -1,6 +1,7 @@
 import React from 'react';
 import { Filter, Printer, FileText, Calendar, Users } from 'lucide-react';
 import { Unit, Ambassador, ProSector } from '../../types';
+import Autocomplete from '../Shared/Autocomplete';
 
 interface ReportsTabProps {
   currentUnit: Unit;
@@ -97,20 +98,21 @@ const ReportsTab: React.FC<ReportsTabProps> = ({
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Setor</label>
-            <select 
+            <Autocomplete 
+              options={[
+                { value: 'all', label: 'TODOS OS SETORES' },
+                ...proSectors
+                  .filter(s => s.unit === currentUnit)
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map(s => ({ value: s.id, label: s.name.toUpperCase() }))
+              ]}
               value={reportSectorId}
-              onChange={e => setReportSectorId(e.target.value)}
-              className="w-full p-3 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white appearance-none"
-            >
-              <option value="all">TODOS OS SETORES</option>
-              {proSectors
-                .filter(s => s.unit === currentUnit)
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map(s => (
-                  <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>
-                ))
-              }
-            </select>
+              onChange={setReportSectorId}
+              placeholder="Buscar Setor..."
+              isStrict={true}
+              required={false}
+              className="w-full p-3 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white font-bold"
+            />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Ordenação</label>
