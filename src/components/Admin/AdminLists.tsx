@@ -36,7 +36,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   };
   
   const [activeTab, setActiveTab] = useState<'staff' | 'sectors' | 'pgs'>('staff');
-  const [importMode, setImportMode] = useState<'sync' | 'incremental'>('incremental');
+  const [importMode] = useState<'sync' | 'incremental'>('sync');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     return config.activeCompetenceMonth || new Date().toISOString().split('T')[0];
   });
@@ -166,7 +166,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                 }
             });
 
-            const incomingKeys = new Set(incomingList.map(i => `${activeUnit}|${i.id}`));
+            const incomingKeys = new Set(incomingList.map(i => `${activeUnit}|${cleanID(i.id)}`));
             const resultList: any[] = [];
             const importMonthStart = new Date(selectedMonth + 'T12:00:00').getTime();
             const previousMonthEnd = new Date(importMonthStart - 86400000).getTime();
@@ -200,6 +200,31 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
             const success = await onSavePro(finalStaff, proData.sectors, proData.groups, saveOptions);
             
             if (success) {
+                // ENCERRAMENTO AUTOMÁTICO DE MATRÍCULAS PARA DESLIGADOS
+                // Identificamos os colaboradores que foram recém-desativados nesta importação,
+                // e encerramos as suas matrículas ativas em PGs definindo leftAt = previousMonthEnd.
+                const importMonthStart = new Date(selectedMonth + 'T12:00:00').getTime();
+                const previousMonthEnd = new Date(importMonthStart - 86400000).getTime();
+                const deactivatedStaffIds = new Set(
+                    finalStaff
+                        .filter(s => s.unit === activeUnit && s.active === false && s.leftAt === previousMonthEnd)
+                        .map(s => cleanID(s.id))
+                );
+
+                const membershipsToClose = (proGroupMembers || []).filter(m => 
+                    deactivatedStaffIds.has(cleanID(m.staffId)) && 
+                    (!m.leftAt || m.leftAt === 1)
+                );
+
+                if (membershipsToClose.length > 0) {
+                    const closedMemberships = membershipsToClose.map(m => ({
+                        ...m,
+                        leftAt: previousMonthEnd,
+                        updatedAt: Date.now()
+                    }));
+                    await saveRecord('proGroupMembers', closedMemberships);
+                }
+
                 // AUTO-REMATRICULAÇÃO: Trazer matrículas do mês anterior ou do último disponível
                 const now = new Date(selectedMonth + 'T12:00:00');
                 const currentActiveStaffIds = new Set(finalStaff.filter(s => s.active !== false && s.unit === activeUnit).map(s => cleanID(s.id)));
@@ -444,30 +469,15 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
             ))}
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-100">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-blue-50 p-4 rounded-2xl border border-blue-105">
             <div className="flex items-center gap-3">
-                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Modo de Sincronia:</div>
-                <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-                    <button 
-                        onClick={() => setImportMode('sync')}
-                        className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${importMode === 'sync' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-                        title="Inativa colaboradores que não estão na planilha, mantendo histórico de matrículas 100% blindado."
-                    >
-                        Sincronização Segura (Padrão RH)
-                    </button>
-                    <button 
-                        onClick={() => setImportMode('incremental')}
-                        className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${importMode === 'incremental' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-                        title="Apenas insere novos e atualiza dados existentes, sem inativar nenhum colaborador."
-                    >
-                        Apenas Inserir / Atualizar
-                    </button>
+                <div className="text-[10px] font-black text-blue-800 uppercase tracking-widest px-2">Estratégia de Sincronia:</div>
+                <div className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase shadow-sm">
+                    Sincronização Inteligente (Padrão RH)
                 </div>
             </div>
-            <div className="text-[9px] font-bold text-slate-500 italic max-w-md text-right leading-relaxed">
-                {importMode === 'sync' 
-                    ? "✓ Sincronização Inteligente: Ativa/atualiza os listados no Excel, e marca como inativos os demitidos. Suas matrículas em PGs e histórico mensal estão 100% protegidos contra exclusão." 
-                    : "✓ Apenas Inserir/Atualizar: Mantém todos os colaboradores atuais como ativos e apenas acrescenta novos ou atualiza os que estão no arquivo Excel."}
+            <div className="text-[9px] font-black text-blue-950 uppercase tracking-wide max-w-md text-right leading-relaxed">
+                ✓ Ativa/atualiza os listados no Excel, e marca automaticamente como desligados aqueles que saíram (mantendo histórico e removendo das matrículas de PGs no mês seguinte).
             </div>
         </div>
 

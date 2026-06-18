@@ -14,14 +14,44 @@ export const useAmbassadorStats = (
       [Unit.HABA]: { total: 0, sectors: {} as Record<string, { id: string, name: string, count: number, totalStaff: number, percent: number }> }
     };
 
-    // Lógica original:
-    // 1. Tenta pegar o staff importado especificamente para o mês selecionado
-    // 2. Se não houver, usa o staff marcado como "Ativo" (última importação realizada)
+    // Lógica robusta com vigência temporal de dados históricos:
+    // 1. O colaborador já devia estar cadastrado/importado no sistema até o final do mês selecionado.
+    // 2. O colaborador não pode ter sido desligado (leftAt) em período anterior ao início do mês selecionado.
+    // 3. Essa lógica previne distorções drásticas quando planilhas parciais ou mensais são carregadas.
     const getStaffForUnit = (unit: Unit) => {
       const unitStaff = proStaff.filter(s => s.unit === unit);
       if (selectedMonth) {
-        const cycleStaff = unitStaff.filter(s => s.cycleMonth === selectedMonth);
-        if (cycleStaff.length > 0) return cycleStaff;
+        const parts = selectedMonth.split('-');
+        if (parts.length >= 2) {
+          const year = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10);
+          
+          const monthStart = new Date(year, month - 1, 1, 0, 0, 0, 0).getTime();
+          const monthEnd = new Date(year, month, 0, 23, 59, 59, 999).getTime();
+
+          return unitStaff.filter(s => {
+            // 1. Data de criação ou ciclo de referência inicial
+            const createdTime = s.createdAt ? new Date(s.createdAt).getTime() : null;
+            if (createdTime && createdTime > monthEnd) return false;
+
+            if (!createdTime && s.cycleMonth) {
+              const cycleTime = new Date(s.cycleMonth + 'T12:00:00').getTime();
+              if (cycleTime > monthEnd) return false;
+            }
+
+            // 2. Data de desligamento (resignation)
+            const leftTime = s.leftAt ? new Date(s.leftAt).getTime() : null;
+            if (leftTime && leftTime < monthStart) return false;
+
+            // Se o funcionário estiver marcado como inativo e não possuir data leftAt explícita,
+            // não o listamos como ativo no mês selecionado.
+            if (s.active === false && !leftTime) {
+              return false;
+            }
+
+            return true;
+          });
+        }
       }
       return unitStaff.filter(s => s.active !== false);
     };
