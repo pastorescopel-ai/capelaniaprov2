@@ -108,6 +108,7 @@ const ImportTab: React.FC<ImportTabProps> = ({
             <li>Colunas obrigatórias: <strong>Matricula, Nome, Id_setor, Setor</strong>.</li>
             <li>O sistema permite a mesma matrícula em meses diferentes, mas não no mesmo mês.</li>
             <li>Os dados serão salvos com a data de competência selecionada acima.</li>
+            <li><strong>Data de Conclusão (Opcional):</strong> Se a planilha tiver uma coluna chamada <em>Conclusão</em>, <em>Data</em> ou <em>Data Conclusão</em> (no formato DD/MM/AAAA ou data padrão do Excel), a data real de capacitação será preservada. Caso contrário, a data de conclusão padrão será o 1º dia do mês de referência.</li>
           </ul>
         </div>
       </div>

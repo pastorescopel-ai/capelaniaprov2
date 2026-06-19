@@ -10,14 +10,19 @@ export const useAmbassadorStats = (
 ) => {
   const stats = useMemo(() => {
     const dataByUnit = {
-      [Unit.HAB]: { total: 0, sectors: {} as Record<string, { id: string, name: string, count: number, totalStaff: number, percent: number }> },
-      [Unit.HABA]: { total: 0, sectors: {} as Record<string, { id: string, name: string, count: number, totalStaff: number, percent: number }> }
+      [Unit.HAB]: { 
+        total: 0, 
+        sectors: {} as Record<string, { id: string, name: string, count: number, totalStaff: number, percent: number, hasDataIssue?: boolean }> 
+      },
+      [Unit.HABA]: { 
+        total: 0, 
+        sectors: {} as Record<string, { id: string, name: string, count: number, totalStaff: number, percent: number, hasDataIssue?: boolean }> 
+      }
     };
 
-    // Lógica robusta com vigência temporal de dados históricos:
-    // 1. O colaborador já devia estar cadastrado/importado no sistema até o final do mês selecionado.
-    // 2. O colaborador não pode ter sido desligado (leftAt) em período anterior ao início do mês selecionado.
-    // 3. Essa lógica previne distorções drásticas quando planilhas parciais ou mensais são carregadas.
+    // CORREÇÃO BUG 2: priorizar s.cycleMonth como data de referência de competência sempre que disponível,
+    // caindo para created_at apenas como fallback quando cycle_month for nulo.
+    // Isso previne que reimportações posteriores excluam indevidamente colaboradores cadastrados em meses anteriores.
     const getStaffForUnit = (unit: Unit) => {
       const unitStaff = proStaff.filter(s => s.unit === unit);
       if (selectedMonth) {
@@ -30,14 +35,15 @@ export const useAmbassadorStats = (
           const monthEnd = new Date(year, month, 0, 23, 59, 59, 999).getTime();
 
           return unitStaff.filter(s => {
-            // 1. Data de criação ou ciclo de referência inicial
-            const createdTime = s.createdAt ? new Date(s.createdAt).getTime() : null;
-            if (createdTime && createdTime > monthEnd) return false;
-
-            if (!createdTime && s.cycleMonth) {
-              const cycleTime = new Date(s.cycleMonth + 'T12:00:00').getTime();
-              if (cycleTime > monthEnd) return false;
+            // BUG 2: Prioriza cycleMonth, depois usa createdAt como fallback
+            let referenceTime: number | null = null;
+            if (s.cycleMonth) {
+              referenceTime = new Date(s.cycleMonth + 'T12:00:00').getTime();
+            } else if (s.createdAt) {
+              referenceTime = new Date(s.createdAt).getTime();
             }
+
+            if (referenceTime && referenceTime > monthEnd) return false;
 
             // 2. Data de desligamento (resignation)
             const leftTime = s.leftAt ? new Date(s.leftAt).getTime() : null;
@@ -59,38 +65,77 @@ export const useAmbassadorStats = (
     const staffHAB = getStaffForUnit(Unit.HAB);
     const staffHABA = getStaffForUnit(Unit.HABA);
 
-    proSectors.forEach(sector => {
-      if (!dataByUnit[sector.unit]) return;
-      const sectorIdStr = String(sector.id);
-      const currentStaffList = sector.unit === Unit.HAB ? staffHAB : staffHABA;
-      const staffInSector = currentStaffList.filter(s => String(s.sectorId) === sectorIdStr).length;
-      
-      dataByUnit[sector.unit].sectors[sectorIdStr] = {
-        id: sectorIdStr,
-        name: sector.name,
-        count: 0,
-        totalStaff: staffInSector || 1,
-        percent: 0
-      };
-    });
+    const units = [Unit.HAB, Unit.HABA];
 
-    ambassadors.forEach(amb => {
-      const ambSectorIdStr = amb.sectorId ? String(amb.sectorId) : null;
-      if (ambSectorIdStr && dataByUnit[amb.unit]?.sectors[ambSectorIdStr]) {
-        dataByUnit[amb.unit].sectors[ambSectorIdStr].count++;
-        dataByUnit[amb.unit].total++;
+    units.forEach(unit => {
+      // CORREÇÃO BUG 3: Se o mês estiver encerrado, busca snapshot congelado na tabela proMonthlyStats (type='sector')
+      // Isso mantém a consistência com o travamento gerado no módulo de fechamento (PGClosing.tsx / calculateDashboardMetrics).
+      const sectorSnapshots = selectedMonth 
+        ? (proMonthlyStats || []).filter(s => s.month === selectedMonth && s.unit === unit && s.type === 'sector')
+        : [];
+
+      if (sectorSnapshots.length > 0) {
+        // Mês encerrado: lê os dados diretamente do snapshot congelado de pro_monthly_stats
+        sectorSnapshots.forEach(snapshot => {
+          const sectorIdStr = String(snapshot.targetId);
+          // Tenta casar pelo id usando proSectors como fonte do nome
+          const sector = proSectors.find(s => String(s.id) === sectorIdStr);
+
+          const totalStaff = snapshot.totalStaff;
+          const count = snapshot.totalParticipants;
+          const percent = snapshot.percentage;
+
+          dataByUnit[unit].sectors[sectorIdStr] = {
+            id: sectorIdStr,
+            name: sector ? sector.name : `Setor ${sectorIdStr} (Inativo / Renomeado)`,
+            count: count,
+            totalStaff: totalStaff,
+            percent: percent,
+            hasDataIssue: totalStaff === 0 ? true : undefined
+          };
+          
+          dataByUnit[unit].total += count;
+        });
+      } else {
+        // Mês em aberto: Cálculo dinâmico clássico com proteção
+        const currentStaffList = unit === Unit.HAB ? staffHAB : staffHABA;
+
+        proSectors.forEach(sector => {
+          if (sector.unit !== unit) return;
+          const sectorIdStr = String(sector.id);
+          const staffInSector = currentStaffList.filter(s => String(s.sectorId) === sectorIdStr).length;
+
+          // CORREÇÃO BUG 1: Remove o fallback "|| 1" que mascarava totalStaff = 0 como se fosse 1.
+          // Setores com totalStaff = 0 são sinalizados com hasDataIssue: true para destaque na UI.
+          dataByUnit[unit].sectors[sectorIdStr] = {
+            id: sectorIdStr,
+            name: sector.name,
+            count: 0,
+            totalStaff: staffInSector,
+            percent: 0,
+            hasDataIssue: staffInSector === 0 ? true : undefined
+          };
+        });
+
+        // Conta os embaixadores ativos dinamicamente
+        ambassadors.forEach(amb => {
+          if (amb.unit !== unit) return;
+          const ambSectorIdStr = amb.sectorId ? String(amb.sectorId) : null;
+          if (ambSectorIdStr && dataByUnit[unit].sectors[ambSectorIdStr]) {
+            dataByUnit[unit].sectors[ambSectorIdStr].count++;
+            dataByUnit[unit].total++;
+          }
+        });
+
+        // CORREÇÃO BUG 1: Tratar divisão por zero explicitamente no cálculo da porcentagem dinâmica
+        Object.values(dataByUnit[unit].sectors).forEach(s => {
+          s.percent = s.totalStaff > 0 ? (s.count / s.totalStaff) * 100 : 0;
+        });
       }
     });
 
-    Object.keys(dataByUnit).forEach(u => {
-      const unit = u as Unit;
-      Object.values(dataByUnit[unit].sectors).forEach(s => {
-        s.percent = (s.count / s.totalStaff) * 100;
-      });
-    });
-
     return dataByUnit;
-  }, [ambassadors, proSectors, proStaff, selectedMonth]);
+  }, [ambassadors, proSectors, proStaff, proMonthlyStats, selectedMonth]); // Adicionado proMonthlyStats nas dependências do useMemo
 
   const getChartData = (unit: Unit) => {
     return Object.values(stats[unit].sectors)

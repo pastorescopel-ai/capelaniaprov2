@@ -160,12 +160,49 @@ export const useAmbassadors = (proSectors: any[]) => {
           throw new Error(`Setor não identificado para o embaixador: ${nomeStr} (Setor ID: ${idSetorExcel}).`);
         }
 
+        // CORREÇÃO BUG 4: Recuperação de data real de conclusão baseada na planilha (se disponível)
+        let rowCompletionDate = biCreatedAt;
+        const dataCol = rowKeys.find(k => {
+          const norm = normalizeString(k);
+          return norm === 'data' || norm === 'data_conclusao' || norm === 'data_de_conclusao';
+        });
+        const rawCompletionVal = getVal('conclusao') || getVal('completion') || (dataCol ? row[dataCol] : null);
+
+        if (rawCompletionVal) {
+          let parsedDate: Date | null = null;
+          if (typeof rawCompletionVal === 'number') {
+            // Número serial de data do Excel (25569 = diferença de dias entre 1900 e 1970)
+            const millisecondsInDay = 86400000;
+            parsedDate = new Date((rawCompletionVal - 25569) * millisecondsInDay);
+          } else {
+            const dateStr = String(rawCompletionVal).trim();
+            // Formato comum no Brasil: DD/MM/YYYY
+            const dmyRegex = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/;
+            const match = dateStr.match(dmyRegex);
+            if (match) {
+              const day = parseInt(match[1], 10);
+              const month = parseInt(match[2], 10);
+              const year = parseInt(match[3], 10);
+              parsedDate = new Date(year, month - 1, day, 12, 0, 0); // Evita fuso horário
+            } else {
+              const parsedTime = Date.parse(dateStr);
+              if (!isNaN(parsedTime)) {
+                parsedDate = new Date(parsedTime);
+              }
+            }
+          }
+
+          if (parsedDate && !isNaN(parsedDate.getTime())) {
+            rowCompletionDate = parsedDate.toISOString();
+          }
+        }
+
         upsertMap.set(regId, {
           registration_id: regId,
           name: nomeStr,
           sector_id: sectorIdMatch, 
           unit: unit,
-          completion_date: biCreatedAt,
+          completion_date: rowCompletionDate,
           cycle_month: cycleMonth,
           created_at: biCreatedAt,
           updated_at: new Date().toISOString()

@@ -163,10 +163,24 @@ const ReportsTab: React.FC<ReportsTabProps> = ({
               return b.percent - a.percent;
             })
             .map((sector: any) => (
-              <div key={sector.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:border-blue-200 transition-all group">
+              <div 
+                key={sector.id} 
+                className={`p-6 rounded-[2rem] border shadow-sm hover:border-blue-200 transition-all group ${
+                  sector.hasDataIssue 
+                    ? 'border-amber-200 bg-amber-50/10' 
+                    : 'bg-white border-slate-100'
+                }`}
+              >
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                   <div>
-                    <h4 className="font-black text-slate-800 text-lg uppercase tracking-tight">{sector.name}</h4>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h4 className="font-black text-slate-800 text-lg uppercase tracking-tight">{sector.name}</h4>
+                      {sector.hasDataIssue && (
+                        <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full uppercase tracking-wider animate-pulse flex items-center gap-1">
+                          <i className="fas fa-exclamation-triangle"></i> Sem Colaboradores no Sistema
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-4 mt-1">
                       <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1">
                         <Users size={10} /> {sector.count} Embaixadores
