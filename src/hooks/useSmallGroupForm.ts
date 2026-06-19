@@ -190,6 +190,11 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
     if (isSubmitting) return;
     if (!formData.groupName || !formData.leader || !formData.leaderPhone || !formData.sector) { showToast("Preencha todos os campos obrigatórios."); return; }
     
+    if (!formData.participantsCount || Number(formData.participantsCount) <= 0) {
+        showToast("Não é permitido registrar o PG com 0 participantes. Você precisa registrar a quantidade.", "warning");
+        return;
+    }
+    
     if (!isValidWhatsApp(formData.leaderPhone)) { showToast("Por favor, insira um número de WhatsApp válido para o líder.", "error"); return; }
 
     const isOfficialLeader = proStaff.some(s => normalizeString(s.name) === normalizeString(formData.leader) && s.unit === unit);
@@ -249,18 +254,38 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       const matchedRequests = visitRequests
         .filter(req => 
           req.status === 'assigned' && 
-          req.assignedChaplainId === currentUser.id && 
-          normalizeString(req.pgName) === normalizeString(formData.groupName)
+          normalizeString(req.pgName) === normalizeString(formData.groupName) &&
+          req.unit === unit
         )
         .map(req => {
           const reqD = parseToMidnightDate(req.date);
           const formD = parseToMidnightDate(formData.date);
-          if (!reqD || !formD) return { req, diff: Infinity };
+          if (!reqD || !formD) return { req, diff: Infinity, isMine: false, shiftMatches: false };
           const diff = Math.abs(reqD.getTime() - formD.getTime());
-          return { req, diff };
+          const isMine = req.assignedChaplainId === currentUser.id;
+          
+          let reqShift = 'Manhã';
+          if (req.scheduledTime) {
+            const hour = parseInt(req.scheduledTime.split(':')[0]);
+            if (hour >= 18) reqShift = 'Noite';
+            else if (hour >= 12) reqShift = 'Tarde';
+          }
+          const shiftMatches = normalizeString(reqShift) === normalizeString(formData.shift);
+          
+          return { req, diff, isMine, shiftMatches };
         })
         .filter(item => item.diff <= 3 * 24 * 60 * 60 * 1000) // Tolerância máxima de 3 dias para auto-confirmação automática
-        .sort((a, b) => a.diff - b.diff);
+        .sort((a, b) => {
+          if (a.shiftMatches && !b.shiftMatches) return -1;
+          if (!a.shiftMatches && b.shiftMatches) return 1;
+          
+          if (a.diff === 0 && b.diff !== 0) return -1;
+          if (a.diff !== 0 && b.diff === 0) return 1;
+
+          if (a.isMine && !b.isMine) return -1;
+          if (!a.isMine && b.isMine) return 1;
+          return a.diff - b.diff;
+        });
 
       const pendingAgenda = (formData.visitRequestId ? visitRequests.find(r => r.id === formData.visitRequestId) : null) || 
         (matchedRequests.length > 0 ? matchedRequests[0].req : null);

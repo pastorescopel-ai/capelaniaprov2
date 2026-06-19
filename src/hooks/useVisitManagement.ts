@@ -66,6 +66,20 @@ export const useVisitManagement = (
       }
     }
 
+    // Validar agendamento coincidente para o mesmo PG na mesma data e horário
+    const isConflict = visitRequests.some(r => 
+      r.id !== editingRequestId &&
+      r.unit === unit &&
+      normalizeString(r.pgName) === normalizeString(selectedPG) &&
+      ensureISODate(r.date) === ensureISODate(visitDate) &&
+      r.scheduledTime === visitTime
+    );
+
+    if (isConflict) {
+      showToast("Já existe um agendamento cadastrado para esse PG nessa data e horário.", "warning");
+      return false;
+    }
+
     setIsProcessing(true);
     try {
       // 1. Atualizar WhatsApp do Colaborador se houver staffId

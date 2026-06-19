@@ -91,11 +91,20 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       
       const isAlreadyRegistered = reqDate && normName && smallGroups.some(sg => {
         const sgDate = ensureISODate(sg.date);
-        return sgDate && 
-          normalizeString(sg.groupName) === normName &&
-          sgDate === reqDate &&
-          sg.unit === req.unit &&
-          req.assignedChaplainId && String(sg.userId) === String(req.assignedChaplainId); // Garante que a reunião encontrada foi de fato registrada pelo capelão designado para a visita
+        if (!sgDate || normalizeString(sg.groupName) !== normName || sg.unit !== req.unit) return false;
+        if (sgDate !== reqDate) return false;
+        
+        let reqShift = 'Manhã';
+        if (req.scheduledTime) {
+          const hour = parseInt(req.scheduledTime.split(':')[0]);
+          if (hour >= 18) reqShift = 'Noite';
+          else if (hour >= 12) reqShift = 'Tarde';
+        }
+        
+        const shiftMatches = normalizeString(sg.shift) === normalizeString(reqShift);
+        const userMatches = !req.assignedChaplainId || String(sg.userId) === String(req.assignedChaplainId);
+        
+        return shiftMatches && userMatches;
       });
 
       if (isAlreadyRegistered) {
