@@ -2,5 +2,6 @@
   "name": "Capelania HAB",
   "description": "V5.0.0 - Relatórios de Atividade de PGs e Auditoria PRO. Versão estável.",
   "version": "5.0.0-PRO",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -1,9 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Unit, ProSector, User, ActivitySchedule } from '../../../types';
 import { BLUEPRINT_LOCATIONS } from '../../../constants';
-import { Trash2, X } from 'lucide-react';
+import { Trash2, X, Plus } from 'lucide-react';
 import Autocomplete from '../../Shared/Autocomplete';
+import { supabase } from '../../../services/supabaseClient';
+import { useToast } from '../../../contexts/ToastContext';
 
 interface AddActivityModalProps {
   addingActivity: { dayOfWeek: number, type: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando' };
@@ -34,6 +36,7 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
   onConfirm,
   isSaving
 }) => {
+  const { showToast } = useToast();
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState<'manha' | 'tarde'>('tarde');
   const [responsibleName, setResponsibleName] = useState('');
@@ -51,6 +54,121 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
   const [currentSectorTime, setCurrentSectorTime] = useState('');
   const [modalUserId, setModalUserId] = useState(selectedUser || '');
   const [selectedDays, setSelectedDays] = useState<number[]>(addingActivity?.dayOfWeek ? [addingActivity.dayOfWeek] : []);
+
+  // Custom blueprint/activities locations state
+  const [customLocations, setCustomLocations] = useState<string[]>([]);
+  const [showAddInput, setShowAddInput] = useState(false);
+  const [newLocationInput, setNewLocationInput] = useState('');
+  const [deletingLocName, setDeletingLocName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadCustomLocations = async () => {
+      let merged: string[] = [];
+      // 1. Try LocalStorage
+      try {
+        const local = localStorage.getItem(`custom_blueprint_locations_${selectedUnit}`);
+        if (local) {
+          merged = JSON.parse(local);
+        }
+      } catch (e) {
+        console.warn('Erro ao ler custom locations do localStorage:', e);
+      }
+
+      // 2. Try Supabase
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('custom_blueprint_locations')
+            .select('name')
+            .eq('unit', selectedUnit);
+          
+          if (!error && data) {
+            const dbList = data.map((d: any) => d.name);
+            merged = Array.from(new Set([...merged, ...dbList]));
+            localStorage.setItem(`custom_blueprint_locations_${selectedUnit}`, JSON.stringify(merged));
+          }
+        } catch (dbErr) {
+          console.warn('Silent fallback for custom_blueprint_locations select:', dbErr);
+        }
+      }
+      setCustomLocations(merged);
+    };
+
+    if (addingActivity.type === 'blueprint') {
+      loadCustomLocations();
+    }
+  }, [selectedUnit, addingActivity.type]);
+
+  const handleAddCustomLocation = async () => {
+    const trimmed = newLocationInput.trim();
+    if (!trimmed) return;
+
+    const combined = Array.from(new Set([...BLUEPRINT_LOCATIONS, ...customLocations]));
+    if (combined.some(l => l.toLowerCase() === trimmed.toLowerCase())) {
+      showToast("Este local já existe!", "warning");
+      return;
+    }
+
+    const updated = [...customLocations, trimmed];
+    setCustomLocations(updated);
+    setNewLocationInput('');
+    setShowAddInput(false);
+
+    try {
+      localStorage.setItem(`custom_blueprint_locations_${selectedUnit}`, JSON.stringify(updated));
+    } catch (err) {
+      console.warn('Erro local submeter:', err);
+    }
+
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('custom_blueprint_locations')
+          .insert({ name: trimmed, unit: selectedUnit });
+        
+        if (error) {
+          console.warn('Silent save to LocalStorage of custom location. DB Table raw insert skipped or needs migration schema to be active:', error.message);
+        } else {
+          showToast("Local criado e salvo com sucesso!");
+        }
+      } catch (e) {
+        console.warn('Supabase custom location insert errored, fallback successful.');
+      }
+    }
+  };
+
+  const handleDeleteCustomLocation = async (locName: string) => {
+    const updated = customLocations.filter(l => l !== locName);
+    setCustomLocations(updated);
+
+    if (selectedLocations.includes(locName)) {
+      setSelectedLocations(prev => prev.filter(l => l !== locName));
+    }
+
+    try {
+      localStorage.setItem(`custom_blueprint_locations_${selectedUnit}`, JSON.stringify(updated));
+    } catch (err) {
+      console.warn('Erro local excluir:', err);
+    }
+
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('custom_blueprint_locations')
+          .delete()
+          .eq('name', locName)
+          .eq('unit', selectedUnit);
+        
+        if (error) {
+          console.warn('Could not delete from custom_blueprint_locations table:', error.message);
+        } else {
+          showToast("Local removido com sucesso!");
+        }
+      } catch (e) {
+        console.warn('Supabase custom location delete errored.');
+      }
+    }
+  };
 
   const formatPhone = (value: string) => {
     const cleaned = value.replace(/\D/g, '');
@@ -202,10 +320,47 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
           </div>
 
           {addingActivity.type === 'blueprint' && (
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Locais (Selecione um ou mais)</label>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between ml-2 mr-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Locais (Selecione um ou mais)</label>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddInput(!showAddInput)}
+                    className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 py-1 px-2.5 rounded-lg transition-all"
+                  >
+                    <Plus size={10} className="stroke-[3px]" /> Criar Espaço
+                  </button>
+                )}
+              </div>
+
+              {showAddInput && (
+                <div className="flex gap-2 p-2 bg-slate-50 rounded-2xl animate-in slide-in-from-top-2 duration-150">
+                  <input
+                    type="text"
+                    placeholder="Nome do novo local..."
+                    value={newLocationInput}
+                    onChange={e => setNewLocationInput(e.target.value)}
+                    className="flex-1 p-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomLocation();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomLocation}
+                    className="px-3 bg-indigo-600 text-white font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-indigo-700 transition-all"
+                  >
+                    Salvar
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1 no-scrollbar">
-                {BLUEPRINT_LOCATIONS.map(loc => {
+                {Array.from(new Set([...BLUEPRINT_LOCATIONS, ...customLocations])).map(loc => {
                   const conflictingSchedule = globalSchedulesForMonth.find(s => 
                     s.activityType === 'blueprint' && 
                     String(s.location) === loc && 
@@ -216,25 +371,70 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({
                   const blockedBy = conflictingSchedule ? chaplains.find(c => c.id === conflictingSchedule.userId)?.name : null;
 
                   return (
-                    <button
-                      key={loc}
-                      onClick={() => !isBlocked && toggleLocation(loc)}
-                      disabled={isBlocked}
-                      className={`p-3 rounded-xl text-[10px] font-bold uppercase text-left transition-all border-2 flex flex-col gap-1 ${
-                        isBlocked
-                          ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
-                          : selectedLocations.includes(loc)
-                            ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
-                            : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'
-                      }`}
-                    >
-                      <span>{loc}</span>
-                      {isBlocked && (
-                        <span className="text-[8px] text-rose-500 font-black tracking-tighter">
-                          Bloqueado: {blockedBy || 'Outro Capelão'}
-                        </span>
+                    <div key={loc} className="relative group/loc w-full">
+                      <button
+                        type="button"
+                        onClick={() => !isBlocked && toggleLocation(loc)}
+                        disabled={isBlocked}
+                        className={`w-full p-3 pr-8 rounded-xl text-[10px] font-bold uppercase text-left transition-all border-2 flex flex-col gap-1 ${
+                          isBlocked
+                            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                            : selectedLocations.includes(loc)
+                              ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                              : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="truncate block max-w-full">{loc}</span>
+                        {isBlocked && (
+                          <span className="text-[8px] text-rose-500 font-black tracking-tighter">
+                            Bloqueado: {blockedBy || 'Outro Capelão'}
+                          </span>
+                        )}
+                      </button>
+                      {isAdmin && customLocations.includes(loc) && !isBlocked && (
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex gap-1">
+                          {deletingLocName === loc ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteCustomLocation(loc);
+                                  setDeletingLocName(null);
+                                }}
+                                className="bg-rose-500 hover:bg-rose-600 text-white font-extrabold px-1.5 py-0.5 rounded text-[8px] tracking-tight transition-all uppercase"
+                                title="Confirmar exclusão"
+                              >
+                                Sim
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeletingLocName(null);
+                                }}
+                                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold px-1 py-0.5 rounded text-[8px] tracking-tight transition-all uppercase"
+                                title="Cancelar"
+                              >
+                                Não
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeletingLocName(loc);
+                              }}
+                              className="w-5 h-5 bg-white shadow-md border border-slate-100 rounded-md flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all opacity-0 group-hover/loc:opacity-100"
+                              title="Remover local"
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          )}
+                        </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
