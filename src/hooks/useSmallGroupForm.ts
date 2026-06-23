@@ -262,7 +262,7 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
           const formD = parseToMidnightDate(formData.date);
           if (!reqD || !formD) return { req, diff: Infinity, isMine: false, shiftMatches: false };
           const diff = Math.abs(reqD.getTime() - formD.getTime());
-          const isMine = req.assignedChaplainId === currentUser.id;
+          const isMine = !req.assignedChaplainId || String(req.assignedChaplainId) === String(currentUser.id);
           
           let reqShift = 'Manhã';
           if (req.scheduledTime) {
