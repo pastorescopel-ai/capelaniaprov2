@@ -119,7 +119,9 @@ export const OnlineUsersPanel: React.FC<OnlineUsersPanelProps> = ({ currentUser,
 
       {/* User List */}
       <div className="space-y-4">
-        {usersDisplay.map(user => (
+        {usersDisplay.map(user => {
+          console.log('User data:', user);
+          return (
           <div key={user.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between">
             <div className="flex items-center gap-6">
               <img src={user.profilePic || '/default-avatar.png'} alt={user.name} className="w-16 h-16 rounded-full object-cover" />
@@ -142,7 +144,8 @@ export const OnlineUsersPanel: React.FC<OnlineUsersPanelProps> = ({ currentUser,
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
