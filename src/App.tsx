@@ -27,6 +27,16 @@ const App: React.FC = () => {
 
   const { isAuthenticated, currentUser, login, logout, updateCurrentUser, loginError, isAuthLoading } = useAuth();
 
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      const now = new Date().toISOString();
+      if (currentUser.lastLoginAt !== now.split('T')[0]) { // Update if login date changed
+        updateCurrentUser({ ...currentUser, lastLoginAt: now });
+      }
+    }
+  }, [isAuthenticated, currentUser, updateCurrentUser]);
+
+
   const {
     activeTab, isPending, setActiveTab,
     currentUnit, setCurrentUnit,

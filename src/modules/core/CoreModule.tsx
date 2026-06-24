@@ -6,9 +6,10 @@ const Profile = lazy(() => import('../../components/Profile'));
 const UserManagement = lazy(() => import('../../components/UserManagement'));
 const AdminPanel = lazy(() => import('../../components/AdminPanel'));
 const DataHealer = lazy(() => import('../../components/DataHealer'));
+const OnlineUsersPanel = lazy(() => import('../../components/Team/OnlineUsersPanel'));
 
 interface CoreModuleProps {
-  type: 'profile' | 'users' | 'admin' | 'dataHealing';
+  type: 'profile' | 'users' | 'admin' | 'dataHealing' | 'onlineUsers';
   currentUser: User;
   users: any[];
   isLoading: boolean;
@@ -42,6 +43,7 @@ const CoreModule: React.FC<CoreModuleProps> = ({
       )}
       {type === 'admin' && <AdminPanel />}
       {type === 'dataHealing' && <DataHealer />}
+      {type === 'onlineUsers' && <OnlineUsersPanel currentUser={currentUser} />}
     </Suspense>
   );
 };

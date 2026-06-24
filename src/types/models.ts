@@ -198,6 +198,7 @@ export interface User {
   visitGoalPeriod?: 'daily' | 'weekly';
   createdAt?: number;
   updatedAt?: number;
+  lastLoginAt?: string;
 }
 
 export interface BibleStudy {
