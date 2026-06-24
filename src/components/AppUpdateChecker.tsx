@@ -91,8 +91,7 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
       });
     }
     // Força o reload completo, ignorando o cache do navegador e limpando a sessão atual
-    window.location.replace(window.location.origin + window.location.pathname + '?update=' + Date.now());
-    window.location.reload();
+    window.location.assign(window.location.origin + window.location.pathname + '?update=' + Date.now());
   };
 
   useEffect(() => {
@@ -162,10 +161,10 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
                 <i className="fas fa-sparkles text-sm"></i>
               </div>
               <div className="flex-1">
-                <h4 className="font-bold text-xs uppercase tracking-wider text-white">
+                <h4 className="font-bold text-xs uppercase tracking-wider text-white opacity-100">
                   Melhoria Instalada
                 </h4>
-                <p className="text-[11px] text-white mt-1 leading-relaxed">
+                <p className="text-[11px] text-white mt-1 leading-relaxed opacity-90">
                   Uma nova atualização está disponível com correções e novas funcionalidades para a capelania.
                 </p>
               </div>
