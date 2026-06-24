@@ -81,14 +81,13 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
     }
   }, [getAssetFingerprints, isChecking, hasUpdate]);
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     // Tenta limpar caches do Service Worker, se houver
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(registrations => {
-        for (const registration of registrations) {
-          registration.unregister();
-        }
-      });
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const registration of registrations) {
+        await registration.unregister();
+      }
     }
     // Força o reload completo, ignorando o cache do navegador e limpando a sessão atual
     window.location.assign(window.location.origin + window.location.pathname + '?update=' + Date.now());
