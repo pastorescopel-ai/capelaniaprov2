@@ -30,11 +30,12 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated && currentUser) {
       const now = new Date().toISOString();
-      if (currentUser.lastLoginAt !== now.split('T')[0]) { // Update if login date changed
-        updateCurrentUser({ ...currentUser, lastLoginAt: now });
+      const loginDate = now.split('T')[0];
+      if (currentUser.lastLoginAt !== loginDate) { // Update if login date changed
+        updateCurrentUser({ ...currentUser, lastLoginAt: loginDate });
       }
     }
-  }, [isAuthenticated, currentUser, updateCurrentUser]);
+  }, [isAuthenticated, currentUser?.id, currentUser?.lastLoginAt, updateCurrentUser]);
 
 
   const {
