@@ -7,7 +7,7 @@
   --bg-color: #f8fafc;
   --card-bg: #ffffff;
   --text-primary: #0f172a;
-  --text-secondary: #64748b;
+  --text-secondary: #475569; /* Darkened from #64748b */
 }
 
 /* Classes personalizadas refinadas */

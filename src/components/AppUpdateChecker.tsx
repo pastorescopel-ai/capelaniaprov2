@@ -82,8 +82,8 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
   }, [getAssetFingerprints, isChecking, hasUpdate]);
 
   const handleUpdate = () => {
-    // Força o reload completo ignorando o cache local
-    window.location.reload();
+    // Força o reload completo, ignorando o cache
+    window.location.href = window.location.origin + window.location.pathname + '?update=' + Date.now();
   };
 
   useEffect(() => {
@@ -156,7 +156,7 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
                 <h4 className="font-bold text-xs uppercase tracking-wider text-slate-100">
                   Melhoria Instalada
                 </h4>
-                <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                <p className="text-[11px] text-slate-200 mt-1 leading-relaxed">
                   Uma nova atualização está disponível com correções e novas funcionalidades para a capelania.
                 </p>
               </div>
