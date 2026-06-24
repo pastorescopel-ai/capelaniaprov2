@@ -151,7 +151,7 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
           className="fixed bottom-24 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-[420px] z-[99999]"
         >
-          <div className="bg-slate-900/98 backdrop-blur-md text-white p-4 md:p-5 rounded-3xl shadow-2xl border border-blue-500/20 flex flex-col gap-4">
+          <div className="bg-white/95 backdrop-blur-md text-slate-900 p-4 md:p-5 rounded-3xl shadow-2xl border border-slate-200 flex flex-col gap-4">
             <div className="flex items-start gap-4">
               <div 
                 className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shrink-0 animate-bounce"
@@ -160,16 +160,16 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
                 <i className="fas fa-sparkles text-sm"></i>
               </div>
               <div className="flex-1">
-                <h4 className="font-bold text-xs uppercase tracking-wider text-white opacity-100">
+                <h4 className="font-bold text-xs uppercase tracking-wider text-slate-900 opacity-100">
                   Melhoria Instalada
                 </h4>
-                <p className="text-[11px] text-white mt-1 leading-relaxed opacity-90">
+                <p className="text-[11px] text-slate-700 mt-1 leading-relaxed opacity-90">
                   Uma nova atualização está disponível com correções e novas funcionalidades para a capelania.
                 </p>
               </div>
               <button 
                 onClick={() => setHasUpdate(false)}
-                className="text-white hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10"
+                className="text-slate-500 hover:text-slate-900 transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100"
                 title="Fechar (não recomendado, clique para atualizar)"
               >
                 <i className="fas fa-times text-xs"></i>
@@ -187,7 +187,7 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
               </button>
               <button
                 onClick={() => setHasUpdate(false)}
-                className="py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider text-white hover:text-white hover:bg-white/10 transition-all text-center border border-slate-600"
+                className="py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-all text-center border border-slate-300"
               >
                 Mais Tarde
               </button>
