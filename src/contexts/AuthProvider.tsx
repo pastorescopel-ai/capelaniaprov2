@@ -137,8 +137,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (authData?.user) {
       const dbUser = await DataRepository.getUserByEmail(cleanEmail);
       if (dbUser) {
-        if (dbUser.authId !== authData.user.id) {
-          await saveRecord('users', { ...dbUser, authId: authData.user.id });
+        if (dbUser.authId !== authData.user.id || dbUser.lastLoginAt !== new Date().toISOString().split('T')[0]) {
+          await saveRecord('users', { ...dbUser, authId: authData.user.id, lastLoginAt: new Date().toISOString().split('T')[0] });
         }
         setCurrentUser(dbUser);
         setIsAuthenticated(true);
