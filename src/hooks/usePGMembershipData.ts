@@ -2,7 +2,7 @@
 import { useMemo, useCallback } from 'react';
 import { Unit, ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProProvider, ProGroupLocation } from '../types';
 import { normalizeString, tokenMatch, getTimestamp } from '../utils/formatters';
-import { isActiveInMonth } from '../utils/pgMembership';
+import { isLiveMembership } from '../utils/pgMembership';
 
 interface UsePGMembershipDataProps {
   unit: Unit;
@@ -97,8 +97,9 @@ export const usePGMembershipData = ({
     }
     
     const activeProviderMembershipsMap = new Map();
+    const isOpenMonth = !isMonthClosed;
     proGroupProviderMembers.forEach(m => {
-        if (isActiveInMonth(m, selectedMonth, monthBoundaries) && !pendingRemovals.has(m.id)) {
+        if (isLiveMembership(m, selectedMonth, monthBoundaries, isOpenMonth) && !pendingRemovals.has(m.id)) {
             activeProviderMembershipsMap.set(cleanId(m.providerId), m);
         }
     });
@@ -106,7 +107,7 @@ export const usePGMembershipData = ({
     const currentPGProviderIds = new Set();
     if (currentPG) {
         proGroupProviderMembers.forEach(m => {
-            if (m.groupId === currentPG.id && isActiveInMonth(m, selectedMonth, monthBoundaries) && !pendingRemovals.has(m.id)) {
+            if (m.groupId === currentPG.id && isLiveMembership(m, selectedMonth, monthBoundaries, isOpenMonth) && !pendingRemovals.has(m.id)) {
                 currentPGProviderIds.add(cleanId(m.providerId));
             }
         });
@@ -171,7 +172,7 @@ export const usePGMembershipData = ({
   const emptyPGs = useMemo(() => {
     const activeGroupIds = new Set();
     proGroupMembers.forEach(m => {
-        if (isActiveInMonth(m, selectedMonth, monthBoundaries)) activeGroupIds.add(m.groupId);
+        if (isLiveMembership(m, selectedMonth, monthBoundaries, isOpenMonth)) activeGroupIds.add(m.groupId);
     });
 
     const result = proGroups
@@ -222,7 +223,7 @@ export const usePGMembershipData = ({
     // Mapa de membros ativos para busca rápida
     const activeMembersMap = new Map();
     proGroupMembers.forEach(m => {
-        if (isActiveInMonth(m, selectedMonth, monthBoundaries) && !pendingRemovals.has(m.id)) {
+        if (isLiveMembership(m, selectedMonth, monthBoundaries, isOpenMonth) && !pendingRemovals.has(m.id)) {
             activeMembersMap.set(cleanId(m.staffId), m);
         }
     });
@@ -230,7 +231,7 @@ export const usePGMembershipData = ({
     const currentPGStaffIds = new Set();
     if (currentPG) {
         proGroupMembers.forEach(m => {
-            if (m.groupId === currentPG.id && isActiveInMonth(m, selectedMonth, monthBoundaries) && !pendingRemovals.has(m.id)) {
+            if (m.groupId === currentPG.id && isLiveMembership(m, selectedMonth, monthBoundaries, isOpenMonth) && !pendingRemovals.has(m.id)) {
                 currentPGStaffIds.add(cleanId(m.staffId));
             }
         });
@@ -304,7 +305,7 @@ export const usePGMembershipData = ({
     // Filtra membros ativos para o PG atual
     const staffMembers = proGroupMembers.filter(m => 
         m.groupId === currentPG.id && 
-        isActiveInMonth(m, selectedMonth, monthBoundaries) && 
+        isLiveMembership(m, selectedMonth, monthBoundaries, isOpenMonth) && 
         !pendingRemovals.has(m.id)
     );
 
@@ -344,7 +345,7 @@ export const usePGMembershipData = ({
 
     const providerMembers = proGroupProviderMembers.filter(m => 
         m.groupId === currentPG.id && 
-        isActiveInMonth(m, selectedMonth, monthBoundaries) && 
+        isLiveMembership(m, selectedMonth, monthBoundaries, isOpenMonth) && 
         !pendingRemovals.has(m.id)
     );
 

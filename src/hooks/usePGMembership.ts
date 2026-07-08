@@ -4,7 +4,7 @@ import { usePro } from '../contexts/ProContext';
 import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePGMembershipData } from './usePGMembershipData';
-import { isActiveInMonth } from '../utils/pgMembership';
+import { isActiveInMonth, isCurrentlyActive } from '../utils/pgMembership';
 
 interface UsePGMembershipProps {
   unit: Unit;
@@ -149,29 +149,18 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
         }
       }
 
-      // 2. MOVIMENTAÇÃO: Verificar todos os registros ativos no mês na unidade inteira
+      // 2. MOVIMENTAÇÃO: Verificar todos os registros ativos na unidade inteira
       const unitGroupIds = new Set(proGroups.filter(g => g.unit === unit).map(g => g.id));
       
-      // Busca registros que "existem" no mês selecionado (ativos, com ciclo ou que cruzam o período)
-      const { start: mStart, end: mEnd } = getCycleDates(selectedMonth).firstDayMs !== undefined 
-        ? { start: getCycleDates(selectedMonth).firstDayMs, end: getCycleDates(selectedMonth).lastDayMs }
-        : { start: 0, end: 0 };
-
       const allRelevantMemberships = membersList.filter(m => {
         const isSamePerson = cleanId((m as any)[idField]) === cleanId(personId);
         if (!isSamePerson) return false;
         
         const isSameUnit = unitGroupIds.has(m.groupId);
         if (!isSameUnit) return false;
-
-        // Está no mesmo ciclo (ou ciclo anterior) OU não tem saída definida OU a saída é dentro/após o mês
-        const hasLeft = m.leftAt && m.leftAt > 1;
-        const leftDate = hasLeft ? m.leftAt : Infinity;
-        const cycleVal = m.cycleMonth ? m.cycleMonth.substring(0, 7) : '';
-        const selectedVal = selectedMonth.substring(0, 7);
-        const isActiveInMonth = (m.cycleMonth && cycleVal <= selectedVal) || (leftDate >= mStart && !m.isError);
         
-        return isActiveInMonth;
+        const { firstDayMs: mStart, lastDayMs: mEnd } = getCycleDates(selectedMonth);
+        return isLiveMembership(m, selectedMonth, { start: mStart, end: mEnd }, isOpenMonth);
       });
       
       if (allRelevantMemberships.length > 0) {
@@ -281,7 +270,8 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       const isSameUnit = unitGroupIds.has(m.groupId);
       if (!isSameUnit) return false;
 
-      return isActiveInMonth(m, selectedMonth, { start: mStart, end: mEnd });
+      const { firstDayMs: mStart, lastDayMs: mEnd } = getCycleDates(selectedMonth);
+      return isLiveMembership(m, selectedMonth, { start: mStart, end: mEnd }, isOpenMonth);
     });
     
     // Se não encontrou por lógica global mas tem um id específico, tenta por ID para segurança
