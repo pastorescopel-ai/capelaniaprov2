@@ -131,7 +131,7 @@ export const usePGMembershipData = ({
         return String(a.name || "").localeCompare(String(b.name || ""));
     });
     return result;
-  }, [proProviders, unit, providerSearch, proGroupProviderMembers, groupMap, currentPG, pendingRemovals, pendingTransfers, isActiveInMonth]);
+  }, [proProviders, unit, providerSearch, proGroupProviderMembers, groupMap, currentPG, pendingRemovals, pendingTransfers, isMonthClosed, selectedMonth, monthBoundaries]);
 
   const coverageGaps = useMemo(() => {
     const sectors = proSectors.filter(s => s.unit === unit && s.active !== false);
@@ -169,7 +169,7 @@ export const usePGMembershipData = ({
       };
     }).filter(item => item !== null).sort((a, b) => a!.percentage - b!.percentage);
     return result;
-  }, [proSectors, proStaff, proGroupMembers, unit, isActiveInMonth]);
+  }, [proSectors, proStaff, proGroupMembers, unit, selectedMonth, monthBoundaries]);
 
   const emptyPGs = useMemo(() => {
     const activeGroupIds = new Set();
@@ -182,7 +182,7 @@ export const usePGMembershipData = ({
       .filter(g => !activeGroupIds.has(g.id))
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
     return result;
-  }, [proGroups, proGroupMembers, unit, isActiveInMonth]);
+  }, [proGroups, proGroupMembers, unit, selectedMonth, monthBoundaries, isOpenMonth]);
 
   const availableStaff = useMemo(() => {
     // Filtrar staff que estava ativo no mês selecionado
@@ -261,7 +261,7 @@ export const usePGMembershipData = ({
         return String(a.name || "").localeCompare(String(b.name || ""));
       });
     return result;
-  }, [proStaff, currentSector, staffSearch, proGroupMembers, groupMap, currentPG, pendingTransfers, pendingRemovals, unit, sectorMap, isMonthClosed, selectedMonth, isActiveInMonth, monthBoundaries]);
+  }, [proStaff, currentSector, staffSearch, proGroupMembers, groupMap, currentPG, pendingTransfers, pendingRemovals, unit, sectorMap, isMonthClosed, selectedMonth, monthBoundaries, isOpenMonth]);
 
   const pgMembers = useMemo(() => {
     if (!currentPG) {
@@ -399,7 +399,7 @@ export const usePGMembershipData = ({
         return String(a.staffName || "").localeCompare(String(b.staffName || ""));
     });
     return result;
-  }, [proGroupMembers, proGroupProviderMembers, currentPG, staffMap, providerMap, pendingTransfers, pendingRemovals, sectorMap, isMonthClosed, selectedMonth, isActiveInMonth, monthBoundaries, proHistoryRecords, unit]);
+  }, [proGroupMembers, proGroupProviderMembers, currentPG, staffMap, providerMap, pendingTransfers, pendingRemovals, sectorMap, isMonthClosed, selectedMonth, monthBoundaries, proHistoryRecords, unit, isOpenMonth]);
 
   return {
     currentSector,

@@ -128,6 +128,7 @@ export function usePGReportsData({
 
       proStaff.forEach(s => {
         if (s.unit !== unit) return;
+        if (s.active === false) return;
 
         const createdDate = getTimestamp(s.createdAt);
         if (createdDate && createdDate > monthEnd) return;

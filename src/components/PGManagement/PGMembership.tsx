@@ -329,8 +329,9 @@ const PGMembership: React.FC<PGMembershipProps> = memo(({ unit }) => {
                           <>
                             <button 
                               onClick={() => handleSetLeader(member)} 
-                              disabled={isProcessing || member.isLeader} 
-                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${member.isLeader ? 'bg-amber-100 text-amber-500 cursor-default' : 'bg-slate-50 text-slate-300 hover:text-amber-400 hover:bg-amber-50'}`}
+                              disabled={isProcessing} 
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${member.isLeader ? 'bg-amber-500 text-white shadow-md hover:bg-amber-600' : 'bg-slate-50 text-slate-300 hover:text-amber-400 hover:bg-amber-50'}`}
+                              title={member.isLeader ? "Remover liderança" : "Tornar líder"}
                             >
                               <i className="fas fa-crown text-[10px]"></i>
                             </button>

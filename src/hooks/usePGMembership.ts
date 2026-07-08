@@ -126,6 +126,24 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       const idField = type === 'staff' ? 'staffId' : 'providerId';
       const membersList = type === 'staff' ? proGroupMembers : proGroupProviderMembers;
 
+      // Limpar liderança antiga se este colaborador for transferido e for líder de outro grupo
+      let personName = "";
+      if (type === 'staff') {
+        const staff = proStaff.find(s => cleanId(s.id) === cleanId(personId));
+        if (staff) personName = staff.name;
+      } else {
+        const provider = proProviders.find(p => cleanId(p.id) === cleanId(personId));
+        if (provider) personName = provider.name;
+      }
+
+      if (personName) {
+        const otherPGWhereHeIsLeader = proGroups.find(g => g.unit === unit && g.currentLeader === personName && g.id !== currentPG.id);
+        if (otherPGWhereHeIsLeader) {
+          const updatedOldPG = { ...otherPGWhereHeIsLeader, currentLeader: "" };
+          await saveRecord('proGroups', updatedOldPG);
+        }
+      }
+
       const { firstDayMs } = getCycleDates(selectedMonth);
 
     // 1. PRIORIDADE: Destravar registros com erro (isError: true)
@@ -318,6 +336,11 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
           const success = await saveRecord(collection, updates);
           
           if (success) {
+            // Se o membro removido era o líder do PG atual, limpa a liderança dele no PG
+            if (currentPG && currentPG.currentLeader === memberToRemove.name) {
+              const updatedPG = { ...currentPG, currentLeader: "" };
+              await saveRecord('proGroups', updatedPG);
+            }
             showToast(removalType === 'error' ? "Erro registrado no histórico." : "Saída registrada no histórico.", "success");
           } else {
             throw new Error("O servidor não confirmou a saída. Verifique o console.");
@@ -337,14 +360,24 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   const handleSetLeader = async (member: any) => {
       if (isMonthClosed) { showToast("Este mês está encerrado. Não é possível alterar o líder.", "warning"); return; }
       if (!currentPG || isProcessing) return;
-      if (member.isLeader) return;
       setIsProcessing(true);
       try {
-          const updatedPG: ProGroup = { ...currentPG, currentLeader: member.staffName };
+          const isRemovingLeader = !!member.isLeader;
+          const updatedPG: ProGroup = { 
+              ...currentPG, 
+              currentLeader: isRemovingLeader ? "" : member.staffName 
+          };
           await saveRecord('proGroups', updatedPG);
-          showToast(`${member.staffName} é o novo líder!`, "success");
-      } catch (e) { showToast("Erro ao definir líder.", "warning"); } 
-      finally { setIsProcessing(false); }
+          if (isRemovingLeader) {
+              showToast(`Função de líder removida de ${member.staffName}!`, "success");
+          } else {
+              showToast(`${member.staffName} é o novo líder!`, "success");
+          }
+      } catch (e) { 
+          showToast("Erro ao definir líder.", "warning"); 
+      } finally { 
+          setIsProcessing(false); 
+      }
   };
 
   const handleBulkUpdateCycleMonth = async () => {
