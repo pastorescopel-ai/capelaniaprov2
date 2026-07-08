@@ -4,7 +4,7 @@ import { usePro } from '../contexts/ProContext';
 import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePGMembershipData } from './usePGMembershipData';
-import { isActiveInMonth, isCurrentlyActive } from '../utils/pgMembership';
+import { isCurrentlyActive } from '../utils/pgMembership';
 
 interface UsePGMembershipProps {
   unit: Unit;

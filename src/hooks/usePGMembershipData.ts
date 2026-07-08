@@ -2,7 +2,7 @@
 import { useMemo, useCallback } from 'react';
 import { Unit, ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProProvider, ProGroupLocation } from '../types';
 import { normalizeString, tokenMatch, getTimestamp } from '../utils/formatters';
-import { isLiveMembership } from '../utils/pgMembership';
+import { isLiveMembership, isActiveInMonth } from '../utils/pgMembership';
 
 interface UsePGMembershipDataProps {
   unit: Unit;
@@ -48,6 +48,8 @@ export const usePGMembershipData = ({
     if (str.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) return str;
     return str.replace(/\D/g, '');
   };
+
+  const isOpenMonth = !isMonthClosed;
 
   // --- MAPAS DE ÍNDICE (Otimização de Performance) ---
   // Filtrar por unidade antes de criar o mapa para evitar colisões de ID entre HAB/HABA
