@@ -1,7 +1,7 @@
 
 import { useMemo } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, Unit, RecordStatus, ActivityFilter, User } from '../types';
-import { normalizeString, cleanID } from '../utils/formatters';
+import { normalizeString, cleanID, countUniqueClasses } from '../utils/formatters';
 
 interface ReportFilters {
   startDate: string;
@@ -133,7 +133,7 @@ export const useReportLogic = (
 
     return {
       studies: filteredData.studies.length,
-      classes: filteredData.classes.length,
+      classes: countUniqueClasses(filteredData.classes),
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,
       totalStudentsPeriod: uniqueStudentsPeriod.size,

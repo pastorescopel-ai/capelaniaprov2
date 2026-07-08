@@ -256,29 +256,57 @@ export const useDataMaintenance = (
     }
   };
 
-  const syncPGMembershipCycle = async (): Promise<{ success: boolean; message: string }> => {
+  const syncMemberships = async (): Promise<{ success: boolean; message: string }> => {
     if (!supabase) return { success: false, message: "Offline mode." };
     setIsMaintenanceRunning(true);
     try {
-      // 1. Atualiza Staff Members sem competência para Fevereiro
-      const { error: err1 } = await supabase
+      const today = new Date();
+      const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+      const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const prevMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+      // 1. Buscar membros do mês anterior e atual
+      const { data: members, error: membersErr } = await supabase
         .from('pro_group_members')
-        .update({ cycle_month: '2026-02-01' })
-        .is('cycle_month', null);
-        
-      if (err1) throw err1;
+        .select('*')
+        .in('cycle_month', [currentMonth, prevMonth]);
 
-      // 2. Atualiza Provider Members sem competência para Fevereiro
-      const { error: err2 } = await supabase
-        .from('pro_group_provider_members')
-        .update({ cycle_month: '2026-02-01' })
-        .is('cycle_month', null);
+      if (membersErr) throw membersErr;
 
-      if (err2) throw err2;
+      const currentMembers = new Map<string, any>();
+      const prevMembers = new Map<string, any>();
+
+      (members || []).forEach(m => {
+        if (m.cycle_month === currentMonth) currentMembers.set(m.staff_id, m);
+        else if (m.cycle_month === prevMonth && (!m.left_at || m.left_at > 1)) prevMembers.set(m.staff_id, m);
+      });
+
+      // 2. Identificar quem está no prev mas não no current
+      const toSync: any[] = [];
+      prevMembers.forEach((m, staffId) => {
+        if (!currentMembers.has(staffId)) {
+          toSync.push({
+            group_id: m.group_id,
+            staff_id: staffId,
+            joined_at: new Date().getTime(),
+            cycle_month: currentMonth,
+            left_at: null,
+            is_error: false
+          });
+        }
+      });
+
+      if (toSync.length > 0) {
+        const { error: insertErr } = await supabase
+          .from('pro_group_members')
+          .insert(toSync);
+        if (insertErr) throw insertErr;
+      }
 
       await reloadCallback(true);
-      return { success: true, message: "Competência Fevereiro sincronizada com sucesso!" };
+      return { success: true, message: `Sincronização concluída: ${toSync.length} membros rematriculados.` };
     } catch (e: any) {
+      console.error(e);
       return { success: false, message: e.message };
     } finally {
       setIsMaintenanceRunning(false);
@@ -297,7 +325,7 @@ export const useDataMaintenance = (
     healSectorConnection,
     linkStudySessionIdentity,
     bulkHealAttendees,
-    syncPGMembershipCycle,
+    syncMemberships,
     isMaintenanceRunning
   };
 };

@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User } from '../types';
 import { useVisitGoals } from './useVisitGoals';
+import { countUniqueClasses } from '../utils/formatters';
 
 export const useDashboardStats = (
   studies: BibleStudy[],
@@ -133,6 +134,8 @@ export const useDashboardStats = (
       const mG = (groups || []).filter(filterFn);
       const mV = (visits || []).filter(filterFn);
       
+      const uniqueClasses = countUniqueClasses(mC);
+      
       const uS = new Set<string>();
       mS.forEach(s => { if (s.name) uS.add(s.name.trim().toLowerCase()); });
       mC.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uS.add(n.trim().toLowerCase())); });
@@ -140,10 +143,10 @@ export const useDashboardStats = (
       return { 
         students: uS.size, 
         studies: mS.length, 
-        classes: mC.length, 
+        classes: uniqueClasses, 
         groups: mG.length, 
         visits: mV.length, 
-        total: mS.length + mC.length + mG.length + mV.length 
+        total: mS.length + uniqueClasses + mG.length + mV.length 
       };
     };
 

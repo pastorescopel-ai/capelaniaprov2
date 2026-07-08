@@ -186,8 +186,30 @@ export const getTimestamp = (val: any): number => {
 /**
  * Formata um mês ISO (YYYY-MM-DD) para exibição amigável (ex: "janeiro de 2024").
  */
+
 export const formatMonthLabel = (iso: string) => {
   if (!iso) return "";
   const d = new Date(iso.includes('T') ? iso : iso + 'T12:00:00');
   return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+};
+export const getStudentKey = (raw: string): string => {
+  if (!raw) return '';
+  const match = raw.match(/\(([^)]+)\)\s*$/);
+  const id = match ? match[1].trim() : '';
+  if (id) return normalizeString(id);
+  return normalizeString(raw.split(' (')[0].trim());
+};
+
+export const getClassSignature = (students: string[] | undefined | null): string => {
+  if (!Array.isArray(students) || students.length === 0) return '';
+  return students.map(getStudentKey).filter(Boolean).sort().join('|');
+};
+
+export const countUniqueClasses = (classes: Array<{ students?: string[] | null }>): number => {
+  const signatures = new Set<string>();
+  (classes || []).forEach(c => {
+    const sig = getClassSignature(c.students);
+    if (sig) signatures.add(sig);
+  });
+  return signatures.size;
 };

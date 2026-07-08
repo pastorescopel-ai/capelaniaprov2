@@ -4,6 +4,7 @@ import { usePro } from '../contexts/ProContext';
 import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePGMembershipData } from './usePGMembershipData';
+import { isActiveInMonth } from '../utils/pgMembership';
 
 interface UsePGMembershipProps {
   unit: Unit;
@@ -270,7 +271,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     
     // Busca TODAS as matrículas que interferem no mês selecionado para este colaborador na unidade
     const unitGroupIds = new Set(proGroups.filter(g => g.unit === unit).map(g => g.id));
-    const { firstDayMs: mStart } = getCycleDates(selectedMonth);
+    const { firstDayMs: mStart, lastDayMs: mEnd } = getCycleDates(selectedMonth);
     
     // Filtra todos os registros desse colaborador que tocam o mês atual
     const activeMemberships = membersList.filter(m => {
@@ -280,14 +281,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       const isSameUnit = unitGroupIds.has(m.groupId);
       if (!isSameUnit) return false;
 
-      const hasLeft = m.leftAt && m.leftAt > 1;
-      const leftDate = hasLeft ? m.leftAt : Infinity;
-
-      // É relevante se: está ativo sem data de saída, OU se a saída é posterior ao início do mês, 
-      // OU se é o ciclo atual ou anterior. Ignoramos os já marcados como erro.
-      const cycleVal = m.cycleMonth ? m.cycleMonth.substring(0, 7) : '';
-      const selectedVal = selectedMonth.substring(0, 7);
-      return ((m.cycleMonth && cycleVal <= selectedVal) || leftDate >= mStart) && !m.isError;
+      return isActiveInMonth(m, selectedMonth, { start: mStart, end: mEnd });
     });
     
     // Se não encontrou por lógica global mas tem um id específico, tenta por ID para segurança
@@ -320,11 +314,11 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
               };
             } else {
               // Se for transferência, encerra no final do mês ou na data atual se preferir
-              // O usuário pediu "registrar a data de mudança", vamos usar a data atual ou fim do mês? 
-              // Mantendo o padrão de ciclo de fechamento: fim do mês.
+              // Se for o mês aberto, encerra agora. Se for passado, fim do mês.
+              const leaveDate = isOpenMonth ? Date.now() : lastDayMs;
               return { 
                 ...m, 
-                leftAt: lastDayMs,
+                leftAt: leaveDate,
                 isError: false,
                 updatedAt: Date.now()
               };

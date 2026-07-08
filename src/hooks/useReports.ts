@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, ActivityFilter } from '../types';
 import { useReportLogic } from './useReportLogic';
-import { resolveDynamicName, normalizeString } from '../utils/formatters';
+import { resolveDynamicName, normalizeString, countUniqueClasses } from '../utils/formatters';
 import { generateExecutiveHTML } from '../utils/pdfTemplates';
 import { useDocumentGenerator } from './useDocumentGenerator';
 import { usePro } from '../contexts/ProContext';
@@ -163,7 +163,8 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
         const names = new Set<string>();
         uS.forEach(s => s.name && names.add(normalizeString(s.name)));
         uC.forEach(c => c.students?.forEach((n: any) => n && names.add(normalizeString(n))));
-        return { students: names.size, studies: uS.length, classes: uC.length, groups: uG.length, visits: uV.length, total: uS.length + uC.length + uG.length + uV.length };
+        const uniqueClasses = countUniqueClasses(uC);
+        return { students: names.size, studies: uS.length, classes: uniqueClasses, groups: uG.length, visits: uV.length, total: uS.length + uniqueClasses + uG.length + uV.length };
       };
       const hab = getUnitStats(Unit.HAB);
       const haba = getUnitStats(Unit.HABA);
