@@ -35,7 +35,6 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   };
   
   const [activeTab, setActiveTab] = useState<'staff' | 'sectors' | 'pgs'>('staff');
-  const [importMode] = useState<'sync' | 'incremental'>('sync');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     return config.activeCompetenceMonth || new Date().toISOString().split('T')[0];
   });
@@ -94,27 +93,6 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
 
   const handleConfirmImport = async () => {
     if (!proData || !onSavePro) return;
-
-    if (activeTab === 'staff') {
-        const currentActiveStaff = proData.staff.filter(s => s.unit === activeUnit && s.active !== false);
-        const incomingKeys = new Set(previewData.map(p => `${activeUnit}|${cleanID(p.id)}`));
-        const wouldDeactivate = currentActiveStaff.filter(s => !incomingKeys.has(`${activeUnit}|${cleanID(s.id)}`));
-        const deactivationRatio = currentActiveStaff.length > 0 ? wouldDeactivate.length / currentActiveStaff.length : 0;
-
-        if (wouldDeactivate.length > 0 && (deactivationRatio > 0.1 || wouldDeactivate.length > 50)) {
-            const confirmed = window.confirm(
-                `ATENÇÃO: Esta planilha NÃO contém ${wouldDeactivate.length} de ${currentActiveStaff.length} colaboradores atualmente ativos em ${activeUnit} (${Math.round(deactivationRatio * 100)}%).\n\n` +
-                `Se confirmar, esses ${wouldDeactivate.length} colaboradores serão marcados como DESLIGADOS e perderão suas matrículas em PGs.\n\n` +
-                `Se esta planilha estiver incompleta (faltando setores/páginas), isso vai apagar as matrículas de gente que continua na empresa.\n\n` +
-                `Tem certeza que esta planilha está COMPLETA e que essas pessoas realmente saíram?`
-            );
-            if (!confirmed) {
-                showToast("Importação cancelada. Nenhum dado foi alterado.", "info");
-                return;
-            }
-        }
-    }
-
     setSyncState({ isOpen: true, status: 'processing', title: 'Sincronizando', message: 'Calculando diferenças e salvando...' });
     
     try {
@@ -186,14 +164,586 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                 }
             });
 
-            incomingKeys.forEach(key => {
-                // (Logic continues from first view_file...)
-            })
-            // ... (I have to restore the full file, this is just a snippet to remind myself to paste the full content)
+            const incomingKeys = new Set(incomingList.map(i => `${activeUnit}|${i.id}`));
+            const resultList: any[] = [];
+            const importMonthStart = new Date(selectedMonth + 'T12:00:00').getTime();
+            const previousMonthEnd = new Date(importMonthStart - 86400000).getTime();
+            const monthEnd = new Date(new Date(selectedMonth + 'T00:00:00').getFullYear(), new Date(selectedMonth + 'T00:00:00').getMonth() + 1, 0, 23, 59, 59).getTime();
+
+            map.forEach((value, key) => {
+                // Apenas processamos registros da unidade ativa para sincronização
+                if (value.unit === activeUnit) {
+                    if (!incomingKeys.has(key)) {
+                        // Sincronia Blindada: Desativamos quem não está na planilha (não exclui histórico, apenas desliga)
+                        if (value.active !== false) { 
+                            value.active = false; 
+                            value.leftAt = previousMonthEnd;
+                            value.updatedAt = Date.now(); 
+                            stats.deactivated++; 
+
+                            // Apenas marcamos como inativo no RH, mas NÃO encerramos as matrículas em PGs automaticamente
+                            // Isso preserva o histórico solicitado pelo usuário e evita perdas por planilhas incompletas.
+                        }
+                    }
+                }
+                resultList.push(value);
+            });
+            return [...resultList, ...duplicatesToDeactivate];
         };
-    } catch(e) {}
+
+        const saveOptions = { deleteFutureCycleMonth: selectedMonth, unit: activeUnit };
+
+        if (activeTab === 'staff') {
+            const finalStaff = mergeData(proData.staff, previewData, 'staff');
+            const success = await onSavePro(finalStaff, proData.sectors, proData.groups, saveOptions);
+            
+            if (success) {
+                // AUTO-REMATRICULAÇÃO: Trazer matrículas do mês anterior ou do último disponível
+                const now = new Date(selectedMonth + 'T12:00:00');
+                const currentActiveStaffIds = new Set(finalStaff.filter(s => s.active !== false && s.unit === activeUnit).map(s => cleanID(s.id)));
+                const existingTargetMemberships = new Set((proGroupMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.staffId)}|${cleanID(m.groupId)}`));
+                const newMemberships: ProGroupMember[] = [];
+
+                // 1. Prioridade: Se a planilha ATUAL já tem informação de PG, usa ela (Recuperação Direta)
+                const spreadsheetMemberships = previewData.filter(p => (p as any).pgNameRaw);
+                if (spreadsheetMemberships.length > 0) {
+                    setSyncState(prev => ({ ...prev, message: `Staff updated. Importando ${spreadsheetMemberships.length} matrículas detectadas na planilha...` }));
+                    
+                    spreadsheetMemberships.forEach(p => {
+                        const sid = cleanID(p.id);
+                        const pgName = (p as any).pgNameRaw;
+                        const isLeader = (p as any).isLeaderRaw;
+                        
+                        const matchedPG = proData.groups.find(g => g.unit === activeUnit && normalizeString(g.name) === normalizeString(pgName));
+                        
+                        if (matchedPG) {
+                            const key = `${sid}|${cleanID(matchedPG.id)}`;
+                            if (!existingTargetMemberships.has(key)) {
+                                newMemberships.push({
+                                    id: crypto.randomUUID(),
+                                    groupId: matchedPG.id,
+                                    staffId: sid,
+                                    cycleMonth: selectedMonth,
+                                    isLeader: !!isLeader,
+                                    joinedAt: Date.now(),
+                                    createdAt: Date.now(),
+                                    updatedAt: Date.now()
+                                });
+                                existingTargetMemberships.add(key);
+                            }
+                        }
+                    });
+                }
+
+                // 2. Fallback: Se não tem nada na planilha, tenta propagar do histórico oficial ou membraria ativa (Auto-Rematriculação)
+                if (newMemberships.length === 0) {
+                    const now = new Date(selectedMonth + 'T12:00:00');
+                    let sourceMonthRecentral = "";
+                    let historyData: ProHistoryRecord[] = [];
+
+                    // Tenta encontrar o mês mais recente com dados de histórico (limite de 12 meses atrás)
+                    for (let i = 1; i <= 12; i++) {
+                        const temp = new Date(now);
+                        temp.setMonth(temp.getMonth() - i);
+                        const iso = temp.toISOString().split('T')[0];
+                        
+                        // Primeiro tenta no Histórico Oficial (Snapshot) - Apenas STAFF
+                        const historyForMonth = (proData.history || []).filter(h => h.month === iso && h.unit === activeUnit && h.isEnrolled);
+                        if (historyForMonth.length > 0) {
+                            sourceMonthRecentral = iso;
+                            historyData = historyForMonth;
+                            break;
+                        }
+
+                        // Fallback para Membraria Ativa se não houver snapshot
+                        const hasData = (proData.memberships || []).some(m => m.cycleMonth === iso);
+                        if (hasData) {
+                            sourceMonthRecentral = iso;
+                            break;
+                        }
+                    }
+
+                    if (sourceMonthRecentral) {
+                        const sourceLabel = formatMonthLabel(sourceMonthRecentral);
+                        
+                        // 2.1 Replicação de STAFF
+                        if (historyData.length > 0) {
+                            setSyncState(prev => ({ ...prev, message: `Staff updated. Replicando ${historyData.length} matrículas do Snapshot Oficial de ${sourceLabel}...` }));
+                            
+                            historyData.forEach(snapshot => {
+                                const sid = cleanID(snapshot.staffId);
+                                if (currentActiveStaffIds.has(sid) && snapshot.groupId) {
+                                    const key = `${sid}|${cleanID(snapshot.groupId)}`;
+                                    if (!existingTargetMemberships.has(key)) {
+                                        newMemberships.push({
+                                            id: crypto.randomUUID(),
+                                            groupId: snapshot.groupId,
+                                            staffId: snapshot.staffId,
+                                            cycleMonth: selectedMonth,
+                                            joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
+                                            createdAt: Date.now(),
+                                            updatedAt: Date.now()
+                                        });
+                                        existingTargetMemberships.add(key);
+                                    }
+                                }
+                            });
+                        } else {
+                            // Fallback para proData.memberships (Comportamento original preservado)
+                            const sourceMemberships = (proData.memberships || []).filter(m => m.cycleMonth === sourceMonthRecentral && !m.leftAt);
+                            setSyncState(prev => ({ ...prev, message: `Staff updated. Propagando ${sourceMemberships.length} matrículas ativas de ${sourceLabel}...` }));
+                            
+                            sourceMemberships.forEach(oldM => {
+                                const sid = cleanID(oldM.staffId);
+                                if (currentActiveStaffIds.has(sid)) {
+                                    const key = `${sid}|${cleanID(oldM.groupId)}`;
+                                    if (!existingTargetMemberships.has(key)) {
+                                        newMemberships.push({
+                                            id: crypto.randomUUID(),
+                                            groupId: oldM.groupId,
+                                            staffId: oldM.staffId,
+                                            cycleMonth: selectedMonth,
+                                            isLeader: oldM.isLeader,
+                                            joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
+                                            createdAt: Date.now(),
+                                            updatedAt: Date.now()
+                                        });
+                                        existingTargetMemberships.add(key);
+                                    }
+                                }
+                            });
+                        }
+
+                        // 2.2 Replicação de PRESTADORES (ESSENCIAL PARA GRUPOS COMO SERVOS DE FÉ)
+                        const sourceProviderMemberships = (proData.providerMemberships || []).filter(m => m.cycleMonth === sourceMonthRecentral && !m.leftAt);
+                        if (sourceProviderMemberships.length > 0) {
+                            const newProviderMemberships: ProGroupProviderMember[] = [];
+                            const activeProviderIds = new Set((proData.providers || []).filter(p => p.unit === activeUnit && p.active !== false).map(p => cleanID(p.id)));
+                            const existingTargetProviderMemberships = new Set((proGroupProviderMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.providerId)}|${cleanID(m.groupId)}`));
+
+                            sourceProviderMemberships.forEach(oldM => {
+                                const pid = cleanID(oldM.providerId);
+                                if (activeProviderIds.has(pid)) {
+                                    const key = `${pid}|${cleanID(oldM.groupId)}`;
+                                    if (!existingTargetProviderMemberships.has(key)) {
+                                        newProviderMemberships.push({
+                                            id: crypto.randomUUID(),
+                                            groupId: oldM.groupId,
+                                            providerId: oldM.providerId,
+                                            cycleMonth: selectedMonth,
+                                            joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
+                                            createdAt: Date.now(),
+                                            updatedAt: Date.now()
+                                        });
+                                        existingTargetProviderMemberships.add(key);
+                                    }
+                                }
+                            });
+
+                            if (newProviderMemberships.length > 0) {
+                                setSyncState(prev => ({ ...prev, message: `Replicando ${newProviderMemberships.length} matrículas de Prestadores (ex: Servos de Fé)...` }));
+                                await saveRecord('proGroupProviderMembers', newProviderMemberships);
+                                stats.rematriculated += newProviderMemberships.length;
+                            }
+                        }
+                    }
+                }
+
+                if (newMemberships.length > 0) {
+                    const res = await saveRecord('proGroupMembers', newMemberships);
+                    if (res) stats.rematriculated = newMemberships.length;
+                }
+            }
+        } else if (activeTab === 'sectors') {
+            const finalSectors = mergeData(proData.sectors, previewData, 'sector');
+            await onSavePro(proData.staff, finalSectors, proData.groups, saveOptions);
+        } else if (activeTab === 'pgs') {
+            const finalGroups = mergeData(proData.groups, previewData, 'pg');
+            await onSavePro(proData.staff, proData.sectors, finalGroups, saveOptions);
+        }
+
+        setSyncState({ 
+            isOpen: true, 
+            status: 'success', 
+            title: 'Sincronização Blindada', 
+            message: `Sucesso!\n\nNovos/Atualizados: ${stats.updated + stats.new}\nRemovidos da lista (Inativos): ${stats.deactivated}${stats.rematriculated > 0 ? `\nRematriculados (Auto): ${stats.rematriculated}` : ''}\nIgnorados (Divergências): ${skippedRows.length}` 
+        });
+        setPreviewData([]); 
+    } catch (e: any) {
+        setSyncState({ isOpen: true, status: 'error', title: 'Erro ao Salvar', message: "Falha na sincronização.", error: e.message });
+    }
   };
-  // ... (Full file content here)
-  return (<div></div>);
+
+  const handleManualSectorChange = (index: number, val: string) => {
+      const realIndex = (currentPage - 1) * ITEMS_PER_PAGE + index;
+      const newData = [...previewData];
+      const item = newData[realIndex];
+      const labelParts = val.split(' - ');
+      const searchName = labelParts.length > 1 ? labelParts[1] : val;
+      const searchId = labelParts.length > 1 ? labelParts[0] : '';
+
+      let matchedSector = null;
+      if (searchId) matchedSector = proData?.sectors.find(s => cleanID(s.id) === cleanID(searchId) && s.unit === activeUnit);
+      if (!matchedSector) matchedSector = proData?.sectors.find(s => s.name === searchName && s.unit === activeUnit);
+
+      if (matchedSector) {
+          item.sectorIdLinked = matchedSector.id;
+          item.linkedSectorName = matchedSector.name;
+          item.sectorStatus = 'ok'; 
+      } else {
+          item.sectorIdLinked = null;
+          item.linkedSectorName = undefined;
+          item.sectorStatus = 'error'; 
+      }
+      item.sectorNameRaw = val; 
+      setPreviewData(newData);
+  };
+
+  const handleOpenAddSector = () => {
+    setSectorModal({ isOpen: true, mode: 'add' });
+    setSectorName('');
+    setSectorId('');
+    setSectorUnit(activeUnit);
+  };
+
+  const handleOpenEditSector = (sector: ProSector) => {
+    setSectorModal({ isOpen: true, mode: 'edit', sector });
+    setSectorName(sector.name);
+    setSectorId(String(sector.id));
+    setSectorUnit(sector.unit || activeUnit);
+  };
+
+  const handleSaveSector = async () => {
+    if (!proData || !onSavePro) return;
+    if (!sectorId || !sectorName) {
+      showToast("ID e Nome são obrigatórios.", "warning");
+      return;
+    }
+
+    const cleanId = cleanID(sectorId);
+    let updatedSectors = [...proData.sectors];
+
+    if (sectorModal.mode === 'add') {
+      // Verificar se ID já existe na unidade destino
+      if (proData.sectors.some(s => cleanID(s.id) === cleanId && s.unit === sectorUnit)) {
+        showToast(`Este ID de setor já existe na unidade ${sectorUnit}.`, "error");
+        return;
+      }
+      
+      const newSector: ProSector = {
+        id: cleanId,
+        name: sectorName,
+        unit: sectorUnit,
+        active: true,
+        cycleMonth: selectedMonth,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      updatedSectors.push(newSector);
+    } else if (sectorModal.mode === 'edit' && sectorModal.sector) {
+      updatedSectors = updatedSectors.map(s => {
+        // Encontra o setor antigo (usamos activeUnit para o filtro inicial mas agora permitimos mudar unit)
+        if (s.id === sectorModal.sector?.id && s.unit === sectorModal.sector?.unit) {
+          return { ...s, name: sectorName, id: cleanId, unit: sectorUnit, updatedAt: Date.now() };
+        }
+        return s;
+      });
+    }
+
+    const success = await onSavePro(proData.staff, updatedSectors, proData.groups);
+    if (success) {
+      showToast(`Setor ${sectorModal.mode === 'add' ? 'adicionado' : 'atualizado'} com sucesso!`, "success");
+      setSectorModal({ isOpen: false, mode: 'add' });
+    }
+  };
+
+  const handleDeleteSector = async (sector: ProSector) => {
+    if (!proData || !onSavePro) return;
+    
+    // Verificar se há staff ou PGs vinculados
+    const hasStaff = proData.staff.some(s => cleanID(s.id) === cleanID(sector.id) && s.unit === activeUnit);
+    const hasGroups = proData.groups.some(g => cleanID(g.id) === cleanID(sector.id) && g.unit === activeUnit);
+    
+    const confirmMsg = (hasStaff || hasGroups) 
+      ? `Este setor possui vínculos ativos. Desativar o setor deixará esses registros órfãos. Confirmar desativação?`
+      : `Tem certeza que deseja excluir o setor ${sector.name}?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    const updatedSectors = proData.sectors.map(s => {
+      if (s.id === sector.id && s.unit === activeUnit) {
+        return { ...s, active: false, leftAt: Date.now(), updatedAt: Date.now() };
+      }
+      return s;
+    });
+
+    const success = await onSavePro(proData.staff, updatedSectors, proData.groups);
+    if (success) {
+      showToast("Setor desativado com sucesso!", "success");
+    }
+  };
+
+  const displayData = useMemo(() => {
+      let source: any[] = [];
+      if (previewData.length > 0) return previewData;
+      if (proData) {
+          if (activeTab === 'staff') source = proData.staff.filter(s => s.unit === activeUnit && s.active !== false);
+          else if (activeTab === 'sectors') source = proData.sectors.filter(s => s.unit === activeUnit && s.active !== false);
+          else source = proData.groups.filter(s => s.unit === activeUnit && s.active !== false);
+      }
+      return source.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  }, [previewData, proData, activeTab, activeUnit]);
+
+  const totalPages = Math.ceil(displayData.length / ITEMS_PER_PAGE);
+  const currentItems = displayData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const getSectorNameFromDB = (sectorId: string) => { const s = proData?.sectors.find(sec => sec.id === sectorId); return s ? s.name : sectorId; };
+
+  const instructions = {
+      staff: { icon: 'fa-user-md', title: 'Importação de Colaboradores', fields: "Obrigatório: 'Matrícula', 'Nome', 'ID_Setor' e 'Setor'.", optional: "", warn: "A planilha NÃO deve conter colunas de PGs." },
+      sectors: { icon: 'fa-map-marker-alt', title: 'Importação de Setores', fields: "Obrigatório: 'ID' e 'Nome Setor' (ou Departamento).", optional: "", warn: "Proibido: Colunas de Funcionários (Matrícula) ou PGs." },
+      pgs: { icon: 'fa-users', title: 'Importação de Pequenos Grupos', fields: "Obrigatório: Apenas ID e Nome do PG (ou Grupo).", optional: "Líder é opcional.", warn: "Proibido: Colunas de Funcionários ou Setores." }
+  };
+  const currentInst = instructions[activeTab];
+
+  return (
+    <div className="space-y-12">
+      <SyncModal isOpen={syncState.isOpen} status={syncState.status} title={syncState.title} message={syncState.message} errorDetails={syncState.error} onClose={() => setSyncState(prev => ({ ...prev, isOpen: false }))} />
+      <section className="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
+          <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Importação Excel (Modo Blindado)</h2>
+          <div className="flex bg-slate-50 p-1.5 rounded-xl gap-2">
+             {['HAB', 'HABA'].map(u => (<button key={u} onClick={() => { setActiveUnit(u as any); setPreviewData([]); setCurrentPage(1); }} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${activeUnit === u ? 'bg-white shadow text-blue-600' : 'text-slate-400'}`}>Unidade {u}</button>))}
+          </div>
+        </div>
+        <div className="flex gap-4 border-b overflow-x-auto no-scrollbar">
+            {[ {id:'sectors', l:'1. Setores', i:'fa-map-marker-alt'}, {id:'staff', l:'2. Colaboradores', i:'fa-user-md'}, {id:'pgs', l:'3. PGs', i:'fa-users'} ].map(tab => (
+                <button key={tab.id} onClick={() => { setActiveTab(tab.id as any); setPreviewData([]); setCurrentPage(1); }} className={`pb-4 px-4 text-xs font-black uppercase flex items-center gap-2 border-b-4 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-300'}`}><i className={`fas ${tab.i}`}></i> {tab.l}</button>
+            ))}
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-blue-50/50 p-5 rounded-2xl border border-blue-100">
+            <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                    <i className="fas fa-shield-alt text-xs"></i>
+                </div>
+                <div>
+                    <h4 className="text-[10px] font-black text-blue-800 uppercase tracking-wider">Sincronização Blindada Ativa</h4>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase leading-none mt-1">
+                        Sua segurança é nossa prioridade. Nenhum histórico ou registro antigo é apagado do banco de dados.
+                    </p>
+                </div>
+            </div>
+            <div className="text-[9px] font-bold text-slate-400 italic max-w-md text-right leading-snug">
+                * Colaboradores que não constarem no novo arquivo Excel serão automaticamente marcados como <span className="text-rose-500 font-extrabold uppercase">Desligados</span>, mantendo as listas limpas e o histórico 100% preservado.
+            </div>
+        </div>
+
+        <div className={`p-6 rounded-2xl border-l-4 flex gap-4 items-start ${activeTab === 'pgs' ? 'bg-amber-50 border-amber-400 text-amber-900' : 'bg-blue-50 border-blue-400 text-blue-900'}`}>
+            <div className="mt-1"><i className={`fas ${currentInst.icon} text-xl`}></i></div>
+            <div className="space-y-1">
+                <h4 className="font-black uppercase text-xs tracking-widest">{currentInst.title}</h4>
+                <p className="text-[10px] font-bold">{currentInst.fields} {currentInst.optional}</p>
+                <p className="text-[10px] font-black uppercase opacity-70"><i className="fas fa-exclamation-triangle mr-1"></i> {currentInst.warn}</p>
+            </div>
+        </div>
+
+        <div className="bg-slate-50 p-6 rounded-[2rem] flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                <input type="file" ref={fileInputRef} accept=".xlsx,.csv" className="hidden" onChange={(e) => e.target.files?.[0] && handleProcessFile(e.target.files[0])} />
+                <button onClick={() => fileInputRef.current?.click()} disabled={isReadingFile} className="px-6 py-3 bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 shadow-lg hover:bg-black transition-all"><i className={`fas ${isReadingFile ? 'fa-spinner fa-spin' : 'fa-file-excel'}`}></i> {isReadingFile ? 'Lendo...' : 'Carregar Planilha'}</button>
+                
+                {activeTab === 'sectors' && (
+                  <button 
+                    onClick={handleOpenAddSector}
+                    className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-lg hover:bg-emerald-600 transition-all active:scale-95"
+                    title="Adicionar Setor Manualmente"
+                  >
+                    <i className="fas fa-plus"></i>
+                  </button>
+                )}
+
+                <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                  <label className="text-[9px] font-black text-slate-400 uppercase px-2">Mês de Referência:</label>
+                  <input 
+                    type="month" 
+                    value={selectedMonth.substring(0, 7)} 
+                    onChange={(e) => setSelectedMonth(e.target.value + '-01')}
+                    className="bg-slate-50 border-none rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-700 focus:ring-0"
+                  />
+                  <span className="text-[9px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
+                    {formatMonthLabel(selectedMonth)}
+                  </span>
+                </div>
+
+                <div className="text-xs font-bold text-slate-400">{previewData.length > 0 ? <span className="text-blue-600">{previewData.length} registros lidos.</span> : <span>Banco Atual: {displayData.length} ativos</span>}</div>
+            </div>
+            {previewData.length > 0 && (<button onClick={handleConfirmImport} className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase shadow-lg shadow-emerald-200 hover:bg-emerald-600 transition-all flex items-center gap-2"><i className="fas fa-sync"></i> Sincronizar Banco</button>)}
+        </div>
+        
+        <div className="overflow-x-auto">
+            <table className="w-full text-left">
+                <thead><tr className="text-[9px] font-black uppercase text-slate-400 border-b"><th className="p-4">ID (Limpo)</th><th className="p-4">Nome</th>{activeTab === 'staff' && <th className="p-4">Vínculo de Setor</th>}<th className="p-4">Mês Ref.</th>{activeTab !== 'staff' && <th className="p-4">Unidade</th>}<th className="p-4 text-right">Ações</th></tr></thead>
+                <tbody className="divide-y">{currentItems.map((item, i) => (
+                    <tr key={i} className={`hover:bg-slate-50 transition-colors ${item.sectorStatus === 'error' ? 'bg-amber-50' : ''}`}>
+                        <td className="p-4 text-xs font-mono font-bold text-blue-600">{item.id}</td>
+                        <td className="p-4 text-sm font-bold text-slate-700">
+                          {item.name}
+                          {activeTab === 'sectors' && (
+                            <span className={`ml-2 text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-tighter shadow-sm ${item.unit === 'HAB' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                              {item.unit}
+                            </span>
+                          )}
+                        </td>
+                        {activeTab === 'staff' && (
+                          <>
+                            <td className="p-4">{previewData.length > 0 ? (item.sectorStatus === 'ok' ? (<div className="flex items-center justify-between group"><div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]"><i className="fas fa-check"></i></div><div><span className="text-[10px] font-black text-slate-700 uppercase block">{item.linkedSectorName}</span>{item.sectorNameRaw && item.sectorNameRaw !== item.linkedSectorName && (<span className="text-[8px] text-slate-400 block strike">Excel: {item.sectorNameRaw}</span>)}</div></div><button onClick={() => handleManualSectorChange(i, '')} className="w-6 h-6 rounded-lg bg-slate-50 text-slate-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"><i className="fas fa-pencil-alt text-[10px]"></i></button></div>) : (<div className="space-y-1"><Autocomplete options={sectorOptions} value={item.sectorNameRaw || ''} onChange={(val) => handleManualSectorChange(i, val)} placeholder="⚠️ Vincular Setor..." required={false} className="w-full p-2 text-xs font-bold rounded-xl border-2 border-amber-300 bg-white" /><span className="text-[8px] font-bold text-rose-400">ID Excel: {item.sectorIdRaw || 'N/A'}</span></div>)) : (<span className="text-[10px] font-bold uppercase text-slate-500">{getSectorNameFromDB(item.sectorId)}</span>)}</td>
+                          </>
+                        )}
+                        <td className="p-4">
+                          <span className="text-[10px] font-black text-slate-400 uppercase">
+                            {item.cycleMonth ? formatMonthLabel(item.cycleMonth) : (previewData.length > 0 ? formatMonthLabel(selectedMonth) : 'N/A')}
+                          </span>
+                        </td>
+                        {activeTab !== 'staff' && <td className="p-4 text-xs font-bold text-slate-400">{item.unit}</td>}
+                        <td className="p-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                             {activeTab === 'sectors' && (
+                               <>
+                                 <button onClick={() => handleOpenEditSector(item)} className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm flex items-center justify-center" title="Editar Setor">
+                                   <i className="fas fa-edit text-[10px]"></i>
+                                 </button>
+                                 <button onClick={() => handleDeleteSector(item)} className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm flex items-center justify-center" title="Excluir Setor">
+                                   <i className="fas fa-trash-alt text-[10px]"></i>
+                                 </button>
+                               </>
+                             )}
+                          </div>
+                        </td>
+                    </tr>
+                ))}</tbody>
+            </table>
+        </div>
+        {totalPages > 1 && (<div className="flex items-center justify-center gap-2 pt-6"><button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600"><i className="fas fa-chevron-left"></i></button><button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600"><i className="fas fa-chevron-right"></i></button></div>)}
+
+        {/* Log de Divergências */}
+        {skippedRows.length > 0 && (
+          <div className="mt-12 p-8 bg-rose-50 border border-rose-100 rounded-[2.5rem] space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center justify-between border-b border-rose-200 pb-4">
+              <div className="flex items-center gap-3 text-rose-800">
+                <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center">
+                  <i className="fas fa-exclamation-circle text-lg"></i>
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-tight">Log de Divergências ({skippedRows.length})</h3>
+                  <p className="text-[10px] font-bold opacity-70 uppercase">Registros ignorados para garantir a integridade do banco</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSkippedRows([])}
+                className="text-rose-400 hover:text-rose-600 transition-colors"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto no-scrollbar pr-2">
+              {skippedRows.map((row, idx) => (
+                <div key={idx} className="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">{row.id}</span>
+                    <span className="text-[8px] font-black bg-rose-50 text-rose-500 px-2 py-0.5 rounded-full uppercase">Ignorado</span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-800 truncate">{row.name}</h4>
+                  <p className="text-[9px] font-medium text-slate-400 leading-tight italic">{row.reason}</p>
+                </div>
+              ))}
+            </div>
+            
+            <div className="bg-white/50 p-4 rounded-2xl border border-rose-100/50">
+              <p className="text-[9px] font-bold text-rose-800 leading-relaxed uppercase tracking-wide">
+                <i className="fas fa-info-circle mr-1"></i>
+                Dica: Verifique se existem matrículas duplicadas ou linhas em branco no seu arquivo Excel. O sistema exige IDs únicos para evitar sobreposição de dados.
+              </p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Modal de Setor */}
+      {sectorModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-200">
+            <div className="p-8 bg-slate-50 border-b border-slate-100 flex justify-between items-center text-slate-800">
+              <h3 className="font-black uppercase text-sm tracking-widest">
+                {sectorModal.mode === 'add' ? 'Adicionar Novo Setor' : 'Editar Setor'}
+              </h3>
+              <button onClick={() => setSectorModal({ isOpen: false, mode: 'add' })} className="text-slate-400 hover:text-slate-600">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Unidade</label>
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-sm">
+                  {[Unit.HAB, Unit.HABA].map(u => (
+                    <button
+                      key={u}
+                      onClick={() => setSectorUnit(u as Unit)}
+                      className={`flex-1 py-3 rounded-lg font-black text-[10px] uppercase transition-all ${
+                        sectorUnit === u ? 'bg-white text-blue-600 shadow-md' : 'text-slate-400'
+                      }`}
+                    >
+                      {u}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">ID do Setor (Código Base)</label>
+                <input 
+                  type="text" 
+                  value={sectorId}
+                  onChange={(e) => setSectorId(e.target.value)}
+                  placeholder="Ex: 101"
+                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all"
+                  disabled={sectorModal.mode === 'edit'} // ID é imutável na edição por segurança conforme pedido
+                />
+                {sectorModal.mode === 'edit' && <p className="text-[9px] text-slate-400 italic ml-2">* O ID é a chave base e não pode ser alterado aqui por integridade.</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nome do Setor</label>
+                <input 
+                  type="text" 
+                  value={sectorName}
+                  onChange={(e) => setSectorName(e.target.value)}
+                  placeholder="Ex: UTI ADULTO"
+                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all text-slate-800"
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  onClick={() => setSectorModal({ isOpen: false, mode: 'add' })}
+                  className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleSaveSector}
+                  className="flex-[2] py-4 bg-blue-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 active:scale-95"
+                >
+                  Confirmar {sectorModal.mode === 'add' ? 'Adição' : 'Alteração'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
+
 export default AdminLists;
