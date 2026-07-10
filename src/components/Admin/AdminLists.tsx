@@ -40,6 +40,10 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   });
   const [syncState, setSyncState] = useState<{isOpen: boolean; status: SyncStatus; title: string; message: string; error?: string;}>({ isOpen: false, status: 'idle', title: '', message: '' });
   
+  const [deactivationWarning, setDeactivationWarning] = useState<{ isOpen: boolean; count: number; total: number; }>({ isOpen: false, count: 0, total: 0 });
+  const [duplicateWarning, setDuplicateWarning] = useState<{ isOpen: boolean; duplicates: any[] }>({ isOpen: false, duplicates: [] });
+  const [importFlags, setImportFlags] = useState({ deactivationConfirmed: false, duplicatesConfirmed: false });
+
   // Modal de Setores (Novo)
   const [sectorModal, setSectorModal] = useState<{ isOpen: boolean; mode: 'add' | 'edit'; sector?: ProSector }>({ isOpen: false, mode: 'add' });
   const [sectorName, setSectorName] = useState('');
@@ -58,6 +62,8 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   }, [proData, activeUnit]);
 
   const handleProcessFile = async (file: File) => {
+      setImportFlags({ deactivationConfirmed: false, duplicatesConfirmed: false });
+      
       // Avisos de Mês (Sem bloqueio conforme solicitação do usuário)
       const now = new Date();
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
@@ -91,8 +97,49 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
       }
   };
 
-  const handleConfirmImport = async () => {
+  const handleConfirmImport = async (overrideFlags?: { deactivationConfirmed?: boolean; duplicatesConfirmed?: boolean }) => {
     if (!proData || !onSavePro) return;
+
+    if (activeTab === 'staff') {
+        const currentActiveStaff = (proData.staff || []).filter(s => s.unit === activeUnit && s.active !== false);
+        
+        const isDuplicatesConfirmed = overrideFlags?.duplicatesConfirmed || importFlags.duplicatesConfirmed;
+        const isDeactivationConfirmed = overrideFlags?.deactivationConfirmed || importFlags.deactivationConfirmed;
+
+        // 1. Check Duplicates
+        if (!isDuplicatesConfirmed) {
+            const possibleDuplicates: any[] = [];
+            previewData.forEach(p => {
+                const normName = normalizeString(p.name);
+                const inDB = currentActiveStaff.find(s => normalizeString(s.name) === normName && cleanID(s.id) !== cleanID(p.id));
+                if (inDB) {
+                    possibleDuplicates.push({
+                        newId: cleanID(p.id),
+                        newName: p.name,
+                        existingId: cleanID(inDB.id),
+                        existingName: inDB.name
+                    });
+                }
+            });
+            
+            if (possibleDuplicates.length > 0) {
+                setDuplicateWarning({ isOpen: true, duplicates: possibleDuplicates });
+                return;
+            }
+        }
+
+        // 2. Check Mass Deactivation
+        if (!isDeactivationConfirmed) {
+            const incomingKeys = new Set(previewData.map(p => `${activeUnit}|${cleanID(p.id)}`));
+            const wouldDeactivate = currentActiveStaff.filter(s => !incomingKeys.has(`${activeUnit}|${cleanID(s.id)}`));
+            
+            if (wouldDeactivate.length > 0 && (wouldDeactivate.length / currentActiveStaff.length > 0.1 || wouldDeactivate.length > 50)) {
+                setDeactivationWarning({ isOpen: true, count: wouldDeactivate.length, total: currentActiveStaff.length });
+                return;
+            }
+        }
+    }
+
     setSyncState({ isOpen: true, status: 'processing', title: 'Sincronizando', message: 'Calculando diferenças e salvando...' });
     
     try {
@@ -219,6 +266,20 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                         if (matchedPG) {
                             const key = `${sid}|${cleanID(matchedPG.id)}`;
                             if (!existingTargetMemberships.has(key)) {
+                                const activeOldMemberships = (proData.memberships || []).filter(m => 
+                                    cleanID(m.staffId) === sid &&
+                                    (!m.cycleMonth || m.cycleMonth <= selectedMonth) &&
+                                    (!m.leftAt || m.leftAt > Date.now()) &&
+                                    cleanID(m.groupId) !== cleanID(matchedPG.id)
+                                );
+                                activeOldMemberships.forEach(oldM => {
+                                    newMemberships.push({
+                                        ...oldM,
+                                        leftAt: Date.now(),
+                                        updatedAt: Date.now()
+                                    });
+                                });
+
                                 newMemberships.push({
                                     id: crypto.randomUUID(),
                                     groupId: matchedPG.id,
@@ -275,6 +336,20 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                                 if (currentActiveStaffIds.has(sid) && snapshot.groupId) {
                                     const key = `${sid}|${cleanID(snapshot.groupId)}`;
                                     if (!existingTargetMemberships.has(key)) {
+                                        const activeOldMemberships = (proData.memberships || []).filter(m => 
+                                            cleanID(m.staffId) === sid &&
+                                            (!m.cycleMonth || m.cycleMonth <= selectedMonth) &&
+                                            (!m.leftAt || m.leftAt > Date.now()) &&
+                                            cleanID(m.groupId) !== cleanID(snapshot.groupId)
+                                        );
+                                        activeOldMemberships.forEach(oldM => {
+                                            newMemberships.push({
+                                                ...oldM,
+                                                leftAt: Date.now(),
+                                                updatedAt: Date.now()
+                                            });
+                                        });
+
                                         newMemberships.push({
                                             id: crypto.randomUUID(),
                                             groupId: snapshot.groupId,
@@ -298,6 +373,20 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                                 if (currentActiveStaffIds.has(sid)) {
                                     const key = `${sid}|${cleanID(oldM.groupId)}`;
                                     if (!existingTargetMemberships.has(key)) {
+                                        const activeOldMemberships = (proData.memberships || []).filter(m => 
+                                            cleanID(m.staffId) === sid &&
+                                            (!m.cycleMonth || m.cycleMonth <= selectedMonth) &&
+                                            (!m.leftAt || m.leftAt > Date.now()) &&
+                                            cleanID(m.groupId) !== cleanID(oldM.groupId)
+                                        );
+                                        activeOldMemberships.forEach(mToClose => {
+                                            newMemberships.push({
+                                                ...mToClose,
+                                                leftAt: Date.now(),
+                                                updatedAt: Date.now()
+                                            });
+                                        });
+
                                         newMemberships.push({
                                             id: crypto.randomUUID(),
                                             groupId: oldM.groupId,
@@ -351,7 +440,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
 
                 if (newMemberships.length > 0) {
                     const res = await saveRecord('proGroupMembers', newMemberships);
-                    if (res) stats.rematriculated = newMemberships.length;
+                    if (res) stats.rematriculated += newMemberships.length;
                 }
             }
         } else if (activeTab === 'sectors') {
@@ -736,6 +825,101 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                   className="flex-[2] py-4 bg-blue-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 active:scale-95"
                 >
                   Confirmar {sectorModal.mode === 'add' ? 'Adição' : 'Alteração'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Inativação em Massa */}
+      {deactivationWarning.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-rose-100">
+            <div className="p-8 bg-rose-50 border-b border-rose-100 flex justify-between items-center text-rose-800">
+              <h3 className="font-black uppercase text-sm tracking-widest">
+                <i className="fas fa-exclamation-triangle mr-2"></i> Atenção: Inativação em Massa
+              </h3>
+              <button onClick={() => setDeactivationWarning({ isOpen: false, count: 0, total: 0 })} className="text-rose-400 hover:text-rose-600">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="p-8 space-y-6">
+              <p className="text-sm font-bold text-slate-600">
+                A importação desta planilha irá inativar <span className="text-rose-600 font-black">{deactivationWarning.count}</span> colaboradores de um total de {deactivationWarning.total} ativos ({((deactivationWarning.count / deactivationWarning.total) * 100).toFixed(1)}%).
+              </p>
+              <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 text-rose-700 text-xs">
+                Tem certeza de que deseja prosseguir? Esta operação afetará um grande volume de registros.
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button 
+                  onClick={() => setDeactivationWarning({ isOpen: false, count: 0, total: 0 })}
+                  className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={() => {
+                    setDeactivationWarning({ isOpen: false, count: 0, total: 0 });
+                    setImportFlags(prev => ({ ...prev, deactivationConfirmed: true }));
+                    setTimeout(() => handleConfirmImport({ deactivationConfirmed: true }), 100);
+                  }}
+                  className="flex-[2] py-4 bg-rose-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-200 active:scale-95"
+                >
+                  Confirmar Mesmo Assim
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Possíveis Duplicatas */}
+      {duplicateWarning.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-amber-100 flex flex-col max-h-[90vh]">
+            <div className="p-8 bg-amber-50 border-b border-amber-100 flex justify-between items-center text-amber-800">
+              <h3 className="font-black uppercase text-sm tracking-widest">
+                <i className="fas fa-clone mr-2"></i> Possíveis Duplicatas ({duplicateWarning.duplicates.length})
+              </h3>
+              <button onClick={() => setDuplicateWarning({ isOpen: false, duplicates: [] })} className="text-amber-400 hover:text-amber-600">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="p-8 space-y-6 flex-1 overflow-y-auto">
+              <p className="text-sm font-bold text-slate-600">
+                Foram encontrados nomes idênticos a colaboradores já ativos, mas com matrículas diferentes.
+              </p>
+              <div className="bg-slate-50 p-4 rounded-2xl space-y-2 border border-slate-100">
+                {duplicateWarning.duplicates.map((dup, i) => (
+                  <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                    <div>
+                      <div className="text-xs font-bold text-slate-800">{dup.newName}</div>
+                      <div className="text-[10px] text-slate-400">Nova Matrícula: <span className="font-mono font-black">{dup.newId}</span></div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs font-bold text-amber-600">Já existe como: {dup.existingName}</div>
+                      <div className="text-[10px] text-amber-500">Matrícula Atual: <span className="font-mono font-black">{dup.existingId}</span></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button 
+                  onClick={() => setDuplicateWarning({ isOpen: false, duplicates: [] })}
+                  className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
+                >
+                  Cancelar Importação
+                </button>
+                <button 
+                  onClick={() => {
+                    setDuplicateWarning({ isOpen: false, duplicates: [] });
+                    setImportFlags(prev => ({ ...prev, duplicatesConfirmed: true }));
+                    setTimeout(() => handleConfirmImport({ duplicatesConfirmed: true }), 100);
+                  }}
+                  className="flex-[2] py-4 bg-amber-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-200 active:scale-95"
+                >
+                  Ignorar Aviso e Importar
                 </button>
               </div>
             </div>

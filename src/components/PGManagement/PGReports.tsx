@@ -29,6 +29,7 @@ const PGReports = memo(({ unit }: PGReportsProps) => {
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterCritical, setFilterCritical] = useState(false);
+  const [selectedPG, setSelectedPG] = useState<{ pgName: string, leaderName: string | null, members: any[] } | null>(null);
 
   const { reportData, activePGCount } = usePGReportsData({
     unit,
@@ -268,16 +269,132 @@ const PGReports = memo(({ unit }: PGReportsProps) => {
                            ></div>
                            <div className="absolute top-0 bottom-0 w-0.5 bg-slate-300 left-[80%]"></div>
                         </div>
+                        
+                        {/* Indicadores de Colaboradores e Matriculados */}
+                        <div className="flex justify-between items-center text-[9px] font-black uppercase text-slate-500 mt-3 p-1.5 bg-slate-50 rounded-xl">
+                          <span>Colaboradores: <span className="text-slate-800 font-extrabold">{data.totalStaff}</span></span>
+                          <span>Matriculados: <span className="text-blue-600 font-extrabold">{data.enrolledCount}</span></span>
+                        </div>
                       </div>
                   </div>
-                  <div className="flex gap-1 flex-wrap">
-                      {data.pgs.map((pg: any) => (
-                          <span key={pg?.id} className="text-[8px] font-black uppercase px-2 py-1 bg-blue-50 text-blue-600 rounded-md">{pg?.name}</span>
-                      ))}
+                  <div className="flex gap-1 flex-wrap mt-2">
+                      {data.pgs.map((pg: any) => {
+                          if (!pg) return null;
+                          return (
+                            <button 
+                              key={pg.id} 
+                              type="button"
+                              onClick={() => {
+                                const pgInfo = data.enrolledByPG.find((item: any) => normalizeString(item.pgName) === normalizeString(pg.name)) || {
+                                  pgName: pg.name,
+                                  leaderName: pg.currentLeader || pg.leader || 'Sem Líder Definido',
+                                  members: []
+                                };
+                                const sortedMembers = [...pgInfo.members].sort((a: any, b: any) => 
+                                  String(a.name || '').localeCompare(String(b.name || ''))
+                                );
+                                setSelectedPG({
+                                  ...pgInfo,
+                                  members: sortedMembers
+                                });
+                              }}
+                              className="text-[8px] font-black uppercase px-2 py-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-600 hover:text-white transition-all cursor-pointer flex items-center gap-1 group border border-blue-100/50"
+                            >
+                              <span>{pg.name}</span>
+                              <i className="fas fa-eye text-[6px] opacity-40 group-hover:opacity-100"></i>
+                            </button>
+                          );
+                      })}
                   </div>
               </div>
           ))}
       </div>
+
+      {/* Modal de Detalhes do PG (Membros e Líder) */}
+      {selectedPG && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200" id="pg-members-modal">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+            {/* Header */}
+            <div className="p-6 pb-4 border-b border-slate-50 flex items-start justify-between bg-slate-50/50">
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2 py-1 rounded-md mb-2 inline-block">Membros do Pequeno Grupo</span>
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight leading-tight">{selectedPG.pgName}</h3>
+              </div>
+              <button 
+                onClick={() => setSelectedPG(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-all"
+              >
+                <i className="fas fa-times text-lg"></i>
+              </button>
+            </div>
+
+            {/* Leader Section */}
+            <div className="p-6 py-4 bg-amber-50/40 border-b border-amber-50/80 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700">
+                <i className="fas fa-user-tie text-lg"></i>
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-amber-600">Líder do PG</p>
+                <p className="text-sm font-bold text-slate-800">{selectedPG.leaderName || 'Sem Líder Definido'}</p>
+              </div>
+            </div>
+
+            {/* Members List */}
+            <div className="flex-1 p-6 overflow-y-auto no-scrollbar space-y-3 max-h-[40vh]">
+              <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-400 mb-2">
+                <span>Colaborador</span>
+                <span>Matrícula/Cadastro</span>
+              </div>
+
+              {selectedPG.members.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">
+                  <i className="fas fa-users-slash text-3xl mb-3 block"></i>
+                  <p className="text-xs font-bold uppercase tracking-wider">Nenhum colaborador matriculado</p>
+                </div>
+              ) : (
+                selectedPG.members.map((member: any) => (
+                  <div key={member.id} className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 bg-slate-50/30 hover:bg-slate-50 transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${member.type === 'provider' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {member.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex flex-col items-start">
+                        <p className="text-xs font-bold text-slate-800">{member.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            {member.type === 'provider' ? 'Prestador' : 'CLT/Staff'}
+                          </span>
+                          {member.isOtherSector && (
+                            <span className="text-[7px] font-black uppercase tracking-widest text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded flex items-center gap-1">
+                              <i className="fas fa-exclamation-circle"></i> {member.sectorName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                      {member.id}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 pt-4 border-t border-slate-50 bg-slate-50/50 flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase text-slate-400">
+                Total: {selectedPG.members.length} {selectedPG.members.length === 1 ? 'Matriculado' : 'Matriculados'}
+              </span>
+              <button 
+                onClick={() => setSelectedPG(null)}
+                className="px-5 py-2.5 bg-slate-800 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-900 transition-all shadow-md"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="text-center p-10 text-slate-400">
         <i className="fas fa-file-pdf text-4xl mb-4"></i>

@@ -50,6 +50,17 @@ export function usePGReportsData({
     let data: any[] = [];
 
     if (historyForMonth.length > 0) {
+      // Group all staff members in historyForMonth by groupName/groupId
+      // So that we can display ALL staff of this PG in the unit for that closed month!
+      const activeStaffByPGNameHistory = new Map<string, any[]>();
+      historyForMonth.filter(r => r.isEnrolled).forEach(r => {
+        const pgNameNorm = normalizeString(r.groupName || 'Sem PG Definido');
+        if (!activeStaffByPGNameHistory.has(pgNameNorm)) {
+          activeStaffByPGNameHistory.set(pgNameNorm, []);
+        }
+        activeStaffByPGNameHistory.get(pgNameNorm)?.push(r);
+      });
+
       data = sectors.map(sector => {
         const sectorIdClean = cleanID(sector.id);
         const staffInHistory = historyForMonth.filter(r => cleanID(r.sectorId) === sectorIdClean || (r.sectorId === 'unassigned' && sectorIdClean === 'unassigned'));
@@ -59,19 +70,40 @@ export function usePGReportsData({
 
         const enrolledByPGMap = new Map<string, { pgName: string, members: any[], leaderName: string | null }>();
         
-        enrolledStaff.forEach(r => {
-          const pgName = r.groupName || 'Sem PG Definido';
-          const leaderName = r.leaderName || null;
+        const pgsInSectorIds = new Set(enrolledStaff.map(r => r.groupId).filter(id => id));
+        const pgs = Array.from(pgsInSectorIds).map(gid => groupsById.get(cleanID(gid))).filter(g => !!g) as any[];
 
-          if (!enrolledByPGMap.has(pgName)) {
-            enrolledByPGMap.set(pgName, { pgName, members: [], leaderName });
+        pgs.forEach(pg => {
+          if (!pg) return;
+          const pgName = pg.name || 'Sem PG Definido';
+          const leaderName = pg.currentLeader || null;
+          const pgNameNorm = normalizeString(pgName);
+
+          if (!enrolledByPGMap.has(pgNameNorm)) {
+            enrolledByPGMap.set(pgNameNorm, { pgName, members: [], leaderName });
           }
-          enrolledByPGMap.get(pgName)!.members.push({ id: r.staffId, name: r.staffName, registrationId: r.registrationId, type: 'staff' });
+
+          const pgStaffHistory = activeStaffByPGNameHistory.get(pgNameNorm) || [];
+          pgStaffHistory.forEach(r => {
+            const sSector = proSectors.find(sec => cleanID(sec.id) === cleanID(r.sectorId));
+            const sectorName = sSector?.name || 'Setor Não Definido';
+            const isOtherSector = cleanID(r.sectorId) !== sectorIdClean;
+
+            if (!enrolledByPGMap.get(pgNameNorm)!.members.some(mem => mem.id === r.staffId && mem.type === 'staff')) {
+              enrolledByPGMap.get(pgNameNorm)!.members.push({
+                id: r.staffId,
+                name: r.staffName,
+                registrationId: r.registrationId,
+                type: 'staff',
+                sectorId: r.sectorId,
+                sectorName,
+                isOtherSector
+              });
+            }
+          });
         });
 
         const enrolledByPG = Array.from(enrolledByPGMap.values()).sort((a, b) => a.pgName.localeCompare(b.pgName));
-        const pgsInSectorIds = new Set(enrolledStaff.map(r => r.groupId));
-        const pgs = Array.from(pgsInSectorIds).map(gid => groupsById.get(gid)).filter(g => !!g);
         const coverage = staffInHistory.length > 0 ? (enrolledStaff.length / staffInHistory.length) * 100 : 0;
 
         return { 
@@ -160,6 +192,13 @@ export function usePGReportsData({
           activeProviderMembershipsByGroupId.get(gId)?.push(m);
       });
 
+      const activeStaffMembershipsByGroupId = new Map<string, any[]>();
+      activeStaffMemberships.forEach(m => {
+          const gId = cleanID(m.groupId);
+          if (!activeStaffMembershipsByGroupId.has(gId)) activeStaffMembershipsByGroupId.set(gId, []);
+          activeStaffMembershipsByGroupId.get(gId)?.push(m);
+      });
+
       const processedPGIds = new Set<string>();
 
       data = sectors.map(sector => {
@@ -178,43 +217,7 @@ export function usePGReportsData({
           
           const enrolledByPGMap = new Map<string, { pgName: string, members: any[], leaderName: string | null }>();
           
-          enrolledStaff.forEach(s => {
-              const m = activeStaffMembershipsByStaffId.get(cleanID(s.id));
-              const pg = m ? groupsById.get(cleanID(m.groupId)) : null;
-              const pgName = pg?.name || 'Sem PG Definido';
-              const leaderName = pg?.currentLeader || null;
-              
-              const pgNameNorm = normalizeString(pgName);
-              
-              if (!enrolledByPGMap.has(pgNameNorm)) {
-                  enrolledByPGMap.set(pgNameNorm, { pgName, members: [], leaderName });
-              }
-              enrolledByPGMap.get(pgNameNorm)!.members.push({ ...s, type: 'staff' });
-          });
-
           const sectorLocs = locsBySector.get(sectorIdClean) || new Set();
-          sectorLocs.forEach(pgIdClean => {
-              const memberships = activeProviderMembershipsByGroupId.get(pgIdClean) || [];
-              memberships.forEach(m => {
-                  const provider = providersById.get(cleanID(m.providerId));
-                  if (provider) {
-                      const pg = groupsById.get(pgIdClean);
-                      const pgName = pg?.name || 'Sem PG Definido';
-                      const leaderName = pg?.currentLeader || null;
-                      
-                      const pgNameNorm = normalizeString(pgName);
-                      
-                      if (!enrolledByPGMap.has(pgNameNorm)) {
-                          enrolledByPGMap.set(pgNameNorm, { pgName, members: [], leaderName });
-                      }
-                      if (!enrolledByPGMap.get(pgNameNorm)!.members.some(mem => mem.id === provider.id)) {
-                          enrolledByPGMap.get(pgNameNorm)!.members.push({ ...provider, type: 'provider' });
-                      }
-                  }
-              });
-          });
-
-          const enrolledByPG = Array.from(enrolledByPGMap.values()).sort((a, b) => a.pgName.localeCompare(b.pgName));
           const geoGroupIds = sectorLocs;
           const memberGroupIds = new Set(enrolledStaff.map(s => {
               const m = activeStaffMembershipsByStaffId.get(cleanID(s.id));
@@ -225,6 +228,52 @@ export function usePGReportsData({
           allGroupIdsInSector.forEach(id => processedPGIds.add(id));
           
           const pgs = Array.from(allGroupIdsInSector).map(gid => groupsById.get(gid)).filter(g => !!g);
+
+          allGroupIdsInSector.forEach(pgIdClean => {
+              const pg = groupsById.get(pgIdClean);
+              if (!pg) return;
+              
+              const pgName = pg.name || 'Sem PG Definido';
+              const leaderName = pg.currentLeader || null;
+              const pgNameNorm = normalizeString(pgName);
+              
+              if (!enrolledByPGMap.has(pgNameNorm)) {
+                  enrolledByPGMap.set(pgNameNorm, { pgName, members: [], leaderName });
+              }
+
+              // Staff
+              const sMemberships = activeStaffMembershipsByGroupId.get(pgIdClean) || [];
+              sMemberships.forEach(m => {
+                  const s = proStaff.find(st => cleanID(st.id) === cleanID(m.staffId));
+                  if (s) {
+                      const sSector = proSectors.find(sec => cleanID(sec.id) === cleanID(s.sectorId));
+                      const sectorName = sSector?.name || 'Setor Não Definido';
+                      const isOtherSector = cleanID(s.sectorId) !== sectorIdClean;
+                      
+                      if (!enrolledByPGMap.get(pgNameNorm)!.members.some(mem => mem.id === s.id && mem.type === 'staff')) {
+                          enrolledByPGMap.get(pgNameNorm)!.members.push({
+                              ...s,
+                              type: 'staff',
+                              sectorName,
+                              isOtherSector
+                          });
+                      }
+                  }
+              });
+
+              // Providers
+              const pMemberships = activeProviderMembershipsByGroupId.get(pgIdClean) || [];
+              pMemberships.forEach(m => {
+                  const provider = providersById.get(cleanID(m.providerId));
+                  if (provider) {
+                      if (!enrolledByPGMap.get(pgNameNorm)!.members.some(mem => mem.id === provider.id && mem.type === 'provider')) {
+                          enrolledByPGMap.get(pgNameNorm)!.members.push({ ...provider, type: 'provider' });
+                      }
+                  }
+              });
+          });
+
+          const enrolledByPG = Array.from(enrolledByPGMap.values()).sort((a, b) => a.pgName.localeCompare(b.pgName));
           const coverage = staff.length > 0 ? (enrolledStaff.length / staff.length) * 100 : 0;
 
           return { sector, totalStaff: staff.length, enrolledCount: enrolledStaff.length, coverage, pgs, notEnrolledList: notEnrolled, enrolledList: enrolledStaff, enrolledByPG };
