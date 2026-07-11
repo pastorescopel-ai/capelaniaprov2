@@ -10,7 +10,7 @@ const INACTIVITY_LIMIT = 4 * 60 * 60 * 1000; // 4 horas em milissegundos
 const LAST_ACTIVITY_KEY = 'capelania_last_activity';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { saveRecord } = useApp();
+  const { saveRecord, refreshData } = useApp();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -72,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setCurrentUser(dbUser);
               setIsAuthenticated(true);
               updateActivity();
+              refreshData();
             }
           }
         }
@@ -91,6 +92,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser(dbUser);
             setIsAuthenticated(true);
             updateActivity();
+            if (_event === 'SIGNED_IN') {
+              refreshData();
+            }
           }
         });
       } else {
