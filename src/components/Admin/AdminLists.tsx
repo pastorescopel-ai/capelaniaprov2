@@ -250,6 +250,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                 const currentActiveStaffIds = new Set(finalStaff.filter(s => s.active !== false && s.unit === activeUnit).map(s => cleanID(s.id)));
                 const existingTargetMemberships = new Set((proGroupMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.staffId)}|${cleanID(m.groupId)}`));
                 const newMemberships: ProGroupMember[] = [];
+                const staffIdsWithNewMemberships = new Set<string>();
 
                 // 1. Prioridade: Se a planilha ATUAL já tem informação de PG, usa ela (Recuperação Direta)
                 const spreadsheetMemberships = previewData.filter(p => (p as any).pgNameRaw);
@@ -264,6 +265,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                         const matchedPG = proData.groups.find(g => g.unit === activeUnit && normalizeString(g.name) === normalizeString(pgName));
                         
                         if (matchedPG) {
+                            staffIdsWithNewMemberships.add(sid);
                             const key = `${sid}|${cleanID(matchedPG.id)}`;
                             if (!existingTargetMemberships.has(key)) {
                                 const activeOldMemberships = (proData.memberships || []).filter(m => 
@@ -296,144 +298,141 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                     });
                 }
 
-                // 2. Fallback: Se não tem nada na planilha, tenta propagar do histórico oficial ou membraria ativa (Auto-Rematriculação)
-                if (newMemberships.length === 0) {
-                    const now = new Date(selectedMonth + 'T12:00:00');
-                    let sourceMonthRecentral = "";
-                    let historyData: ProHistoryRecord[] = [];
+                // 2. Fallback: Propagar do histórico oficial ou membraria ativa para quem NÃO teve PG na planilha
+                let sourceMonthRecentral = "";
+                let historyData: ProHistoryRecord[] = [];
 
-                    // Tenta encontrar o mês mais recente com dados de histórico (limite de 12 meses atrás)
-                    for (let i = 1; i <= 12; i++) {
-                        const temp = new Date(now);
-                        temp.setMonth(temp.getMonth() - i);
-                        const iso = temp.toISOString().split('T')[0];
-                        
-                        // Primeiro tenta no Histórico Oficial (Snapshot) - Apenas STAFF
-                        const historyForMonth = (proData.history || []).filter(h => h.month === iso && h.unit === activeUnit && h.isEnrolled);
-                        if (historyForMonth.length > 0) {
-                            sourceMonthRecentral = iso;
-                            historyData = historyForMonth;
-                            break;
-                        }
-
-                        // Fallback para Membraria Ativa se não houver snapshot
-                        const hasData = (proData.memberships || []).some(m => m.cycleMonth === iso);
-                        if (hasData) {
-                            sourceMonthRecentral = iso;
-                            break;
-                        }
+                // Tenta encontrar o mês mais recente com dados de histórico (limite de 12 meses atrás)
+                for (let i = 1; i <= 12; i++) {
+                    const temp = new Date(now);
+                    temp.setMonth(temp.getMonth() - i);
+                    const iso = temp.toISOString().split('T')[0];
+                    
+                    // Primeiro tenta no Histórico Oficial (Snapshot) - Apenas STAFF
+                    const historyForMonth = (proData.history || []).filter(h => h.month === iso && h.unit === activeUnit && h.isEnrolled);
+                    if (historyForMonth.length > 0) {
+                        sourceMonthRecentral = iso;
+                        historyData = historyForMonth;
+                        break;
                     }
 
-                    if (sourceMonthRecentral) {
-                        const sourceLabel = formatMonthLabel(sourceMonthRecentral);
+                    // Fallback para Membraria Ativa se não houver snapshot
+                    const hasData = (proData.memberships || []).some(m => m.cycleMonth === iso);
+                    if (hasData) {
+                        sourceMonthRecentral = iso;
+                        break;
+                    }
+                }
+
+                if (sourceMonthRecentral) {
+                    const sourceLabel = formatMonthLabel(sourceMonthRecentral);
+                    
+                    // 2.1 Replicação de STAFF
+                    if (historyData.length > 0) {
+                        setSyncState(prev => ({ ...prev, message: `Staff updated. Replicando matrículas do Snapshot Oficial de ${sourceLabel} (para quem não veio na planilha)...` }));
                         
-                        // 2.1 Replicação de STAFF
-                        if (historyData.length > 0) {
-                            setSyncState(prev => ({ ...prev, message: `Staff updated. Replicando ${historyData.length} matrículas do Snapshot Oficial de ${sourceLabel}...` }));
-                            
-                            historyData.forEach(snapshot => {
-                                const sid = cleanID(snapshot.staffId);
-                                if (currentActiveStaffIds.has(sid) && snapshot.groupId) {
-                                    const key = `${sid}|${cleanID(snapshot.groupId)}`;
-                                    if (!existingTargetMemberships.has(key)) {
-                                        const activeOldMemberships = (proData.memberships || []).filter(m => 
-                                            cleanID(m.staffId) === sid &&
-                                            (!m.cycleMonth || m.cycleMonth <= selectedMonth) &&
-                                            (!m.leftAt || m.leftAt > Date.now()) &&
-                                            cleanID(m.groupId) !== cleanID(snapshot.groupId)
-                                        );
-                                        activeOldMemberships.forEach(oldM => {
-                                            newMemberships.push({
-                                                ...oldM,
-                                                leftAt: Date.now(),
-                                                updatedAt: Date.now()
-                                            });
-                                        });
-
+                        historyData.forEach(snapshot => {
+                            const sid = cleanID(snapshot.staffId);
+                            if (currentActiveStaffIds.has(sid) && snapshot.groupId && !staffIdsWithNewMemberships.has(sid)) {
+                                const key = `${sid}|${cleanID(snapshot.groupId)}`;
+                                if (!existingTargetMemberships.has(key)) {
+                                    const activeOldMemberships = (proData.memberships || []).filter(m => 
+                                        cleanID(m.staffId) === sid &&
+                                        (!m.cycleMonth || m.cycleMonth <= selectedMonth) &&
+                                        (!m.leftAt || m.leftAt > Date.now()) &&
+                                        cleanID(m.groupId) !== cleanID(snapshot.groupId)
+                                    );
+                                    activeOldMemberships.forEach(oldM => {
                                         newMemberships.push({
-                                            id: crypto.randomUUID(),
-                                            groupId: snapshot.groupId,
-                                            staffId: snapshot.staffId,
-                                            cycleMonth: selectedMonth,
-                                            joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
-                                            createdAt: Date.now(),
+                                            ...oldM,
+                                            leftAt: Date.now(),
                                             updatedAt: Date.now()
                                         });
-                                        existingTargetMemberships.add(key);
-                                    }
+                                    });
+
+                                    newMemberships.push({
+                                        id: crypto.randomUUID(),
+                                        groupId: snapshot.groupId,
+                                        staffId: snapshot.staffId,
+                                        cycleMonth: selectedMonth,
+                                        joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
+                                        createdAt: Date.now(),
+                                        updatedAt: Date.now()
+                                    });
+                                    existingTargetMemberships.add(key);
                                 }
-                            });
-                        } else {
-                            // Fallback para proData.memberships (Comportamento original preservado)
-                            const sourceMemberships = (proData.memberships || []).filter(m => m.cycleMonth === sourceMonthRecentral && !m.leftAt);
-                            setSyncState(prev => ({ ...prev, message: `Staff updated. Propagando ${sourceMemberships.length} matrículas ativas de ${sourceLabel}...` }));
-                            
-                            sourceMemberships.forEach(oldM => {
-                                const sid = cleanID(oldM.staffId);
-                                if (currentActiveStaffIds.has(sid)) {
-                                    const key = `${sid}|${cleanID(oldM.groupId)}`;
-                                    if (!existingTargetMemberships.has(key)) {
-                                        const activeOldMemberships = (proData.memberships || []).filter(m => 
-                                            cleanID(m.staffId) === sid &&
-                                            (!m.cycleMonth || m.cycleMonth <= selectedMonth) &&
-                                            (!m.leftAt || m.leftAt > Date.now()) &&
-                                            cleanID(m.groupId) !== cleanID(oldM.groupId)
-                                        );
-                                        activeOldMemberships.forEach(mToClose => {
-                                            newMemberships.push({
-                                                ...mToClose,
-                                                leftAt: Date.now(),
-                                                updatedAt: Date.now()
-                                            });
-                                        });
-
-                                        newMemberships.push({
-                                            id: crypto.randomUUID(),
-                                            groupId: oldM.groupId,
-                                            staffId: oldM.staffId,
-                                            cycleMonth: selectedMonth,
-                                            isLeader: oldM.isLeader,
-                                            joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
-                                            createdAt: Date.now(),
-                                            updatedAt: Date.now()
-                                        });
-                                        existingTargetMemberships.add(key);
-                                    }
-                                }
-                            });
-                        }
-
-                        // 2.2 Replicação de PRESTADORES (ESSENCIAL PARA GRUPOS COMO SERVOS DE FÉ)
-                        const sourceProviderMemberships = (proData.providerMemberships || []).filter(m => m.cycleMonth === sourceMonthRecentral && !m.leftAt);
-                        if (sourceProviderMemberships.length > 0) {
-                            const newProviderMemberships: ProGroupProviderMember[] = [];
-                            const activeProviderIds = new Set((proData.providers || []).filter(p => p.unit === activeUnit && p.active !== false).map(p => cleanID(p.id)));
-                            const existingTargetProviderMemberships = new Set((proGroupProviderMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.providerId)}|${cleanID(m.groupId)}`));
-
-                            sourceProviderMemberships.forEach(oldM => {
-                                const pid = cleanID(oldM.providerId);
-                                if (activeProviderIds.has(pid)) {
-                                    const key = `${pid}|${cleanID(oldM.groupId)}`;
-                                    if (!existingTargetProviderMemberships.has(key)) {
-                                        newProviderMemberships.push({
-                                            id: crypto.randomUUID(),
-                                            groupId: oldM.groupId,
-                                            providerId: oldM.providerId,
-                                            cycleMonth: selectedMonth,
-                                            joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
-                                            createdAt: Date.now(),
-                                            updatedAt: Date.now()
-                                        });
-                                        existingTargetProviderMemberships.add(key);
-                                    }
-                                }
-                            });
-
-                            if (newProviderMemberships.length > 0) {
-                                setSyncState(prev => ({ ...prev, message: `Replicando ${newProviderMemberships.length} matrículas de Prestadores (ex: Servos de Fé)...` }));
-                                await saveRecord('proGroupProviderMembers', newProviderMemberships);
-                                stats.rematriculated += newProviderMemberships.length;
                             }
+                        });
+                    } else {
+                        // Fallback para proData.memberships (Comportamento original preservado)
+                        const sourceMemberships = (proData.memberships || []).filter(m => m.cycleMonth === sourceMonthRecentral && !m.leftAt);
+                        setSyncState(prev => ({ ...prev, message: `Staff updated. Propagando matrículas ativas de ${sourceLabel} (para quem não veio na planilha)...` }));
+                        
+                        sourceMemberships.forEach(oldM => {
+                            const sid = cleanID(oldM.staffId);
+                            if (currentActiveStaffIds.has(sid) && !staffIdsWithNewMemberships.has(sid)) {
+                                const key = `${sid}|${cleanID(oldM.groupId)}`;
+                                if (!existingTargetMemberships.has(key)) {
+                                    const activeOldMemberships = (proData.memberships || []).filter(m => 
+                                        cleanID(m.staffId) === sid &&
+                                        (!m.cycleMonth || m.cycleMonth <= selectedMonth) &&
+                                        (!m.leftAt || m.leftAt > Date.now()) &&
+                                        cleanID(m.groupId) !== cleanID(oldM.groupId)
+                                    );
+                                    activeOldMemberships.forEach(mToClose => {
+                                        newMemberships.push({
+                                            ...mToClose,
+                                            leftAt: Date.now(),
+                                            updatedAt: Date.now()
+                                        });
+                                    });
+
+                                    newMemberships.push({
+                                        id: crypto.randomUUID(),
+                                        groupId: oldM.groupId,
+                                        staffId: oldM.staffId,
+                                        cycleMonth: selectedMonth,
+                                        isLeader: oldM.isLeader,
+                                        joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
+                                        createdAt: Date.now(),
+                                        updatedAt: Date.now()
+                                    });
+                                    existingTargetMemberships.add(key);
+                                }
+                            }
+                        });
+                    }
+
+                    // 2.2 Replicação de PRESTADORES (ESSENCIAL PARA GRUPOS COMO SERVOS DE FÉ)
+                    const sourceProviderMemberships = (proData.providerMemberships || []).filter(m => m.cycleMonth === sourceMonthRecentral && !m.leftAt);
+                    if (sourceProviderMemberships.length > 0) {
+                        const newProviderMemberships: ProGroupProviderMember[] = [];
+                        const activeProviderIds = new Set((proData.providers || []).filter(p => p.unit === activeUnit && p.active !== false).map(p => cleanID(p.id)));
+                        const existingTargetProviderMemberships = new Set((proGroupProviderMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.providerId)}|${cleanID(m.groupId)}`));
+
+                        sourceProviderMemberships.forEach(oldM => {
+                            const pid = cleanID(oldM.providerId);
+                            if (activeProviderIds.has(pid)) {
+                                const key = `${pid}|${cleanID(oldM.groupId)}`;
+                                if (!existingTargetProviderMemberships.has(key)) {
+                                    newProviderMemberships.push({
+                                        id: crypto.randomUUID(),
+                                        groupId: oldM.groupId,
+                                        providerId: oldM.providerId,
+                                        cycleMonth: selectedMonth,
+                                        joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
+                                        createdAt: Date.now(),
+                                        updatedAt: Date.now()
+                                    });
+                                    existingTargetProviderMemberships.add(key);
+                                }
+                            }
+                        });
+
+                        if (newProviderMemberships.length > 0) {
+                            setSyncState(prev => ({ ...prev, message: `Replicando ${newProviderMemberships.length} matrículas de Prestadores (ex: Servos de Fé)...` }));
+                            await saveRecord('proGroupProviderMembers', newProviderMemberships);
+                            stats.rematriculated += newProviderMemberships.length;
                         }
                     }
                 }
