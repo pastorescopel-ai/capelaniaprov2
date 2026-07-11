@@ -75,7 +75,7 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
         setHasUpdate(true);
       }
     } catch (error) {
-      console.warn('[Capelania AutoUpdate] Erro silencioso ao checar por atualizações:', error);
+      if (navigator.onLine) console.warn('[Capelania AutoUpdate] Falha de rede ao checar atualização (ignorando):', error);
     } finally {
       setIsChecking(false);
     }

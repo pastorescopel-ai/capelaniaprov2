@@ -67,10 +67,16 @@ export const useRealtimeSync = (setters: Record<string, any>, refreshData: () =>
     const channel = supabase
       .channel('realtime-db')
       .on('postgres_changes', { event: '*', schema: 'public' }, handleRealtimeChange)
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          console.warn('Canal de tempo real caiu, status:', status);
+            .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[Realtime] Canal apresentou erro ou timeout:', status, '- tentando recarregar dados...');
           refreshData();
+        } else if (status === 'CLOSED') {
+          // Quando removeChannel é chamado, o status pode ser CLOSED. 
+          // Não chamar refreshData() para não gerar loops e updates em componentes desmontados.
+          // console.log('[Realtime] Canal fechado.');
+        } else if (status === 'SUBSCRIBED') {
+          // console.log('[Realtime] Inscrito com sucesso.');
         }
       });
 

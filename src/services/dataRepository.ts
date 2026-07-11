@@ -8,32 +8,26 @@ const MEMORY_CACHE: Record<string, any> = {};
 
 function safeSetLocalStorage(key: string, value: any, tableName: string) {
   try {
+    const heavyTables = ['pro_history_records', 'pro_monthly_stats', 'staff_visits', 'bible_class_attendees', 'activity_schedules', 'daily_activity_reports'];
+    
+    // Não salvar tabelas pesadas no localStorage para evitar QuotaExceededError
+    if (heavyTables.includes(tableName)) {
+      MEMORY_CACHE[key] = value;
+      return;
+    }
+
     const serialized = JSON.stringify(value);
     localStorage.setItem(key, serialized);
   } catch (e: any) {
-    // Registra temporariamente no cache de memória local para a sessão atual
     MEMORY_CACHE[key] = value;
     
     if (e.name === 'QuotaExceededError' || e.code === 22) {
-      // Mensagem explicativa e amigável uma única vez
       if (typeof window !== 'undefined' && !(window as any).__quotaExceededLogged) {
         (window as any).__quotaExceededLogged = true;
         console.info(
           `[Capelania OS] ℹ️ Cota de armazenamento local offline do navegador excedida (~5MB atingidos). ` +
           `Os dados excedentes de tabelas históricas de auditoria foram direcionados ao cache de memória temporária com sucesso.`
         );
-      }
-      
-      // Limpa dados antigos ou não-críticos do localStorage para tentar abrir espaço para configurações críticas
-      const heavyTables = ['pro_history_records', 'pro_monthly_stats', 'staff_visits', 'bible_class_attendees'];
-      if (heavyTables.includes(tableName)) {
-        try {
-          localStorage.removeItem(`capelania_offline_${tableName}`);
-        } catch (err: any) {
-          if (console.debug) {
-            console.debug("Item já removido do localStorage:", err.message);
-          }
-        }
       }
     } else {
       console.warn(`[DataRepository] Falha ao salvar cache para ${tableName}:`, e);

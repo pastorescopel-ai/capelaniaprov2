@@ -82,7 +82,6 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
   }, []);
 
   const myRequests = useMemo(() => {
-    const start = performance.now();
     const res = (() => {
       // 1. Otimização: Criar um índice dos PGs registrados (O(M))
       const sgIndex = new Map<string, any[]>();
@@ -136,8 +135,6 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
         return getTimestamp(a.date) - getTimestamp(b.date);
       });
     })();
-    const end = performance.now();
-    console.log(`[Perf] useVisitRequestsWidget - myRequests calculado em ${(end - start).toFixed(2)}ms para ${requests.length} requisições e ${smallGroups.length} PGs.`);
     return res;
   }, [requests, currentUser, smallGroups]);
 
