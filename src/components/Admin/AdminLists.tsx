@@ -256,6 +256,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                 const now = new Date(selectedMonth + 'T12:00:00');
                 const currentActiveStaffIds = new Set(finalStaff.filter(s => s.active !== false && s.unit === activeUnit).map(s => cleanID(s.id)));
                 const existingTargetMemberships = new Set((proGroupMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.staffId)}|${cleanID(m.groupId)}`));
+                const staffIdsWithAnyTargetMembership = new Set((proGroupMembers || []).filter(m => m.cycleMonth === selectedMonth && (!m.leftAt || m.leftAt > Date.now())).map(m => cleanID(m.staffId)));
                 const newMemberships: ProGroupMember[] = [];
                 const staffIdsWithNewMemberships = new Set<string>();
 
@@ -266,6 +267,8 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                     
                     spreadsheetMemberships.forEach(p => {
                         const sid = cleanID(p.id);
+                        if (staffIdsWithNewMemberships.has(sid)) return; // Prevents spreadsheet duplicate rows
+
                         const pgName = (p as any).pgNameRaw;
                         const isLeader = (p as any).isLeaderRaw;
                         
@@ -273,6 +276,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                         
                         if (matchedPG) {
                             staffIdsWithNewMemberships.add(sid);
+                            staffIdsWithAnyTargetMembership.add(sid);
                             const key = `${sid}|${cleanID(matchedPG.id)}`;
                             if (!existingTargetMemberships.has(key)) {
                                 const activeOldMemberships = (proData.memberships || []).filter(m => 
@@ -340,7 +344,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                         
                         historyData.forEach(snapshot => {
                             const sid = cleanID(snapshot.staffId);
-                            if (currentActiveStaffIds.has(sid) && snapshot.groupId && !staffIdsWithNewMemberships.has(sid)) {
+                            if (currentActiveStaffIds.has(sid) && snapshot.groupId && !staffIdsWithAnyTargetMembership.has(sid)) {
                                 const key = `${sid}|${cleanID(snapshot.groupId)}`;
                                 if (!existingTargetMemberships.has(key)) {
                                     const activeOldMemberships = (proData.memberships || []).filter(m => 
@@ -377,7 +381,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                         
                         sourceMemberships.forEach(oldM => {
                             const sid = cleanID(oldM.staffId);
-                            if (currentActiveStaffIds.has(sid) && !staffIdsWithNewMemberships.has(sid)) {
+                            if (currentActiveStaffIds.has(sid) && !staffIdsWithAnyTargetMembership.has(sid)) {
                                 const key = `${sid}|${cleanID(oldM.groupId)}`;
                                 if (!existingTargetMemberships.has(key)) {
                                     const activeOldMemberships = (proData.memberships || []).filter(m => 
@@ -416,10 +420,11 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                         const newProviderMemberships: ProGroupProviderMember[] = [];
                         const activeProviderIds = new Set((proData.providers || []).filter(p => p.unit === activeUnit && p.active !== false).map(p => cleanID(p.id)));
                         const existingTargetProviderMemberships = new Set((proGroupProviderMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.providerId)}|${cleanID(m.groupId)}`));
+                        const providerIdsWithAnyTargetMembership = new Set((proGroupProviderMembers || []).filter(m => m.cycleMonth === selectedMonth && (!m.leftAt || m.leftAt > Date.now())).map(m => cleanID(m.providerId)));
 
                         sourceProviderMemberships.forEach(oldM => {
                             const pid = cleanID(oldM.providerId);
-                            if (activeProviderIds.has(pid)) {
+                            if (activeProviderIds.has(pid) && !providerIdsWithAnyTargetMembership.has(pid)) {
                                 const key = `${pid}|${cleanID(oldM.groupId)}`;
                                 if (!existingTargetProviderMemberships.has(key)) {
                                     newProviderMemberships.push({
