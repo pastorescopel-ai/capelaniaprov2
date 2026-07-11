@@ -7,6 +7,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getTimestamp, normalizeString, cleanID, formatMonthLabel } from '../../utils/formatters';
 import StatusModal from './StatusModal';
 import { calculateDashboardMetrics } from '../../utils/metricsEngine';
+import { DataRepository } from '../../services/dataRepository';
+import { Loader2 } from 'lucide-react';
+
 
 const PGDashboard = memo(({ unit }: { unit: Unit }) => {
   const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, proMonthlyStats, proHistoryRecords } = usePro();
@@ -18,11 +21,43 @@ const PGDashboard = memo(({ unit }: { unit: Unit }) => {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [statusModalConfig, setStatusModalConfig] = useState<{ title: string, message: string, type: 'success' | 'error' | 'warning' }>({ title: '', message: '', type: 'success' });
   const [selectedSectorStaff, setSelectedSectorStaff] = useState<{name: string, staff: any[]} | null>(null);
-  
-  // Estado para o mês de competência selecionado
+
   const [selectedMonth, setSelectedMonth] = useState(() => {
     return config.activeCompetenceMonth || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   });
+  const [localHistory, setLocalHistory] = useState<ProHistoryRecord[] | null>(null);
+  const [localMembers, setLocalMembers] = useState<any[] | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 40);
+    const limitMonth = d.toISOString().substring(0, 7) + '-01';
+
+    if (selectedMonth < limitMonth) {
+      setIsLoadingHistory(true);
+      Promise.all([
+        DataRepository.fetchFullTable('pro_history_records', 199999, q => q.eq('month', selectedMonth)),
+        DataRepository.fetchFullTable('pro_group_members', 49999, q => q.eq('cycle_month', selectedMonth))
+      ]).then(([histRes, memRes]) => {
+        setLocalHistory(histRes.data || []);
+        setLocalMembers(memRes.data || []);
+        setIsLoadingHistory(false);
+      }).catch(err => {
+        console.error('Error loading historical data', err);
+        setIsLoadingHistory(false);
+      });
+    } else {
+      setLocalHistory(null);
+      setLocalMembers(null);
+    }
+  }, [selectedMonth]);
+
+  const effectiveHistory = localHistory !== null ? localHistory : proHistoryRecords;
+  const effectiveMembers = localMembers !== null ? localMembers : proGroupMembers;
+
+  
+  // Estado para o mês de competência selecionado
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -37,16 +72,16 @@ const PGDashboard = memo(({ unit }: { unit: Unit }) => {
       selectedMonth,
       proSectors,
       proStaff,
-      proGroupMembers,
+      effectiveMembers,
       proGroupProviderMembers,
       proGroupLocations,
       proGroups,
       proMonthlyStats,
-      proHistoryRecords,
+      effectiveHistory,
       debouncedSearchTerm,
       filterType
     );
-  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, unit, debouncedSearchTerm, filterType, selectedMonth, proHistoryRecords, proMonthlyStats]);
+  }, [proSectors, proStaff, effectiveMembers, proGroupProviderMembers, proGroupLocations, proGroups, unit, debouncedSearchTerm, filterType, selectedMonth, effectiveHistory, proMonthlyStats]);
 
   // Gerar opções de meses (Últimos 6 meses)
   const monthOptions = useMemo(() => {
@@ -98,6 +133,12 @@ const PGDashboard = memo(({ unit }: { unit: Unit }) => {
       )}
 
       {/* Filtro de Competência */}
+      {isLoadingHistory && (
+        <div className="flex justify-center items-center gap-2 text-slate-500 mb-4">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-xs font-bold uppercase tracking-widest">Buscando dados históricos...</span>
+        </div>
+      )}
       <div className="flex justify-center md:justify-end">
         <div className="bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-2">
           <i className="fas fa-calendar-alt text-slate-400 ml-3 text-xs"></i>

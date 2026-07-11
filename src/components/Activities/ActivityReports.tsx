@@ -6,6 +6,10 @@ import { useToast } from '../../contexts/ToastContext';
 import { Calendar as CalendarIcon, Download, FileText, TrendingUp, Users, MapPin, Search } from 'lucide-react';
 import { generateActivityReportHTML } from '../../utils/activityTemplates';
 import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
+import { DataRepository } from '../../services/dataRepository';
+import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
+
 
 const ActivityReports: React.FC = () => {
   const { users, proSectors, dailyActivityReports, config } = useApp();
@@ -29,13 +33,41 @@ const ActivityReports: React.FC = () => {
   });
   const [selectedUser, setSelectedUser] = useState<string>(isAdmin ? '' : (currentUser?.id || ''));
 
+  
+  const [localReports, setLocalReports] = useState<any[] | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 40);
+    const limitDate = d.toISOString().split('T')[0];
+
+    if (startDate < limitDate) {
+      setIsLoadingHistory(true);
+      // Fetching all reports in the range because they are completely missing from the global state
+      DataRepository.fetchFullTable('daily_activity_reports', 49999, q => q.gte('date', startDate).lte('date', endDate))
+        .then(res => {
+          setLocalReports(res.data || []);
+          setIsLoadingHistory(false);
+        })
+        .catch(err => {
+          console.error('Error loading historical reports', err);
+          setIsLoadingHistory(false);
+        });
+    } else {
+      setLocalReports(null);
+    }
+  }, [startDate, endDate]);
+
+  const effectiveReports = localReports !== null ? localReports : dailyActivityReports;
+
   const chaplains = useMemo(() => 
     users.filter(u => u.role === UserRole.CHAPLAIN || u.role === UserRole.INTERN),
     [users]
   );
 
   const filteredReports = useMemo(() => {
-    const filtered = dailyActivityReports.filter(r => {
+    const filtered = effectiveReports.filter(r => {
       const user = users.find(u => String(u.id) === String(r.userId));
       const isOperational = user ? (user.role === UserRole.CHAPLAIN || user.role === UserRole.INTERN) : true;
       

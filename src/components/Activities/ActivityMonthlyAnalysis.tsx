@@ -3,6 +3,10 @@ import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { Unit, UserRole } from '../../types';
 import { Calendar, MapPin, Users, HeartPulse, TrendingUp } from 'lucide-react';
+import { DataRepository } from '../../services/dataRepository';
+import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
 
 const formatLocalDate = (d: Date) => {
   const year = d.getFullYear();
@@ -29,6 +33,43 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
   
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
+  
+  const [localReports, setLocalReports] = useState<any[] | null>(null);
+  const [localSchedules, setLocalSchedules] = useState<any[] | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 40);
+    const limitDate = d.toISOString().split('T')[0];
+    const limitMonth = d.toISOString().substring(0, 7) + '-01';
+    
+    // We fetch if the selectedDate (which dictates the month viewed) is older than 40 days
+    if (selectedDate < limitDate) {
+      setIsLoadingHistory(true);
+      
+      const targetMonthStr = selectedDate.substring(0, 7) + '-01';
+      
+      Promise.all([
+        DataRepository.fetchFullTable('daily_activity_reports', 49999, q => q.gte('date', targetMonthStr)),
+        DataRepository.fetchFullTable('activity_schedules', 49999, q => q.gte('month', targetMonthStr))
+      ]).then(([repRes, schedRes]) => {
+        setLocalReports(repRes.data || []);
+        setLocalSchedules(schedRes.data || []);
+        setIsLoadingHistory(false);
+      }).catch(err => {
+        console.error('Error loading historical analysis data', err);
+        setIsLoadingHistory(false);
+      });
+    } else {
+      setLocalReports(null);
+      setLocalSchedules(null);
+    }
+  }, [selectedDate]);
+
+  const effectiveReports = localReports !== null ? localReports : dailyActivityReports;
+  const effectiveSchedules = localSchedules !== null ? localSchedules : activitySchedules;
+
   const chaplains = useMemo(() => {
     return users.filter(u => u.role === UserRole.CHAPLAIN || u.role === UserRole.INTERN);
   }, [users]);
@@ -53,7 +94,7 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
     const startStr = formatLocalDate(startOfMonth);
     const endStr = formatLocalDate(endOfMonth);
     
-    const filtered = dailyActivityReports.filter(r => {
+    const filtered = effectiveReports.filter(r => {
       const matchesUser = selectedUser ? String(r.userId) === String(selectedUser) : true;
       const dateInRange = r.date >= startStr && r.date <= endStr;
       
@@ -70,16 +111,16 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
     });
 
     return filtered;
-  }, [dailyActivityReports, selectedUser, startOfMonth, endOfMonth, users]);
+  }, [effectiveReports, selectedUser, startOfMonth, endOfMonth, users]);
 
   const monthSchedules = useMemo(() => {
     const monthStr = formatLocalDate(startOfMonth).substring(0, 7) + '-01';
     
-    return activitySchedules.filter(s => 
+    return effectiveSchedules.filter(s => 
       (selectedUser ? String(s.userId) === String(selectedUser) : true) && 
       s.month === monthStr
     );
-  }, [activitySchedules, selectedUser, startOfMonth]);
+  }, [effectiveSchedules, selectedUser, startOfMonth]);
 
   const stats = useMemo(() => {
     const activeDaysSet = new Set<string>();
@@ -188,8 +229,8 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
         usersToProcess.forEach(user => {
             if (!user) return;
             
-            const daySchedules = activitySchedules.filter(s => String(s.userId) === String(user.id) && s.dayOfWeek === dayOfWeek && s.month === (formatLocalDate(startOfMonth).substring(0, 7) + '-01'));
-            const dayReport = dailyActivityReports.find(r => String(r.userId) === String(user.id) && r.date === dateStr);
+            const daySchedules = effectiveSchedules.filter(s => String(s.userId) === String(user.id) && s.dayOfWeek === dayOfWeek && s.month === (formatLocalDate(startOfMonth).substring(0, 7) + '-01'));
+            const dayReport = effectiveReports.find(r => String(r.userId) === String(user.id) && r.date === dateStr);
             
             // Goal: 18 for Interns, 15 for others (Chaplains/Admins)
             const visitGoal = user.role === UserRole.INTERN ? 18 : 15;
@@ -230,7 +271,7 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
     
     if (totalItems === 0) return 0;
     return Math.round((completedItems / totalItems) * 100);
-  }, [activitySchedules, dailyActivityReports, startOfMonth, endOfMonth, selectedUser, chaplains, users]);
+  }, [effectiveSchedules, effectiveReports, startOfMonth, endOfMonth, selectedUser, chaplains, users]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
