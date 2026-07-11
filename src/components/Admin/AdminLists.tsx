@@ -106,7 +106,14 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
         const isDuplicatesConfirmed = overrideFlags?.duplicatesConfirmed || importFlags.duplicatesConfirmed;
         const isDeactivationConfirmed = overrideFlags?.deactivationConfirmed || importFlags.deactivationConfirmed;
 
-        // 1. Check Duplicates
+        // 1. Check Unlinked Sectors
+        const unlinked = previewData.filter(p => p.sectorStatus === 'error');
+        if (unlinked.length > 0) {
+            setSyncState({ isOpen: true, status: 'error', title: 'Erro de Validação', message: `Existem ${unlinked.length} colaborador(es) com setor não reconhecido. Por favor, vincule-os manualmente na tabela clicando em "Vincular Setor..." antes de confirmar a importação.` });
+            return;
+        }
+
+        // 2. Check Duplicates
         if (!isDuplicatesConfirmed) {
             const possibleDuplicates: any[] = [];
             previewData.forEach(p => {
