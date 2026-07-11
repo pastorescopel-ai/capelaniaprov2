@@ -32,6 +32,7 @@ export const useHealerCalculations = (
                     .from('bible_class_attendees')
                     .select('student_name, class_id, unit')
                     .is('staff_id', null)
+                    .is('participant_id', null)
                     .eq('unit', selectedUnit);
                 
                 if (error) throw error;
@@ -43,12 +44,6 @@ export const useHealerCalculations = (
                         if (!n) return;
                         const key = normalizeString(n);
                         if (resolvedItems.has(n) || resolvedItems.has(key)) return;
-
-                        // Se a classe for de Prestadores ou Pacientes, não é anomalia
-                        const cls = bibleClasses.find((c: any) => c.id === row.class_id);
-                        if (cls && (cls.participantType === ParticipantType.PROVIDER || cls.participantType === ParticipantType.PATIENT)) {
-                            return;
-                        }
 
                         if (!groups[key]) groups[key] = { name: n, count: 0 };
                         groups[key].count++;
@@ -72,10 +67,7 @@ export const useHealerCalculations = (
       
       bibleStudies.forEach((s: any) => {
           if (s.unit !== selectedUnit) return;
-          if (!s.staffId && !s.sectorId) {
-              // Se for Prestador ou Paciente, não é anomalia de estudo
-              if (s.participantType === ParticipantType.PROVIDER || s.participantType === ParticipantType.PATIENT) return;
-
+          if (!s.staffId && !s.sectorId && !s.participantId) {
               const cleanName = s.name.trim();
               if (resolvedItems.has(cleanName)) return;
               
@@ -117,8 +109,6 @@ export const useHealerCalculations = (
         const cleanName = effectiveName.split(' (')[0].trim();
         if (resolvedItems.has(cleanName)) return;
 
-        // Se for Prestador ou Paciente, não é anomalia (conforme pedido do usuário)
-        if (participantType === ParticipantType.PROVIDER || participantType === ParticipantType.PATIENT) return;
 
         const norm = normalizeString(cleanName);
         const isMatchSearch = !!(normSearch && norm.includes(normSearch));

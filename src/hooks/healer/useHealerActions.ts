@@ -1,6 +1,7 @@
 import { normalizeString } from '../../utils/formatters';
 import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../services/supabaseClient';
+import { getValidSectorId } from '../../utils/sectorValidation';
 
 export const useHealerActions = (
   appData: any,
@@ -172,7 +173,7 @@ export const useHealerActions = (
           const staff = proStaff.find((s: any) => String(s.id) === targetStaffId);
           if (staff) {
               participantType = 'Colaborador';
-              sectorId = staff.sectorId;
+              sectorId = getValidSectorId(staff.sectorId, selectedUnit, proSectors);
           } else if (proPatients.find((p: any) => String(p.id) === targetStaffId)) {
               participantType = 'Paciente';
           } else if (proProviders.find((p: any) => String(p.id) === targetStaffId)) {

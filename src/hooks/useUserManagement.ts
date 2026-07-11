@@ -22,7 +22,8 @@ export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementPro
   const staffOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
     proStaff.forEach(staff => {
-      const sector = proSectors.find(sec => sec.id === staff.sectorId);
+      const validSectorId = getValidSectorId(staff.sectorId, staff.unit, proSectors);
+      const sector = validSectorId ? proSectors.find(sec => sec.id === validSectorId) : null;
       const staffIdStr = String(staff.id);
       options.push({
         value: staff.name,

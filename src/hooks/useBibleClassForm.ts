@@ -4,6 +4,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
 import { isRecordLocked, isValidWhatsApp } from '../utils/validators';
+import { getValidSectorId } from '../utils/sectorValidation';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
 
@@ -127,7 +128,8 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     // 1. Pool de Dados Categórico (Pool de Origem)
     if (formData.participantType === ParticipantType.STAFF) {
         proStaff.filter(s => s.unit === unit).forEach(staff => {
-          const sector = proSectors.find(sec => sec.id === staff.sectorId);
+          const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
+          const sector = validSectorId ? proSectors.find(sec => sec.id === validSectorId) : null;
           const isFromCurrentSector = sector?.name === currentSector;
           const isInactive = staff.active === false;
           

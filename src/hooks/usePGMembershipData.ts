@@ -247,7 +247,8 @@ export const usePGMembershipData = ({
             ? new Date(membership.joinedAt).toLocaleDateString('pt-BR') 
             : null;
 
-        const sector = sectorMap.get(staff.sectorId);
+        const validSectorId = getValidSectorId(staff.sectorId, staff.unit, proSectors);
+        const sector = validSectorId ? sectorMap.get(validSectorId) : null;
         return { ...staff, membership, groupName, joinedDate: dateStr, sectorName: sector?.name || 'Sem Setor' };
       })
       .filter(staff => {
@@ -261,7 +262,7 @@ export const usePGMembershipData = ({
         return String(a.name || "").localeCompare(String(b.name || ""));
       });
     return result;
-  }, [proStaff, currentSector, staffSearch, proGroupMembers, groupMap, currentPG, pendingTransfers, pendingRemovals, unit, sectorMap, isMonthClosed, selectedMonth, monthBoundaries, isOpenMonth]);
+  }, [proStaff, currentSector, staffSearch, proGroupMembers, groupMap, currentPG, pendingTransfers, pendingRemovals, unit, sectorMap, isMonthClosed, selectedMonth, monthBoundaries, isOpenMonth, proSectors]);
 
   const pgMembers = useMemo(() => {
     if (!currentPG) {
@@ -375,7 +376,8 @@ export const usePGMembershipData = ({
     const optimisticMembers = Array.from(pendingTransfers).map(id => {
         const staff = staffMap.get(id);
         const provider = providerMap.get(id);
-        const sector = staff ? sectorMap.get(staff.sectorId || '') : null;
+        const validSectorId = staff ? getValidSectorId(staff.sectorId, staff.unit, proSectors) : null;
+        const sector = validSectorId ? sectorMap.get(validSectorId) : null;
         const name = staff?.name || provider?.name || "Processando...";
         return {
             id: `temp-${id}`, 
@@ -399,7 +401,7 @@ export const usePGMembershipData = ({
         return String(a.staffName || "").localeCompare(String(b.staffName || ""));
     });
     return result;
-  }, [proGroupMembers, proGroupProviderMembers, currentPG, staffMap, providerMap, pendingTransfers, pendingRemovals, sectorMap, isMonthClosed, selectedMonth, monthBoundaries, proHistoryRecords, unit, isOpenMonth]);
+  }, [proGroupMembers, proGroupProviderMembers, currentPG, staffMap, providerMap, pendingTransfers, pendingRemovals, sectorMap, isMonthClosed, selectedMonth, monthBoundaries, proHistoryRecords, unit, isOpenMonth, proSectors]);
 
   return {
     currentSector,

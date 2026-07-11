@@ -115,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       events.forEach(event => window.removeEventListener(event, handleUserActivity));
       clearInterval(inactivityInterval);
     };
-  }, []);
+  }, [refreshData]);
 
   const login = async (email: string, pass: string): Promise<boolean> => {
     setLoginError(null);

@@ -41,7 +41,10 @@ export const usePGInference = (
         const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(pg.currentLeader) && s.unit === unit);
         if (staff) {
             staffId = staff.id;
-            if (!sectorId) sectorId = staff.sectorId;
+            if (!sectorId) {
+                const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
+                if (validSectorId) sectorId = validSectorId;
+            }
         }
     }
 
@@ -71,12 +74,13 @@ export const usePGInference = (
     const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(leaderName) && s.unit === unit);
     if (!staff) return null;
 
-    const sector = proSectors.find(s => s.id === staff.sectorId);
+    const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
+    const sector = validSectorId ? proSectors.find(s => s.id === validSectorId) : null;
     
     return {
       phone: staff.whatsapp || '',
       sectorName: sector?.name || 'Setor não informado',
-      sectorId: staff.sectorId
+      sectorId: validSectorId
     };
   }, [proStaff, unit, proSectors]);
 

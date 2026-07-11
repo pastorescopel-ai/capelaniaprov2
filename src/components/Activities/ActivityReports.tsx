@@ -43,7 +43,7 @@ const ActivityReports: React.FC = () => {
     const limitDate = d.toISOString().split('T')[0];
 
     if (startDate < limitDate) {
-      setIsLoadingHistory(true);
+      setTimeout(() => setIsLoadingHistory(true), 0);
       // Fetching all reports in the range because they are completely missing from the global state
       DataRepository.fetchFullTable('daily_activity_reports', 49999, q => q.gte('date', startDate).lte('date', endDate))
         .then(res => {
@@ -55,7 +55,7 @@ const ActivityReports: React.FC = () => {
           setIsLoadingHistory(false);
         });
     } else {
-      setLocalReports(null);
+      setTimeout(() => setLocalReports(null), 0);
     }
   }, [startDate, endDate]);
 
@@ -87,7 +87,7 @@ const ActivityReports: React.FC = () => {
     });
 
     return filtered;
-  }, [dailyActivityReports, selectedUnit, startDate, endDate, selectedUser, users, chaplains]);
+  }, [effectiveReports, selectedUnit, startDate, endDate, selectedUser, users, chaplains, dailyActivityReports.length]);
 
   const stats = useMemo(() => {
     const initial = {

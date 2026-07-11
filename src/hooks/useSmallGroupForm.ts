@@ -4,6 +4,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
 import { isRecordLocked, isValidWhatsApp } from '../utils/validators';
+import { getValidSectorId } from '../utils/sectorValidation';
 import { usePGInference } from './usePGInference';
 
 interface UseSmallGroupFormProps {
@@ -126,17 +127,18 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       
       if (staff) {
           // Found in RH: Update sector, update phone if exists, else clear phone
-          const sector = staff.sectorId ? proSectors.find(s => s.id === staff.sectorId) : null;
+          const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
+          const sector = validSectorId ? proSectors.find(s => s.id === validSectorId) : null;
           const sectorName = sector?.name || '';
           setFormData(prev => ({ 
               ...prev, 
               leader: nameOnly, 
               leaderPhone: staff.whatsapp ? formatWhatsApp(staff.whatsapp) : '', 
               sector: sectorName || prev.sector,
-              sectorId: staff.sectorId || ''
+              sectorId: validSectorId || ''
           }));
-          setIsSectorLocked(!!staff.sectorId);
-          if (staff.sectorId) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
+          setIsSectorLocked(!!validSectorId);
+          if (validSectorId) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
       } else {
           // Not in RH: Clear both
           setFormData(prev => ({ 
@@ -163,15 +165,16 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
       
       if (staff) {
           // Found in RH: Update sector, update phone if exists, else clear phone
-          const sector = staff.sectorId ? proSectors.find(s => s.id === staff.sectorId) : null;
+          const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
+          const sector = validSectorId ? proSectors.find(s => s.id === validSectorId) : null;
           const sectorName = sector?.name || '';
           setFormData(prev => ({ 
               ...prev, 
               leaderPhone: staff.whatsapp ? formatWhatsApp(staff.whatsapp) : '', 
               sector: sectorName || prev.sector,
-              sectorId: staff.sectorId || ''
+              sectorId: validSectorId || ''
           }));
-          setIsSectorLocked(!!staff.sectorId);
+          setIsSectorLocked(!!validSectorId);
       } else {
           // Not in RH: Clear both
           setFormData(prev => ({ ...prev, leaderPhone: '', sector: '', sectorId: '' }));

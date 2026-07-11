@@ -220,7 +220,8 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                 const staffIdClean = cleanID(staff.id);
                 const membership = membershipMap.get(staffIdClean);
                 
-                const sector = proSectors.find(s => cleanID(s.id) === cleanID(staff.sectorId));
+                const validSectorId = getValidSectorId(staff.sectorId, u, proSectors);
+                const sector = validSectorId ? proSectors.find(s => cleanID(s.id) === cleanID(validSectorId)) : null;
                 const group = membership ? proGroups.find(g => cleanID(g.id) === cleanID(membership.groupId)) : null;
 
                 historyRecords.push({
@@ -228,7 +229,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                     unit: u,
                     staffId: staff.id,
                     staffName: staff.name,
-                    sectorId: staff.sectorId || null,
+                    sectorId: validSectorId || null,
                     sectorName: sector?.name || 'Sem Setor',
                     groupId: membership?.groupId || null,
                     groupName: group?.name || '',

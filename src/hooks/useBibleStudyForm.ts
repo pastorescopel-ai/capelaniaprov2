@@ -6,6 +6,7 @@ import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatt
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
 import { isRecordLocked, isValidWhatsApp } from '../utils/validators';
+import { getValidSectorId } from '../utils/sectorValidation';
 
 interface UseBibleStudyFormProps {
   unit: Unit;
@@ -77,7 +78,8 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
           usedNames.add(norm);
           
           const isMyStudent = personalHistoryNames.has(norm);
-          const sector = proSectors.find(sec => sec.id === staff.sectorId);
+          const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
+          const sector = validSectorId ? proSectors.find(sec => sec.id === validSectorId) : null;
           const isInactive = staff.active === false;
 
           options.push({ 
@@ -229,7 +231,8 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         if (staff) {
             targetStaffId = staff.id;
             targetParticipantId = ''; // Clear participantId for staff
-            const sector = proSectors.find(s => s.id === staff.sectorId);
+            const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
+            const sector = validSectorId ? proSectors.find(s => s.id === validSectorId) : null;
             if (sector) {
                 targetSector = sector.name; 
                 targetSectorId = sector.id;

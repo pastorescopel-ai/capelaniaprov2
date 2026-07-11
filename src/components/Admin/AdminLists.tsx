@@ -5,6 +5,7 @@ import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 import Autocomplete from '../Shared/Autocomplete';
 import { cleanID, normalizeString } from '../../utils/formatters';
 import { useExcelProcessor, ProcessedRow, SkippedRow } from '../../hooks/useExcelProcessor';
+import { getValidSectorId } from '../../utils/sectorValidation';
 import { useApp } from '../../hooks/useApp';
 
 interface AdminListsProps {
@@ -199,7 +200,10 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                         updated.createdAt = importTimestamp;
                     }
                     
-                    if (type === 'staff') updated.sectorId = incoming.sectorIdLinked || existing.sectorId || "";
+                    if (type === 'staff') {
+                        const validExistingSectorId = getValidSectorId(existing.sectorId, activeUnit, proData.sectors);
+                        updated.sectorId = incoming.sectorIdLinked || validExistingSectorId || "";
+                    }
                     map.set(key, updated);
                     stats.updated++;
                 } else {

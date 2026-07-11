@@ -4,6 +4,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
 import { isRecordLocked, isValidWhatsApp } from '../utils/validators';
+import { getValidSectorId } from '../utils/sectorValidation';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
 
@@ -50,7 +51,8 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     
     if (formData.participantType === ParticipantType.STAFF) {
         proStaff.filter(s => s.unit === unit).forEach(staff => {
-          const sector = proSectors.find(sec => sec.id === staff.sectorId);
+          const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
+          const sector = validSectorId ? proSectors.find(sec => sec.id === validSectorId) : null;
           options.push({ value: staff.name, label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, subLabel: sector ? sector.name : 'Setor não informado', category: 'RH' });
           officialSet.add(normalizeString(staff.name));
         });
@@ -162,7 +164,8 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
           if (!staff) staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
 
           if (staff) {
-              const sector = proSectors.find(s => s.id === staff.sectorId);
+              const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
+              const sector = validSectorId ? proSectors.find(s => s.id === validSectorId) : null;
               if (sector) { 
                   foundSector = sector.name; 
                   foundSectorId = sector.id;
@@ -234,7 +237,10 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
         // Ensure sectorId is set if not already
         if (!dataToSubmit.sectorId) {
             const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
-            if (staff) dataToSubmit.sectorId = staff.sectorId;
+            if (staff) {
+                const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
+                if (validSectorId) dataToSubmit.sectorId = validSectorId;
+            }
         }
 
         // AUTO-RECOVERY DE STAFF ID: Garante que o staffId correto seja persistido no banco
@@ -298,8 +304,11 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     });
     if ((item as any).participantType === ParticipantType.STAFF || !(item as any).participantType) {
       const match = proStaff.find(s => normalizeString(s.name) === normalizeString(item.staffName));
-      if (match && match.sectorId) {
+      if (match) {
+        const validSectorId = getValidSectorId(match.sectorId, unit, proSectors);
+        if (validSectorId) {
         setIsSectorLocked(true);
+        }
       }
     }
     

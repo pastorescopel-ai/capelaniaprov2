@@ -35,7 +35,7 @@ const PGDashboard = memo(({ unit }: { unit: Unit }) => {
     const limitMonth = d.toISOString().substring(0, 7) + '-01';
 
     if (selectedMonth < limitMonth) {
-      setIsLoadingHistory(true);
+      setTimeout(() => setIsLoadingHistory(true), 0);
       Promise.all([
         DataRepository.fetchFullTable('pro_history_records', 199999, q => q.eq('month', selectedMonth)),
         DataRepository.fetchFullTable('pro_group_members', 49999, q => q.eq('cycle_month', selectedMonth))
@@ -48,8 +48,8 @@ const PGDashboard = memo(({ unit }: { unit: Unit }) => {
         setIsLoadingHistory(false);
       });
     } else {
-      setLocalHistory(null);
-      setLocalMembers(null);
+      setTimeout(() => setLocalHistory(null), 0);
+      setTimeout(() => setLocalMembers(null), 0);
     }
   }, [selectedMonth]);
 
