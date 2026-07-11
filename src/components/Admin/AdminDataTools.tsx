@@ -3,6 +3,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { User, ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProProvider, Ambassador, ProMonthlyStats, ProHistoryRecord } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
+import ConfirmationModal from '../Shared/ConfirmationModal';
 import { cleanID, getTimestamp, normalizeString } from '../../utils/formatters';
 import { Unit } from '../../types';
 import { TABLE_SCHEMAS } from '../../utils/transformers';
@@ -72,22 +73,30 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
   };
 
   const deleteFile = async (filePath: string) => {
-    if (!window.confirm(`Tem certeza que deseja deletar o arquivo: ${filePath}?`)) return;
-    try {
-      const response = await fetch('/api/delete-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath })
-      });
-      if (response.ok) {
-        showToast("Arquivo deletado com sucesso!", "success");
-        runRobustDiagnostics(); // Re-run diagnostics
-      } else {
-        showToast("Erro ao deletar arquivo.", "error");
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirmar Exclusão',
+      message: `Tem certeza que deseja deletar o arquivo: ${filePath}?`,
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          const response = await fetch('/api/delete-file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filePath })
+          });
+          if (response.ok) {
+            showToast("Arquivo deletado com sucesso!", "success");
+            runRobustDiagnostics(); // Re-run diagnostics
+          } else {
+            showToast("Erro ao deletar arquivo.", "error");
+          }
+        } catch (err) {
+          showToast("Erro ao deletar arquivo: " + (err as Error).message, "warning");
+        }
       }
-    } catch (err) {
-      showToast("Erro ao deletar arquivo: " + (err as Error).message, "warning");
-    }
+    });
   };
 
   const [isRepairing, setIsRepairing] = useState(false);
@@ -109,48 +118,53 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
 
     const staffNames = inactiveStaff.slice(0, 5).map(s => s.name).join(', ') + (inactiveStaff.length > 5 ? '...' : '');
 
-    if (!window.confirm(`Detectados ${inactiveStaff.length} colaboradores inativos em ${activeAuditUnit} (Ex: ${staffNames}).\n\nDeseja reativá-los e restaurar suas matrículas de PG agora?`)) return;
-    
-    setIsRepairing(true);
-    try {
-      const now = Date.now();
-      let restoredStaff = 0;
-      let restoredMemberships = 0;
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirmar Reparo de Colaboradores',
+      message: `Detectados ${inactiveStaff.length} colaboradores inativos em ${activeAuditUnit} (Ex: ${staffNames}).\n\nDeseja reativá-los e restaurar suas matrículas de PG agora?`,
+      variant: 'warning',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        setIsRepairing(true);
+        try {
+          const now = Date.now();
+          let restoredStaff = 0;
+          let restoredMemberships = 0;
 
-      for (const staff of inactiveStaff) {
-        // Reativar Colaborador
-        await saveRecord('proStaff', { 
-          ...staff, 
-          active: true, 
-          leftAt: null, 
-          updatedAt: now,
-          notes: (staff.notes || '') + ' [REPARO DE EMERGÊNCIA: Reativado via AdminTools]'
-        });
-        restoredStaff++;
+          for (const staff of inactiveStaff) {
+            await saveRecord('proStaff', { 
+              ...staff, 
+              active: true, 
+              leftAt: null, 
+              updatedAt: now,
+              notes: (staff.notes || '') + ' [REPARO DE EMERGÊNCIA: Reativado via AdminTools]'
+            });
+            restoredStaff++;
 
-        // Reativar todas as matrículas fechadas deste colaborador
-        const closedMemberships = proGroupMembers.filter(m => 
-          cleanID(m.staffId) === cleanID(staff.id) && 
-          m.leftAt
-        );
+            const closedMemberships = proGroupMembers.filter(m => 
+              cleanID(m.staffId) === cleanID(staff.id) && 
+              m.leftAt
+            );
 
-        for (const membership of closedMemberships) {
-          await saveRecord('proGroupMembers', {
-            ...membership,
-            leftAt: null,
-            updatedAt: now
-          });
-          restoredMemberships++;
+            for (const membership of closedMemberships) {
+              await saveRecord('proGroupMembers', {
+                ...membership,
+                leftAt: null,
+                updatedAt: now
+              });
+              restoredMemberships++;
+            }
+          }
+
+          showToast(`SUCESSO: ${restoredStaff} colaboradores e ${restoredMemberships} matrículas restauradas em ${activeAuditUnit}!`, "success");
+          await onRefreshData();
+        } catch (err) {
+          showToast("Falha no reparo: " + (err as Error).message, "warning");
+        } finally {
+          setIsRepairing(false);
         }
       }
-
-      showToast(`SUCESSO: ${restoredStaff} colaboradores e ${restoredMemberships} matrículas restauradas em ${activeAuditUnit}!`, "success");
-      await onRefreshData();
-    } catch (err) {
-      showToast("Falha no reparo: " + (err as Error).message, "warning");
-    } finally {
-      setIsRepairing(false);
-    }
+    });
   };
 
   const runPGRepair = async () => {
@@ -164,28 +178,35 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
       return;
     }
 
-    if (!window.confirm(`Deseja reativar ${inactiveGroups.length} PGs (Pequenos Grupos) inativos em ${activeAuditUnit}?`)) return;
-    
-    setIsRepairing(true);
-    try {
-      const now = Date.now();
-      let restored = 0;
-      for (const group of inactiveGroups) {
-        await saveRecord('proGroups', { 
-          ...group, 
-          active: true, 
-          updatedAt: now 
-        });
-        restored++;
-      }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirmar Reparo de PGs',
+      message: `Deseja reativar ${inactiveGroups.length} PGs (Pequenos Grupos) inativos em ${activeAuditUnit}?`,
+      variant: 'warning',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        setIsRepairing(true);
+        try {
+          const now = Date.now();
+          let restored = 0;
+          for (const group of inactiveGroups) {
+            await saveRecord('proGroups', { 
+              ...group, 
+              active: true, 
+              updatedAt: now 
+            });
+            restored++;
+          }
 
-      showToast(`SUCESSO: ${restored} PGs reativados em ${activeAuditUnit}!`, "success");
-      await onRefreshData();
-    } catch (err) {
-      showToast("Erro no reparo: " + (err as Error).message, "warning");
-    } finally {
-      setIsRepairing(false);
-    }
+          showToast(`SUCESSO: ${restored} PGs reativados em ${activeAuditUnit}!`, "success");
+          await onRefreshData();
+        } catch (err) {
+          showToast("Erro no reparo: " + (err as Error).message, "warning");
+        } finally {
+          setIsRepairing(false);
+        }
+      }
+    });
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -834,22 +855,30 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
     }
 
     if (action === 'delete_orphan_provider_members') {
-      if (!window.confirm(`Tem certeza que deseja deletar ${records.length} registros órfãos de terceirizados em PGs?`)) return;
-      setIsAuditing(true);
-      try {
-        let deletedCount = 0;
-        for (const record of records) {
-          await deleteRecord('proGroupProviderMembers', record.id);
-          deletedCount++;
+      setConfirmModal({
+        isOpen: true,
+        title: 'Confirmar Exclusão',
+        message: `Tem certeza que deseja deletar ${records.length} registros órfãos de terceirizados em PGs?`,
+        variant: 'danger',
+        onConfirm: async () => {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+          setIsAuditing(true);
+          try {
+            let deletedCount = 0;
+            for (const record of records) {
+              await deleteRecord('proGroupProviderMembers', record.id);
+              deletedCount++;
+            }
+            showToast(`Sucesso! ${deletedCount} registros órfãos deletados.`, "success");
+            await onRefreshData();
+            runHealthCheck();
+          } catch (err) {
+            showToast("Erro ao deletar: " + (err as Error).message, "warning");
+          } finally {
+            setIsAuditing(false);
+          }
         }
-        showToast(`Sucesso! ${deletedCount} registros órfãos deletados.`, "success");
-        await onRefreshData();
-        runHealthCheck();
-      } catch (err) {
-        showToast("Erro ao deletar: " + (err as Error).message, "warning");
-      } finally {
-        setIsAuditing(false);
-      }
+      });
       return;
     }
 

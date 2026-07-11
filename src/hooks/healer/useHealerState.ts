@@ -54,6 +54,15 @@ export const useHealerState = () => {
   const [mergeTargetType, setMergeTargetType] = useState<PersonType>('Colaborador');
   const [mergeTargetId, setMergeTargetId] = useState<string>('');
 
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: 'danger' | 'primary' | 'warning';
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
+
   // Persistência
   useEffect(() => {
     sessionStorage.setItem('healer_targetMap', JSON.stringify(targetMap));
@@ -98,5 +107,6 @@ export const useHealerState = () => {
     mergeSourceId, setMergeSourceId,
     mergeTargetType, setMergeTargetType,
     mergeTargetId, setMergeTargetId,
+    confirmModal, setConfirmModal,
   };
 };

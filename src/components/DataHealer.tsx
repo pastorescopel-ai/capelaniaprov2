@@ -9,6 +9,7 @@ import AuditoriaPGsTab from './tabs-auditoria/auditoria-pgs-tab';
 import AuditoriaMergeTab from './tabs-auditoria/auditoria-merge-tab';
 import AuditoriaAmbassadorsTab from './tabs-auditoria/auditoria-ambassadors-tab';
 import AuditoriaMembershipsTab from './tabs-auditoria/auditoria-memberships-tab';
+import ConfirmationModal from './Shared/ConfirmationModal';
 
 const DataHealer: React.FC = () => {
   const {
@@ -46,7 +47,8 @@ const DataHealer: React.FC = () => {
     handleDeleteSectorOrphan,
     handleMoveSectorUnit,
     handleTransferRecordsUnit,
-    selectedUnit, setSelectedUnit
+    selectedUnit, setSelectedUnit,
+    confirmModal, setConfirmModal
   } = useDataHealer();
 
   // Tema dinâmico
@@ -344,6 +346,14 @@ const DataHealer: React.FC = () => {
               )}
           </div>
       )}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };
