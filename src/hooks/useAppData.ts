@@ -83,16 +83,16 @@ export const useAppData = () => {
     config: setConfig
   }), []);
 
-  // 1. Realtime Synchronization
-  useRealtimeSync(setters);
-
-  // 2. Data Actions (Load, Save, Delete, Refresh)
+  // 1. Data Actions (Load, Save, Delete, Refresh)
   const { loadFromCloud, refreshData, saveRecord, deleteRecord, deleteRecordsByFilter } = useDataActions(
     setters, 
     setIsSyncing, 
     setIsConnected, 
     applySystemOverrides
   );
+
+  // 2. Realtime Synchronization
+  useRealtimeSync(setters, refreshData);
 
   // 3. Master Contact Sync
   const { syncMasterContact } = useMasterSync(
@@ -137,6 +137,7 @@ export const useAppData = () => {
   }, [loadFromCloud, isInitialized]);
 
   // Auto-refresh inteligente ao focar ou reativar a janela (crucial para o iOS/Safari PWA)
+  // Além de um polling de segurança a cada 30 segundos
   useEffect(() => {
     let lastRefresh = 0;
     const throttleTime = 5000; // Evita múltiplas chamadas consecutivas em menos de 5s
@@ -145,7 +146,7 @@ export const useAppData = () => {
       const now = Date.now();
       if (now - lastRefresh > throttleTime) {
         lastRefresh = now;
-        console.log("🔄 Reativando/Focando app: Atualizando dados do Supabase...");
+        console.log("🔄 Reativando/Focando app (ou Polling): Atualizando dados do Supabase...");
         refreshData();
       }
     };
@@ -160,10 +161,18 @@ export const useAppData = () => {
       triggerRefresh();
     };
 
+    // Polling de segurança independente do realtime
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        triggerRefresh();
+      }
+    }, 30000);
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
 
     return () => {
+      clearInterval(pollInterval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };

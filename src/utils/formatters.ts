@@ -12,6 +12,9 @@ export const cleanID = (val: any): string => {
   if (val === undefined || val === null) return "";
   let str = String(val).trim().toUpperCase();
   
+  // Remove decimais .0 ou ,0 se o Excel converteu número inteiro para float
+  str = str.replace(/[.,]0+$/, '');
+
   // 1. Remove prefixos conhecidos (HAB-, HABA-, A-)
   str = str.replace(/^(HAB|HABA|A)[-\s]*/i, '');
   

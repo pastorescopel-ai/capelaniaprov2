@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { toCamel } from '../utils/transformers';
 
-export const useRealtimeSync = (setters: Record<string, any>) => {
+export const useRealtimeSync = (setters: Record<string, any>, refreshData: () => Promise<boolean>) => {
   useEffect(() => {
     if (!supabase) return;
 
@@ -67,8 +67,13 @@ export const useRealtimeSync = (setters: Record<string, any>) => {
     const channel = supabase
       .channel('realtime-db')
       .on('postgres_changes', { event: '*', schema: 'public' }, handleRealtimeChange)
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          console.warn('Canal de tempo real caiu, status:', status);
+          refreshData();
+        }
+      });
 
     return () => { supabase.removeChannel(channel); };
-  }, [setters]);
+  }, [setters, refreshData]);
 };

@@ -471,8 +471,14 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
       const searchId = labelParts.length > 1 ? labelParts[0] : '';
 
       let matchedSector = null;
-      if (searchId) matchedSector = proData?.sectors.find(s => cleanID(s.id) === cleanID(searchId) && s.unit === activeUnit);
-      if (!matchedSector) matchedSector = proData?.sectors.find(s => s.name === searchName && s.unit === activeUnit);
+      if (searchId) {
+          matchedSector = proData?.sectors.find(s => cleanID(s.id) === cleanID(searchId) && s.unit === activeUnit && s.active !== false && !s.name.toUpperCase().startsWith('<INATIVAR>'));
+          if (!matchedSector) matchedSector = proData?.sectors.find(s => cleanID(s.id) === cleanID(searchId) && s.unit === activeUnit);
+      }
+      if (!matchedSector) {
+          matchedSector = proData?.sectors.find(s => s.name === searchName && s.unit === activeUnit && s.active !== false && !s.name.toUpperCase().startsWith('<INATIVAR>'));
+          if (!matchedSector) matchedSector = proData?.sectors.find(s => s.name === searchName && s.unit === activeUnit);
+      }
 
       if (matchedSector) {
           item.sectorIdLinked = matchedSector.id;
@@ -593,9 +599,33 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   };
   const currentInst = instructions[activeTab];
 
+  // Prevent recurring phantom sectors
+  const phantomSectors = (proData?.sectors || []).filter(s => s.active !== false && s.name.toUpperCase().startsWith('<INATIVAR>'));
+  const activeStaffInPhantomSectors = (proData?.staff || []).filter(s => s.active !== false && phantomSectors.some(ps => ps.id === s.sectorId));
+  const hasPhantomWarning = phantomSectors.length > 0 || activeStaffInPhantomSectors.length > 0;
+
   return (
     <div className="space-y-12">
       <SyncModal isOpen={syncState.isOpen} status={syncState.status} title={syncState.title} message={syncState.message} errorDetails={syncState.error} onClose={() => setSyncState(prev => ({ ...prev, isOpen: false }))} />
+      
+      {hasPhantomWarning && (
+        <div className="bg-rose-50 border-2 border-rose-200 p-6 rounded-3xl shadow-sm flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
+          <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-rose-500 shadow-sm shrink-0">
+            <i className="fas fa-exclamation-triangle text-xl"></i>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-rose-800 font-black tracking-tighter uppercase text-sm">Alerta Preventivo de Integridade</h3>
+            <p className="text-xs text-rose-600 font-medium">
+              Foram detectados {phantomSectors.length} setores marcados para desativação (nome inicia com <code>&lt;INATIVAR&gt;</code>), mas que ainda estão com status ativo no banco.
+              {activeStaffInPhantomSectors.length > 0 && <span> Além disso, existem <strong>{activeStaffInPhantomSectors.length} colaboradores ativos</strong> vinculados a esses setores.</span>}
+            </p>
+            <p className="text-[10px] font-bold text-rose-500 uppercase mt-2">
+              Ação recomendada: Edite esses setores na aba "Setores" para inativá-los formalmente (ou exclua se não tiverem histórico) e corrija os colaboradores na aba "Colaboradores".
+            </p>
+          </div>
+        </div>
+      )}
+
       <section className="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
           <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Importação Excel (Modo Blindado)</h2>

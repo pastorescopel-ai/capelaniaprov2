@@ -173,10 +173,18 @@ export const useExcelProcessor = () => {
                   }
                   
                   let match = null;
-                  if (sIdRaw && proData) match = proData.sectors.find((s:any) => s.unit === activeUnit && cleanID(s.id) === sIdRaw);
+                  if (sIdRaw && proData) {
+                      // First try to find a perfectly active and non-phantom match
+                      match = proData.sectors.find((s:any) => s.unit === activeUnit && cleanID(s.id) === sIdRaw && s.active !== false && !s.name.toUpperCase().startsWith('<INATIVAR>'));
+                      // Fallback to any match
+                      if (!match) match = proData.sectors.find((s:any) => s.unit === activeUnit && cleanID(s.id) === sIdRaw);
+                  }
                   if (!match && sNameRaw && proData) {
                       const norm = normalizeString(sNameRaw);
-                      match = proData.sectors.find((s:any) => s.unit === activeUnit && normalizeString(s.name) === norm);
+                      // First try active non-phantom
+                      match = proData.sectors.find((s:any) => s.unit === activeUnit && normalizeString(s.name) === norm && s.active !== false && !s.name.toUpperCase().startsWith('<INATIVAR>'));
+                      // Fallback
+                      if (!match) match = proData.sectors.find((s:any) => s.unit === activeUnit && normalizeString(s.name) === norm);
                   }
 
                   if (match) {
