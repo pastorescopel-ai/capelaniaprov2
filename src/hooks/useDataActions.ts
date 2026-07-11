@@ -9,24 +9,33 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
   const loadFromCloud = useCallback(async (showLoader = false) => {
     if (showLoader) setIsSyncing(true);
     try {
-      const data = await DataRepository.syncAll();
-      if (data) {
-        console.log('📦 Dados carregados do Cloud:', {
-          smallGroups: data.smallGroups?.length || 0,
-          bibleStudies: data.bibleStudies?.length || 0,
-          bibleClasses: data.bibleClasses?.length || 0,
-          staffVisits: data.staffVisits?.length || 0
-        });
-        Object.entries(data).forEach(([key, val]) => {
+      // 1. Fase Rápida/Crítica
+      const coreData = await DataRepository.syncCore();
+      if (coreData) {
+        Object.entries(coreData).forEach(([key, val]) => {
           if (val !== null && setters[key]) {
             setters[key](val);
           }
         });
-        if (data.config) {
-          applySystemOverrides(data.config);
+        if (coreData.config) {
+          applySystemOverrides(coreData.config);
         }
         setIsConnected(true);
       }
+      
+      // 2. Fase Pesada/Background (não bloqueia o retorno)
+      DataRepository.syncBackground().then(bgData => {
+         if (bgData) {
+            Object.entries(bgData).forEach(([key, val]) => {
+              if (val !== null && setters[key]) {
+                setters[key](val);
+              }
+            });
+         }
+      }).catch(err => {
+         console.error('Erro na fase background:', err);
+      });
+      
     } catch (e) {
       setIsConnected(false);
     } finally {

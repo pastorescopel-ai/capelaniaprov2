@@ -67,7 +67,7 @@ const GLOBAL_ID_CACHE: Record<string, string> = {
 };
 
 export const DataRepository = {
-  async fetchFullTable(tableName: string, maxRows = 100000) {
+  async fetchFullTable(tableName: string, maxRows = 100000, queryModifier?: (q: any) => any) {
     if (!supabase) {
       const cached = safeGetLocalStorage(`capelania_offline_${tableName}`, tableName);
       if (cached) return { data: cached, error: null };
@@ -76,10 +76,9 @@ export const DataRepository = {
     
     try {
       // Primeira busca para ver se precisamos paginar
-      const { data: firstBatch, error: firstError } = await supabase
-        .from(tableName)
-        .select('*')
-        .range(0, 999);
+      let q1 = supabase.from(tableName).select('*');
+      if (queryModifier) q1 = queryModifier(q1);
+      const { data: firstBatch, error: firstError } = await q1.range(0, 999);
         
       if (firstError) {
         const errMsg = firstError.message || String(firstError);
@@ -117,10 +116,9 @@ export const DataRepository = {
       
       while (hasMore && allData.length < maxRows) {
         try {
-          const { data, error } = await supabase
-            .from(tableName)
-            .select('*')
-            .range(from, from + step - 1);
+          let q2 = supabase.from(tableName).select('*');
+          if (queryModifier) q2 = queryModifier(q2);
+          const { data, error } = await q2.range(from, from + step - 1);
             
           if (error) {
             const errMsg = error.message || String(error);
@@ -190,62 +188,28 @@ export const DataRepository = {
     }
   },
 
-  async syncAll() {
+  
+  async syncCore() {
     if (!supabase) return null;
     try {
       const MAX_ROWS = 49999;
-
-      // Executa as queries em paralelo, mas trata erros individualmente e previne rejeição do Promise.all
       const results = await Promise.all([
         DataRepository.fetchFullTable('users', MAX_ROWS),
-        DataRepository.fetchFullTable('bible_study_sessions', MAX_ROWS),
-        DataRepository.fetchFullTable('bible_classes', MAX_ROWS),
-        DataRepository.fetchFullTable('small_group_sessions', MAX_ROWS),
-        DataRepository.fetchFullTable('staff_visits', MAX_ROWS),
         DataRepository.fetchFullTable('visit_requests', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_sectors', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_groups', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_group_locations', MAX_ROWS),
+        DataRepository.fetchFullTable('small_group_sessions', MAX_ROWS),
         (async () => {
           try {
             return await supabase.from('app_config').select('*').limit(1);
-          } catch (err: any) {
+          } catch (err) {
             return { data: null, error: err };
           }
-        })(),
-        DataRepository.fetchFullTable('pro_sectors', MAX_ROWS),
-        DataRepository.fetchFullTable('pro_staff', MAX_ROWS),
-        DataRepository.fetchFullTable('pro_patients', MAX_ROWS),
-        DataRepository.fetchFullTable('pro_providers', MAX_ROWS),
-        DataRepository.fetchFullTable('pro_groups', MAX_ROWS),
-        DataRepository.fetchFullTable('pro_group_locations', MAX_ROWS),
-        DataRepository.fetchFullTable('pro_group_members', MAX_ROWS),
-        DataRepository.fetchFullTable('pro_group_provider_members', MAX_ROWS),
-        DataRepository.fetchFullTable('bible_class_attendees', MAX_ROWS),
-        DataRepository.fetchFullTable('activity_schedules', MAX_ROWS),
-        DataRepository.fetchFullTable('daily_activity_reports', MAX_ROWS),
-        DataRepository.fetchFullTable('pro_monthly_stats', 99999), 
-        DataRepository.fetchFullTable('pro_history_records', 199999), 
-        DataRepository.fetchFullTable('ambassadors', MAX_ROWS),
-        DataRepository.fetchFullTable('edit_authorizations', MAX_ROWS)
+        })()
       ]);
 
-      const [u, bs, bc, sg, sv, vr, c, ps, pst, pp, pr, pg, pgl, pgm, pgpm, bca, asch, dar, pms, phr, amb, ea ] = results;
-
-      // Log de erros para debug (invisível ao usuário)
-      results.forEach((res, idx) => {
-        if (res.error) {
-          const errMsg = res.error.message || String(res.error);
-          const isNetworkErr = 
-            errMsg.includes('fetch') || 
-            errMsg.includes('Failed to fetch') || 
-            errMsg.includes('NetworkError') || 
-            !navigator.onLine;
-
-          if (isNetworkErr) {
-            console.warn(`Query transiente/offline ${idx} em andamento:`, errMsg);
-          } else {
-            console.error(`Query ${idx} falhou:`, errMsg);
-          }
-        }
-      });
+      const [u, vr, ps, pg, pgl, sg, c] = results;
 
       if (c.data?.[0]?.id) {
         const configId = c.data[0].id;
@@ -254,21 +218,67 @@ export const DataRepository = {
           try {
             localStorage.setItem(CACHE_KEY, configId);
             localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(toCamel(c.data[0])));
-          } catch (e: any) {
+          } catch (e) {
             MEMORY_CACHE[CACHE_KEY] = configId;
             MEMORY_CACHE[DATA_CACHE_KEY] = toCamel(c.data[0]);
           }
         }
       }
 
+      return {
+        users: u.data ? toCamel(u.data) : null,
+        visitRequests: vr.data ? toCamel(vr.data) : null,
+        proSectors: ps.data ? toCamel(ps.data) : null,
+        proGroups: pg.data ? toCamel(pg.data) : null,
+        proGroupLocations: pgl.data ? toCamel(pgl.data) : null,
+        smallGroups: sg.data ? toCamel(sg.data) : null,
+        config: c.data && c.data.length > 0 ? toCamel(c.data[0]) : null,
+      };
+    } catch (error) {
+      console.error("Erro fatal ao sincronizar core com Supabase:", error);
+      return null;
+    }
+  },
+
+  async syncBackground() {
+    if (!supabase) return null;
+    try {
+      const MAX_ROWS = 49999;
+      
+      // Calculate 4 months ago for limiting historical data
+      const d = new Date();
+      d.setMonth(d.getMonth() - 4);
+      const limitDate = d.toISOString().split('T')[0];
+      const limitMonth = limitDate.substring(0, 7) + '-01';
+
+      const results = await Promise.all([
+        DataRepository.fetchFullTable('pro_history_records', 199999, q => q.gte('month', limitMonth)),
+        DataRepository.fetchFullTable('pro_group_members', MAX_ROWS, q => q.gte('cycle_month', limitMonth)),
+        DataRepository.fetchFullTable('pro_staff', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_monthly_stats', 99999), 
+        DataRepository.fetchFullTable('staff_visits', MAX_ROWS, q => q.gte('date', limitDate)),
+        DataRepository.fetchFullTable('activity_schedules', MAX_ROWS, q => q.gte('month', limitMonth)),
+        DataRepository.fetchFullTable('daily_activity_reports', MAX_ROWS, q => q.gte('date', limitDate)),
+        DataRepository.fetchFullTable('bible_class_attendees', MAX_ROWS, q => q.gte('date', limitDate)),
+        DataRepository.fetchFullTable('bible_study_sessions', MAX_ROWS),
+        DataRepository.fetchFullTable('bible_classes', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_patients', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_providers', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_group_provider_members', MAX_ROWS),
+        DataRepository.fetchFullTable('ambassadors', MAX_ROWS),
+        DataRepository.fetchFullTable('edit_authorizations', MAX_ROWS)
+      ]);
+
+      const [phr, pgm, pst, pms, sv, asch, dar, bca, bs, bc, pp, pr, pgpm, amb, ea] = results;
+
       const classes = bc.data ? toCamel(bc.data) : null;
       const attendees = bca.data ? toCamel(bca.data) : null;
       
       if (classes && attendees) {
-        classes.forEach((cls: any) => {
+        classes.forEach((cls) => {
             cls.students = attendees
-              .filter((a: any) => a.classId === cls.id)
-              .map((a: any) => {
+              .filter((a) => a.classId === cls.id)
+              .map((a) => {
                   const id = a.staffId || a.participantId;
                   if (id && !String(a.studentName).includes(`(${id})`)) {
                       return `${a.studentName} (${id})`;
@@ -279,31 +289,36 @@ export const DataRepository = {
       }
 
       return {
-        users: u.data ? toCamel(u.data) : null,
-        bibleStudies: bs.data ? toCamel(bs.data) : null,
-        bibleClasses: classes, 
-        smallGroups: sg.data ? toCamel(sg.data) : null,
-        staffVisits: sv.data ? toCamel(sv.data) : null,
-        visitRequests: vr.data ? toCamel(vr.data) : null,
-        config: c.data && c.data.length > 0 ? toCamel(c.data[0]) : null,
-        proSectors: ps.data ? toCamel(ps.data) : null,
-        proStaff: pst.data ? toCamel(pst.data) : null,
-        proPatients: pp.data ? toCamel(pp.data) : null,
-        proProviders: pr.data ? toCamel(pr.data) : null,
-        proGroups: pg.data ? toCamel(pg.data) : null,
-        proGroupLocations: pgl.data ? toCamel(pgl.data) : null,
+        proHistoryRecords: phr.data ? toCamel(phr.data) : null,
         proGroupMembers: pgm.data ? toCamel(pgm.data) : null,
-        proGroupProviderMembers: pgpm.data ? toCamel(pgpm.data) : null,
+        proStaff: pst.data ? toCamel(pst.data) : null,
+        proMonthlyStats: pms.data ? toCamel(pms.data) : null,
+        staffVisits: sv.data ? toCamel(sv.data) : null,
         activitySchedules: asch.data ? toCamel(asch.data) : null,
         dailyActivityReports: dar.data ? toCamel(dar.data) : null,
         bibleClassAttendees: attendees,
-        proMonthlyStats: pms.data ? toCamel(pms.data) : null,
-        proHistoryRecords: phr.data ? toCamel(phr.data) : null,
+        bibleStudies: bs.data ? toCamel(bs.data) : null,
+        bibleClasses: classes,
+        proPatients: pp.data ? toCamel(pp.data) : null,
+        proProviders: pr.data ? toCamel(pr.data) : null,
+        proGroupProviderMembers: pgpm.data ? toCamel(pgpm.data) : null,
         ambassadors: amb.data ? toCamel(amb.data) : null,
-        editAuthorizations: ea.data ? toCamel(ea.data) : null
+        editAuthorizations: ea.data ? toCamel(ea.data) : null,
       };
     } catch (error) {
-      console.error("Erro fatal ao sincronizar com Supabase:", error);
+      console.error("Erro fatal ao sincronizar background com Supabase:", error);
+      return null;
+    }
+  },
+
+async syncAll() {
+    try {
+      const core = await this.syncCore();
+      const bg = await this.syncBackground();
+      if (!core && !bg) return null;
+      return { ...(core || {}), ...(bg || {}) };
+    } catch (e) {
+      console.error("Erro fatal ao sincronizar com Supabase:", e);
       return null;
     }
   },

@@ -34,10 +34,10 @@ const DashboardActivityHistory: React.FC<DashboardActivityHistoryProps> = ({ uni
     const isIntern = currentUser?.role === UserRole.INTERN;
     const currentUserId = currentUser?.id;
 
-    const userMap = new Map(users.map(u => [u.id, u.name]));
+    const userMap = new Map((users || []).map(u => [u.id, u.name]));
 
     const allActivities: any[] = [
-      ...bibleStudies.map(item => ({
+      ...(bibleStudies || []).map(item => ({
         id: item.id,
         type: 'bible_study',
         title: `Estudo Bíblico: ${item.name}`,
@@ -46,7 +46,7 @@ const DashboardActivityHistory: React.FC<DashboardActivityHistoryProps> = ({ uni
         userId: item.userId,
         unit: item.unit
       })),
-      ...bibleClasses.map(item => ({
+      ...(bibleClasses || []).map(item => ({
         id: item.id,
         type: 'bible_class',
         title: `Classe Bíblica: ${item.guide}`,
@@ -55,7 +55,7 @@ const DashboardActivityHistory: React.FC<DashboardActivityHistoryProps> = ({ uni
         userId: item.userId,
         unit: item.unit
       })),
-      ...smallGroups.map(item => ({
+      ...(smallGroups || []).map(item => ({
         id: item.id,
         type: 'small_group',
         title: `Reunião PG: ${item.groupName}`,
@@ -64,7 +64,7 @@ const DashboardActivityHistory: React.FC<DashboardActivityHistoryProps> = ({ uni
         userId: item.userId,
         unit: item.unit
       })),
-      ...staffVisits.map(item => ({
+      ...(staffVisits || []).map(item => ({
         id: item.id,
         type: 'staff_visit',
         title: `Visita: ${item.staffName}`,
