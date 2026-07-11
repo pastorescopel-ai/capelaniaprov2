@@ -247,7 +247,7 @@ export const DataRepository = {
       
       // Calculate 4 months ago for limiting historical data
       const d = new Date();
-      d.setMonth(d.getMonth() - 4);
+      d.setDate(d.getDate() - 45); // Reduzido de 4 meses para 45 dias para evitar gargalo de memória/rede
       const limitDate = d.toISOString().split('T')[0];
       const limitMonth = limitDate.substring(0, 7) + '-01';
 
@@ -313,8 +313,7 @@ export const DataRepository = {
 
 async syncAll() {
     try {
-      const core = await this.syncCore();
-      const bg = await this.syncBackground();
+      const [core, bg] = await Promise.all([this.syncCore(), this.syncBackground()]);
       if (!core && !bg) return null;
       return { ...(core || {}), ...(bg || {}) };
     } catch (e) {

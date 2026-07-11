@@ -82,47 +82,63 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
   }, []);
 
   const myRequests = useMemo(() => {
-    return requests.filter(req => {
-      if (req.status === 'confirmed' || req.status === 'declined') return false;
-      
-      // Filtro Visual Imediato: Se já existe registro no histórico, oculta do Dashboard
-      const reqDate = ensureISODate(req.date);
-      const normName = normalizeString(req.pgName);
-      
-      const isAlreadyRegistered = reqDate && normName && smallGroups.some(sg => {
+    const start = performance.now();
+    const res = (() => {
+      // 1. Otimização: Criar um índice dos PGs registrados (O(M))
+      const sgIndex = new Map<string, any[]>();
+      smallGroups.forEach(sg => {
         const sgDate = ensureISODate(sg.date);
-        if (!sgDate || normalizeString(sg.groupName) !== normName || sg.unit !== req.unit) return false;
-        if (sgDate !== reqDate) return false;
-        
-        let reqShift = 'Manhã';
-        if (req.scheduledTime) {
-          const hour = parseInt(req.scheduledTime.split(':')[0]);
-          if (hour >= 18) reqShift = 'Noite';
-          else if (hour >= 12) reqShift = 'Tarde';
-        }
-        
-        const shiftMatches = normalizeString(sg.shift) === normalizeString(reqShift);
-        const userMatches = !req.assignedChaplainId || String(sg.userId) === String(req.assignedChaplainId);
-        
-        return shiftMatches && userMatches;
+        if (!sgDate) return;
+        const normName = normalizeString(sg.groupName);
+        const key = `${sg.unit}_${sgDate}_${normName}`;
+        if (!sgIndex.has(key)) sgIndex.set(key, []);
+        sgIndex.get(key)!.push(sg);
       });
 
-      if (isAlreadyRegistered) {
-        return false;
-      }
+      return requests.filter(req => {
+        if (req.status === 'confirmed' || req.status === 'declined') return false;
+        
+        const reqDate = ensureISODate(req.date);
+        const normName = normalizeString(req.pgName);
+        let isAlreadyRegistered = false;
+        
+        if (reqDate && normName) {
+          const key = `${req.unit}_${reqDate}_${normName}`;
+          const matchingSGs = sgIndex.get(key);
+          if (matchingSGs && matchingSGs.length > 0) {
+            let reqShift = 'Manhã';
+            if (req.scheduledTime) {
+              const hour = parseInt(req.scheduledTime.split(':')[0]);
+              if (hour >= 18) reqShift = 'Noite';
+              else if (hour >= 12) reqShift = 'Tarde';
+            }
+            const normReqShift = normalizeString(reqShift);
+            isAlreadyRegistered = matchingSGs.some(sg => {
+              const shiftMatches = normalizeString(sg.shift) === normReqShift;
+              const userMatches = !req.assignedChaplainId || String(sg.userId) === String(req.assignedChaplainId);
+              return shiftMatches && userMatches;
+            });
+          }
+        }
 
-      const isUserAdmin = String(currentUser.role).toUpperCase() === 'ADMIN';
-      if (isUserAdmin) return true;
-      
-      return req.assignedChaplainId && String(req.assignedChaplainId) === String(currentUser.id);
-    }).sort((a, b) => {
-      const aIsMine = a.assignedChaplainId && String(a.assignedChaplainId) === String(currentUser.id);
-      const bIsMine = b.assignedChaplainId && String(b.assignedChaplainId) === String(currentUser.id);
-      if (aIsMine && !bIsMine) return -1;
-      if (!aIsMine && bIsMine) return 1;
-      
-      return getTimestamp(a.date) - getTimestamp(b.date);
-    });
+        if (isAlreadyRegistered) return false;
+
+        const isUserAdmin = String(currentUser.role).toUpperCase() === 'ADMIN';
+        if (isUserAdmin) return true;
+        
+        return req.assignedChaplainId && String(req.assignedChaplainId) === String(currentUser.id);
+      }).sort((a, b) => {
+        const aIsMine = a.assignedChaplainId && String(a.assignedChaplainId) === String(currentUser.id);
+        const bIsMine = b.assignedChaplainId && String(b.assignedChaplainId) === String(currentUser.id);
+        if (aIsMine && !bIsMine) return -1;
+        if (!aIsMine && bIsMine) return 1;
+        
+        return getTimestamp(a.date) - getTimestamp(b.date);
+      });
+    })();
+    const end = performance.now();
+    console.log(`[Perf] useVisitRequestsWidget - myRequests calculado em ${(end - start).toFixed(2)}ms para ${requests.length} requisições e ${smallGroups.length} PGs.`);
+    return res;
   }, [requests, currentUser, smallGroups]);
 
   const getMeetingSector = (req: VisitRequest) => {

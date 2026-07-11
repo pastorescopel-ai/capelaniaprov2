@@ -10,7 +10,9 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
     if (showLoader) setIsSyncing(true);
     try {
       // 1. Fase Rápida/Crítica
+      const startCore = performance.now();
       const coreData = await DataRepository.syncCore();
+      console.log(`[Perf] syncCore demorou ${(performance.now() - startCore).toFixed(2)}ms`);
       if (coreData) {
         Object.entries(coreData).forEach(([key, val]) => {
           if (val !== null && setters[key]) {
@@ -24,7 +26,10 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
       }
       
       // 2. Fase Pesada/Background (não bloqueia o retorno)
+      const startBg = performance.now();
       DataRepository.syncBackground().then(bgData => {
+         console.log(`[Perf] syncBackground demorou ${(performance.now() - startBg).toFixed(2)}ms`);
+
          if (bgData) {
             Object.entries(bgData).forEach(([key, val]) => {
               if (val !== null && setters[key]) {
@@ -46,7 +51,9 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
   const refreshData = useCallback(async () => {
     setIsSyncing(true);
     try {
+      const startSyncAll = performance.now();
       const data = await DataRepository.syncAll();
+      console.log(`[Perf] syncAll (refreshData) demorou ${(performance.now() - startSyncAll).toFixed(2)}ms`);
       if (data) {
         if (data.bibleStudies !== null) setters.bibleStudies(data.bibleStudies);
         if (data.bibleClasses !== null) setters.bibleClasses(data.bibleClasses);
