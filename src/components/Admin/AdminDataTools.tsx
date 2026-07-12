@@ -59,10 +59,15 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
     report: any | null;
   }>({ isOpen: false, isChecking: false, report: null });
 
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    const { data: { session } } = (await supabase?.auth.getSession()) || { data: { session: null } };
+    return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+  };
+
   const runRobustDiagnostics = async () => {
     setIsRobustAuditing(true);
     try {
-      const response = await fetch('/api/diagnostics');
+      const response = await fetch('/api/diagnostics', { headers: await getAuthHeaders() });
       const data = await response.json();
       setRobustReport(data);
     } catch (err) {
@@ -83,7 +88,7 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
         try {
           const response = await fetch('/api/delete-file', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
             body: JSON.stringify({ filePath })
           });
           if (response.ok) {

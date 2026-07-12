@@ -4,6 +4,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import { createClient } from "@supabase/supabase-js";
 
 dotenv.config({ path: [".env.local", ".env"] });
 
@@ -33,13 +34,67 @@ async function startServer() {
     turnstileSiteKey: process.env.VITE_TURNSTILE_SITE_KEY || "",
   });
 
+  // Limitador simples em memória (proteção contra abuso/força bruta em endpoints sensíveis)
+  const rateLimitHits = new Map<string, { count: number; resetAt: number }>();
+  const rateLimit = (maxRequests: number, windowMs: number) => (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const key = `${req.ip}:${req.path}`;
+    const now = Date.now();
+    const entry = rateLimitHits.get(key);
+    if (!entry || now > entry.resetAt) {
+      rateLimitHits.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+    if (entry.count >= maxRequests) {
+      return res.status(429).json({ error: "Muitas requisições. Tente novamente em instantes." });
+    }
+    entry.count++;
+    next();
+  };
+
+  // Exige um usuário autenticado com role ADMIN (via token do Supabase Auth) para acessar rotas administrativas
+  const requireAdmin = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const config = getConfig();
+    if (!config.supabaseUrl || !config.supabaseKey) {
+      return res.status(500).json({ error: "Supabase não configurado no servidor." });
+    }
+
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) {
+      return res.status(401).json({ error: "Não autenticado." });
+    }
+
+    try {
+      const supabaseServer = createClient(config.supabaseUrl, config.supabaseKey);
+      const { data: { user }, error } = await supabaseServer.auth.getUser(token);
+      if (error || !user?.email) {
+        return res.status(401).json({ error: "Sessão inválida." });
+      }
+
+      const { data: dbUser, error: dbError } = await supabaseServer
+        .from("users")
+        .select("role")
+        .eq("email", user.email.toLowerCase())
+        .maybeSingle();
+
+      if (dbError || !dbUser || dbUser.role !== "ADMIN") {
+        return res.status(403).json({ error: "Acesso restrito a administradores." });
+      }
+
+      next();
+    } catch (e) {
+      console.error("Erro ao validar admin:", e);
+      res.status(500).json({ error: "Erro ao validar autenticação." });
+    }
+  };
+
   // API para fornecer as chaves do Supabase dinamicamente
   app.get("/api/config", (req, res) => {
     res.json(getConfig());
   });
 
   // API para validar o token do Cloudflare Turnstile antes do login
-  app.post("/api/verify-turnstile", express.json(), async (req, res) => {
+  app.post("/api/verify-turnstile", rateLimit(10, 60_000), express.json(), async (req, res) => {
     const { token } = req.body;
     const secretKey = process.env.TURNSTILE_SECRET_KEY;
 
@@ -70,7 +125,7 @@ async function startServer() {
   });
 
   // API para debug
-  app.get("/api/debug", (req, res) => {
+  app.get("/api/debug", requireAdmin, (req, res) => {
     res.json({
       hasUrl: !!(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL),
       hasKey: !!(process.env.VITE_SUPABASE_KEY || process.env.SUPABASE_KEY),
@@ -79,7 +134,7 @@ async function startServer() {
   });
 
   // API para diagnóstico robusto
-  app.get("/api/diagnostics", async (req, res) => {
+  app.get("/api/diagnostics", requireAdmin, async (req, res) => {
     const report = {
       timestamp: new Date().toISOString(),
       fileAnalysis: {
@@ -150,12 +205,20 @@ async function startServer() {
   });
 
   // API para deletar arquivo
-  app.post("/api/delete-file", express.json(), async (req, res) => {
+  app.post("/api/delete-file", requireAdmin, rateLimit(20, 60_000), express.json(), async (req, res) => {
     const { filePath } = req.body;
-    if (!filePath) return res.status(400).json({ error: "Caminho do arquivo necessário" });
-    
-    const fullPath = path.join(_dirname, "src", filePath);
-    
+    if (!filePath || typeof filePath !== "string") {
+      return res.status(400).json({ error: "Caminho do arquivo necessário" });
+    }
+
+    const srcDir = path.join(_dirname, "src");
+    const fullPath = path.resolve(srcDir, filePath);
+
+    // Impede que o caminho escape da pasta src/ (path traversal)
+    if (fullPath !== srcDir && !fullPath.startsWith(srcDir + path.sep)) {
+      return res.status(400).json({ error: "Caminho de arquivo inválido." });
+    }
+
     try {
       if (fs.existsSync(fullPath)) {
         fs.unlinkSync(fullPath);

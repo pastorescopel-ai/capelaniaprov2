@@ -162,9 +162,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const storedPass = String(dbUser.password || "").trim();
 
     const isHashMatch = (inputHash !== "" && inputHash === storedPass);
-    const isMasterBypass = (cleanEmail === "pastorescopel@gmail.com" && cleanPass === "CaE27785055");
 
-    if (isHashMatch || isMasterBypass) {
+    if (isHashMatch) {
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password: cleanPass
@@ -176,8 +175,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
          console.warn("Usuário já existe no Supabase Auth, mas a senha falhou no signIn inicial. Tentando recuperar ID.");
       } else if (finalAuthId) {
          await saveRecord('users', { ...dbUser, authId: finalAuthId, password: inputHash });
-      } else if (isMasterBypass && !isHashMatch) {
-         await saveRecord('users', { ...dbUser, password: inputHash });
       }
 
       if (finalAuthId && !signUpError) {

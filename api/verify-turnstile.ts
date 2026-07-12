@@ -1,6 +1,23 @@
+// Limitador simples em memória — melhor esforço em funções serverless (não garante persistência
+// entre instâncias/regiões diferentes, mas barra abuso repetido na mesma instância "quente").
+const rateLimitHits = new Map<string, { count: number; resetAt: number }>();
+const MAX_REQUESTS = 10;
+const WINDOW_MS = 60_000;
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(405).json({ success: false, error: "Method not allowed" });
+  }
+
+  const clientIp = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() || "unknown";
+  const now = Date.now();
+  const entry = rateLimitHits.get(clientIp);
+  if (!entry || now > entry.resetAt) {
+    rateLimitHits.set(clientIp, { count: 1, resetAt: now + WINDOW_MS });
+  } else if (entry.count >= MAX_REQUESTS) {
+    return res.status(429).json({ success: false, error: "Muitas requisições. Tente novamente em instantes." });
+  } else {
+    entry.count++;
   }
 
   const secretKey = process.env.TURNSTILE_SECRET_KEY;
