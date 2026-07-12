@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { User, UserRole } from '../types';
 import { useToast } from '../contexts/ToastContext';
-import { hashPassword } from '../utils/crypto';
 import { useApp } from '../hooks/useApp';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
+import { supabase } from '../services/supabaseClient';
 
 interface UseUserManagementProps {
   users: User[];
@@ -11,9 +11,10 @@ interface UseUserManagementProps {
 }
 
 export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementProps) => {
-  const { deleteRecord, proStaff, proSectors } = useApp();
+  const { deleteRecord, proStaff, proSectors, refreshData } = useApp();
   const [newUser, setNewUser] = useState<Partial<User>>({ name: '', email: '', password: '', role: UserRole.CHAPLAIN, attendsHaba: false, habaDays: [], dailyVisitGoal: 2, subunitMonthlyVisitGoal: 8, visitGoalPeriod: 'daily' });
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [newPasswordForEdit, setNewPasswordForEdit] = useState('');
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const { showToast } = useToast();
@@ -40,30 +41,32 @@ export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementPro
       showToast('Preencha os dados do usuário', 'warning');
       return;
     }
-    
+    if (newUser.password.trim().length < 6) {
+      showToast('A senha inicial precisa ter pelo menos 6 caracteres.', 'warning');
+      return;
+    }
+    if (!supabase) {
+      showToast('Supabase não configurado.', 'error');
+      return;
+    }
+
     setIsProcessing(true);
     try {
-      const securePassword = await hashPassword(newUser.password.trim());
-      
-      const userToAdd: User = {
-        id: crypto.randomUUID(),
-        name: newUser.name || '',
-        email: (newUser.email || '').toLowerCase().trim(),
-        password: securePassword,
-        role: newUser.role || UserRole.CHAPLAIN,
-        profilePic: '',
-        attendsHaba: newUser.attendsHaba || false,
-        habaDays: newUser.habaDays || [],
-        dailyVisitGoal: newUser.dailyVisitGoal ?? 2,
-        subunitMonthlyVisitGoal: newUser.subunitMonthlyVisitGoal ?? 8,
-        visitGoalPeriod: newUser.visitGoalPeriod || 'daily'
-      };
+      // Cria o usuário direto com uma conta real no Supabase Auth (senha com bcrypt),
+      // em vez de gravar um hash fraco calculado no navegador.
+      const { error } = await supabase.rpc('admin_create_user', {
+        p_email: (newUser.email || '').toLowerCase().trim(),
+        p_password: newUser.password.trim(),
+        p_name: newUser.name || '',
+        p_role: newUser.role || UserRole.CHAPLAIN,
+      });
+      if (error) throw error;
 
-      await onUpdateUsers([...users, userToAdd]);
+      await refreshData();
       setNewUser({ name: '', email: '', password: '', role: UserRole.CHAPLAIN, attendsHaba: false, habaDays: [], dailyVisitGoal: 2, subunitMonthlyVisitGoal: 8, visitGoalPeriod: 'daily' });
       showToast('Usuário cadastrado com sucesso!', 'success');
-    } catch (e) {
-      showToast('Erro ao cadastrar usuário.', 'error');
+    } catch (e: any) {
+      showToast(e?.message || 'Erro ao cadastrar usuário.', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -101,31 +104,41 @@ export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementPro
 
   const handleSaveEdit = async () => {
     if (!editingUser) return;
-    
+
+    const trimmedNewPassword = newPasswordForEdit.trim();
+    if (trimmedNewPassword && trimmedNewPassword.length < 6) {
+      showToast('A nova senha precisa ter pelo menos 6 caracteres.', 'warning');
+      return;
+    }
+
     setIsProcessing(true);
     try {
-      let finalPassword = editingUser.password;
-      
-      if (editingUser.password && editingUser.password.length !== 64) {
-        finalPassword = await hashPassword(editingUser.password.trim());
-      }
-
       const updatedUsers = users.map(u => {
         if (u.id === editingUser.id) {
           return {
             ...editingUser,
             email: editingUser.email.toLowerCase().trim(),
-            password: finalPassword
           };
         }
         return u;
       });
 
       await onUpdateUsers(updatedUsers);
+
+      // Redefine a senha real no Supabase Auth (bcrypt) só se o admin digitou uma nova.
+      if (trimmedNewPassword && supabase) {
+        const { error } = await supabase.rpc('admin_reset_password', {
+          p_user_id: editingUser.id,
+          p_new_password: trimmedNewPassword,
+        });
+        if (error) throw error;
+      }
+
+      setNewPasswordForEdit('');
       setEditingUser(null);
       showToast('Dados do usuário atualizados!', 'success');
-    } catch (e) {
-      showToast('Erro ao atualizar usuário.', 'error');
+    } catch (e: any) {
+      showToast(e?.message || 'Erro ao atualizar usuário.', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -153,6 +166,7 @@ export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementPro
   return {
     newUser, setNewUser,
     editingUser, setEditingUser,
+    newPasswordForEdit, setNewPasswordForEdit,
     userToDelete, setUserToDelete,
     isProcessing,
     staffOptions,

@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { User } from '../types';
 import { useToast } from '../contexts/ToastContext';
-import { hashPassword } from '../utils/crypto';
 import { getCroppedImg } from '../utils/imageUtils';
+import { supabase } from '../services/supabaseClient';
 
 interface UseProfileProps {
   user: User;
@@ -83,24 +83,37 @@ export const useProfile = ({ user, onUpdateUser }: UseProfileProps) => {
         return;
       }
 
-      const currentHash = await hashPassword(passData.current.trim());
-      if (currentHash !== user.password) {
-        showToast('A senha atual informada está incorreta.', "error");
-        return;
-      }
-
       if (passData.new !== passData.confirm) {
         showToast('As novas senhas digitadas não coincidem!', "error");
         return;
       }
-      
-      if (passData.new.length < 4) {
-        showToast('A nova senha deve ter pelo menos 4 caracteres.', "error");
+
+      if (passData.new.length < 6) {
+        showToast('A nova senha deve ter pelo menos 6 caracteres.', "error");
         return;
       }
 
-      const securePassword = await hashPassword(passData.new.trim());
-      updatedUser.password = securePassword;
+      if (!supabase) {
+        showToast('Supabase não configurado.', "error");
+        return;
+      }
+
+      // Confirma a senha atual reautenticando de verdade contra o Supabase Auth
+      // (não usa mais o hash local — a senha real vive no Supabase Auth).
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: passData.current.trim(),
+      });
+      if (signInError) {
+        showToast('A senha atual informada está incorreta.', "error");
+        return;
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: passData.new.trim() });
+      if (updateError) {
+        showToast('Erro ao atualizar a senha: ' + updateError.message, "error");
+        return;
+      }
     }
     
     onUpdateUser(updatedUser);

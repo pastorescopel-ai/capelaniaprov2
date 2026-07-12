@@ -16,6 +16,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
   const {
     newUser, setNewUser,
     editingUser, setEditingUser,
+    newPasswordForEdit, setNewPasswordForEdit,
     userToDelete, setUserToDelete,
     isProcessing,
     staffOptions,
@@ -104,10 +105,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
                     </div>
                     <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
                         <label className="text-[10px] font-black text-amber-600 uppercase mb-2 block">Nova Senha (opcional)</label>
-                        <input 
+                        <input
                         type="text"
                         placeholder="Digite para resetar a senha"
-                        onChange={e => setEditingUser({...editingUser, password: e.target.value})}
+                        value={newPasswordForEdit}
+                        onChange={e => setNewPasswordForEdit(e.target.value)}
                         className="w-full p-3 rounded-xl bg-white border-none font-bold text-xs"
                         />
                     </div>
@@ -345,7 +347,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
                         </div>
                     </div>
                     <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => setEditingUser(u)} className="w-10 h-10 bg-slate-50 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all border border-slate-100 hover:border-blue-600"><i className="fas fa-edit text-xs"></i></button>
+                        <button onClick={() => { setNewPasswordForEdit(''); setEditingUser(u); }} className="w-10 h-10 bg-slate-50 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all border border-slate-100 hover:border-blue-600"><i className="fas fa-edit text-xs"></i></button>
                         {u.id !== currentUser.id && (
                         <button onClick={() => setUserToDelete(u)} className="w-10 h-10 bg-slate-50 text-rose-500 rounded-xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all border border-slate-100 hover:border-rose-500"><i className="fas fa-trash text-xs"></i></button>
                         )}
