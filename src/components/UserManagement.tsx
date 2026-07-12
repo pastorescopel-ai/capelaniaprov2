@@ -24,6 +24,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
     handleAddUser,
     toggleHabaDay,
     handleSelectStaff,
+    handleSelectStaffForEdit,
     handleSaveEdit,
     confirmDelete
   } = useUserManagement({ users, onUpdateUsers });
@@ -102,6 +103,19 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">E-mail</label>
                         <input value={editingUser.email} onChange={e => setEditingUser({...editingUser, email: e.target.value})} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold" placeholder="E-mail" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">
+                            Vínculo com o RH {editingUser.staffId ? `(Matrícula ${editingUser.staffId})` : '(não vinculado)'}
+                        </label>
+                        <Autocomplete
+                        options={staffOptions}
+                        value={editingUser.name}
+                        onChange={v => setEditingUser({...editingUser, name: v})}
+                        onSelectOption={handleSelectStaffForEdit}
+                        placeholder="Buscar colaborador no RH..."
+                        className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold text-xs"
+                        />
                     </div>
                     <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
                         <label className="text-[10px] font-black text-amber-600 uppercase mb-2 block">Nova Senha (opcional)</label>
@@ -327,6 +341,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
                         <h4 className="font-black text-slate-800 uppercase text-sm leading-tight mb-1">{u.name}</h4>
                         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest">
                             <span className="text-slate-500">{u.email}</span>
+                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                            {u.staffId ? (
+                            <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                <i className="fas fa-id-badge text-slate-400"></i> Mat. {u.staffId}
+                            </span>
+                            ) : (
+                            <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md flex items-center gap-1" title="Sem vínculo com o cadastro de RH">
+                                <i className="fas fa-exclamation-triangle text-amber-500"></i> Sem vínculo RH
+                            </span>
+                            )}
                             <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                             <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
                             {u.role === UserRole.INTERN ? 'Estagiário' : u.role === UserRole.ADMIN ? 'Admin' : 'Capelão'}

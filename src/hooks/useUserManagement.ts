@@ -5,6 +5,7 @@ import { useApp } from '../hooks/useApp';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { supabase } from '../services/supabaseClient';
 import { getValidSectorId } from '../utils/sectorValidation';
+import { normalizeString } from '../utils/formatters';
 
 interface UseUserManagementProps {
   users: User[];
@@ -60,6 +61,7 @@ export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementPro
         p_password: newUser.password.trim(),
         p_name: newUser.name || '',
         p_role: newUser.role || UserRole.CHAPLAIN,
+        p_staff_id: newUser.staffId ? Number(newUser.staffId) : null,
       });
       if (error) throw error;
 
@@ -98,9 +100,17 @@ export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementPro
   ];
 
   const handleSelectStaff = (label: string) => {
-    // Extrai o nome antes do parêntese da matrícula
+    // Extrai o nome antes do parêntese da matrícula e vincula a matrícula real do RH
     const nameOnly = label.split(' (')[0].trim();
-    setNewUser(prev => ({ ...prev, name: nameOnly }));
+    const matchedStaff = proStaff.find(s => normalizeString(s.name) === normalizeString(nameOnly));
+    setNewUser(prev => ({ ...prev, name: nameOnly, staffId: matchedStaff ? String(matchedStaff.id) : prev.staffId }));
+  };
+
+  const handleSelectStaffForEdit = (label: string) => {
+    if (!editingUser) return;
+    const nameOnly = label.split(' (')[0].trim();
+    const matchedStaff = proStaff.find(s => normalizeString(s.name) === normalizeString(nameOnly));
+    setEditingUser({ ...editingUser, name: nameOnly, staffId: matchedStaff ? String(matchedStaff.id) : editingUser.staffId });
   };
 
   const handleSaveEdit = async () => {
@@ -175,6 +185,7 @@ export const useUserManagement = ({ users, onUpdateUsers }: UseUserManagementPro
     handleAddUser,
     toggleHabaDay,
     handleSelectStaff,
+    handleSelectStaffForEdit,
     handleSaveEdit,
     confirmDelete
   };

@@ -193,6 +193,7 @@ export interface User {
   attendsHaba?: boolean;
   habaDays?: number[];
   auth_id?: string;
+  staffId?: string;
   dailyVisitGoal?: number;
   subunitMonthlyVisitGoal?: number;
   visitGoalPeriod?: 'daily' | 'weekly';
