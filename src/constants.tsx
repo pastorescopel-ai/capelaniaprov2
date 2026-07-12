@@ -6,12 +6,19 @@ declare global {
     __SUPABASE_CONFIG__?: {
       supabaseUrl: string;
       supabaseKey: string;
+      turnstileSiteKey?: string;
+    };
+    turnstile?: {
+      render: (container: HTMLElement, options: Record<string, unknown>) => string;
+      reset: (widgetId?: string) => void;
+      remove: (widgetId?: string) => void;
     };
   }
 }
 
 export const SUPABASE_URL = window.__SUPABASE_CONFIG__?.supabaseUrl || (import.meta as any).env?.VITE_SUPABASE_URL || "";
 export const SUPABASE_KEY = window.__SUPABASE_CONFIG__?.supabaseKey || (import.meta as any).env?.VITE_SUPABASE_KEY || "";
+export const TURNSTILE_SITE_KEY = window.__SUPABASE_CONFIG__?.turnstileSiteKey || (import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || "";
 
 /**
  * DEFAULT_APP_LOGO movido para importação direta de assets.ts

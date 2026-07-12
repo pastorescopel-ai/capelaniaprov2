@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DEFAULT_APP_LOGO } from '../assets';
 import { Config } from '../types';
 import { useToast } from '../contexts/ToastContext';
+import { TURNSTILE_SITE_KEY } from '../constants';
 
 interface LoginProps {
   onLogin: (email: string, pass: string) => Promise<boolean>;
@@ -17,10 +18,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const { showToast } = useToast();
-  
+
   // Referência para o input de e-mail para forçar o foco automático
   const emailInputRef = useRef<HTMLInputElement>(null);
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
+  const turnstileWidgetId = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     // Foca o campo de e-mail assim que o componente é montado
@@ -29,14 +33,78 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
     }
   }, []);
 
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY || !turnstileContainerRef.current) return;
+
+    let cancelled = false;
+
+    const renderWidget = () => {
+      if (cancelled || !window.turnstile || !turnstileContainerRef.current) return;
+      turnstileWidgetId.current = window.turnstile.render(turnstileContainerRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: (token: string) => setTurnstileToken(token),
+        'expired-callback': () => setTurnstileToken(null),
+        'error-callback': () => setTurnstileToken(null),
+      });
+    };
+
+    if (window.turnstile) {
+      renderWidget();
+    } else {
+      const interval = setInterval(() => {
+        if (window.turnstile) {
+          clearInterval(interval);
+          renderWidget();
+        }
+      }, 100);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }
+
+    return () => {
+      cancelled = true;
+      if (window.turnstile && turnstileWidgetId.current) {
+        window.turnstile.remove(turnstileWidgetId.current);
+      }
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      showToast("Complete a verificação de segurança para continuar.", "error");
+      return;
+    }
+
     setIsLoading(true);
-    
+
     try {
+      if (TURNSTILE_SITE_KEY && turnstileToken) {
+        const verifyRes = await fetch('/api/verify-turnstile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: turnstileToken }),
+        });
+        const verifyData = await verifyRes.json();
+        if (!verifyData.success) {
+          showToast("Verificação de segurança falhou. Tente novamente.", "error");
+          if (window.turnstile && turnstileWidgetId.current) {
+            window.turnstile.reset(turnstileWidgetId.current);
+          }
+          setTurnstileToken(null);
+          return;
+        }
+      }
+
       const success = await onLogin(email, password);
       if (success) {
         showToast("Login realizado com sucesso! Bem-vindo.", "success");
+      } else if (window.turnstile && turnstileWidgetId.current) {
+        window.turnstile.reset(turnstileWidgetId.current);
+        setTurnstileToken(null);
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -132,9 +200,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
               </p>
             )}
           </div>
-          <button 
-            type="submit" 
-            disabled={(isConnected && isSyncing) || isLoading}
+
+          {TURNSTILE_SITE_KEY && (
+            <div ref={turnstileContainerRef} className="flex justify-center pt-1"></div>
+          )}
+
+          <button
+            type="submit"
+            disabled={(isConnected && isSyncing) || isLoading || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
             className={`w-full py-5 font-black rounded-2xl shadow-xl transition-all transform active:scale-[0.98] disabled:opacity-50 mt-4 uppercase text-xs tracking-widest ${isConnected ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-800 hover:bg-slate-900 text-white'}`}
           >
             {isLoading ? 'Autenticando...' : (isConnected ? (isSyncing ? 'Sincronizando...' : 'Acessar Sistema') : 'Entrar Offline')}

@@ -1,8 +1,11 @@
+import dotenv from "dotenv";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+
+dotenv.config({ path: [".env.local", ".env"] });
 
 let _filename: string;
 let _dirname: string;
@@ -17,7 +20,7 @@ if (typeof __filename !== 'undefined') {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
   // Log de todas as requisições
   app.use((req, res, next) => {
@@ -27,11 +30,43 @@ async function startServer() {
   const getConfig = () => ({
     supabaseUrl: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "",
     supabaseKey: process.env.VITE_SUPABASE_KEY || process.env.SUPABASE_KEY || "",
+    turnstileSiteKey: process.env.VITE_TURNSTILE_SITE_KEY || "",
   });
 
   // API para fornecer as chaves do Supabase dinamicamente
   app.get("/api/config", (req, res) => {
     res.json(getConfig());
+  });
+
+  // API para validar o token do Cloudflare Turnstile antes do login
+  app.post("/api/verify-turnstile", express.json(), async (req, res) => {
+    const { token } = req.body;
+    const secretKey = process.env.TURNSTILE_SECRET_KEY;
+
+    if (!secretKey) {
+      console.warn("⚠️ AVISO: TURNSTILE_SECRET_KEY não configurada no servidor!");
+      return res.status(500).json({ success: false, error: "Verificação de segurança não configurada." });
+    }
+    if (!token) {
+      return res.status(400).json({ success: false, error: "Token ausente." });
+    }
+
+    try {
+      const verifyResponse = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          secret: secretKey,
+          response: token,
+          remoteip: req.ip,
+        }),
+      });
+      const outcome = await verifyResponse.json();
+      res.json({ success: !!outcome.success });
+    } catch (e) {
+      console.error("Erro ao verificar Turnstile:", e);
+      res.status(500).json({ success: false, error: "Falha ao contatar o Cloudflare." });
+    }
   });
 
   // API para debug
