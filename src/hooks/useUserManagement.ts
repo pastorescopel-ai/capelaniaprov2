@@ -4,6 +4,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { supabase } from '../services/supabaseClient';
+import { getValidSectorId } from '../utils/sectorValidation';
 
 interface UseUserManagementProps {
   users: User[];
