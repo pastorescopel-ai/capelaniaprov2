@@ -50,7 +50,7 @@
   },
   "overrides": {
     "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@^1.5.0",
-    "glob": "^11.0.0",
+    "glob": "^13.0.0",
     "source-map": "^0.7.4"
   }
 }

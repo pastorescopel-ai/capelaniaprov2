@@ -68,7 +68,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
           'vendor-utils': ['xlsx', 'jszip'],
           'vendor-pdf': ['jspdf', 'html2canvas'],
           'vendor-charts': ['recharts'],

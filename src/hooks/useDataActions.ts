@@ -47,22 +47,32 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
   const refreshData = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const data = await DataRepository.syncAll();
-      if (data) {
-        if (data.bibleStudies !== null) setters.bibleStudies(data.bibleStudies);
-        if (data.bibleClasses !== null) setters.bibleClasses(data.bibleClasses);
-        if (data.smallGroups !== null) setters.smallGroups(data.smallGroups);
-        if (data.staffVisits !== null) setters.staffVisits(data.staffVisits);
-        if (data.visitRequests !== null) setters.visitRequests(data.visitRequests);
-        if (data.proGroups !== null) setters.proGroups(data.proGroups);
-        if (data.proStaff !== null) setters.proStaff(data.proStaff);
-        if (data.proSectors !== null) setters.proSectors(data.proSectors);
-        if (data.proGroupMembers !== null) setters.proGroupMembers(data.proGroupMembers);
-        if (data.proGroupLocations !== null) setters.proGroupLocations(data.proGroupLocations);
-        if (data.proMonthlyStats !== null) setters.proMonthlyStats(data.proMonthlyStats);
-        if (data.proHistoryRecords !== null) setters.proHistoryRecords(data.proHistoryRecords);
-        if (data.config !== null) setters.config(data.config);
+      // 1. Fase Rápida/Crítica — aplica imediatamente (ex: Escala de Visitas PG)
+      const core = await DataRepository.syncCore();
+      if (core) {
+        if (core.users !== null) setters.users(core.users);
+        if (core.visitRequests !== null) setters.visitRequests(core.visitRequests);
+        if (core.proSectors !== null) setters.proSectors(core.proSectors);
+        if (core.proGroups !== null) setters.proGroups(core.proGroups);
+        if (core.proGroupLocations !== null) setters.proGroupLocations(core.proGroupLocations);
+        if (core.smallGroups !== null) setters.smallGroups(core.smallGroups);
+        if (core.config !== null) setters.config(core.config);
       }
+
+      // 2. Fase Pesada/Background — não bloqueia a atualização da fase rápida
+      DataRepository.syncBackground().then(bg => {
+        if (!bg) return;
+        if (bg.bibleStudies !== null) setters.bibleStudies(bg.bibleStudies);
+        if (bg.bibleClasses !== null) setters.bibleClasses(bg.bibleClasses);
+        if (bg.staffVisits !== null) setters.staffVisits(bg.staffVisits);
+        if (bg.proStaff !== null) setters.proStaff(bg.proStaff);
+        if (bg.proGroupMembers !== null) setters.proGroupMembers(bg.proGroupMembers);
+        if (bg.proMonthlyStats !== null) setters.proMonthlyStats(bg.proMonthlyStats);
+        if (bg.proHistoryRecords !== null) setters.proHistoryRecords(bg.proHistoryRecords);
+      }).catch(err => {
+        console.error('Erro na fase background do refresh:', err);
+      });
+
       return { success: true };
     } catch (err) {
       console.error("Erro ao recarregar dados:", err);
