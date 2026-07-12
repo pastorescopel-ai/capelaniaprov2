@@ -71,7 +71,13 @@ async function startServer() {
         return res.status(401).json({ error: "Sessão inválida." });
       }
 
-      const { data: dbUser, error: dbError } = await supabaseServer
+      // Repassa o token do usuário para que a consulta rode como "authenticated"
+      // (obrigatório agora que as políticas de RLS exigem login para ler a tabela users).
+      const supabaseAsUser = createClient(config.supabaseUrl, config.supabaseKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+
+      const { data: dbUser, error: dbError } = await supabaseAsUser
         .from("users")
         .select("role")
         .eq("email", user.email.toLowerCase())
