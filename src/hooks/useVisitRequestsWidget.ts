@@ -81,6 +81,10 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   }, []);
 
+  // Agendamentos "assigned" que ficaram sem confirmação/registro por muito tempo
+  // não devem poluir a escala para sempre.
+  const OVERDUE_LIMIT_DAYS = 7;
+
   const myRequests = useMemo(() => {
     const res = (() => {
       // 1. Otimização: Criar um índice dos PGs registrados (O(M))
@@ -96,8 +100,14 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
 
       return requests.filter(req => {
         if (req.status === 'confirmed' || req.status === 'declined') return false;
-        
+
         const reqDate = ensureISODate(req.date);
+
+        if (reqDate && reqDate < todayStr) {
+          const daysOverdue = Math.floor((getTimestamp(todayStr) - getTimestamp(reqDate)) / 86400000);
+          if (daysOverdue > OVERDUE_LIMIT_DAYS) return false;
+        }
+
         const normName = normalizeString(req.pgName);
         let isAlreadyRegistered = false;
         
@@ -136,7 +146,7 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
       });
     })();
     return res;
-  }, [requests, currentUser, smallGroups]);
+  }, [requests, currentUser, smallGroups, todayStr]);
 
   const getMeetingSector = (req: VisitRequest) => {
       if (req.meetingLocation) return req.meetingLocation;
