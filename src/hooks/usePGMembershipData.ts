@@ -3,6 +3,7 @@ import { useMemo, useCallback } from 'react';
 import { Unit, ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProProvider, ProGroupLocation } from '../types';
 import { normalizeString, tokenMatch, getTimestamp } from '../utils/formatters';
 import { isLiveMembership, isActiveInMonth } from '../utils/pgMembership';
+import { getValidSectorId } from '../utils/sectorValidation';
 
 interface UsePGMembershipDataProps {
   unit: Unit;

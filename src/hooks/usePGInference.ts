@@ -2,6 +2,7 @@
 import { useMemo, useCallback } from 'react';
 import { Unit, ProGroup, ProSector, ProGroupLocation, ProStaff } from '../types';
 import { normalizeString } from '../utils/formatters';
+import { getValidSectorId } from '../utils/sectorValidation';
 
 interface PGInferenceResult {
   leaderName: string;

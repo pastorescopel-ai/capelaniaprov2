@@ -6,6 +6,7 @@ import { useApp } from '../../hooks/useApp';
 import { usePro } from '../../contexts/ProContext';
 import { useBible } from '../../contexts/BibleContext';
 import { getTimestamp, cleanID } from '../../utils/formatters';
+import { getValidSectorId } from '../../utils/sectorValidation';
 import { toCamel } from '../../utils/transformers';
 import { DataRepository } from '../../services/dataRepository';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
