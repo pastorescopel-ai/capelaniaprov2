@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Config, Unit } from '../../types';
 import { useApp } from '../../hooks/useApp';
-import { useDashboardStats } from '../../hooks/useDashboardStats';
+import { useDashboardStats, GlobalImpactComparisonMode } from '../../hooks/useDashboardStats';
 import Mural from './Mural';
 import DailyActivitiesReminder from './DailyActivitiesReminder';
 import StatCards from './StatCards';
@@ -29,9 +29,29 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ 
   unit, studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onGoToReturnHistory, onUpdateConfig 
 }) => {
-  const { visitRequests, users, isInitialized, proMonthlyStats } = useApp(); 
+  const { visitRequests, users, isInitialized, proMonthlyStats } = useApp();
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().split('T')[0].substring(0, 7));
-  
+  const [comparisonMode, setComparisonMode] = useState<GlobalImpactComparisonMode>('previousMonth');
+  const [selectedAverageMonths, setSelectedAverageMonths] = useState<string[]>([]);
+
+  // Últimos 12 meses (fechados), do mais recente pro mais antigo, para o seletor de média.
+  const availableMonths = React.useMemo(() => {
+    const months: string[] = [];
+    const cursor = new Date();
+    for (let i = 1; i <= 12; i++) {
+      cursor.setDate(1); // evita pular mês em meses com menos dias
+      const d = new Date(cursor.getFullYear(), cursor.getMonth() - i, 1);
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    return months;
+  }, []);
+
+  const toggleAverageMonth = (month: string) => {
+    setSelectedAverageMonths(prev =>
+      prev.includes(month) ? prev.filter(m => m !== month) : [...prev, month]
+    );
+  };
+
   const {
     pendingReturns,
     todaysReturns,
@@ -45,7 +65,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     monthName,
     goals,
     accumulated
-  } = useDashboardStats(studies, classes, groups, visits, currentUser, proMonthlyStats, selectedMonth);
+  } = useDashboardStats(studies, classes, groups, visits, currentUser, proMonthlyStats, selectedMonth, comparisonMode, selectedAverageMonths);
 
   if (!isInitialized) {
     return <div className="p-8 text-center text-slate-500 font-bold">Carregando dashboard...</div>;
@@ -128,7 +148,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         { name: 'Classes', val: monthlyClasses.length },
         { name: 'PGs', val: monthlyGroups.length },
         { name: 'Visitas', val: monthlyVisits.length },
-      ]} globalData={globalImpact} />
+      ]}
+        globalData={globalImpact}
+        comparisonMode={comparisonMode}
+        onComparisonModeChange={setComparisonMode}
+        availableMonths={availableMonths}
+        selectedAverageMonths={selectedAverageMonths}
+        onToggleAverageMonth={toggleAverageMonth}
+      />
 
       {/* Histórico de Atividades Recentes */}
       <DashboardActivityHistory unit={unit} />

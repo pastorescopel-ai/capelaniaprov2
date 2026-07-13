@@ -1,13 +1,30 @@
 
 import React from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell, Legend, YAxis } from 'recharts';
+import { GlobalImpactComparisonMode } from '../../hooks/useDashboardStats';
+import { formatMonthLabel } from '../../utils/formatters';
 
 interface ImpactChartsProps {
   individualData: any[];
   globalData: any;
+  comparisonMode: GlobalImpactComparisonMode;
+  onComparisonModeChange: (mode: GlobalImpactComparisonMode) => void;
+  availableMonths: string[];
+  selectedAverageMonths: string[];
+  onToggleAverageMonth: (month: string) => void;
 }
 
-const ImpactCharts: React.FC<ImpactChartsProps> = ({ individualData, globalData }) => {
+const MODE_OPTIONS: { mode: GlobalImpactComparisonMode; label: string }[] = [
+  { mode: 'previousMonth', label: 'Mês Anterior' },
+  { mode: 'sameMonthLastYear', label: 'Ano Passado' },
+  { mode: 'average', label: 'Média de Meses' },
+];
+
+const ImpactCharts: React.FC<ImpactChartsProps> = ({
+  individualData, globalData,
+  comparisonMode, onComparisonModeChange,
+  availableMonths, selectedAverageMonths, onToggleAverageMonth
+}) => {
   return (
     <div className="space-y-8">
       {/* Gráfico Individual */}
@@ -45,6 +62,48 @@ const ImpactCharts: React.FC<ImpactChartsProps> = ({ individualData, globalData 
           </div>
         </div>
 
+        {/* Seletor de comparação */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {MODE_OPTIONS.map(opt => (
+            <button
+              key={opt.mode}
+              type="button"
+              onClick={() => onComparisonModeChange(opt.mode)}
+              className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${
+                comparisonMode === opt.mode
+                  ? 'bg-[#005a9c] text-white border-[#005a9c]'
+                  : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {comparisonMode === 'average' && (
+          <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">
+              Selecione os meses para calcular a média {selectedAverageMonths.length === 0 && '(nenhum selecionado)'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {availableMonths.map(month => (
+                <button
+                  key={month}
+                  type="button"
+                  onClick={() => onToggleAverageMonth(month)}
+                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border capitalize ${
+                    selectedAverageMonths.includes(month)
+                      ? 'bg-emerald-500 text-white border-emerald-500'
+                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {formatMonthLabel(`${month}-01`)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="h-[250px] w-full min-h-[250px]">
           <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100} debounce={50}>
             <BarChart 
@@ -69,9 +128,9 @@ const ImpactCharts: React.FC<ImpactChartsProps> = ({ individualData, globalData 
                 iconType="circle"
                 wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', paddingBottom: '20px' }}
               />
-              <Bar 
-                name="Mês Anterior" 
-                dataKey="anterior" 
+              <Bar
+                name={globalData.comparisonLabel || 'Mês Anterior'}
+                dataKey="anterior"
                 radius={[6, 6, 0, 0]} 
                 barSize={18}
               >

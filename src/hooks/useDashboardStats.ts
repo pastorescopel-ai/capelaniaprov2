@@ -4,6 +4,8 @@ import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User } from '../types';
 import { useVisitGoals } from './useVisitGoals';
 import { countUniqueClasses } from '../utils/formatters';
 
+export type GlobalImpactComparisonMode = 'previousMonth' | 'sameMonthLastYear' | 'average';
+
 export const useDashboardStats = (
   studies: BibleStudy[],
   classes: BibleClass[],
@@ -11,7 +13,9 @@ export const useDashboardStats = (
   visits: StaffVisit[],
   currentUser: User,
   proMonthlyStats: any[] = [],
-  selectedMonth?: string
+  selectedMonth?: string,
+  comparisonMode: GlobalImpactComparisonMode = 'previousMonth',
+  averageMonths: string[] = []
 ) => {
   
   // 1. Dados Históricos Completos
@@ -115,55 +119,114 @@ export const useDashboardStats = (
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    
-    const prevMonthDate = new Date();
-    prevMonthDate.setMonth(now.getMonth() - 1);
-    const prevMonth = prevMonthDate.getMonth();
-    const prevYear = prevMonthDate.getFullYear();
 
-    const getMonthStats = (m: number, y: number) => {
+    // Fora da janela "ao vivo" (dados recentes já carregados), usamos o snapshot mensal
+    // já consolidado (soma de todas as unidades) em vez de tentar filtrar arrays que
+    // podem não ter mais aquele mês carregado.
+    const getMonthStatsFromSnapshot = (monthISO: string) => {
+      const snaps = (proMonthlyStats || []).filter(s => s.type === 'pg' && s.targetId === 'all' && s.month?.startsWith(monthISO));
+      if (snaps.length === 0) return null;
+
+      const totals = { students: 0, studies: 0, classes: 0, groups: 0, visits: 0, total: 0 };
+      snaps.forEach(s => {
+        const m = s.snapshotData?.performanceMetrics;
+        if (!m) return;
+        totals.students += m.totalUniqueStudents || 0;
+        totals.studies += m.totalBibleStudies || 0;
+        totals.classes += m.totalBibleClasses || 0;
+        totals.groups += m.totalSmallGroups || 0;
+        totals.visits += m.totalStaffVisits || 0;
+      });
+      totals.total = totals.studies + totals.classes + totals.groups + totals.visits;
+      return totals;
+    };
+
+    const getMonthStatsFromLiveData = (m: number, y: number) => {
       const filterFn = (item: any) => {
         if (!item.date) return false;
         const dateStr = typeof item.date === 'number' ? new Date(item.date).toLocaleDateString('en-CA') : String(item.date);
         const d = new Date(dateStr.split('T')[0] + 'T12:00:00');
         return d.getMonth() === m && d.getFullYear() === y;
       };
-      
+
       const mS = (studies || []).filter(filterFn);
       const mC = (classes || []).filter(filterFn);
       const mG = (groups || []).filter(filterFn);
       const mV = (visits || []).filter(filterFn);
-      
+
       const uniqueClasses = countUniqueClasses(mC);
-      
+
       const uS = new Set<string>();
       mS.forEach(s => { if (s.name) uS.add(s.name.trim().toLowerCase()); });
       mC.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uS.add(n.trim().toLowerCase())); });
-      
-      return { 
-        students: uS.size, 
-        studies: mS.length, 
-        classes: uniqueClasses, 
-        groups: mG.length, 
-        visits: mV.length, 
-        total: mS.length + uniqueClasses + mG.length + mV.length 
+
+      return {
+        students: uS.size,
+        studies: mS.length,
+        classes: uniqueClasses,
+        groups: mG.length,
+        visits: mV.length,
+        total: mS.length + uniqueClasses + mG.length + mV.length
       };
     };
 
+    // Mês corrente (ainda em andamento) sempre usa dados ao vivo; meses fechados
+    // preferem o snapshot consolidado, caindo para os dados ao vivo se não houver snapshot.
+    const getMonthStats = (m: number, y: number) => {
+      const isLiveMonth = m === currentMonth && y === currentYear;
+      if (!isLiveMonth) {
+        const monthISO = `${y}-${String(m + 1).padStart(2, '0')}`;
+        const snap = getMonthStatsFromSnapshot(monthISO);
+        if (snap) return snap;
+      }
+      return getMonthStatsFromLiveData(m, y);
+    };
+
     const curr = getMonthStats(currentMonth, currentYear);
-    const prev = getMonthStats(prevMonth, prevYear);
-    const diff = curr.total - prev.total;
-    const pct = prev.total > 0 ? Math.round((diff / prev.total) * 100) : (curr.total > 0 ? 100 : 0);
-    
+
+    let comparison: ReturnType<typeof getMonthStats>;
+    let comparisonLabel: string;
+
+    if (comparisonMode === 'sameMonthLastYear') {
+      comparison = getMonthStats(currentMonth, currentYear - 1);
+      comparisonLabel = 'Mesmo Mês Ano Passado';
+    } else if (comparisonMode === 'average' && averageMonths.length > 0) {
+      const allStats = averageMonths.map(monthStr => {
+        const [y, m] = monthStr.split('-').map(Number);
+        return getMonthStats(m - 1, y);
+      });
+      const n = allStats.length;
+      const sum = (key: 'students' | 'studies' | 'classes' | 'groups' | 'visits') =>
+        Math.round(allStats.reduce((acc, s) => acc + s[key], 0) / n);
+      comparison = {
+        students: sum('students'),
+        studies: sum('studies'),
+        classes: sum('classes'),
+        groups: sum('groups'),
+        visits: sum('visits'),
+        total: 0
+      };
+      comparison.total = comparison.studies + comparison.classes + comparison.groups + comparison.visits;
+      comparisonLabel = 'Média Selecionada';
+    } else {
+      const prevMonthDate = new Date();
+      prevMonthDate.setMonth(now.getMonth() - 1);
+      comparison = getMonthStats(prevMonthDate.getMonth(), prevMonthDate.getFullYear());
+      comparisonLabel = 'Mês Anterior';
+    }
+
+    const diff = curr.total - comparison.total;
+    const pct = comparison.total > 0 ? Math.round((diff / comparison.total) * 100) : (curr.total > 0 ? 100 : 0);
+
     const chartData = [
-      { name: 'Alunos', anterior: prev.students, atual: curr.students },
-      { name: 'Estudos', anterior: prev.studies, atual: curr.studies },
-      { name: 'Classes', anterior: prev.classes, atual: curr.classes },
-      { name: 'PGs', anterior: prev.groups, atual: curr.groups },
-      { name: 'Visitas', anterior: prev.visits, atual: curr.visits },
+      { name: 'Alunos', anterior: comparison.students, atual: curr.students },
+      { name: 'Estudos', anterior: comparison.studies, atual: curr.studies },
+      { name: 'Classes', anterior: comparison.classes, atual: curr.classes },
+      { name: 'PGs', anterior: comparison.groups, atual: curr.groups },
+      { name: 'Visitas', anterior: comparison.visits, atual: curr.visits },
     ];
-    return { chartData, pct, isUp: diff >= 0 };
-  }, [studies, classes, groups, visits]);
+    return { chartData, pct, isUp: diff >= 0, comparisonLabel };
+  }, [studies, classes, groups, visits, proMonthlyStats, comparisonMode, averageMonths]);
 
   // 5. Metas de Visitas
   const { goals, accumulated } = useVisitGoals(userVisits, currentUser);
