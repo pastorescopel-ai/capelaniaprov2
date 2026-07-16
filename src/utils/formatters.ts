@@ -203,15 +203,18 @@ export const getStudentKey = (raw: string): string => {
   return normalizeString(raw.split(' (')[0].trim());
 };
 
-export const getClassSignature = (students: string[] | undefined | null): string => {
-  if (!Array.isArray(students) || students.length === 0) return '';
-  return students.map(getStudentKey).filter(Boolean).sort().join('|');
+// A assinatura é só a lista de alunos (ordenada), sem a data: uma turma (ex: um pequeno
+// grupo fixo) que se reúne várias vezes ao longo do tempo com os mesmos membros deve contar
+// como UMA turma só, não uma por encontro — a contagem de encontros/sessões já existe à parte.
+export const getClassSignature = (cls: { students?: string[] | null } | null | undefined): string => {
+  if (!cls || !Array.isArray(cls.students) || cls.students.length === 0) return '';
+  return cls.students.map(getStudentKey).filter(Boolean).sort().join('|');
 };
 
 export const countUniqueClasses = (classes: Array<{ students?: string[] | null }>): number => {
   const signatures = new Set<string>();
   (classes || []).forEach(c => {
-    const sig = getClassSignature(c.students);
+    const sig = getClassSignature(c);
     if (sig) signatures.add(sig);
   });
   return signatures.size;

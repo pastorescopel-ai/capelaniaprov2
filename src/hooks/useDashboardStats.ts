@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User } from '../types';
 import { useVisitGoals } from './useVisitGoals';
-import { countUniqueClasses } from '../utils/formatters';
+import { countUniqueClasses, getStudentKey } from '../utils/formatters';
 
 export type GlobalImpactComparisonMode = 'previousMonth' | 'sameMonthLastYear' | 'average';
 
@@ -100,8 +100,8 @@ export const useDashboardStats = (
     const mVisits = userVisits.filter(v => isCurrentMonth(v.date));
 
     const uStudents = new Set<string>();
-    mStudies.forEach(s => { if (s.name) uStudents.add(s.name.trim().toLowerCase()); });
-    mClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(name => { if (name) uStudents.add(name.trim().toLowerCase()); }); });
+    mStudies.forEach(s => { const key = getStudentKey(s.name); if (key) uStudents.add(key); });
+    mClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(name => { const key = getStudentKey(name); if (key) uStudents.add(key); }); });
 
     return {
       monthlyStudies: mStudies,
@@ -157,8 +157,8 @@ export const useDashboardStats = (
       const uniqueClasses = countUniqueClasses(mC);
 
       const uS = new Set<string>();
-      mS.forEach(s => { if (s.name) uS.add(s.name.trim().toLowerCase()); });
-      mC.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => uS.add(n.trim().toLowerCase())); });
+      mS.forEach(s => { const key = getStudentKey(s.name); if (key) uS.add(key); });
+      mC.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => { const key = getStudentKey(n); if (key) uS.add(key); }); });
 
       return {
         students: uS.size,

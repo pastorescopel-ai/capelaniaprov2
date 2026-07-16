@@ -1,11 +1,47 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, ActivityFilter } from '../types';
 import { useReportLogic } from './useReportLogic';
-import { resolveDynamicName, normalizeString, countUniqueClasses } from '../utils/formatters';
+import { resolveDynamicName, normalizeString, countUniqueClasses, getStudentKey } from '../utils/formatters';
 import { generateExecutiveHTML } from '../utils/pdfTemplates';
 import { useDocumentGenerator } from './useDocumentGenerator';
 import { usePro } from '../contexts/ProContext';
 import { getBrandedHeaderByProfile } from '../utils/reportTemplates';
+import { supabase } from '../services/supabaseClient';
+import { toCamel } from '../utils/transformers';
+
+// A sincronização geral do app só mantém as presenças de classes bíblicas (bible_class_attendees)
+// dos últimos ~45 dias em memória (ver dataRepository.ts syncBackground). Quando o relatório usa
+// um período mais antigo que isso, buscamos as presenças daquele período direto do banco aqui,
+// sem mexer no cache global do app, para não perder alunos de classes mais antigas.
+const SYNC_WINDOW_DAYS = 45;
+
+const fetchClassAttendeesForRange = async (startDate: string, endDate: string): Promise<any[]> => {
+  if (!supabase) return [];
+  const allRows: any[] = [];
+  let from = 0;
+  const step = 1000;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('bible_class_attendees')
+      .select('*')
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .range(from, from + step - 1);
+
+    if (error) {
+      console.error('[useReports] Erro ao buscar presenças de classes sob demanda:', error);
+      break;
+    }
+    if (!data || data.length === 0) { hasMore = false; break; }
+    allRows.push(...data);
+    if (data.length < step) hasMore = false;
+    else from += step;
+  }
+
+  return toCamel(allRows);
+};
 
 interface UseReportsProps {
   studies: BibleStudy[];
@@ -37,7 +73,65 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
     selectedPG: 'all'
   });
 
-  const { filteredData, auditList, totalStats: liveStats } = useReportLogic(studies, classes, groups, visits, users, filters as any);
+  // --- BUSCA SOB DEMANDA DE PRESENÇAS ANTIGAS ---
+  // Se o período do relatório começa antes da janela de sincronização (45 dias), as presenças
+  // das classes bíblicas mais antigas não estão carregadas no app — busca direto do banco.
+  const [extendedAttendeesByClass, setExtendedAttendeesByClass] = useState<Map<string, any[]> | null>(null);
+  const [isLoadingHistoricalAttendees, setIsLoadingHistoricalAttendees] = useState(false);
+  const fetchRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    const requestId = ++fetchRequestIdRef.current;
+
+    const run = async () => {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - SYNC_WINDOW_DAYS);
+      const cutoffISO = cutoff.toISOString().split('T')[0];
+
+      if (filters.startDate >= cutoffISO) {
+        // Período inteiro já dentro da janela sincronizada — usa os dados já carregados.
+        if (requestId !== fetchRequestIdRef.current) return;
+        setExtendedAttendeesByClass(null);
+        setIsLoadingHistoricalAttendees(false);
+        return;
+      }
+
+      setIsLoadingHistoricalAttendees(true);
+      const rows = await fetchClassAttendeesForRange(filters.startDate, filters.endDate);
+      if (requestId !== fetchRequestIdRef.current) return; // filtro mudou antes da resposta chegar
+
+      const byClass = new Map<string, any[]>();
+      rows.forEach(row => {
+        const list = byClass.get(row.classId) || [];
+        list.push(row);
+        byClass.set(row.classId, list);
+      });
+      setExtendedAttendeesByClass(byClass);
+      setIsLoadingHistoricalAttendees(false);
+    };
+
+    run();
+  }, [filters.startDate, filters.endDate]);
+
+  // Reconstrói o roster (students) das classes usando as presenças buscadas sob demanda,
+  // quando disponíveis, em vez do students já sintetizado (que pode estar incompleto).
+  const effectiveClasses = useMemo(() => {
+    if (!extendedAttendeesByClass) return classes;
+    return classes.map(cls => {
+      const attendees = extendedAttendeesByClass.get(cls.id);
+      if (!attendees) return { ...cls, students: [] };
+      const students = attendees.map(a => {
+        const id = a.staffId || a.participantId;
+        if (id && !String(a.studentName).includes(`(${id})`)) {
+          return `${a.studentName} (${id})`;
+        }
+        return a.studentName;
+      });
+      return { ...cls, students };
+    });
+  }, [classes, extendedAttendeesByClass]);
+
+  const { filteredData, auditList, totalStats: liveStats } = useReportLogic(studies, effectiveClasses, groups, visits, users, filters as any);
   const pColor = config.primaryColor || '#005a9c';
 
   // --- LÓGICA DE TRAVAMENTO DE DADOS (SNAPSHOTS) ---
@@ -161,8 +255,8 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
         const uG = filterByUid(filteredData.groups).filter(i => (i.unit || Unit.HAB) === unit);
         const uV = filterByUid(filteredData.visits).filter(i => (i.unit || Unit.HAB) === unit);
         const names = new Set<string>();
-        uS.forEach(s => s.name && names.add(normalizeString(s.name)));
-        uC.forEach(c => c.students?.forEach((n: any) => n && names.add(normalizeString(n))));
+        uS.forEach(s => { const key = getStudentKey(s.name); if (key) names.add(key); });
+        uC.forEach(c => c.students?.forEach((n: any) => { const key = getStudentKey(n); if (key) names.add(key); }));
         const uniqueClasses = countUniqueClasses(uC);
         return { students: names.size, studies: uS.length, classes: uniqueClasses, groups: uG.length, visits: uV.length, total: uS.length + uniqueClasses + uG.length + uV.length };
       };
@@ -353,6 +447,7 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
     setFilters,
     loadingAction,
     isGenerating,
+    isLoadingHistoricalAttendees,
     pColor,
     proGroups,
     totalStats: finalStats.stats,

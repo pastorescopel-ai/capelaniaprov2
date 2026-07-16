@@ -1,7 +1,7 @@
 
 import { useMemo } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, Unit, RecordStatus, ActivityFilter, User } from '../types';
-import { normalizeString, cleanID, countUniqueClasses } from '../utils/formatters';
+import { normalizeString, cleanID, countUniqueClasses, getStudentKey } from '../utils/formatters';
 
 interface ReportFilters {
   startDate: string;
@@ -54,43 +54,32 @@ export const useReportLogic = (
     return result;
   }, [studies, classes, groups, visits, filters]);
 
-  // 2. CÁLCULO DE MÉDIA MENSAL ANUAL (MÉTRICA-FIDELIDADE V2)
-  // Calcula a média de alunos únicos atendidos por mês, considerando apenas os meses que tiveram registros.
-  // Esta métrica ignora o filtro de data e foca no desempenho real do ano corrente.
+  // 2. CÁLCULO DE MÉDIA MENSAL (dentro do período/filtros selecionados)
+  // Calcula a média de alunos únicos atendidos por mês, considerando apenas os meses
+  // que tiveram registros dentro do período e demais filtros já aplicados em filteredData.
   const averageStats = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const startOfYear = `${currentYear}-01-01`;
     const monthlyUnique = new Map<string, Set<string>>();
-    
+
     const addMonthlyName = (dateStr: string, rawName: string) => {
       if (!rawName || !dateStr) return;
-      const d = new Date(dateStr);
-      if (d.getFullYear() !== currentYear) return; // Garante que é do ano atual
-      
+      // Meio-dia evita que o fuso horário empurre datas no dia 1º para o mês anterior.
+      const d = new Date(dateStr.split('T')[0] + 'T12:00:00');
+      if (isNaN(d.getTime())) return;
+
       const monthKey = `${d.getFullYear()}-${d.getMonth() + 1}`;
       if (!monthlyUnique.has(monthKey)) monthlyUnique.set(monthKey, new Set());
-      const nameOnly = rawName.split(' (')[0].trim();
-      monthlyUnique.get(monthKey)!.add(normalizeString(nameOnly));
+      const key = getStudentKey(rawName);
+      if (key) monthlyUnique.get(monthKey)!.add(key);
     };
 
-    // Varre TODO o histórico para o cálculo anual (ignora filteredData)
-    studies.forEach(s => {
-      const chaplainMatch = filters.selectedChaplain === 'all' || s.userId === filters.selectedChaplain;
-      const unitMatch = filters.selectedUnit === 'all' || s.unit === filters.selectedUnit;
-      if (chaplainMatch && unitMatch) addMonthlyName(s.date, s.name);
+    filteredData.studies.forEach(s => addMonthlyName(s.date, s.name));
+    filteredData.classes.forEach(c => {
+      if (Array.isArray(c.students)) c.students.forEach(n => addMonthlyName(c.date!, n));
     });
 
-    classes.forEach(c => {
-      const chaplainMatch = filters.selectedChaplain === 'all' || c.userId === filters.selectedChaplain;
-      const unitMatch = filters.selectedUnit === 'all' || c.unit === filters.selectedUnit;
-      if (chaplainMatch && unitMatch && Array.isArray(c.students)) {
-        c.students.forEach(n => addMonthlyName(c.date!, n));
-      }
-    });
-
-    // Conta quantos meses tiveram atividade (registros de alunos)
+    // Conta quantos meses (dentro do filtro) tiveram atividade (registros de alunos)
     const activeMonthsCount = monthlyUnique.size;
-    
+
     // Soma os totais de cada mês ativo
     let totalMonthlySum = 0;
     monthlyUnique.forEach(set => {
@@ -101,9 +90,10 @@ export const useReportLogic = (
     const average = activeMonthsCount > 0 ? totalMonthlySum / activeMonthsCount : 0;
 
     return {
-      averageStudents: Number(average.toFixed(1))
+      averageStudents: Number(average.toFixed(1)),
+      activeMonthsCount
     };
-  }, [studies, classes, filters.selectedChaplain, filters.selectedUnit]);
+  }, [filteredData]);
 
   const auditList = useMemo(() => {
     const list: any[] = [];
@@ -119,25 +109,35 @@ export const useReportLogic = (
   }, [filteredData, users]);
 
   const totalStats = useMemo(() => {
-    // Contagem de alunos do PERÍODO SELECIONADO (para comparação)
+    // Contagem de alunos do PERÍODO SELECIONADO (estudos individuais + classes, sem repetir)
     const uniqueStudentsPeriod = new Set<string>();
+    // Contagem de alunos ÚNICOS só de estudos individuais (sem classes) — para o card
+    // "Estudos Bíblicos Individuais". A contagem de SESSÕES (com repetição) continua em
+    // `studies` abaixo, usada no ranking por capelão e nos relatórios exportados.
+    const uniqueIndividualStudents = new Set<string>();
     const addUniqueName = (rawName: string) => {
-      if (!rawName) return;
-      const nameOnly = rawName.split(' (')[0].trim();
-      uniqueStudentsPeriod.add(normalizeString(nameOnly));
+      const key = getStudentKey(rawName);
+      if (key) uniqueStudentsPeriod.add(key);
+      return key;
     };
-    filteredData.studies.forEach(s => s.name && addUniqueName(s.name));
+    filteredData.studies.forEach(s => {
+      if (!s.name) return;
+      const key = addUniqueName(s.name);
+      if (key) uniqueIndividualStudents.add(key);
+    });
     filteredData.classes.forEach(c => {
       if (Array.isArray(c.students)) c.students.forEach(n => addUniqueName(n));
     });
 
     return {
       studies: filteredData.studies.length,
+      uniqueIndividualStudents: uniqueIndividualStudents.size,
       classes: countUniqueClasses(filteredData.classes),
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,
       totalStudentsPeriod: uniqueStudentsPeriod.size,
-      averageStudentsMonthly: averageStats.averageStudents
+      averageStudentsMonthly: averageStats.averageStudents,
+      averageActiveMonths: averageStats.activeMonthsCount
     };
   }, [filteredData, averageStats]);
 
