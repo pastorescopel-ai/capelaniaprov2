@@ -109,19 +109,29 @@ export const useReportLogic = (
   }, [filteredData, users]);
 
   const totalStats = useMemo(() => {
-    // Contagem de alunos do PERÍODO SELECIONADO
+    // Contagem de alunos do PERÍODO SELECIONADO (estudos individuais + classes, sem repetir)
     const uniqueStudentsPeriod = new Set<string>();
+    // Contagem de alunos ÚNICOS só de estudos individuais (sem classes) — para o card
+    // "Estudos Bíblicos Individuais". A contagem de SESSÕES (com repetição) continua em
+    // `studies` abaixo, usada no ranking por capelão e nos relatórios exportados.
+    const uniqueIndividualStudents = new Set<string>();
     const addUniqueName = (rawName: string) => {
       const key = getStudentKey(rawName);
       if (key) uniqueStudentsPeriod.add(key);
+      return key;
     };
-    filteredData.studies.forEach(s => s.name && addUniqueName(s.name));
+    filteredData.studies.forEach(s => {
+      if (!s.name) return;
+      const key = addUniqueName(s.name);
+      if (key) uniqueIndividualStudents.add(key);
+    });
     filteredData.classes.forEach(c => {
       if (Array.isArray(c.students)) c.students.forEach(n => addUniqueName(n));
     });
 
     return {
       studies: filteredData.studies.length,
+      uniqueIndividualStudents: uniqueIndividualStudents.size,
       classes: countUniqueClasses(filteredData.classes),
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,

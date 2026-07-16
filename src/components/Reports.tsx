@@ -23,6 +23,7 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     setFilters,
     loadingAction,
     isGenerating,
+    isLoadingHistoricalAttendees,
     pColor,
     proGroups,
     totalStats,
@@ -58,6 +59,13 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Status</label><select value={filters.selectedStatus} onChange={e => setFilters({...filters, selectedStatus: e.target.value as any})} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm"><option value="all">Todos</option>{Object.values(RecordStatus).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase">PG (Relatório)</label><select value={filters.selectedPG} onChange={e => setFilters({...filters, selectedPG: e.target.value})} className="w-full p-4 rounded-2xl bg-white border-none font-bold text-xs shadow-sm"><option value="all">Todos os PGs</option>{proGroups.map(pg => <option key={pg.id} value={pg.id}>{pg.name}</option>)}</select></div>
         </div>
+
+        {isLoadingHistoricalAttendees && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-2xl text-[10px] font-black uppercase tracking-widest">
+            <i className="fas fa-spinner fa-spin"></i>
+            Buscando presenças de classes bíblicas mais antigas para completar o período selecionado...
+          </div>
+        )}
 
         <ReportStats totalStats={totalStats} />
       </section>

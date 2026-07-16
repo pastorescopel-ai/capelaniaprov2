@@ -7,6 +7,7 @@ interface StatsProps {
     averageStudentsMonthly: number;
     averageActiveMonths?: number;
     studies: number;
+    uniqueIndividualStudents: number;
     classes: number;
     groups: number;
     visits: number;
@@ -35,7 +36,12 @@ const ReportStats: React.FC<StatsProps> = ({ totalStats }) => {
         color: 'bg-emerald-600 shadow-emerald-100',
         sub: totalStats.isLocked ? 'DADO TRAVADO' : 'TEMPO REAL'
     },
-    { label: 'Estudos Bíblicos Individuais', value: totalStats.studies, color: 'bg-blue-500' },
+    {
+        label: 'Estudos Bíblicos Individuais',
+        value: totalStats.uniqueIndividualStudents,
+        color: 'bg-blue-500',
+        sub: `${totalStats.studies} Sessões no Período`
+    },
     { label: 'Classes Bíblicas', value: totalStats.classes, color: 'bg-indigo-500' },
     { label: 'Total de visitas ao colaborador', value: totalStats.visits, color: 'bg-rose-500 shadow-rose-100' },
   ];
