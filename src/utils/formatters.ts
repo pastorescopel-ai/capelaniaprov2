@@ -203,15 +203,22 @@ export const getStudentKey = (raw: string): string => {
   return normalizeString(raw.split(' (')[0].trim());
 };
 
-export const getClassSignature = (students: string[] | undefined | null): string => {
-  if (!Array.isArray(students) || students.length === 0) return '';
-  return students.map(getStudentKey).filter(Boolean).sort().join('|');
+// A assinatura combina data + lista de alunos (ordenada). Sem a data, uma turma que se
+// reúne várias vezes ao longo do tempo com os mesmos membros (ex: um pequeno grupo fixo)
+// colapsaria erroneamente em uma única "turma", subcontando encontros reais e distintos.
+// Com a data, só duplicatas genuínas (mesma turma enviada duas vezes no mesmo dia) colapsam.
+export const getClassSignature = (cls: { date?: string | null; students?: string[] | null } | null | undefined): string => {
+  if (!cls || !Array.isArray(cls.students) || cls.students.length === 0) return '';
+  const dateKey = cls.date ? String(cls.date).split('T')[0] : '';
+  const studentsKey = cls.students.map(getStudentKey).filter(Boolean).sort().join('|');
+  if (!studentsKey) return '';
+  return `${dateKey}::${studentsKey}`;
 };
 
-export const countUniqueClasses = (classes: Array<{ students?: string[] | null }>): number => {
+export const countUniqueClasses = (classes: Array<{ date?: string | null; students?: string[] | null }>): number => {
   const signatures = new Set<string>();
   (classes || []).forEach(c => {
-    const sig = getClassSignature(c.students);
+    const sig = getClassSignature(c);
     if (sig) signatures.add(sig);
   });
   return signatures.size;
