@@ -85,6 +85,11 @@ export const useHealerState = () => {
   }, [activeTab]);
 
   useEffect(() => {
+    const container = document.getElementById('main-scroll-container');
+    if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeTab]);
+
+  useEffect(() => {
     sessionStorage.setItem('healer_resolvedItems', JSON.stringify(Array.from(resolvedItems)));
   }, [resolvedItems]);
 
