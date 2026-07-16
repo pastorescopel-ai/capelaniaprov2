@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, ActivityFilter } from '../types';
 import { useReportLogic } from './useReportLogic';
-import { resolveDynamicName, normalizeString, countUniqueClasses } from '../utils/formatters';
+import { resolveDynamicName, normalizeString, countUniqueClasses, getStudentKey } from '../utils/formatters';
 import { generateExecutiveHTML } from '../utils/pdfTemplates';
 import { useDocumentGenerator } from './useDocumentGenerator';
 import { usePro } from '../contexts/ProContext';
@@ -161,8 +161,8 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
         const uG = filterByUid(filteredData.groups).filter(i => (i.unit || Unit.HAB) === unit);
         const uV = filterByUid(filteredData.visits).filter(i => (i.unit || Unit.HAB) === unit);
         const names = new Set<string>();
-        uS.forEach(s => s.name && names.add(normalizeString(s.name)));
-        uC.forEach(c => c.students?.forEach((n: any) => n && names.add(normalizeString(n))));
+        uS.forEach(s => { const key = getStudentKey(s.name); if (key) names.add(key); });
+        uC.forEach(c => c.students?.forEach((n: any) => { const key = getStudentKey(n); if (key) names.add(key); }));
         const uniqueClasses = countUniqueClasses(uC);
         return { students: names.size, studies: uS.length, classes: uniqueClasses, groups: uG.length, visits: uV.length, total: uS.length + uniqueClasses + uG.length + uV.length };
       };

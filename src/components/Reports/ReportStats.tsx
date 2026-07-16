@@ -5,6 +5,7 @@ interface StatsProps {
   totalStats: {
     totalStudentsPeriod: number;
     averageStudentsMonthly: number;
+    averageActiveMonths?: number;
     studies: number;
     classes: number;
     groups: number;
@@ -16,11 +17,11 @@ interface StatsProps {
 
 const ReportStats: React.FC<StatsProps> = ({ totalStats }) => {
   const cards = [
-    { 
-        label: 'Média de Alunos (Mensal)', 
-        value: totalStats.averageStudentsMonthly, 
-        color: 'bg-slate-800 shadow-slate-200', 
-        sub: 'Meses Ativos (Ano)' 
+    {
+        label: 'Média de Alunos (Mensal)',
+        value: totalStats.averageStudentsMonthly,
+        color: 'bg-slate-800 shadow-slate-200',
+        sub: `${totalStats.averageActiveMonths ?? 0} Meses Ativos no Período`
     },
     { 
         label: 'Total de Estudantes da Bíblia (Período)', 
