@@ -211,17 +211,19 @@ export const useDataMaintenance = (
     }
   };
 
-  const linkStudySessionIdentity = async (orphanName: string, targetStaffId: string, targetSectorId: string | null, participantType: string): Promise<string> => {
+  const linkStudySessionIdentity = async (orphanName: string, targetId: string, targetSectorId: string | null, participantType: string): Promise<string> => {
     if (!supabase) return "Erro Conexão";
-    
-    const numericStaffId = cleanId(targetStaffId);
+
+    const numericTargetId = cleanId(targetId);
     const numericSectorId = targetSectorId ? cleanId(targetSectorId) : null;
 
-    const updates: any = { 
-        staff_id: numericStaffId ? numericStaffId : null,
-        participant_type: participantType
-    };
-    
+    // Colaborador vincula por staff_id; Paciente/Prestador vinculam por participant_id.
+    // Gravar no campo errado deixa o registro fora do orfanato (studyOrphans) sem de fato
+    // estar ligado ao cadastro oficial certo.
+    const updates: any = participantType === 'Colaborador'
+      ? { staff_id: numericTargetId ? numericTargetId : null, participant_id: null, participant_type: participantType }
+      : { participant_id: numericTargetId ? numericTargetId : null, staff_id: null, participant_type: participantType };
+
     if (numericSectorId) {
         updates.sector_id = parseInt(numericSectorId);
     }
