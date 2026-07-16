@@ -19,46 +19,49 @@ interface BibleModuleProps {
   onEdit: (item: any) => void;
   setItemToDelete: (data: {type: string, id: string}) => void;
   handleTransfer: (item: any) => void;
+  isActive?: boolean;
 }
 
 const BibleModule: React.FC<BibleModuleProps> = ({
   type, currentUser, users, editingItem, isLoading, unit, history, allHistory, sectors,
-  onCancelEdit, onEdit, setItemToDelete, handleTransfer
+  onCancelEdit, onEdit, setItemToDelete, handleTransfer, isActive
 }) => {
   const { saveStudy, saveClass } = useBibleModule(currentUser);
 
   return (
     <Suspense fallback={<div className="p-8 animate-pulse bg-slate-100 rounded-3xl h-64" />}>
       {type === 'study' ? (
-        <BibleStudyForm 
-          currentUser={currentUser} 
-          users={users} 
-          editingItem={editingItem} 
-          isLoading={isLoading} 
-          onCancelEdit={onCancelEdit} 
-          allHistory={allHistory} 
-          unit={unit} 
-          history={history} 
-          onDelete={id => setItemToDelete({type: 'study', id})} 
-          onEdit={onEdit} 
-          onSubmit={saveStudy} 
-          onTransfer={handleTransfer} 
+        <BibleStudyForm
+          currentUser={currentUser}
+          users={users}
+          editingItem={editingItem}
+          isLoading={isLoading}
+          onCancelEdit={onCancelEdit}
+          allHistory={allHistory}
+          unit={unit}
+          history={history}
+          onDelete={id => setItemToDelete({type: 'study', id})}
+          onEdit={onEdit}
+          onSubmit={saveStudy}
+          onTransfer={handleTransfer}
+          isActive={isActive}
         />
       ) : (
-        <BibleClassForm 
-          currentUser={currentUser} 
-          users={users} 
-          editingItem={editingItem} 
-          isLoading={isLoading} 
-          onCancelEdit={onCancelEdit} 
-          allHistory={allHistory} 
-          unit={unit} 
-          sectors={sectors || []} 
-          history={history} 
-          onDelete={id => setItemToDelete({type: 'class', id})} 
-          onEdit={onEdit} 
-          onSubmit={saveClass} 
-          onTransfer={handleTransfer} 
+        <BibleClassForm
+          currentUser={currentUser}
+          users={users}
+          editingItem={editingItem}
+          isLoading={isLoading}
+          onCancelEdit={onCancelEdit}
+          allHistory={allHistory}
+          unit={unit}
+          sectors={sectors || []}
+          history={history}
+          onDelete={id => setItemToDelete({type: 'class', id})}
+          onEdit={onEdit}
+          onSubmit={saveClass}
+          onTransfer={handleTransfer}
+          isActive={isActive}
         />
       )}
     </Suspense>

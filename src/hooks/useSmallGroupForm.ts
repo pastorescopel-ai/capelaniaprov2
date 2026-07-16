@@ -13,9 +13,10 @@ interface UseSmallGroupFormProps {
   editingItem?: SmallGroup;
   currentUser: User;
   onSubmit: (data: any) => void;
+  isActive?: boolean;
 }
 
-export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onSubmit }: UseSmallGroupFormProps) => {
+export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onSubmit, isActive = true }: UseSmallGroupFormProps) => {
   const { proSectors, proGroups, proStaff, saveRecord, visitRequests, syncMasterContact, proGroupLocations, editAuthorizations } = useApp();
   const { inferPGDetails, inferLeaderDetails } = usePGInference(unit, proGroups, proSectors, proGroupLocations, proStaff);
   const { showToast } = useToast();
@@ -46,6 +47,17 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
     setFormData({ ...defaultState, userId: currentUser.id, date: getToday() });
     setIsSectorLocked(false);
   }, [unit]);
+
+  // Sair desta aba do menu (o componente fica montado em segundo plano) descarta o
+  // registro em andamento, para não achar que salvou algo que na real foi abandonado.
+  const wasActive = useRef(isActive);
+  useEffect(() => {
+    if (wasActive.current && !isActive && !editingItem) {
+      setFormData({ ...defaultState, userId: currentUser.id, date: getToday() });
+      setIsSectorLocked(false);
+    }
+    wasActive.current = isActive;
+  }, [isActive]);
 
   useEffect(() => {
     if (!formData.groupName && !editingItem) {

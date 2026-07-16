@@ -98,7 +98,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     activeTab
   });
 
-  const renderTab = (tabId: string) => {
+  const renderTab = (tabId: string, isVisible: boolean) => {
     switch (tabId) {
       case 'dashboard':
         return (
@@ -128,10 +128,11 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             onCancelEdit={() => setEditingItem(null)} 
             allHistory={bibleStudies} 
             unit={currentUnit} 
-            history={getVisibleHistory(bibleStudies)} 
-            setItemToDelete={setItemToDelete} 
-            onEdit={setEditingItem} 
-            handleTransfer={handleTransfer} 
+            history={getVisibleHistory(bibleStudies)}
+            setItemToDelete={setItemToDelete}
+            onEdit={setEditingItem}
+            handleTransfer={handleTransfer}
+            isActive={isVisible}
           />
         );
       case 'bibleClass':
@@ -146,10 +147,11 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             allHistory={bibleClasses} 
             unit={currentUnit} 
             sectors={unitSectors} 
-            history={getVisibleHistory(bibleClasses)} 
-            setItemToDelete={setItemToDelete} 
-            onEdit={setEditingItem} 
-            handleTransfer={handleTransfer} 
+            history={getVisibleHistory(bibleClasses)}
+            setItemToDelete={setItemToDelete}
+            onEdit={setEditingItem}
+            handleTransfer={handleTransfer}
+            isActive={isVisible}
           />
         );
       case 'smallGroup':
@@ -162,10 +164,11 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             onCancelEdit={() => setEditingItem(null)} 
             allHistory={smallGroups} 
             unit={currentUnit} 
-            history={getVisibleHistory(smallGroups)} 
-            setItemToDelete={setItemToDelete} 
-            onEdit={setEditingItem} 
-            handleTransfer={handleTransfer} 
+            history={getVisibleHistory(smallGroups)}
+            setItemToDelete={setItemToDelete}
+            onEdit={setEditingItem}
+            handleTransfer={handleTransfer}
+            isActive={isVisible}
           />
         );
       case 'ambassadors':
@@ -179,12 +182,13 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             isLoading={isLoading} 
             onCancelEdit={() => setEditingItem(null)} 
             unit={currentUnit} 
-            history={getVisibleHistory(staffVisits)} 
-            allHistory={staffVisits} 
-            setItemToDelete={setItemToDelete} 
-            onEdit={setEditingItem} 
+            history={getVisibleHistory(staffVisits)}
+            allHistory={staffVisits}
+            setItemToDelete={setItemToDelete}
+            onEdit={setEditingItem}
             handleTransfer={handleTransfer}
             saveRecord={saveRecord}
+            isActive={isVisible}
           />
         );
       case 'reports':
@@ -215,7 +219,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
           <div key={tabId} className={`${getTabClass(tabId)} ${isVisible ? 'block' : 'hidden'} ${isVisible ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}>
             <ErrorBoundary>
               <Suspense fallback={<TabLoading />}>
-                {renderTab(tabId)}
+                {renderTab(tabId, isVisible)}
               </Suspense>
             </ErrorBoundary>
           </div>

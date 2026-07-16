@@ -21,9 +21,10 @@ interface FormProps {
   onDelete: (id: string) => void;
   onEdit?: (item: StaffVisit) => void;
   onSubmit: (data: any) => void;
+  isActive?: boolean;
 }
 
-const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
+const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, isActive }) => {
   const {
     formData, setFormData,
     isSectorLocked, setIsSectorLocked,
@@ -32,7 +33,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     editAuthorizations,
     handleSelectName, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
     sortedHistory, defaultState
-  } = useStaffVisitForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
+  } = useStaffVisitForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
   const isAdmin = currentUser.role === UserRole.ADMIN;
 
