@@ -80,6 +80,14 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     }
   }, [editingItem, defaultState, getToday, currentUser.id]);
 
+  // Trocar a Unidade (HAB/HABA) descarta o registro em andamento, para evitar que um
+  // formulário meio preenchido para uma unidade seja salvo acidentalmente na outra.
+  const isFirstUnitRender = useRef(true);
+  useEffect(() => {
+    if (isFirstUnitRender.current) { isFirstUnitRender.current = false; return; }
+    setFormData({ ...defaultState, userId: currentUser.id, date: getToday() });
+  }, [unit]);
+
   const guideOptions = useMemo(() => {
     const uniqueGuides = new Set<string>();
     allHistory.forEach(c => { if (c.guide && c.unit === unit) uniqueGuides.add(c.guide); });

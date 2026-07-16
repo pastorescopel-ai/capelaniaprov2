@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Unit, StaffVisit, User, VisitReason, ParticipantType } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
@@ -40,6 +40,15 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       setIsSectorLocked(false);
     }
   }, [editingItem, defaultState, getToday, currentUser.id]);
+
+  // Trocar a Unidade (HAB/HABA) descarta o registro em andamento, para evitar que um
+  // formulário meio preenchido para uma unidade seja salvo acidentalmente na outra.
+  const isFirstUnitRender = useRef(true);
+  useEffect(() => {
+    if (isFirstUnitRender.current) { isFirstUnitRender.current = false; return; }
+    setFormData({ ...defaultState, userId: currentUser.id, date: getToday() });
+    setIsSectorLocked(false);
+  }, [unit]);
 
   const sectorOptions = useMemo(() => 
     proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name})).sort((a,b) => a.label.localeCompare(b.label)), 
