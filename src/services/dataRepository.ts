@@ -247,7 +247,10 @@ export const DataRepository = {
 
       const results = await Promise.all([
         DataRepository.fetchFullTable('pro_history_records', 199999, q => q.gte('month', limitMonth)),
-        DataRepository.fetchFullTable('pro_group_members', MAX_ROWS, q => q.gte('cycle_month', limitMonth)),
+        // Sincroniza a tabela inteira (sem filtro de data): a matrícula ativa de um colaborador
+        // pode ter sido feita há meses e nunca mais alterada, então filtrar por cycle_month
+        // recente escondia a maioria das matrículas ativas (bug do card "Adesão aos PGs").
+        DataRepository.fetchFullTable('pro_group_members', MAX_ROWS),
         DataRepository.fetchFullTable('pro_staff', MAX_ROWS),
         DataRepository.fetchFullTable('pro_monthly_stats', 99999), 
         DataRepository.fetchFullTable('staff_visits', MAX_ROWS, q => q.gte('date', limitDate)),
