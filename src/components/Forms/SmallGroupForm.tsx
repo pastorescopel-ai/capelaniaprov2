@@ -21,9 +21,10 @@ interface FormProps {
   onDelete: (id: string) => void;
   onEdit?: (item: SmallGroup) => void;
   onSubmit: (data: any) => void;
+  isActive?: boolean;
 }
 
-const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit }) => {
+const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit, isActive }) => {
   const {
     formData, setFormData,
     isSectorLocked, setIsSectorLocked,
@@ -31,7 +32,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
     sectorOptions, pgOptions, staffOptions,
     editAuthorizations,
     handleSelectPG, handleSelectLeader, handleLeaderChange, handleClear, handleFormSubmit
-  } = useSmallGroupForm({ unit, history, editingItem, currentUser, onSubmit });
+  } = useSmallGroupForm({ unit, history, editingItem, currentUser, onSubmit, isActive });
 
   const isAdmin = currentUser.role === UserRole.ADMIN;
 

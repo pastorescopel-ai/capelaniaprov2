@@ -15,9 +15,10 @@ interface UseBibleClassFormProps {
   editingItem?: BibleClass;
   currentUser: User;
   onSubmit: (data: any) => void;
+  isActive?: boolean;
 }
 
-export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit }: UseBibleClassFormProps) => {
+export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit, isActive = true }: UseBibleClassFormProps) => {
   const { proStaff, proPatients, proProviders, proSectors, syncMasterContact, editAuthorizations } = useApp();
   const { showToast } = useToast();
   const { checkOwnershipConflict } = useIdentityGuard();
@@ -87,6 +88,16 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     if (isFirstUnitRender.current) { isFirstUnitRender.current = false; return; }
     setFormData({ ...defaultState, userId: currentUser.id, date: getToday() });
   }, [unit]);
+
+  // Sair desta aba do menu (o componente fica montado em segundo plano) descarta o
+  // registro em andamento, para não achar que salvou algo que na real foi abandonado.
+  const wasActive = useRef(isActive);
+  useEffect(() => {
+    if (wasActive.current && !isActive && !editingItem) {
+      setFormData({ ...defaultState, userId: currentUser.id, date: getToday() });
+    }
+    wasActive.current = isActive;
+  }, [isActive]);
 
   const guideOptions = useMemo(() => {
     const uniqueGuides = new Set<string>();

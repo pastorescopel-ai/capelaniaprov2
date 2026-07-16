@@ -24,9 +24,10 @@ interface FormProps {
   onEdit?: (item: BibleClass) => void;
   onSubmit: (data: any) => void;
   onTransfer?: (type: string, id: string, newUserId: string) => void;
+  isActive?: boolean;
 }
 
-const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, onTransfer }) => {
+const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, onTransfer, isActive }) => {
   const {
     formData, setFormData,
     newStudent, setNewStudent,
@@ -37,7 +38,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     handleSelectSector,
     addStudent, handleClear, handleFormSubmit,
     handleContinueClass, defaultState, ownershipConflict, setOwnershipConflict
-  } = useBibleClassForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
+  } = useBibleClassForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
   const isAdmin = currentUser.role === UserRole.ADMIN;
 

@@ -15,9 +15,10 @@ interface UseStaffVisitFormProps {
   editingItem?: StaffVisit;
   currentUser: User;
   onSubmit: (data: any) => void;
+  isActive?: boolean;
 }
 
-export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit }: UseStaffVisitFormProps) => {
+export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit, isActive = true }: UseStaffVisitFormProps) => {
   const { proStaff, proProviders, proSectors, syncMasterContact, editAuthorizations } = useApp();
   const { showToast } = useToast();
   const { checkIdentityConflict } = useIdentityGuard();
@@ -49,6 +50,17 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     setFormData({ ...defaultState, userId: currentUser.id, date: getToday() });
     setIsSectorLocked(false);
   }, [unit]);
+
+  // Sair desta aba do menu (o componente fica montado em segundo plano) descarta o
+  // registro em andamento, para não achar que salvou algo que na real foi abandonado.
+  const wasActive = useRef(isActive);
+  useEffect(() => {
+    if (wasActive.current && !isActive && !editingItem) {
+      setFormData({ ...defaultState, userId: currentUser.id, date: getToday() });
+      setIsSectorLocked(false);
+    }
+    wasActive.current = isActive;
+  }, [isActive]);
 
   const sectorOptions = useMemo(() => 
     proSectors.filter(s => s.unit === unit).map(s => ({value: s.name, label: s.name})).sort((a,b) => a.label.localeCompare(b.label)), 

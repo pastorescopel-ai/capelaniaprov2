@@ -23,9 +23,10 @@ interface FormProps {
   onEdit?: (item: BibleStudy) => void;
   onSubmit: (data: any) => void;
   onTransfer?: (type: string, id: string, newUserId: string) => void;
+  isActive?: boolean;
 }
 
-const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, onTransfer }) => {
+const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, onTransfer, isActive }) => {
   const {
     formData, setFormData,
     isSectorLocked, setIsSectorLocked,
@@ -34,7 +35,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     editAuthorizations,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
     handleContinueStudy, ownershipConflict, setOwnershipConflict
-  } = useBibleStudyForm({ unit, history, allHistory, editingItem, currentUser, onSubmit });
+  } = useBibleStudyForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
   const isAdmin = currentUser.role === UserRole.ADMIN;
