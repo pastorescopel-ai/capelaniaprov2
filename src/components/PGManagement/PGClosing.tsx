@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Unit, ProMonthlyStats } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import { useApp } from '../../hooks/useApp';
@@ -9,10 +9,12 @@ import { getTimestamp, cleanID } from '../../utils/formatters';
 import { getValidSectorId } from '../../utils/sectorValidation';
 import { toCamel } from '../../utils/transformers';
 import { DataRepository } from '../../services/dataRepository';
+import { supabase } from '../../services/supabaseClient';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
 import GlobalCloseMonthModal from '../Admin/GlobalCloseMonthModal';
 import GlobalReopenMonthModal from '../Admin/GlobalReopenMonthModal';
 import ForceSyncModal from '../Admin/ForceSyncModal';
+import Autocomplete from '../Shared/Autocomplete';
 
 interface PGClosingProps {
   unit: Unit;
@@ -24,9 +26,9 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
     saveRecord, deleteRecordsByFilter, loadFromCloud
   } = useApp();
   
-  const { 
-    proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, 
-    proMonthlyStats, proProviders 
+  const {
+    proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers,
+    proMonthlyStats, proProviders, proHistoryRecords
   } = usePro();
 
   const { showToast } = useToast();
@@ -42,6 +44,63 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   });
+
+  // --- CORREÇÃO PONTUAL DE COLABORADOR EM MÊS FECHADO (sem reabrir o mês) ---
+  const [correctionStaffId, setCorrectionStaffId] = useState('');
+  const [correctionNewSectorId, setCorrectionNewSectorId] = useState('');
+  const [correctionNewGroupId, setCorrectionNewGroupId] = useState('');
+  const [isCorrecting, setIsCorrecting] = useState(false);
+
+  const correctionStaffOptions = useMemo(() => {
+    return (proHistoryRecords || [])
+      .filter(r => r.month === selectedCloseMonth && r.unit === unit && r.isEnrolled)
+      .map(r => ({
+        value: String(r.staffId),
+        label: `${r.staffName} (${r.sectorName || 'Sem Setor'})`,
+        subLabel: r.groupName || 'Sem PG',
+        category: 'History' as const
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [proHistoryRecords, selectedCloseMonth, unit]);
+
+  const selectedCorrectionRecord = useMemo(() => {
+    if (!correctionStaffId) return null;
+    return (proHistoryRecords || []).find(r => r.month === selectedCloseMonth && r.unit === unit && String(r.staffId) === correctionStaffId) || null;
+  }, [proHistoryRecords, selectedCloseMonth, unit, correctionStaffId]);
+
+  const handleApplyClosedMonthCorrection = async () => {
+    if (!correctionStaffId || !correctionNewSectorId) {
+      showToast('Selecione o colaborador e o novo setor.', 'warning');
+      return;
+    }
+    if (!supabase) {
+      showToast('Sem conexão com o banco.', 'error');
+      return;
+    }
+    setIsCorrecting(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_correct_closed_month_staff', {
+        p_month: selectedCloseMonth,
+        p_unit: unit,
+        p_staff_id: Number(cleanID(correctionStaffId)),
+        p_new_sector_id: Number(correctionNewSectorId),
+        p_new_group_id: correctionNewGroupId ? Number(correctionNewGroupId) : null
+      });
+      if (error) throw new Error(error.message);
+      const isError = typeof data === 'string' && data.startsWith('Erro:');
+      showToast(data, isError ? 'error' : 'success');
+      if (!isError) {
+        setCorrectionStaffId('');
+        setCorrectionNewSectorId('');
+        setCorrectionNewGroupId('');
+        await loadFromCloud(true);
+      }
+    } catch (e: any) {
+      showToast(e.message, 'error');
+    } finally {
+      setIsCorrecting(false);
+    }
+  };
 
   useEffect(() => {
     if (!proMonthlyStats || proMonthlyStats.length === 0) return;
@@ -547,6 +606,78 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
           </div>
 
       </div>
+
+      {isMonthClosed && (
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl">
+              <i className="fas fa-user-edit"></i>
+            </div>
+            <div>
+              <h3 className="text-slate-800 font-black uppercase text-sm tracking-tight">Corrigir Colaborador em Mês Fechado</h3>
+              <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
+                Ajusta setor/PG de UM colaborador em {formatMonthLabel(selectedCloseMonth)} sem reabrir o mês — os demais registros ficam intactos
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <label className="text-[9px] font-black text-slate-400 uppercase px-2">Colaborador (matriculado no mês)</label>
+              <Autocomplete
+                options={correctionStaffOptions}
+                value={correctionStaffId}
+                onChange={setCorrectionStaffId}
+                onSelectOption={() => {}}
+                placeholder="Buscar colaborador..."
+                isStrict
+              />
+              {selectedCorrectionRecord && (
+                <p className="text-[9px] font-bold text-slate-400 px-2">
+                  Atual: {selectedCorrectionRecord.sectorName || 'Sem Setor'} {selectedCorrectionRecord.groupName ? `• ${selectedCorrectionRecord.groupName}` : ''}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black text-slate-400 uppercase px-2">Novo Setor</label>
+              <select
+                value={correctionNewSectorId}
+                onChange={e => setCorrectionNewSectorId(e.target.value)}
+                className="w-full p-4 rounded-2xl bg-slate-50 border-none font-medium text-sm text-slate-800"
+              >
+                <option value="">Selecione...</option>
+                {proSectors.filter(s => s.unit === unit && s.active !== false).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black text-slate-400 uppercase px-2">Novo PG (opcional)</label>
+              <select
+                value={correctionNewGroupId}
+                onChange={e => setCorrectionNewGroupId(e.target.value)}
+                className="w-full p-4 rounded-2xl bg-slate-50 border-none font-medium text-sm text-slate-800"
+              >
+                <option value="">Manter PG atual</option>
+                {proGroups.filter(g => g.unit === unit && g.active !== false).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(g => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <button
+            onClick={handleApplyClosedMonthCorrection}
+            disabled={isCorrecting || !correctionStaffId || !correctionNewSectorId}
+            className="px-10 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:bg-slate-300 text-white rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-3 tracking-widest active:scale-95"
+          >
+            <i className={`fas ${isCorrecting ? 'fa-circle-notch fa-spin' : 'fa-check'}`}></i>
+            Aplicar Correção
+          </button>
+        </div>
+      )}
     </div>
   );
 };
