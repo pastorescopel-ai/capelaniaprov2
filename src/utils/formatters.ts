@@ -203,19 +203,15 @@ export const getStudentKey = (raw: string): string => {
   return normalizeString(raw.split(' (')[0].trim());
 };
 
-// A assinatura combina data + lista de alunos (ordenada). Sem a data, uma turma que se
-// reúne várias vezes ao longo do tempo com os mesmos membros (ex: um pequeno grupo fixo)
-// colapsaria erroneamente em uma única "turma", subcontando encontros reais e distintos.
-// Com a data, só duplicatas genuínas (mesma turma enviada duas vezes no mesmo dia) colapsam.
-export const getClassSignature = (cls: { date?: string | null; students?: string[] | null } | null | undefined): string => {
+// A assinatura é só a lista de alunos (ordenada), sem a data: uma turma (ex: um pequeno
+// grupo fixo) que se reúne várias vezes ao longo do tempo com os mesmos membros deve contar
+// como UMA turma só, não uma por encontro — a contagem de encontros/sessões já existe à parte.
+export const getClassSignature = (cls: { students?: string[] | null } | null | undefined): string => {
   if (!cls || !Array.isArray(cls.students) || cls.students.length === 0) return '';
-  const dateKey = cls.date ? String(cls.date).split('T')[0] : '';
-  const studentsKey = cls.students.map(getStudentKey).filter(Boolean).sort().join('|');
-  if (!studentsKey) return '';
-  return `${dateKey}::${studentsKey}`;
+  return cls.students.map(getStudentKey).filter(Boolean).sort().join('|');
 };
 
-export const countUniqueClasses = (classes: Array<{ date?: string | null; students?: string[] | null }>): number => {
+export const countUniqueClasses = (classes: Array<{ students?: string[] | null }>): number => {
   const signatures = new Set<string>();
   (classes || []).forEach(c => {
     const sig = getClassSignature(c);
