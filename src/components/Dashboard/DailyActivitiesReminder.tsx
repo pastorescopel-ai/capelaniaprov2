@@ -27,7 +27,9 @@ const DailyActivitiesReminder: React.FC<DailyActivitiesReminderProps> = ({ curre
       ((s.date && s.date.substring(0, 10) === todayISO) || (!s.date && s.dayOfWeek === dayOfWeek))
     );
 
-    if (scheduled.length === 0) return null;
+    if (scheduled.length === 0) {
+      return { hasSchedule: false, percent: 0, completedItems: 0, totalItems: 0, isFinished: false };
+    }
 
     const report = dailyActivityReports.find(r => r.userId === currentUser.id && r.date === todayISO);
 
@@ -52,7 +54,7 @@ const DailyActivitiesReminder: React.FC<DailyActivitiesReminderProps> = ({ curre
     const totalItems = scheduled.length;
     const percent = Math.round((completedItems / totalItems) * 100);
 
-    return { percent, completedItems, totalItems, isFinished: percent >= 100 };
+    return { hasSchedule: true, percent, completedItems, totalItems, isFinished: percent >= 100 };
   }, [activitySchedules, dailyActivityReports, currentUser, isInitialized]);
 
   if (!progressData || progressData.isFinished) return null;
@@ -73,7 +75,7 @@ const DailyActivitiesReminder: React.FC<DailyActivitiesReminderProps> = ({ curre
           <div>
             <h4 className="font-black text-white text-sm uppercase tracking-tight">Lançar Atividades</h4>
             <p className="text-indigo-100 font-bold text-[10px] uppercase tracking-widest mt-0.5">
-              {progressData.completedItems} de {progressData.totalItems} feitas hoje
+              {progressData.hasSchedule ? `${progressData.completedItems} de ${progressData.totalItems} feitas hoje` : 'Registre o que fez hoje'}
             </p>
           </div>
         </div>
@@ -82,13 +84,17 @@ const DailyActivitiesReminder: React.FC<DailyActivitiesReminderProps> = ({ curre
         </div>
       </div>
 
-      <div className="relative mt-4 h-1.5 bg-white/25 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-white rounded-full transition-all duration-700"
-          style={{ width: `${progressData.percent}%` }}
-        ></div>
-      </div>
-      <p className="relative mt-2 text-[10px] font-bold text-indigo-100">Toque para continuar de onde parou</p>
+      {progressData.hasSchedule && (
+        <>
+          <div className="relative mt-4 h-1.5 bg-white/25 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-white rounded-full transition-all duration-700"
+              style={{ width: `${progressData.percent}%` }}
+            ></div>
+          </div>
+          <p className="relative mt-2 text-[10px] font-bold text-indigo-100">Toque para continuar de onde parou</p>
+        </>
+      )}
     </div>
   );
 };
