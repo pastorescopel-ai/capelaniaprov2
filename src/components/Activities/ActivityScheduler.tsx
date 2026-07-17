@@ -175,24 +175,44 @@ const ActivityScheduler: React.FC = () => {
     }
   };
 
+  // Chave de "vaga" (local+dia+período) usada para detectar conflito — mesma lógica do
+  // gatilho de banco (block_duplicate_activity_schedule) e da checagem no modal de agendar.
+  const slotKey = (s: { activityType: string; location: string; period?: string; date?: string; dayOfWeek: number }) =>
+    `${s.activityType}|${s.location}|${s.period || 'tarde'}|${s.date ? s.date.substring(0, 10) : `dow${s.dayOfWeek}`}`;
+
+  // Blueprint/Setor são recorrentes por dia da semana — fazem sentido replicar.
+  // Encontro/Visite Cantando são eventos de DATA específica; replicar sem uma nova data
+  // os transformaria sem querer em recorrência semanal (foi o que gerou boa parte dos
+  // conflitos hoje), então ficam de fora da replicação.
+  const getReplicationPreview = (targetMonth: string) => {
+    const sourceSchedules = activitySchedules.filter(s =>
+      s.unit === selectedUnit && s.month === selectedMonth && (s.activityType === 'blueprint' || s.activityType === 'cult')
+    );
+    const targetSchedules = activitySchedules.filter(s => s.unit === selectedUnit && s.month === targetMonth);
+    const targetKeys = new Set(targetSchedules.map(slotKey));
+
+    const toCopy = sourceSchedules.filter(s => !targetKeys.has(slotKey(s)));
+    const skipped = sourceSchedules.length - toCopy.length;
+
+    return { toCopy, skipped, totalSource: sourceSchedules.length };
+  };
+
   const handleReplicateScale = async (targetMonth: string) => {
     if (targetMonth === selectedMonth) {
       showToast("O mês de destino deve ser diferente do atual.", "warning");
       return;
     }
 
-    const schedulesToCopy = activitySchedules.filter(s => s.unit === selectedUnit && s.month === selectedMonth);
-    
-    if (schedulesToCopy.length === 0) {
-      showToast("Não há agendamentos para copiar neste mês.", "warning");
+    const { toCopy } = getReplicationPreview(targetMonth);
+
+    if (toCopy.length === 0) {
+      showToast("Não há agendamentos novos para copiar — o mês de destino já cobre essas vagas.", "warning");
       return;
     }
 
-    if (!window.confirm(`Deseja copiar ${schedulesToCopy.length} agendamentos para ${formatMonthLabel(targetMonth)}?`)) return;
-
     setIsSaving(true);
     try {
-      const newSchedules = schedulesToCopy.map(s => ({
+      const newSchedules = toCopy.map(s => ({
         userId: s.userId,
         unit: s.unit,
         month: targetMonth,
@@ -204,9 +224,14 @@ const ActivityScheduler: React.FC = () => {
         createdAt: Date.now()
       }));
 
-      await saveRecord('activitySchedules', newSchedules);
-      showToast(`Escala replicada com sucesso para ${formatMonthLabel(targetMonth)}!`, "success");
-      setShowReplicateModal(false);
+      const success = await saveRecord('activitySchedules', newSchedules.length === 1 ? newSchedules[0] : newSchedules);
+      if (success) {
+        showToast(`${toCopy.length} agendamento(s) copiado(s) para ${formatMonthLabel(targetMonth)}!`, "success");
+        setShowReplicateModal(false);
+        await refreshData();
+      } else {
+        showToast("Erro ao replicar escala no servidor.", "warning");
+      }
     } catch (error) {
       showToast("Erro ao replicar escala.", "warning");
     } finally {
@@ -353,6 +378,7 @@ const ActivityScheduler: React.FC = () => {
           onConfirm={handleReplicateScale}
           isSaving={isSaving}
           formatMonthLabel={formatMonthLabel}
+          getPreview={getReplicationPreview}
         />
       )}
 
