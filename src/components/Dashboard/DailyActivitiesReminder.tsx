@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { User } from '../../types';
-import { ClipboardCheck, ChevronRight } from 'lucide-react';
+import { ClipboardCheck, ChevronRight, Check } from 'lucide-react';
 
 interface DailyActivitiesReminderProps {
   currentUser: User;
@@ -57,7 +57,27 @@ const DailyActivitiesReminder: React.FC<DailyActivitiesReminderProps> = ({ curre
     return { hasSchedule: true, percent, completedItems, totalItems, isFinished: percent >= 100 };
   }, [activitySchedules, dailyActivityReports, currentUser, isInitialized]);
 
-  if (!progressData || progressData.isFinished) return null;
+  if (!progressData) return null;
+
+  if (progressData.isFinished) {
+    return (
+      <div
+        onClick={() => onGoToTab('activities', 'checklist')}
+        className="flex items-center gap-2.5 bg-indigo-50 border border-indigo-100 rounded-2xl px-3.5 py-2.5 cursor-pointer hover:bg-indigo-100 transition-all group"
+      >
+        <div className="w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center flex-shrink-0">
+          <Check size={13} className="text-white" strokeWidth={3} />
+        </div>
+        <div className="flex-1">
+          <p className="text-[10px] font-black text-indigo-700 uppercase tracking-tight">Atividades de hoje concluídas</p>
+          <div className="h-[3px] bg-indigo-200 rounded-full mt-1 overflow-hidden">
+            <div className="h-full w-full bg-indigo-500 rounded-full"></div>
+          </div>
+        </div>
+        <ChevronRight size={14} className="text-indigo-300 group-hover:translate-x-0.5 transition-transform flex-shrink-0" />
+      </div>
+    );
+  }
 
   return (
     <div
