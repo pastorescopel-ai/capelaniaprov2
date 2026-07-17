@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { Unit, DailyActivityReport, UserRole } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
-import { CheckCircle, Circle, Plus, Minus, Save, MapPin, Users, HeartPulse, Calendar, Download, Search } from 'lucide-react';
+import { CheckCircle, Circle, MapPin, Users, HeartPulse, Calendar, Download, Search, NotebookPen } from 'lucide-react';
 import { generateDailyChecklistHTML } from '../../utils/activityTemplates';
 import { useDocumentGenerator } from '../../hooks/useDocumentGenerator';
 
@@ -14,32 +15,65 @@ interface ActivityChecklistProps {
   setSelectedDate: (date: string) => void;
 }
 
-const ActivityChecklist: React.FC<ActivityChecklistProps> = ({ 
-  selectedUser, 
-  setSelectedUser, 
-  selectedDate, 
-  setSelectedDate 
+const emptyReport: Partial<DailyActivityReport> = {
+  completedBlueprints: [],
+  completedCults: [],
+  completedEncontro: false,
+  completedVisiteCantando: false,
+  observations: ''
+};
+
+const ACCENT_CLASSES: Record<string, string> = {
+  indigo: 'border-indigo-500 bg-indigo-50 text-indigo-900',
+  emerald: 'border-emerald-500 bg-emerald-50 text-emerald-900',
+  amber: 'border-amber-500 bg-amber-50 text-amber-900',
+  rose: 'border-rose-500 bg-rose-50 text-rose-900'
+};
+
+const ChecklistItem: React.FC<{
+  label: string;
+  subLabel?: string;
+  period?: 'manha' | 'tarde';
+  isCompleted: boolean;
+  onClick: () => void;
+  accent: 'indigo' | 'emerald' | 'amber' | 'rose';
+}> = ({ label, subLabel, period, isCompleted, onClick, accent }) => (
+  <button
+    onClick={onClick}
+    className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
+      isCompleted ? ACCENT_CLASSES[accent] : 'bg-white border-slate-100 text-slate-700 hover:border-slate-300'
+    }`}
+  >
+    {isCompleted ? <CheckCircle size={20} className="flex-shrink-0" /> : <Circle size={20} className="flex-shrink-0 text-slate-300" />}
+    <div className="flex-1 text-left">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className={`text-[11px] font-black uppercase ${isCompleted ? 'line-through opacity-70' : 'text-slate-700'}`}>{label}</span>
+        {period && (
+          <span className={`text-[7px] font-black px-1.5 py-0.5 rounded uppercase ${period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
+            {period === 'manha' ? 'Manhã' : 'Tarde'}
+          </span>
+        )}
+      </div>
+      {subLabel && <p className="text-[9px] font-bold text-slate-400 mt-0.5">{subLabel}</p>}
+    </div>
+  </button>
+);
+
+const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
+  selectedUser,
+  setSelectedUser,
+  selectedDate,
+  setSelectedDate
 }) => {
   const { users, proSectors, activitySchedules, dailyActivityReports, saveRecord, config } = useApp();
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const { generatePdf, isGenerating: isGeneratingPdf } = useDocumentGenerator();
-  
+
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
-  const [isSaving, setIsSaving] = useState(false);
-
-  const [report, setReport] = useState<Partial<DailyActivityReport>>({
-    completedBlueprints: [],
-    completedCults: [],
-    completedEncontro: false,
-    completedVisiteCantando: false,
-    palliativeCount: 0,
-    surgicalCount: 0,
-    pediatricCount: 0,
-    utiCount: 0,
-    observations: ''
-  });
+  const [report, setReport] = useState<Partial<DailyActivityReport>>(emptyReport);
+  const [showObservations, setShowObservations] = useState(false);
 
   const chaplains = useMemo(() => {
     const all = users.filter(u => u.role === UserRole.CHAPLAIN || u.role === UserRole.INTERN || u.role === UserRole.ADMIN);
@@ -50,142 +84,111 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
   useEffect(() => {
     if (!selectedUser) return;
     const existing = dailyActivityReports.find(r => r.userId === selectedUser && r.date === selectedDate);
-    if (existing) {
-      setReport(existing);
-    } else {
-      setReport({
-        completedBlueprints: [],
-        completedCults: [],
-        completedEncontro: false,
-        completedVisiteCantando: false,
-        palliativeCount: 0,
-        surgicalCount: 0,
-        pediatricCount: 0,
-        utiCount: 0,
-        terminalCount: 0,
-        clinicalCount: 0,
-        observations: ''
-      });
-    }
+    const timer = setTimeout(() => {
+      setReport(existing || emptyReport);
+      setShowObservations(!!existing?.observations);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [selectedDate, selectedUser, dailyActivityReports]);
 
   const currentDayOfWeek = useMemo(() => {
     const d = new Date(selectedDate + 'T12:00:00').getDay();
-    // Convert 0 (Sunday) to 7, and 1-6 to 1-6. 
-    // Wait, the scheduler uses 1-6. If Sunday is 0, what should it be?
-    // Let's assume Sunday is not used or map it to 7.
     return d === 0 ? 7 : d;
   }, [selectedDate]);
-  
+
   const currentMonth = useMemo(() => {
     return selectedDate.substring(0, 7) + '-01';
   }, [selectedDate]);
 
-  const scheduledActivities = useMemo(() => 
-    activitySchedules.filter(s => 
-      s.userId === selectedUser && 
-      s.month === currentMonth && 
+  const scheduledActivities = useMemo(() =>
+    activitySchedules.filter(s =>
+      s.userId === selectedUser &&
+      s.month === currentMonth &&
       ((s.date && s.date.substring(0, 10) === selectedDate) || (!s.date && s.dayOfWeek === currentDayOfWeek))
     ),
     [activitySchedules, selectedUser, currentMonth, currentDayOfWeek, selectedDate]
   );
 
+  // Persiste imediatamente a cada toque — não existe mais um botão "Salvar" separado,
+  // já que o registro diário é só uma lista de itens marcados/desmarcados.
+  const persist = async (updated: Partial<DailyActivityReport>) => {
+    if (!selectedUser) return;
+    const userObj = users.find(u => u.id === selectedUser);
+    const nowISO = new Date().toISOString();
+    const data: Partial<DailyActivityReport> = {
+      ...updated,
+      userId: selectedUser,
+      date: selectedDate,
+      unit: userObj?.attendsHaba ? Unit.HABA : Unit.HAB,
+      updatedAt: nowISO
+    };
+    if (!data.id) data.createdAt = nowISO;
+    await saveRecord('dailyActivityReports', data);
+  };
+
+  // Usa a forma funcional do setState + persiste a partir do MESMO valor computado,
+  // para que dois toques em sequência rápida (antes do primeiro re-renderizar) nunca
+  // percam a marcação um do outro por lerem um `report` desatualizado.
   const handleToggleBlueprint = (loc: string, period: 'manha' | 'tarde' = 'tarde') => {
-    const current = report.completedBlueprints || [];
-    const locWithPeriod = `${loc}:${period}`;
-    
-    // Check for both new format (loc:period) and old format (loc) if period is 'tarde'
-    const hasNewFormat = current.includes(locWithPeriod);
-    const hasOldFormat = period === 'tarde' && current.includes(loc);
-    
-    if (hasNewFormat || hasOldFormat) {
-      setReport({ 
-        ...report, 
-        completedBlueprints: current.filter(l => l !== locWithPeriod && l !== loc) 
-      });
-    } else {
-      setReport({ ...report, completedBlueprints: [...current, locWithPeriod] });
-    }
+    setReport(prev => {
+      const current = prev.completedBlueprints || [];
+      const locWithPeriod = `${loc}:${period}`;
+      const hasNewFormat = current.includes(locWithPeriod);
+      const hasOldFormat = period === 'tarde' && current.includes(loc);
+
+      const updated = {
+        ...prev,
+        completedBlueprints: (hasNewFormat || hasOldFormat)
+          ? current.filter(l => l !== locWithPeriod && l !== loc)
+          : [...current, locWithPeriod]
+      };
+      persist(updated);
+      return updated;
+    });
   };
 
   const handleToggleCult = (sectorId: string, period: 'manha' | 'tarde' = 'tarde') => {
-    const current = report.completedCults || [];
-    const locWithPeriod = `${sectorId}:${period}`;
-    
-    const hasNewFormat = current.includes(locWithPeriod);
-    const hasOldFormat = period === 'tarde' && current.includes(sectorId);
+    setReport(prev => {
+      const current = prev.completedCults || [];
+      const locWithPeriod = `${sectorId}:${period}`;
+      const hasNewFormat = current.includes(locWithPeriod);
+      const hasOldFormat = period === 'tarde' && current.includes(sectorId);
 
-    if (hasNewFormat || hasOldFormat) {
-      setReport({ 
-        ...report, 
-        completedCults: current.filter(id => id !== locWithPeriod && id !== sectorId) 
-      });
-    } else {
-      setReport({ ...report, completedCults: [...current, locWithPeriod] });
-    }
+      const updated = {
+        ...prev,
+        completedCults: (hasNewFormat || hasOldFormat)
+          ? current.filter(id => id !== locWithPeriod && id !== sectorId)
+          : [...current, locWithPeriod]
+      };
+      persist(updated);
+      return updated;
+    });
   };
 
   const handleToggleEncontro = () => {
-    setReport({ ...report, completedEncontro: !report.completedEncontro });
+    setReport(prev => {
+      const updated = { ...prev, completedEncontro: !prev.completedEncontro };
+      persist(updated);
+      return updated;
+    });
   };
 
   const handleToggleVisiteCantando = () => {
-    setReport({ ...report, completedVisiteCantando: !report.completedVisiteCantando });
+    setReport(prev => {
+      const updated = { ...prev, completedVisiteCantando: !prev.completedVisiteCantando };
+      persist(updated);
+      return updated;
+    });
   };
 
-  const updateCount = (field: keyof DailyActivityReport, delta: number) => {
-    const current = (report[field] as number) || 0;
-    const newVal = Math.max(0, current + delta);
-    setReport({ ...report, [field]: newVal });
-  };
-
-  const handleCountChange = (field: keyof DailyActivityReport, value: string) => {
-    if (value === '') {
-      setReport({ ...report, [field]: 0 });
-      return;
-    }
-    const num = parseInt(value, 10);
-    if (!isNaN(num) && num >= 0) {
-      setReport({ ...report, [field]: num });
-    }
-  };
-
-  const handleSave = async () => {
-    if (!selectedUser) {
-      showToast("Selecione um usuário.", "warning");
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const userObj = users.find(u => u.id === selectedUser);
-      const nowISO = new Date().toISOString();
-      
-      const data: Partial<DailyActivityReport> = {
-        ...report,
-        userId: selectedUser,
-        date: selectedDate,
-        unit: userObj?.attendsHaba ? Unit.HABA : Unit.HAB,
-        updatedAt: nowISO
-      };
-      
-      if (!data.id) data.createdAt = nowISO;
-
-      console.log("[DEBUG] Salvando Relatório Diário:", data);
-      const result = await saveRecord('dailyActivityReports', data);
-      
-      if (result) {
-        showToast("Relatório salvo com sucesso!", "success");
-      } else {
-        console.error("[DEBUG] Falha ao salvar relatório no Supabase (saveRecord retornou false)");
-        showToast("Erro ao salvar relatório no banco de dados.", "warning");
-      }
-    } catch (error) {
-      console.error("[DEBUG] Erro na função handleSave:", error);
-      showToast("Erro ao salvar relatório.", "warning");
-    } finally {
-      setIsSaving(false);
-    }
+  const observationsTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const handleObservationsChange = (value: string) => {
+    setReport(prev => {
+      const updated = { ...prev, observations: value };
+      if (observationsTimeout.current) clearTimeout(observationsTimeout.current);
+      observationsTimeout.current = setTimeout(() => persist(updated), 800);
+      return updated;
+    });
   };
 
   const handleExportPDF = async () => {
@@ -212,41 +215,30 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
     }
   };
 
+  const isItemDone = (s: typeof scheduledActivities[number]) => {
+    const period = s.period || 'tarde';
+    const locationWithPeriod = `${s.location}:${period}`;
+    if (s.activityType === 'blueprint') {
+      return report.completedBlueprints?.includes(locationWithPeriod) ||
+             (period === 'tarde' && report.completedBlueprints?.includes(s.location));
+    }
+    if (s.activityType === 'cult') {
+      return report.completedCults?.includes(locationWithPeriod) ||
+             (period === 'tarde' && report.completedCults?.includes(s.location));
+    }
+    if (s.activityType === 'encontro') return !!report.completedEncontro;
+    if (s.activityType === 'visiteCantando') return !!report.completedVisiteCantando;
+    return false;
+  };
+
   const progress = useMemo(() => {
     const totalScheduled = scheduledActivities.length;
-    const visitGoal = users.find(u => u.id === selectedUser)?.role === 'INTERN' ? 18 : 15;
-    
-    // Total items = scheduled activities + 1 (for the visit goal)
-    const totalItems = totalScheduled + 1;
-    
-    let completedItems = scheduledActivities.filter(s => {
-      const period = s.period || 'tarde';
-      const locationWithPeriod = `${s.location}:${period}`;
-      
-      if (s.activityType === 'blueprint') {
-        return report.completedBlueprints?.includes(locationWithPeriod) || 
-               (period === 'tarde' && report.completedBlueprints?.includes(s.location));
-      }
-      if (s.activityType === 'cult') {
-        return report.completedCults?.includes(locationWithPeriod) || 
-               (period === 'tarde' && report.completedCults?.includes(s.location));
-      }
-      if (s.activityType === 'encontro') return report.completedEncontro;
-      if (s.activityType === 'visiteCantando') return report.completedVisiteCantando;
-      return false;
-    }).length;
+    if (totalScheduled === 0) return 0;
+    const completedItems = scheduledActivities.filter(isItemDone).length;
+    return Math.round((completedItems / totalScheduled) * 100);
+  }, [scheduledActivities, report, isItemDone]);
 
-    const totalVisits = (report.palliativeCount || 0) + 
-                       (report.surgicalCount || 0) + 
-                       (report.pediatricCount || 0) + 
-                       (report.utiCount || 0) + 
-                       (report.terminalCount || 0) + 
-                       (report.clinicalCount || 0);
-
-    if (totalVisits >= visitGoal) completedItems++;
-    
-    return Math.round((completedItems / totalItems) * 100);
-  }, [scheduledActivities, report, selectedUser, users]);
+  const completedCount = scheduledActivities.filter(isItemDone).length;
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -270,6 +262,11 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
   const visiteCantandos = scheduledActivities.filter(s => s.activityType === 'visiteCantando');
 
   const matchesFilter = blueprints.length > 0 || cults.length > 0 || encontros.length > 0 || visiteCantandos.length > 0;
+
+  const formattedDate = useMemo(() => {
+    const d = new Date(selectedDate + 'T12:00:00');
+    return d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+  }, [selectedDate]);
 
   return (
     <div className="space-y-6">
@@ -312,340 +309,126 @@ const ActivityChecklist: React.FC<ActivityChecklistProps> = ({
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-indigo-200">
-              <i className="fas fa-tasks"></i>
-            </div>
-            <div>
-              <h4 className="font-black text-indigo-900 text-sm uppercase tracking-tight">Lançar Atividades</h4>
-              <p className="text-indigo-700 font-bold text-[10px] uppercase tracking-widest">
-                Checklist Diário
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex-1 max-w-xs w-full space-y-2">
-            <div className="flex justify-between items-end">
-              <span className="text-[9px] font-black text-indigo-400 uppercase">Progresso</span>
-              <span className="text-sm font-black text-indigo-600">{progress}%</span>
-            </div>
-            <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100 p-0.5">
-              <div 
-                className="h-full bg-indigo-600 rounded-full transition-all duration-1000"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-          </div>
+      <div className="bg-indigo-600 p-6 rounded-[2.5rem] shadow-lg shadow-indigo-900/10 text-white space-y-4">
+        <p className="text-[9px] font-black uppercase tracking-widest opacity-70 capitalize">{formattedDate}</p>
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-black">{completedCount}<span className="text-lg opacity-70">/{scheduledActivities.length}</span></span>
+          <span className="text-[11px] font-bold opacity-85">atividades feitas hoje</span>
         </div>
-
-        {scheduledActivities.length === 0 ? (
-          <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100">
-            <Calendar className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-            <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">Nenhuma atividade agendada</h3>
-            <p className="text-xs text-slate-500 mt-1">Não há atividades na escala para esta data.</p>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Atividades Agendadas */}
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Atividades Agendadas</h3>
-                <div className="relative w-full sm:max-w-[200px]">
-                  <input
-                    type="text"
-                    placeholder="Buscar setor..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full py-1.5 pl-8 pr-3 text-[11px] font-bold bg-slate-50 hover:bg-slate-100/70 border border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl outline-none transition-all placeholder:text-slate-400"
-                  />
-                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                </div>
-              </div>
-              
-              {blueprints.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-3">
-                    <MapPin className="text-indigo-500" size={16} />
-                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Blueprint</h4>
-                  </div>
-                  {blueprints.map(s => {
-                    const period = s.period || 'tarde';
-                    const isCompleted = report.completedBlueprints?.includes(`${s.location}:${period}`) || 
-                                       (period === 'tarde' && report.completedBlueprints?.includes(s.location));
-                    return (
-                      <button
-                        key={`${s.location}-${period}`}
-                        onClick={() => handleToggleBlueprint(s.location, period)}
-                        className={`w-full flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${
-                          isCompleted 
-                            ? 'bg-indigo-50 border-indigo-500 text-indigo-900' 
-                            : 'bg-white border-slate-100 text-slate-600 hover:border-indigo-200'
-                        }`}
-                      >
-                        <div className="flex flex-col items-start">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black uppercase">{s.location}</span>
-                            <span className={`text-[7px] font-black px-1 rounded uppercase ${period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                              {period === 'manha' ? 'Manhã' : 'Tarde'}
-                            </span>
-                          </div>
-                          {s.time && <span className={`text-[8px] font-bold mt-1 ${isCompleted ? 'text-indigo-600' : 'text-slate-400'}`}>{s.time}</span>}
-                        </div>
-                        {isCompleted ? <CheckCircle size={16} /> : <Circle size={16} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {cults.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Users className="text-emerald-500" size={16} />
-                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Setores</h4>
-                  </div>
-                  {cults.map(s => {
-                    const period = s.period || 'tarde';
-                    const isCompleted = report.completedCults?.includes(`${s.location}:${period}`) || 
-                                       (period === 'tarde' && report.completedCults?.includes(s.location));
-                    const sectorObj = proSectors.find(sec => sec.id === s.location);
-                    const sectorName = sectorObj ? `${sectorObj.name} [${sectorObj.unit}]` : 'Setor Removido';
-                    return (
-                      <button
-                        key={`${s.location}-${period}`}
-                        onClick={() => handleToggleCult(s.location, period)}
-                        className={`w-full flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${
-                          isCompleted 
-                            ? 'bg-emerald-50 border-emerald-500 text-emerald-900' 
-                            : 'bg-white border-slate-100 text-slate-600 hover:border-emerald-200'
-                        }`}
-                      >
-                        <div className="flex flex-col items-start">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black uppercase">{sectorName}</span>
-                            <span className={`text-[7px] font-black px-1 rounded uppercase ${period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                              {period === 'manha' ? 'Manhã' : 'Tarde'}
-                            </span>
-                          </div>
-                          {s.time && <span className={`text-[8px] font-bold mt-1 ${isCompleted ? 'text-emerald-600' : 'text-slate-400'}`}>{s.time}</span>}
-                        </div>
-                        {isCompleted ? <CheckCircle size={16} /> : <Circle size={16} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {encontros.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-3">
-                    <HeartPulse className="text-amber-500" size={16} />
-                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Encontro HAB</h4>
-                  </div>
-                  <button
-                    onClick={handleToggleEncontro}
-                    className={`w-full flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${
-                      report.completedEncontro 
-                        ? 'bg-amber-50 border-amber-500 text-amber-900' 
-                        : 'bg-white border-slate-100 text-slate-600 hover:border-amber-200'
-                    }`}
-                  >
-                    <span className="text-[10px] font-black uppercase">Encontro HAB</span>
-                    {report.completedEncontro ? <CheckCircle size={16} /> : <Circle size={16} />}
-                  </button>
-                </div>
-              )}
-
-              {visiteCantandos.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-3">
-                    <HeartPulse className="text-rose-500" size={16} />
-                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Visite Cantando</h4>
-                  </div>
-                  {visiteCantandos.map((s, idx) => {
-                    const period = s.period || 'tarde';
-                    const isCompleted = report.completedVisiteCantando;
-                    return (
-                      <button
-                        key={s.id || idx}
-                        onClick={handleToggleVisiteCantando}
-                        className={`w-full flex items-center justify-between p-3 rounded-2xl border-2 transition-all ${
-                          isCompleted 
-                            ? 'bg-rose-50 border-rose-500 text-rose-900' 
-                            : 'bg-white border-slate-100 text-slate-600 hover:border-rose-200'
-                        }`}
-                      >
-                        <div className="flex flex-col items-start text-left">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black uppercase">Visite Cantando</span>
-                            <span className={`text-[7px] font-black px-1 rounded uppercase ${period === 'manha' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}`}>
-                              {period === 'manha' ? 'Manhã' : 'Tarde'}
-                            </span>
-                          </div>
-
-                          <div className="mt-1.5 space-y-1">
-                            {s.time && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[8px] font-black uppercase text-slate-400">Horário:</span>
-                                <span className={`text-[9px] font-bold ${isCompleted ? 'text-rose-700' : 'text-slate-700'}`}>{s.time}</span>
-                              </div>
-                            )}
-                            {s.responsibleName && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[8px] font-black uppercase text-slate-400">Responsável:</span>
-                                <span className={`text-[9px] font-bold ${isCompleted ? 'text-rose-700' : 'text-slate-700'}`}>{s.responsibleName}</span>
-                              </div>
-                            )}
-                            {s.responsibleWhatsApp && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[8px] font-black uppercase text-slate-400">WhatsApp:</span>
-                                <span className={`text-[9px] font-bold ${isCompleted ? 'text-rose-700' : 'text-slate-700'}`}>{s.responsibleWhatsApp}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {isCompleted ? <CheckCircle size={16} /> : <Circle size={16} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {!matchesFilter && (
-                <div className="text-center py-8 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                  <p className="text-xs text-slate-400 font-bold">Nenhuma atividade correspondente.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Visitas e Observações */}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Visitas Realizadas</h3>
-                {selectedUser && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Meta:</span>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                      ((report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0) + (report.terminalCount || 0) + (report.clinicalCount || 0)) >= (users.find(u => u.id === selectedUser)?.role === 'INTERN' ? 18 : 15)
-                        ? 'bg-emerald-100 text-emerald-600'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {users.find(u => u.id === selectedUser)?.role === 'INTERN' ? '18' : '15'}
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Paliativos</span>
-                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <input 
-                      type="number" 
-                      min="0"
-                      value={report.palliativeCount || 0} 
-                      onChange={(e) => handleCountChange('palliativeCount', e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Cirúrgicos</span>
-                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <input 
-                      type="number" 
-                      min="0"
-                      value={report.surgicalCount || 0} 
-                      onChange={(e) => handleCountChange('surgicalCount', e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Pediátrico</span>
-                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <input 
-                      type="number" 
-                      min="0"
-                      value={report.pediatricCount || 0} 
-                      onChange={(e) => handleCountChange('pediatricCount', e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">UTI</span>
-                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <input 
-                      type="number" 
-                      min="0"
-                      value={report.utiCount || 0} 
-                      onChange={(e) => handleCountChange('utiCount', e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Terminal</span>
-                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <input 
-                      type="number" 
-                      min="0"
-                      value={report.terminalCount || 0} 
-                      onChange={(e) => handleCountChange('terminalCount', e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Clínico</span>
-                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <input 
-                      type="number" 
-                      min="0"
-                      value={report.clinicalCount || 0} 
-                      onChange={(e) => handleCountChange('clinicalCount', e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      className="w-full py-2 text-center font-black text-slate-700 outline-none bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 no-spinners"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Observações</label>
-                <textarea
-                  value={report.observations || ''}
-                  onChange={e => setReport({ ...report, observations: e.target.value })}
-                  placeholder="Anotações sobre as atividades de hoje..."
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none h-24"
-                />
-              </div>
-
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Save size={16} />
-                {isSaving ? 'Salvando...' : 'Salvar Relatório Diário'}
-              </button>
-            </div>
-          </div>
-        )}
+        <div className="h-1.5 bg-white/25 rounded-full overflow-hidden">
+          <div className="h-full bg-white rounded-full transition-all duration-700" style={{ width: `${progress}%` }}></div>
+        </div>
       </div>
+
+      {scheduledActivities.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-[2.5rem] border border-slate-100">
+          <Calendar className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">Nenhuma atividade agendada</h3>
+          <p className="text-xs text-slate-500 mt-1">Não há atividades na escala para esta data.</p>
+        </div>
+      ) : (
+        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Toque para marcar como feito</h3>
+            <div className="relative w-full sm:max-w-[200px]">
+              <input
+                type="text"
+                placeholder="Buscar setor..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full py-1.5 pl-8 pr-3 text-[11px] font-bold bg-slate-50 hover:bg-slate-100/70 border border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl outline-none transition-all placeholder:text-slate-400"
+              />
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {blueprints.map(s => {
+              const period = s.period || 'tarde';
+              return (
+                <ChecklistItem
+                  key={`bp-${s.location}-${period}`}
+                  label={`Blueprint — ${s.location}`}
+                  subLabel={s.time}
+                  period={period}
+                  isCompleted={isItemDone(s)}
+                  onClick={() => handleToggleBlueprint(s.location, period)}
+                  accent="indigo"
+                />
+              );
+            })}
+
+            {cults.map(s => {
+              const period = s.period || 'tarde';
+              const sectorObj = proSectors.find(sec => sec.id === s.location);
+              const sectorName = sectorObj ? `${sectorObj.name} [${sectorObj.unit}]` : 'Setor Removido';
+              return (
+                <ChecklistItem
+                  key={`ct-${s.location}-${period}`}
+                  label={`Setor — ${sectorName}`}
+                  subLabel={s.time}
+                  period={period}
+                  isCompleted={isItemDone(s)}
+                  onClick={() => handleToggleCult(s.location, period)}
+                  accent="emerald"
+                />
+              );
+            })}
+
+            {encontros.length > 0 && (
+              <ChecklistItem
+                label="Encontro HAB"
+                isCompleted={!!report.completedEncontro}
+                onClick={handleToggleEncontro}
+                accent="amber"
+              />
+            )}
+
+            {visiteCantandos.map((s, idx) => {
+              const period = s.period || 'tarde';
+              const subParts = [s.time, s.responsibleName].filter(Boolean);
+              return (
+                <ChecklistItem
+                  key={s.id || idx}
+                  label="Visite Cantando"
+                  subLabel={subParts.join(' · ')}
+                  period={period}
+                  isCompleted={!!report.completedVisiteCantando}
+                  onClick={handleToggleVisiteCantando}
+                  accent="rose"
+                />
+              );
+            })}
+
+            {!matchesFilter && (
+              <div className="text-center py-8 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                <p className="text-xs text-slate-400 font-bold">Nenhuma atividade correspondente.</p>
+              </div>
+            )}
+          </div>
+
+          {showObservations ? (
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Observações do dia</label>
+              <textarea
+                value={report.observations || ''}
+                onChange={e => handleObservationsChange(e.target.value)}
+                placeholder="Anotações sobre as atividades de hoje..."
+                autoFocus
+                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none h-24"
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowObservations(true)}
+              className="w-full flex items-center gap-3 p-4 rounded-2xl border border-dashed border-slate-200 text-slate-400 hover:border-indigo-300 hover:text-indigo-500 transition-all"
+            >
+              <NotebookPen size={16} />
+              <span className="text-[11px] font-bold">Adicionar observações do dia (opcional)</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

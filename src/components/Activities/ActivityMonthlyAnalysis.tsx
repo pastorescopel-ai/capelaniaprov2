@@ -124,89 +124,22 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
 
   const stats = useMemo(() => {
     const activeDaysSet = new Set<string>();
-    const weekdayVisitsSet = new Set<string>();
-    let weekdayVisitsCount = 0;
-    let weekendVisitsCount = 0;
-    
+
     const result = monthReports.reduce((acc, report) => {
       activeDaysSet.add(report.date);
-      
-      const dObj = new Date(report.date + 'T12:00:00');
-      const dayOfWeek = dObj.getDay(); // 0-6 (Sun-Sat)
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      
-      const dayVisits = Number(report.palliativeCount || 0) + 
-                        Number(report.surgicalCount || 0) + 
-                        Number(report.pediatricCount || 0) + 
-                        Number(report.utiCount || 0) + 
-                        Number(report.terminalCount || 0) + 
-                        Number(report.clinicalCount || 0);
-
-      if (!isWeekend) {
-        weekdayVisitsSet.add(report.date);
-        weekdayVisitsCount += dayVisits;
-      } else {
-        weekendVisitsCount += dayVisits;
-      }
 
       return {
         blueprints: acc.blueprints + (report.completedBlueprints?.length || 0),
         cults: acc.cults + (report.completedCults?.length || 0),
         encontros: acc.encontros + (report.completedEncontro ? 1 : 0),
-        visiteCantando: acc.visiteCantando + (report.completedVisiteCantando ? 1 : 0),
-        palliative: acc.palliative + Number(report.palliativeCount || 0),
-        surgical: acc.surgical + Number(report.surgicalCount || 0),
-        pediatric: acc.pediatric + Number(report.pediatricCount || 0),
-        uti: acc.uti + Number(report.utiCount || 0),
-        terminal: acc.terminal + Number(report.terminalCount || 0),
-        clinical: acc.clinical + Number(report.clinicalCount || 0),
-        totalVisits: acc.totalVisits + dayVisits
+        visiteCantando: acc.visiteCantando + (report.completedVisiteCantando ? 1 : 0)
       };
     }, {
-      blueprints: 0, cults: 0, encontros: 0, visiteCantando: 0,
-      palliative: 0, surgical: 0, pediatric: 0, uti: 0, terminal: 0, clinical: 0, totalVisits: 0
+      blueprints: 0, cults: 0, encontros: 0, visiteCantando: 0
     });
 
-    // Calculate active weekdays also from schedules if no reports exist yet
-    if (selectedUser) {
-        const daysInMonth = endOfMonth.getDate();
-        for (let i = 1; i <= daysInMonth; i++) {
-            const dObj = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), i);
-            const dayOfWeek = dObj.getDay();
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-            
-            if (!isWeekend) {
-              const dayOfWeekMapped = dayOfWeek === 0 ? 7 : dayOfWeek;
-              const hasSchedule = monthSchedules.some(s => s.dayOfWeek === dayOfWeekMapped);
-              if (hasSchedule) weekdayVisitsSet.add(formatLocalDate(dObj));
-            }
-        }
-    }
-
-    const activeWeekdays = weekdayVisitsSet.size || 1;
-    const dailyAverage = weekdayVisitsCount / activeWeekdays;
-    
-    // Target Goal
-    const targetUser = selectedUser ? users.find(u => String(u.id) === String(selectedUser)) : null;
-    const baseGoal = targetUser?.role === UserRole.INTERN ? 18 : 15;
-    const performancePercent = baseGoal > 0 ? (dailyAverage / baseGoal) * 100 : 0;
-
-    return { 
-      ...result, 
-      activeDays: activeDaysSet.size, 
-      activeWeekdays, 
-      dailyAverage, 
-      performancePercent, 
-      baseGoal,
-      weekendVisitsCount 
-    };
-  }, [monthReports, monthSchedules, selectedUser, users, startOfMonth, endOfMonth]);
-
-  const getSemaphoreColor = (percent: number) => {
-    if (percent >= 95) return 'text-emerald-600 bg-emerald-50 border-emerald-100';
-    if (percent >= 70) return 'text-amber-600 bg-amber-50 border-amber-100';
-    return 'text-rose-600 bg-rose-50 border-rose-100';
-  };
+    return { ...result, activeDays: activeDaysSet.size };
+  }, [monthReports]);
 
   const progress = useMemo(() => {
     let totalItems = 0;
@@ -231,40 +164,22 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
             
             const daySchedules = effectiveSchedules.filter(s => String(s.userId) === String(user.id) && s.dayOfWeek === dayOfWeek && s.month === (formatLocalDate(startOfMonth).substring(0, 7) + '-01'));
             const dayReport = effectiveReports.find(r => String(r.userId) === String(user.id) && r.date === dateStr);
-            
-            // Goal: 18 for Interns, 15 for others (Chaplains/Admins)
-            const visitGoal = user.role === UserRole.INTERN ? 18 : 15;
 
-            // Only count days that have either a schedule or a report
-            if (daySchedules.length > 0 || dayReport) {
-                // Scheduled activities part
+            if (daySchedules.length > 0) {
                 totalItems += daySchedules.length;
-                
+
                 daySchedules.forEach(s => {
                     if (!dayReport) return;
                     const period = s.period || 'tarde';
                     const locWithPeriod = `${s.location}:${period}`;
-                    
+
                     const isDone = (s.activityType === 'blueprint' && (dayReport.completedBlueprints?.includes(locWithPeriod) || (period === 'tarde' && dayReport.completedBlueprints?.includes(s.location)))) ||
                                    (s.activityType === 'cult' && (dayReport.completedCults?.includes(locWithPeriod) || (period === 'tarde' && dayReport.completedCults?.includes(s.location)))) ||
                                    (s.activityType === 'encontro' && dayReport.completedEncontro) ||
                                    (s.activityType === 'visiteCantando' && dayReport.completedVisiteCantando);
-                    
+
                     if (isDone) completedItems++;
                 });
-
-                // Visit goal part
-                totalItems += 1;
-                if (dayReport) {
-                    const totalVisits = (dayReport.palliativeCount || 0) + 
-                                       (dayReport.surgicalCount || 0) + 
-                                       (dayReport.pediatricCount || 0) + 
-                                       (dayReport.utiCount || 0) + 
-                                       (dayReport.terminalCount || 0) + 
-                                       (dayReport.clinicalCount || 0);
-                    
-                    if (totalVisits >= visitGoal) completedItems++;
-                }
             }
         });
     }
@@ -355,58 +270,6 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Visite Cantando</span>
         </div>
       </div>
-
-      <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-        <h3 className="text-sm font-black text-slate-800 uppercase tracking-tighter mb-8 flex items-center gap-2">
-          <HeartPulse className="text-rose-500" size={20} /> Detalhamento de Visitas do Mês
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
-          {[
-            { label: 'Paliativos', count: stats.palliative, color: 'rose' },
-            { label: 'Cirúrgicos', count: stats.surgical, color: 'amber' },
-            { label: 'Pediátrico', count: stats.pediatric, color: 'indigo' },
-            { label: 'UTI', count: stats.uti, color: 'emerald' },
-            { label: 'Terminal', count: stats.terminal, color: 'slate' },
-            { label: 'Clínico', count: stats.clinical, color: 'blue' },
-          ].map(item => (
-            <div key={item.label} className="text-center space-y-3">
-              <div className={`text-4xl font-black text-${item.color}-600`}>{item.count}</div>
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.label}</div>
-              <div className="h-1.5 bg-slate-50 rounded-full overflow-hidden">
-                <div className={`h-full bg-${item.color}-500`} style={{ width: `${(item.count / (stats.totalVisits || 1)) * 100}%` }}></div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-8 pt-8 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <div className={`p-6 rounded-3xl border ${getSemaphoreColor(stats.performancePercent)} transition-colors duration-500`}>
-            <span className="text-5xl font-black block mb-1">{stats.totalVisits}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Total Geral de Visitas</span>
-          </div>
-          
-          <div className={`p-6 rounded-3xl border ${getSemaphoreColor(stats.performancePercent)} transition-colors duration-500`}>
-            <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-5xl font-black">{stats.dailyAverage.toFixed(1)}</span>
-              <span className="text-sm font-bold opacity-60">/ dia</span>
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Média Meta (Seg-Sex)</span>
-            <div className="mt-2 text-[9px] font-bold uppercase tracking-tighter opacity-50">
-              Meta Base: {stats.baseGoal} visitas/dia
-            </div>
-          </div>
-
-          <div className="p-6 rounded-3xl border border-amber-100 bg-amber-50 text-amber-600">
-            <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-5xl font-black">{stats.weekendVisitsCount}</span>
-              <i className="fas fa-star text-amber-400 text-xl"></i>
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Bônus Plus (Fim de Semana)</span>
-            <div className="mt-2 text-[9px] font-bold uppercase tracking-tighter opacity-50">
-              Não contabilizado na média diária
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 };

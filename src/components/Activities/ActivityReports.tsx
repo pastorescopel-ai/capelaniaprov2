@@ -92,17 +92,10 @@ const ActivityReports: React.FC = () => {
   const stats = useMemo(() => {
     const initial = {
       totalActivities: 0,
-      totalVisits: 0,
       blueprintCount: 0,
       cultCount: 0,
       encontroCount: 0,
       visiteCantandoCount: 0,
-      palliativeCount: 0,
-      surgicalCount: 0,
-      pediatricCount: 0,
-      utiCount: 0,
-      terminalCount: 0,
-      clinicalCount: 0,
       observations: ''
     };
 
@@ -113,20 +106,11 @@ const ActivityReports: React.FC = () => {
       const visiteCantandoVal = report.completedVisiteCantando ? 1 : 0;
 
       acc.totalActivities += blueprintLen + cultLen + encontroVal + visiteCantandoVal;
-      acc.totalVisits += (report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0) + (report.terminalCount || 0) + (report.clinicalCount || 0);
-      
       acc.blueprintCount += blueprintLen;
       acc.cultCount += cultLen;
       acc.encontroCount += encontroVal;
       acc.visiteCantandoCount += visiteCantandoVal;
 
-      acc.palliativeCount += (report.palliativeCount || 0);
-      acc.surgicalCount += (report.surgicalCount || 0);
-      acc.pediatricCount += (report.pediatricCount || 0);
-      acc.utiCount += (report.utiCount || 0);
-      acc.terminalCount += (report.terminalCount || 0);
-      acc.clinicalCount += (report.clinicalCount || 0);
-      
       if (report.observations) {
         acc.observations += (acc.observations ? ' | ' : '') + report.observations;
       }
@@ -143,22 +127,12 @@ const ActivityReports: React.FC = () => {
 
     const chaplain = selectedUser ? users.find(u => u.id === selectedUser) : { name: 'Relatório Consolidado' } as any;
 
-    const visitDetails = [
-      { label: 'Paliativos', value: stats.palliativeCount },
-      { label: 'Cirúrgicos', value: stats.surgicalCount },
-      { label: 'Pediátricos', value: stats.pediatricCount },
-      { label: 'UTI', value: stats.utiCount },
-      { label: 'Terminal', value: stats.terminalCount },
-      { label: 'Clínico', value: stats.clinicalCount }
-    ];
-
     try {
       const html = generateActivityReportHTML(
         config,
         startDate === endDate ? startDate : `${startDate} a ${endDate}`,
         chaplain,
-        stats,
-        visitDetails
+        stats
       );
       await generatePdf(html);
       showToast("Relatório exportado com sucesso!", "success");
@@ -251,16 +225,6 @@ const ActivityReports: React.FC = () => {
         </div>
 
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
-            <Users size={24} />
-          </div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Visitas</p>
-            <p className="text-2xl font-black text-slate-800">{stats.totalVisits}</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
             <FileText size={24} />
           </div>
@@ -279,40 +243,20 @@ const ActivityReports: React.FC = () => {
             <p className="text-2xl font-black text-slate-800">{stats.cultCount}</p>
           </div>
         </div>
+
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+            <Users size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Encontros + Cantando</p>
+            <p className="text-2xl font-black text-slate-800">{stats.encontroCount + stats.visiteCantandoCount}</p>
+          </div>
+        </div>
       </div>
 
       {/* Details Section */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
-          <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
-            <Users size={18} className="text-indigo-600" />
-            Distribuição de Visitas
-          </h3>
-          <div className="space-y-4">
-            {[
-              { label: 'Paliativos', value: stats.palliativeCount, color: 'bg-indigo-500' },
-              { label: 'Cirúrgicos', value: stats.surgicalCount, color: 'bg-emerald-500' },
-              { label: 'Pediátricos', value: stats.pediatricCount, color: 'bg-amber-500' },
-              { label: 'UTI', value: stats.utiCount, color: 'bg-rose-500' },
-              { label: 'Terminal', value: stats.terminalCount, color: 'bg-slate-500' },
-              { label: 'Clínico', value: stats.clinicalCount, color: 'bg-blue-500' },
-            ].map(item => (
-              <div key={item.label} className="space-y-2">
-                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                  <span className="text-slate-500">{item.label}</span>
-                  <span className="text-slate-800">{item.value}</span>
-                </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full ${item.color} transition-all duration-500`} 
-                    style={{ width: `${stats.totalVisits > 0 ? (item.value / stats.totalVisits) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
+      <div className="grid lg:grid-cols-1 gap-6">
         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
           <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
             <FileText size={18} className="text-indigo-600" />
@@ -343,8 +287,8 @@ const ActivityReports: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredReports.map(report => {
             const chaplain = users.find(u => u.id === report.userId);
-            const totalVisits = (report.palliativeCount || 0) + (report.surgicalCount || 0) + (report.pediatricCount || 0) + (report.utiCount || 0) + (report.terminalCount || 0) + (report.clinicalCount || 0);
-            
+            const totalActivities = (report.completedBlueprints?.length || 0) + (report.completedCults?.length || 0) + (report.completedEncontro ? 1 : 0) + (report.completedVisiteCantando ? 1 : 0);
+
             return (
               <div key={report.id} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
                 <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
@@ -359,32 +303,12 @@ const ActivityReports: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-widest">
-                      {totalVisits} Visitas
+                      {totalActivities} Atividades
                     </span>
                   </div>
                 </div>
 
                 <div className="p-6 space-y-6 flex-1">
-                  {/* Visitas Grid */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
-                      <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Paliativos</p>
-                      <p className="text-sm font-black text-indigo-900">{report.palliativeCount || 0}</p>
-                    </div>
-                    <div className="p-3 bg-emerald-50/50 rounded-2xl border border-emerald-100/50">
-                      <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Cirúrgicos</p>
-                      <p className="text-sm font-black text-emerald-900">{report.surgicalCount || 0}</p>
-                    </div>
-                    <div className="p-3 bg-amber-50/50 rounded-2xl border border-amber-100/50">
-                      <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest mb-1">Pediátricos</p>
-                      <p className="text-sm font-black text-amber-900">{report.pediatricCount || 0}</p>
-                    </div>
-                    <div className="p-3 bg-rose-50/50 rounded-2xl border border-rose-100/50">
-                      <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest mb-1">UTI</p>
-                      <p className="text-sm font-black text-rose-900">{report.utiCount || 0}</p>
-                    </div>
-                  </div>
-
                   {/* Atividades */}
                   <div className="space-y-3">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Atividades Concluídas</p>
