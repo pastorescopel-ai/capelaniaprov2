@@ -257,8 +257,7 @@ export const generateActivityReportHTML = (
   config: Config,
   date: string,
   chaplain: User,
-  stats: any,
-  visits: any[]
+  stats: any
 ) => {
   const pColor = config.primaryColor || '#005a9c';
   const dateObj = new Date(date + 'T12:00:00');
@@ -280,10 +279,6 @@ export const generateActivityReportHTML = (
             <p style="font-size: 10px; font-weight: 900; color: #3b82f6; text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.05em;">Total Atividades</p>
             <p style="font-size: 32px; font-weight: 900; color: #1e3a8a; margin: 0; line-height: 1;">${stats.totalActivities}</p>
           </div>
-          <div style="background: #ecfdf5; padding: 20px; border-radius: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-            <p style="font-size: 10px; font-weight: 900; color: #10b981; text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.05em;">Total Visitas</p>
-            <p style="font-size: 32px; font-weight: 900; color: #064e3b; margin: 0; line-height: 1;">${stats.totalVisits}</p>
-          </div>
           <div style="background: #fff7ed; padding: 20px; border-radius: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
             <p style="font-size: 10px; font-weight: 900; color: #f97316; text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.05em;">Blueprint</p>
             <p style="font-size: 32px; font-weight: 900; color: #7c2d12; margin: 0; line-height: 1;">${stats.blueprintCount}</p>
@@ -292,26 +287,10 @@ export const generateActivityReportHTML = (
             <p style="font-size: 10px; font-weight: 900; color: #ec4899; text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.05em;">Setores</p>
             <p style="font-size: 32px; font-weight: 900; color: #831843; margin: 0; line-height: 1;">${stats.cultCount}</p>
           </div>
-        </div>
-
-        <div style="margin-bottom: 40px;">
-          <h3 style="font-size: 16px; font-weight: 900; color: #1e293b; text-transform: uppercase; margin-bottom: 20px; border-bottom: 4px solid #f1f5f9; padding-bottom: 10px; letter-spacing: 0.05em;">Detalhamento de Visitas</h3>
-          <table style="width: 100%; border-collapse: collapse; font-size: 13px; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
-            <thead>
-              <tr style="background: #f8fafc;">
-                <th style="padding: 15px 20px; text-align: left; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; color: #475569; font-weight: 900; letter-spacing: 0.05em;">Tipo de Visita</th>
-                <th style="padding: 15px 20px; text-align: center; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; color: #475569; font-weight: 900; letter-spacing: 0.05em;">Quantidade</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${visits.map(v => `
-                <tr>
-                  <td style="padding: 15px 20px; border-bottom: 1px solid #f1f5f9; font-weight: 700; color: #334155;">${v.label}</td>
-                  <td style="padding: 15px 20px; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 900; color: #0f172a; font-size: 15px;">${v.value}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+          <div style="background: #ecfdf5; padding: 20px; border-radius: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+            <p style="font-size: 10px; font-weight: 900; color: #10b981; text-transform: uppercase; margin: 0 0 8px 0; letter-spacing: 0.05em;">Encontros + Cantando</p>
+            <p style="font-size: 32px; font-weight: 900; color: #064e3b; margin: 0; line-height: 1;">${stats.encontroCount + stats.visiteCantandoCount}</p>
+          </div>
         </div>
 
         ${stats.observations ? `
