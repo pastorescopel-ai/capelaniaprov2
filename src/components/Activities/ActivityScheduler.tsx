@@ -93,7 +93,7 @@ const ActivityScheduler: React.FC = () => {
     }
   }, [chaplains, isAdmin, currentUser?.id, hasInitializedUser]);
   
-  const [addingActivity, setAddingActivity] = useState<{ dayOfWeek: number, type: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando' } | null>(null);
+  const [addingActivity, setAddingActivity] = useState<{ dayOfWeek: number } | null>(null);
   const [showReplicateModal, setShowReplicateModal] = useState(false);
   const [deletingSchedule, setDeletingSchedule] = useState<ActivitySchedule | null>(null);
 
@@ -117,13 +117,13 @@ const ActivityScheduler: React.FC = () => {
     return <div className="p-8 text-center text-slate-500 font-bold">Carregando agenda...</div>;
   }
 
-  const handleOpenAddModal = (dayOfWeek: number, type: 'blueprint' | 'cult' | 'encontro' | 'visiteCantando') => {
+  const handleOpenAddModal = (dayOfWeek: number) => {
     if (!selectedUser && !isAdmin) {
       showToast("Usuário não identificado.", "warning");
       return;
     }
-    
-    setAddingActivity({ dayOfWeek, type });
+
+    setAddingActivity({ dayOfWeek });
   };
 
   const handleConfirmAddSchedule = async (newSchedules: any[]) => {
@@ -393,36 +393,12 @@ const ActivityScheduler: React.FC = () => {
               
               <div className="p-6 flex-1 space-y-6">
                 {(isAdmin || chaplain.id === currentUser?.id) && (
-                   <div className="grid grid-cols-2 gap-2">
-                      <button 
-                        onClick={() => handleOpenAddModal(activeDay, 'blueprint')}
-                        className="flex items-center justify-center gap-2 py-2 bg-indigo-50 text-indigo-600 rounded-xl font-black text-[9px] uppercase hover:bg-indigo-600 hover:text-white transition-all"
-                      >
-                        <Plus size={12} /> Blueprint
-                      </button>
-                      <button 
-                        onClick={() => handleOpenAddModal(activeDay, 'cult')}
-                        className="flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-black text-[9px] uppercase hover:bg-emerald-600 hover:text-white transition-all"
-                      >
-                        <Plus size={12} /> Setores
-                      </button>
-                      {activeDay === 6 && (
-                        <>
-                          <button 
-                            onClick={() => handleOpenAddModal(activeDay, 'encontro')}
-                            className="flex items-center justify-center gap-2 py-2 bg-amber-50 text-amber-600 rounded-xl font-black text-[9px] uppercase hover:bg-amber-600 hover:text-white transition-all"
-                          >
-                            <Plus size={12} /> Encontro
-                          </button>
-                          <button 
-                            onClick={() => handleOpenAddModal(activeDay, 'visiteCantando')}
-                            className="flex items-center justify-center gap-2 py-2 bg-rose-50 text-rose-600 rounded-xl font-black text-[9px] uppercase hover:bg-rose-600 hover:text-white transition-all"
-                          >
-                            <Plus size={12} /> Visite Cantando
-                          </button>
-                        </>
-                      )}
-                   </div>
+                   <button
+                      onClick={() => handleOpenAddModal(activeDay)}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-black text-[9px] uppercase hover:bg-indigo-600 hover:text-white transition-all"
+                    >
+                      <Plus size={12} /> Agendar Atividade
+                    </button>
                 )}
 
                 {chaplainActivities.length === 0 ? (
