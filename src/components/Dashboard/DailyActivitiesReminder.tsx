@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { User } from '../../types';
-import { CheckCircle2, ArrowRight } from 'lucide-react';
+import { ClipboardCheck, ChevronRight } from 'lucide-react';
 
 interface DailyActivitiesReminderProps {
   currentUser: User;
@@ -27,7 +27,9 @@ const DailyActivitiesReminder: React.FC<DailyActivitiesReminderProps> = ({ curre
       ((s.date && s.date.substring(0, 10) === todayISO) || (!s.date && s.dayOfWeek === dayOfWeek))
     );
 
-    if (scheduled.length === 0) return null;
+    if (scheduled.length === 0) {
+      return { hasSchedule: false, percent: 0, completedItems: 0, totalItems: 0 };
+    }
 
     const report = dailyActivityReports.find(r => r.userId === currentUser.id && r.date === todayISO);
 
@@ -52,51 +54,47 @@ const DailyActivitiesReminder: React.FC<DailyActivitiesReminderProps> = ({ curre
     const totalItems = scheduled.length;
     const percent = Math.round((completedItems / totalItems) * 100);
 
-    return { percent, completedItems, totalItems, isFinished: percent >= 100 };
+    return { hasSchedule: true, percent, completedItems, totalItems };
   }, [activitySchedules, dailyActivityReports, currentUser, isInitialized]);
 
-  if (!progressData || progressData.isFinished) return null;
+  if (!progressData) return null;
 
   return (
     <div
       onClick={() => onGoToTab('activities', 'checklist')}
-      className="bg-white border border-indigo-100 p-5 rounded-[2rem] shadow-sm hover:shadow-md transition-all cursor-pointer group relative overflow-hidden"
+      className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-indigo-500 p-5 rounded-[2rem] shadow-lg shadow-indigo-900/10 cursor-pointer group"
     >
-      <div className="absolute -right-4 -top-4 w-24 h-24 bg-indigo-50 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+      <div className="absolute -right-5 -top-5 w-28 h-28 bg-white/10 rounded-full group-hover:scale-110 transition-transform duration-500"></div>
+      <div className="absolute right-5 -bottom-8 w-16 h-16 bg-white/5 rounded-full"></div>
 
-      <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-indigo-200">
-            <CheckCircle2 size={24} />
+      <div className="relative flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 bg-white/15 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <ClipboardCheck size={22} className="text-white" />
           </div>
           <div>
-            <h4 className="font-black text-slate-800 text-sm uppercase tracking-tight">Atividades de Hoje</h4>
-            <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest flex items-center gap-1">
-              {progressData.completedItems} de {progressData.totalItems} concluídas
+            <h4 className="font-black text-white text-sm uppercase tracking-tight">Lançar Atividades</h4>
+            <p className="text-indigo-100 font-bold text-[10px] uppercase tracking-widest mt-0.5">
+              {progressData.hasSchedule ? `${progressData.completedItems} de ${progressData.totalItems} feitas hoje` : 'Registre o que fez hoje'}
             </p>
           </div>
         </div>
-
-        <div className="flex-1 max-w-md w-full space-y-2">
-          <div className="flex justify-between items-end">
-            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Progresso Diário</span>
-            <span className="text-sm font-black text-indigo-600">{progressData.percent}%</span>
-          </div>
-          <div className="h-3 bg-slate-50 rounded-full overflow-hidden border border-slate-100 p-0.5">
-            <div
-              className="h-full bg-indigo-600 rounded-full transition-all duration-1000 ease-out relative"
-              style={{ width: `${progressData.percent}%` }}
-            >
-              <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 text-indigo-600 font-black text-[10px] uppercase tracking-widest group-hover:translate-x-1 transition-transform">
-          <span>Lançar Agora</span>
-          <ArrowRight size={14} />
+        <div className="w-9 h-9 bg-white/15 rounded-full flex items-center justify-center flex-shrink-0 group-hover:translate-x-1 transition-transform">
+          <ChevronRight size={18} className="text-white" />
         </div>
       </div>
+
+      {progressData.hasSchedule && (
+        <>
+          <div className="relative mt-4 h-1.5 bg-white/25 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-white rounded-full transition-all duration-700"
+              style={{ width: `${progressData.percent}%` }}
+            ></div>
+          </div>
+          <p className="relative mt-2 text-[10px] font-bold text-indigo-100">Toque para continuar de onde parou</p>
+        </>
+      )}
     </div>
   );
 };
