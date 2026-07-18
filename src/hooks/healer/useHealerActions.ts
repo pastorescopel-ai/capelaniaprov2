@@ -10,9 +10,8 @@ export const useHealerActions = (
   const { 
     bibleClasses, bibleStudies, smallGroups, staffVisits, visitRequests,
     proStaff, proPatients, proProviders, proSectors, proGroups,
-    unifyStudentIdentity, unifyIdentityV6, mergeIdentitiesV6, createAndLinkIdentity, healSectorConnection, 
-    linkStudySessionIdentity, saveRecord, mergePGs, deleteRecord, loadFromCloud,
-    syncPGMembershipCycle
+    unifyStudentIdentity, unifyIdentityV6, mergeIdentitiesV6, createAndLinkIdentity, healSectorConnection,
+    linkStudySessionIdentity, saveRecord, mergePGs, deleteRecord, loadFromCloud
   } = appData;
 
   const {
@@ -195,6 +194,48 @@ export const useHealerActions = (
       }
   };
 
+  const handleTransferPGSectorChange = async (item: any, targetGroupId: string) => {
+      if (!targetGroupId) { showToast("Selecione o PG de destino.", "warning"); return; }
+
+      setIsProcessing(true);
+      try {
+          let success = false;
+          if (item.currentMembershipId) {
+              const membership = (appData.proGroupMembers || []).find((m: any) => m.id === item.currentMembershipId);
+              if (!membership) {
+                  showToast("Matrícula original não encontrada (pode já ter sido alterada).", "warning");
+                  return;
+              }
+              success = await saveRecord('proGroupMembers', { ...membership, groupId: targetGroupId, updatedAt: Date.now() });
+          } else {
+              success = await saveRecord('proGroupMembers', {
+                  groupId: targetGroupId,
+                  staffId: item.staffId,
+                  joinedAt: Date.now(),
+                  leftAt: null,
+                  isError: false
+              });
+          }
+
+          if (success) {
+              showToast(`${item.staffName} transferido(a) para o PG do novo setor.`, "success");
+              setResolvedItems((prev: any) => new Set(prev).add(`pgsectorchange:${item.staffId}`));
+              await loadFromCloud(true);
+          } else {
+              showToast("Falha ao transferir a matrícula.", "error");
+          }
+      } catch (e: any) {
+          showToast("Erro: " + e.message, "error");
+      } finally {
+          setIsProcessing(false);
+      }
+  };
+
+  const handleKeepPGSectorChange = (item: any) => {
+      setResolvedItems((prev: any) => new Set(prev).add(`pgsectorchange:${item.staffId}`));
+      showToast(`${item.staffName} mantido(a) no PG atual.`, "success");
+  };
+
   const handleMergePGs = async (sourceId: string, targetId: string) => {
     setIsProcessing(true);
     try {
@@ -314,24 +355,6 @@ export const useHealerActions = (
       } finally {
           setIsProcessing(false);
       }
-  };
-
-  const handleSyncTemporalCycle = async () => {
-    if (!confirm("Isso carimbará todos os membros de PG sem competência como 'Fevereiro/2026'. Confirma?")) return;
-    
-    setIsProcessing(true);
-    try {
-      const result = await syncPGMembershipCycle();
-      if (result.success) {
-        showToast(result.message, "success");
-      } else {
-        showToast(result.message, "error");
-      }
-    } catch (e: any) {
-      showToast(e.message, "error");
-    } finally {
-      setIsProcessing(false);
-    }
   };
 
   const handleFixDuplicateMembership = async (personId: string, type: 'staff' | 'provider', keepId: string) => {
@@ -737,11 +760,12 @@ export const useHealerActions = (
     handleProcessPerson,
     handleHealSector,
     handleLinkStudy,
+    handleTransferPGSectorChange,
+    handleKeepPGSectorChange,
     handleMergePGs,
     getSourceRecords,
     handleDeleteSourceRecord,
     handleUniversalMerge,
-    handleSyncTemporalCycle,
     handleFixDuplicateMembership,
     handleBatchFixDuplicateMemberships,
     handleFixAttendeeDates,

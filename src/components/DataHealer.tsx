@@ -9,6 +9,7 @@ import AuditoriaPGsTab from './tabs-auditoria/auditoria-pgs-tab';
 import AuditoriaMergeTab from './tabs-auditoria/auditoria-merge-tab';
 import AuditoriaAmbassadorsTab from './tabs-auditoria/auditoria-ambassadors-tab';
 import AuditoriaMembershipsTab from './tabs-auditoria/auditoria-memberships-tab';
+import AuditoriaPGCoverageTab from './tabs-auditoria/auditoria-pg-coverage-tab';
 import ConfirmationModal from './Shared/ConfirmationModal';
 
 const DataHealer: React.FC = () => {
@@ -30,6 +31,9 @@ const DataHealer: React.FC = () => {
     healthScore,
     duplicatePGs,
     duplicateMemberships,
+    pgSectorChanges,
+    handleTransferPGSectorChange,
+    handleKeepPGSectorChange,
     proGroups,
     handleMergePGs,
     getSourceRecords,
@@ -39,7 +43,6 @@ const DataHealer: React.FC = () => {
     mergeTargetType, setMergeTargetType,
     mergeTargetId, setMergeTargetId,
     handleUniversalMerge,
-    handleSyncTemporalCycle,
     handleFixDuplicateMembership,
     handleBatchFixDuplicateMemberships,
     handleFixAttendeeDates,
@@ -58,13 +61,14 @@ const DataHealer: React.FC = () => {
       if (activeTab === 'studies') return 'indigo';
       if (activeTab === 'pgs') return 'amber';
       if (activeTab === 'memberships') return 'emerald';
+      if (activeTab === 'pgCoverage') return 'teal';
       if (activeTab === 'merge') return 'slate';
       if (activeTab === 'ambassadors') return 'rose';
       return 'blue';
   };
   const currentTheme = getTheme();
 
-  const totalOrphans = peopleOrphans.length + studyOrphans.length + sectorOrphans.length + attendeeOrphans.length + duplicatePGs.length + duplicateMemberships.length;
+  const totalOrphans = peopleOrphans.length + studyOrphans.length + sectorOrphans.length + attendeeOrphans.length + duplicatePGs.length + duplicateMemberships.length + pgSectorChanges.length;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-32 max-w-5xl mx-auto">
@@ -111,6 +115,7 @@ const DataHealer: React.FC = () => {
                 {activeTab === 'studies' && 'Verificando sessões de estudo bíblico com nomes não normalizados.'}
                 {activeTab === 'sectors' && 'Garantindo que todos os setores históricos estejam ancorados no RH oficial.'}
                 {activeTab === 'pgs' && 'Detectando e fundindo cadastros duplicados de Pequenos Grupos.'}
+                {activeTab === 'pgCoverage' && 'Comparando o setor do último fechamento com o setor atual de cada colaborador.'}
             </p>
         </div>
 
@@ -129,19 +134,6 @@ const DataHealer: React.FC = () => {
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Anomalias</span>
             </div>
             
-            <div className="w-px h-12 bg-slate-200"></div>
-            
-            <button 
-                onClick={handleSyncTemporalCycle}
-                disabled={isProcessing}
-                className="flex flex-col items-center gap-1 group"
-                title="Sincronizar Competência Fevereiro"
-            >
-                <div className={`w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm ${isProcessing ? 'opacity-50' : ''}`}>
-                    <i className={`fas ${isProcessing ? 'fa-spinner fa-spin' : 'fa-history'}`}></i>
-                </div>
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Sinc. Fev</span>
-            </button>
         </div>
       </div>
 
@@ -192,7 +184,13 @@ const DataHealer: React.FC = () => {
           >
               <i className="fas fa-id-card"></i> Matrículas
           </button>
-          <button 
+          <button
+            onClick={() => { setActiveTab('pgCoverage'); setTargetMap({}); setSearchQuery(''); }}
+            className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'pgCoverage' ? 'bg-teal-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+              <i className="fas fa-map-marker-alt"></i> Mudança de Setor
+          </button>
+          <button
             onClick={() => { setActiveTab('sectors'); setTargetMap({}); setSearchQuery(''); }}
             className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'sectors' ? 'bg-blue-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
           >
@@ -336,12 +334,23 @@ const DataHealer: React.FC = () => {
                 />
               )}
               {activeTab === 'memberships' && (
-                <AuditoriaMembershipsTab 
+                <AuditoriaMembershipsTab
                   duplicateMemberships={duplicateMemberships}
                   handleFixDuplicateMembership={handleFixDuplicateMembership}
                   handleBatchFixDuplicateMemberships={handleBatchFixDuplicateMemberships}
                   isProcessing={isProcessing}
                   proGroups={proGroups}
+                />
+              )}
+              {activeTab === 'pgCoverage' && (
+                <AuditoriaPGCoverageTab
+                  pgSectorChanges={pgSectorChanges}
+                  proGroups={proGroups}
+                  targetMap={targetMap}
+                  setTargetMap={setTargetMap}
+                  handleTransferPGSectorChange={handleTransferPGSectorChange}
+                  handleKeepPGSectorChange={handleKeepPGSectorChange}
+                  isProcessing={isProcessing}
                 />
               )}
           </div>
