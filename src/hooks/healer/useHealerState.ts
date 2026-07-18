@@ -47,6 +47,7 @@ export const useHealerState = () => {
 
   const [attendeeOrphans, setAttendeeOrphans] = useState<{name: string, count: number}[]>([]);
   const [isLoadingAttendees, setIsLoadingAttendees] = useState(false);
+  const [pgCoverageOverrides, setPgCoverageOverrides] = useState<Set<string>>(new Set());
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [mergeSourceType, setMergeSourceType] = useState<PersonType>('Prestador');
@@ -106,6 +107,7 @@ export const useHealerState = () => {
     resolvedItems, setResolvedItems,
     attendeeOrphans, setAttendeeOrphans,
     isLoadingAttendees, setIsLoadingAttendees,
+    pgCoverageOverrides, setPgCoverageOverrides,
     isProcessing, setIsProcessing,
     showAllHistory, setShowAllHistory,
     mergeSourceType, setMergeSourceType,

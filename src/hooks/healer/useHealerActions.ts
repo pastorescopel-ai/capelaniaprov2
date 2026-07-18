@@ -15,8 +15,8 @@ export const useHealerActions = (
   } = appData;
 
   const {
-    targetMap, setTargetMap, studyTargetMap, personTypeMap, 
-    setResolvedItems, setIsProcessing
+    targetMap, setTargetMap, studyTargetMap, personTypeMap,
+    setResolvedItems, setIsProcessing, setPgCoverageOverrides
   } = state;
 
   const { showToast } = useToast();
@@ -231,9 +231,25 @@ export const useHealerActions = (
       }
   };
 
-  const handleKeepPGSectorChange = (item: any) => {
-      setResolvedItems((prev: any) => new Set(prev).add(`pgsectorchange:${item.staffId}`));
-      showToast(`${item.staffName} mantido(a) no PG atual.`, "success");
+  const handleKeepPGSectorChange = async (item: any) => {
+      if (!supabase) { showToast("Sem conexão com o banco.", "error"); return; }
+
+      setIsProcessing(true);
+      try {
+          const { error } = await supabase
+              .from('pg_coverage_overrides')
+              .upsert({ staff_id: item.staffId, sector_id: item.sectorId }, { onConflict: 'staff_id,sector_id' });
+
+          if (error) throw new Error(error.message);
+
+          setPgCoverageOverrides((prev: Set<string>) => new Set(prev).add(`${item.staffId}:${item.sectorId}`));
+          setResolvedItems((prev: any) => new Set(prev).add(`pgsectorchange:${item.staffId}`));
+          showToast(`${item.staffName} mantido(a) no PG atual. Essa decisão fica registrada até o setor mudar de novo.`, "success");
+      } catch (e: any) {
+          showToast("Erro ao registrar decisão: " + e.message, "error");
+      } finally {
+          setIsProcessing(false);
+      }
   };
 
   const handleMergePGs = async (sourceId: string, targetId: string) => {
