@@ -78,28 +78,6 @@ export const useDataMaintenance = (
 
   // --- FUNÇÕES DE MIGRAÇÃO (PONTE & CURA) ---
 
-  const executeSectorMigration = async (oldName: string, newName: string): Promise<string> => {
-    if (!supabase) return "Erro Conexão";
-    const { data, error } = await supabase.rpc('migrate_legacy_sector', { 
-        old_name: oldName, 
-        new_name: newName 
-    });
-    if (error) throw new Error(error.message);
-    await reloadCallback(false);
-    return data;
-  };
-
-  const executePGMigration = async (oldName: string, newName: string): Promise<string> => {
-    if (!supabase) return "Erro Conexão";
-    const { data, error } = await supabase.rpc('migrate_legacy_pg', { 
-        old_name: oldName, 
-        new_name: newName 
-    });
-    if (error) throw new Error(error.message);
-    await reloadCallback(false);
-    return data;
-  };
-
   const unifyStudentIdentity = async (orphanName: string, targetStaffId: string): Promise<string> => {
     if (!supabase) return "Erro Conexão";
     // Garante que o ID seja numérico para o BIGINT do SQL
@@ -319,8 +297,6 @@ export const useDataMaintenance = (
     unifyNumericIdsAndCleanPrefixes,
     mergePGs,
     importFromDNA,
-    executeSectorMigration,
-    executePGMigration,
     unifyStudentIdentity,
     unifyIdentityV6,
     createAndLinkIdentity,
