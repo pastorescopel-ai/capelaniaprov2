@@ -16,7 +16,7 @@ export const useHealerActions = (
 
   const {
     targetMap, setTargetMap, studyTargetMap, personTypeMap,
-    setResolvedItems, setIsProcessing, setPgCoverageOverrides
+    setResolvedItems, setIsProcessing, setPgCoverageOverrides, selectedUnit
   } = state;
 
   const { showToast } = useToast();
@@ -160,8 +160,13 @@ export const useHealerActions = (
   };
 
   const handleLinkStudy = async (orphanName: string) => {
-      const targetStaffId = studyTargetMap[orphanName];
-      if (!targetStaffId) {
+      // studyTargetMap guarda o label exibido no Autocomplete (ex: "Nome (12345)" para
+      // colaborador, ou só "Nome" para paciente/prestador) — não o value/id puro, porque
+      // o próprio Autocomplete sobrescreve onChange(value) com onSelectOption(label) na
+      // mesma tecla. Extrai o id de dentro do label, no mesmo padrão já usado e
+      // comprovado em handleProcessPerson, em vez de comparar o label direto contra um id.
+      const targetLabel = studyTargetMap[orphanName];
+      if (!targetLabel) {
           showToast("Selecione o cadastro oficial antes de vincular.", "warning");
           return;
       }
@@ -170,18 +175,29 @@ export const useHealerActions = (
       try {
           let participantType = 'Colaborador';
           let sectorId = null;
+          let targetId = targetLabel;
 
-          const staff = proStaff.find((s: any) => String(s.id) === targetStaffId);
-          if (staff) {
-              participantType = 'Colaborador';
-              sectorId = getValidSectorId(staff.sectorId, selectedUnit, proSectors);
-          } else if (proPatients.find((p: any) => String(p.id) === targetStaffId)) {
-              participantType = 'Paciente';
-          } else if (proProviders.find((p: any) => String(p.id) === targetStaffId)) {
-              participantType = 'Prestador';
+          const staffIdMatch = targetLabel.match(/\((\d+)\)/);
+          if (staffIdMatch) {
+              const staff = proStaff.find((s: any) => String(s.id) === staffIdMatch[1]);
+              if (staff) {
+                  targetId = staff.id;
+                  participantType = 'Colaborador';
+                  sectorId = getValidSectorId(staff.sectorId, selectedUnit, proSectors);
+              }
+          } else {
+              const patient = proPatients.find((p: any) => p.name === targetLabel);
+              const provider = proProviders.find((p: any) => p.name === targetLabel);
+              if (patient) {
+                  targetId = patient.id;
+                  participantType = 'Paciente';
+              } else if (provider) {
+                  targetId = provider.id;
+                  participantType = 'Prestador';
+              }
           }
 
-          const msg = await linkStudySessionIdentity(orphanName, targetStaffId, sectorId, participantType);
+          const msg = await linkStudySessionIdentity(orphanName, targetId, sectorId, participantType);
           await loadFromCloud(true);
           showToast(msg, "success");
           setResolvedItems((prev: any) => {
