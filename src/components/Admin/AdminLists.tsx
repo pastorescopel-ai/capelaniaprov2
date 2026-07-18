@@ -101,18 +101,20 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   const handleConfirmImport = async (overrideFlags?: { deactivationConfirmed?: boolean; duplicatesConfirmed?: boolean }) => {
     if (!proData || !onSavePro) return;
 
+    // Setor não reconhecido bloqueia a importação sempre que a planilha tentou referenciar um
+    // (obrigatório para colaboradores; opcional, mas ainda bloqueante se presente, para PGs).
+    const unlinked = previewData.filter(p => p.sectorStatus === 'error');
+    if (unlinked.length > 0) {
+        const label = activeTab === 'pgs' ? 'PG(s)' : 'colaborador(es)';
+        setSyncState({ isOpen: true, status: 'error', title: 'Erro de Validação', message: `Existem ${unlinked.length} ${label} com setor não reconhecido. Por favor, vincule-os manualmente na tabela clicando em "Vincular Setor..." antes de confirmar a importação.` });
+        return;
+    }
+
     if (activeTab === 'staff') {
         const currentActiveStaff = (proData.staff || []).filter(s => s.unit === activeUnit && s.active !== false);
-        
+
         const isDuplicatesConfirmed = overrideFlags?.duplicatesConfirmed || importFlags.duplicatesConfirmed;
         const isDeactivationConfirmed = overrideFlags?.deactivationConfirmed || importFlags.deactivationConfirmed;
-
-        // 1. Check Unlinked Sectors
-        const unlinked = previewData.filter(p => p.sectorStatus === 'error');
-        if (unlinked.length > 0) {
-            setSyncState({ isOpen: true, status: 'error', title: 'Erro de Validação', message: `Existem ${unlinked.length} colaborador(es) com setor não reconhecido. Por favor, vincule-os manualmente na tabela clicando em "Vincular Setor..." antes de confirmar a importação.` });
-            return;
-        }
 
         // 2. Check Duplicates
         if (!isDuplicatesConfirmed) {
@@ -200,7 +202,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                         updated.createdAt = importTimestamp;
                     }
                     
-                    if (type === 'staff') {
+                    if (type === 'staff' || (type === 'pg' && incoming.sectorIdLinked)) {
                         const validExistingSectorId = getValidSectorId(existing.sectorId, activeUnit, proData.sectors);
                         updated.sectorId = incoming.sectorIdLinked || validExistingSectorId || "";
                     }
@@ -217,6 +219,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                         updatedAt: Date.now() 
                     };
                     if (type === 'staff') newItem.sectorId = incoming.sectorIdLinked || "";
+                    if (type === 'pg' && incoming.sectorIdLinked) newItem.sectorId = incoming.sectorIdLinked;
                     map.set(key, newItem);
                     stats.new++;
                 }
@@ -570,9 +573,9 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   const handleDeleteSector = async (sector: ProSector) => {
     if (!proData || !onSavePro) return;
     
-    // Verificar se há staff ou PGs vinculados
-    const hasStaff = proData.staff.some(s => cleanID(s.id) === cleanID(sector.id) && s.unit === activeUnit);
-    const hasGroups = proData.groups.some(g => cleanID(g.id) === cleanID(sector.id) && g.unit === activeUnit);
+    // Verificar se há staff ou PGs vinculados (por sectorId, não pelo próprio id do registro)
+    const hasStaff = proData.staff.some(s => cleanID(s.sectorId) === cleanID(sector.id) && s.unit === activeUnit);
+    const hasGroups = proData.groups.some(g => cleanID(g.sectorId) === cleanID(sector.id) && g.unit === activeUnit);
     
     const confirmMsg = (hasStaff || hasGroups) 
       ? `Este setor possui vínculos ativos. Desativar o setor deixará esses registros órfãos. Confirmar desativação?`
@@ -716,7 +719,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
         
         <div className="overflow-x-auto">
             <table className="w-full text-left">
-                <thead><tr className="text-[9px] font-black uppercase text-slate-400 border-b"><th className="p-4">ID (Limpo)</th><th className="p-4">Nome</th>{activeTab === 'staff' && <th className="p-4">Vínculo de Setor</th>}<th className="p-4">Mês Ref.</th>{activeTab !== 'staff' && <th className="p-4">Unidade</th>}<th className="p-4 text-right">Ações</th></tr></thead>
+                <thead><tr className="text-[9px] font-black uppercase text-slate-400 border-b"><th className="p-4">ID (Limpo)</th><th className="p-4">Nome</th>{(activeTab === 'staff' || activeTab === 'pgs') && <th className="p-4">Vínculo de Setor</th>}<th className="p-4">Mês Ref.</th>{activeTab !== 'staff' && <th className="p-4">Unidade</th>}<th className="p-4 text-right">Ações</th></tr></thead>
                 <tbody className="divide-y">{currentItems.map((item, i) => (
                     <tr key={i} className={`hover:bg-slate-50 transition-colors ${item.sectorStatus === 'error' ? 'bg-amber-50' : ''}`}>
                         <td className="p-4 text-xs font-mono font-bold text-blue-600">{item.id}</td>
@@ -728,9 +731,9 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                             </span>
                           )}
                         </td>
-                        {activeTab === 'staff' && (
+                        {(activeTab === 'staff' || activeTab === 'pgs') && (
                           <>
-                            <td className="p-4">{previewData.length > 0 ? (item.sectorStatus === 'ok' ? (<div className="flex items-center justify-between group"><div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]"><i className="fas fa-check"></i></div><div><span className="text-[10px] font-black text-slate-700 uppercase block">{item.linkedSectorName}</span>{item.sectorNameRaw && item.sectorNameRaw !== item.linkedSectorName && (<span className="text-[8px] text-slate-400 block strike">Excel: {item.sectorNameRaw}</span>)}</div></div><button onClick={() => handleManualSectorChange(i, '')} className="w-6 h-6 rounded-lg bg-slate-50 text-slate-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"><i className="fas fa-pencil-alt text-[10px]"></i></button></div>) : (<div className="space-y-1"><Autocomplete options={sectorOptions} value={item.sectorNameRaw || ''} onChange={(val) => handleManualSectorChange(i, val)} placeholder="⚠️ Vincular Setor..." required={false} className="w-full p-2 text-xs font-bold rounded-xl border-2 border-amber-300 bg-white" /><span className="text-[8px] font-bold text-rose-400">ID Excel: {item.sectorIdRaw || 'N/A'}</span></div>)) : (<span className="text-[10px] font-bold uppercase text-slate-500">{getSectorNameFromDB(item.sectorId)}</span>)}</td>
+                            <td className="p-4">{previewData.length > 0 ? (item.sectorStatus === 'ok' ? (item.linkedSectorName ? (<div className="flex items-center justify-between group"><div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]"><i className="fas fa-check"></i></div><div><span className="text-[10px] font-black text-slate-700 uppercase block">{item.linkedSectorName}</span>{item.sectorNameRaw && item.sectorNameRaw !== item.linkedSectorName && (<span className="text-[8px] text-slate-400 block strike">Excel: {item.sectorNameRaw}</span>)}</div></div><button onClick={() => handleManualSectorChange(i, '')} className="w-6 h-6 rounded-lg bg-slate-50 text-slate-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"><i className="fas fa-pencil-alt text-[10px]"></i></button></div>) : (<span className="text-[10px] font-bold uppercase text-slate-300">Sem setor na planilha</span>)) : (<div className="space-y-1"><Autocomplete options={sectorOptions} value={item.sectorNameRaw || ''} onChange={(val) => handleManualSectorChange(i, val)} placeholder="⚠️ Vincular Setor..." required={false} className="w-full p-2 text-xs font-bold rounded-xl border-2 border-amber-300 bg-white" /><span className="text-[8px] font-bold text-rose-400">ID Excel: {item.sectorIdRaw || 'N/A'}</span></div>)) : (<span className="text-[10px] font-bold uppercase text-slate-500">{getSectorNameFromDB(item.sectorId)}</span>)}</td>
                           </>
                         )}
                         <td className="p-4">

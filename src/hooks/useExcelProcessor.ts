@@ -68,7 +68,6 @@ export const useExcelProcessor = () => {
       if (tab === 'pgs') {
           if (!hasID || !hasPGIdentifier) return { valid: false, error: "Arquivo inválido para PGs. Necessário colunas 'ID' e 'PG' (ou Nome/Grupo)." };
           if (hasStaffCols) return { valid: false, error: "Segurança: Planilha contém dados de Colaboradores. Proibido em PGs." };
-          if (hasSectorCols) return { valid: false, error: "Segurança: Planilha contém dados de Setores. Proibido em PGs." };
       }
       return { valid: true };
   };
@@ -192,7 +191,38 @@ export const useExcelProcessor = () => {
                       item.linkedSectorName = match.name;
                       item.sectorStatus = 'ok';
                   } else {
-                      item.sectorStatus = 'error'; 
+                      item.sectorStatus = 'error';
+                  }
+              }
+
+              if (activeTab === 'pgs') {
+                  // Coluna de setor é opcional para PGs: só resolvemos/bloqueamos se a planilha
+                  // realmente trouxer uma referência de setor para esta linha.
+                  const sIdRaw = idxSecId !== -1 && row[idxSecId] ? cleanID(row[idxSecId]) : '';
+                  const sNameRaw = idxSecName !== -1 && row[idxSecName] ? String(row[idxSecName]).trim() : '';
+
+                  if (sIdRaw || sNameRaw) {
+                      item.sectorIdRaw = sIdRaw;
+                      item.sectorNameRaw = sNameRaw;
+
+                      let pgSectorMatch = null;
+                      if (sIdRaw && proData) {
+                          pgSectorMatch = proData.sectors.find((s:any) => s.unit === activeUnit && cleanID(s.id) === sIdRaw && s.active !== false && !s.name.toUpperCase().startsWith('<INATIVAR>'));
+                          if (!pgSectorMatch) pgSectorMatch = proData.sectors.find((s:any) => s.unit === activeUnit && cleanID(s.id) === sIdRaw);
+                      }
+                      if (!pgSectorMatch && sNameRaw && proData) {
+                          const norm = normalizeString(sNameRaw);
+                          pgSectorMatch = proData.sectors.find((s:any) => s.unit === activeUnit && normalizeString(s.name) === norm && s.active !== false && !s.name.toUpperCase().startsWith('<INATIVAR>'));
+                          if (!pgSectorMatch) pgSectorMatch = proData.sectors.find((s:any) => s.unit === activeUnit && normalizeString(s.name) === norm);
+                      }
+
+                      if (pgSectorMatch) {
+                          item.sectorIdLinked = pgSectorMatch.id;
+                          item.linkedSectorName = pgSectorMatch.name;
+                          item.sectorStatus = 'ok';
+                      } else {
+                          item.sectorStatus = 'error';
+                      }
                   }
               }
               res.push(item);
