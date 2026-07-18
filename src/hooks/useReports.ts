@@ -54,7 +54,7 @@ interface UseReportsProps {
 
 export const useReports = ({ studies, classes, groups, visits, users, config }: UseReportsProps) => {
   const { generatePdf, generateExcel, isGenerating } = useDocumentGenerator();
-  const { proGroups, proGroupMembers, proStaff, proSectors, proProviders, proGroupProviderMembers, proMonthlyStats } = usePro();
+  const { proGroups, proGroupMembers, proStaff, proSectors, proProviders, proGroupProviderMembers, proMonthlyStats, proHistoryRecords } = usePro();
   
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 

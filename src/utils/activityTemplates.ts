@@ -1,6 +1,6 @@
 
 import { Config, Unit, ActivitySchedule, User, ProSector } from '../types';
-import { getBrandedHeaderByProfile } from './reportTemplates';
+import { getBrandedHeaderByProfile, getBrandedFooter } from './reportTemplates';
 
 const DAYS_LABELS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
