@@ -333,7 +333,7 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
             return {
               name: staff?.name || 'Desconhecido',
               sectorName: sector?.name || 'Sem Setor',
-              isLeader: normalizeString(staff?.name || '') === normalizeString(pg.currentLeader || ''),
+              isLeader: pg.leaderStaffId ? pg.leaderStaffId === staff?.id : normalizeString(staff?.name || '') === normalizeString(pg.currentLeader || ''),
               type: 'Colaborador'
             };
           }),

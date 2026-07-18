@@ -1,7 +1,7 @@
 
 import { useMemo, useCallback } from 'react';
 import { Unit, ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProProvider, ProGroupLocation } from '../types';
-import { normalizeString, tokenMatch, getTimestamp } from '../utils/formatters';
+import { normalizeString, tokenMatch, getTimestamp, cleanID } from '../utils/formatters';
 import { isLiveMembership, isActiveInMonth } from '../utils/pgMembership';
 import { getValidSectorId } from '../utils/sectorValidation';
 
@@ -296,7 +296,7 @@ export const usePGMembershipData = ({
         joinedDate: r.joinedAt ? new Date(r.joinedAt).toLocaleDateString('pt-BR') : '',
         cycleMonth: r.cycleMonth,
         isOptimistic: false,
-        isLeader: r.leaderName === r.staffName || currentPG.currentLeader === r.staffName,
+        isLeader: r.leaderName === r.staffName || (currentPG.leaderStaffId ? cleanID(currentPG.leaderStaffId) === cleanID(r.staffId) : currentPG.currentLeader === r.staffName),
         type: 'staff'
       })).sort((a: any, b: any) => {
         if (a.isLeader && !b.isLeader) return -1;
@@ -342,7 +342,7 @@ export const usePGMembershipData = ({
             joinedDate: m.joinedAt ? new Date(m.joinedAt).toLocaleDateString('pt-BR') : '',
             cycleMonth: m.cycleMonth,
             isOptimistic: false,
-            isLeader: currentPG.currentLeader === staff?.name,
+            isLeader: currentPG.leaderStaffId ? cleanID(currentPG.leaderStaffId) === cleanID(staff?.id) : currentPG.currentLeader === staff?.name,
             type: 'staff'
         };
     }).filter(m => m !== null);

@@ -20,22 +20,22 @@ const PGLeaders: React.FC<PGLeadersProps> = ({ unit }) => {
 
   const leaders = useMemo(() => {
     const sectorsById = new Map(proSectors.map(s => [s.id, s]));
-    
-    // Create a unified map for leader ID and name
-    const groupsByLeader = new Map<string, ProGroup>();
-    proGroups.forEach(g => {
-      if (g.currentLeader) groupsByLeader.set(g.currentLeader, g);
-      if (g.leader) groupsByLeader.set(g.leader, g);
-    });
 
-    const leaderNames = new Set(proGroups.map(g => g.currentLeader || g.leader).filter(Boolean));
+    // Vínculo por ID é a fonte primária (imune a homônimo/apelido/erro de digitação);
+    // o mapa por nome só cobre PGs cujo líder ainda não tem leaderStaffId gravado.
+    const groupsByLeaderId = new Map<string, ProGroup>();
+    const groupsByLeaderName = new Map<string, ProGroup>();
+    proGroups.forEach(g => {
+      if (g.leaderStaffId) groupsByLeaderId.set(g.leaderStaffId, g);
+      else if (g.currentLeader) groupsByLeaderName.set(g.currentLeader, g);
+    });
 
     return proStaff
       .filter(s => s.unit === unit && s.active !== false)
-      .filter(s => leaderNames.has(s.name) || leaderNames.has(s.id))
+      .filter(s => groupsByLeaderId.has(s.id) || groupsByLeaderName.has(s.name))
       .filter(s => normalizeString(s.name).includes(normalizeString(searchTerm)) || s.id.includes(searchTerm))
       .map(s => {
-        const group = groupsByLeader.get(s.id) || groupsByLeader.get(s.name);
+        const group = groupsByLeaderId.get(s.id) || groupsByLeaderName.get(s.name);
         const sector = sectorsById.get(s.sectorId);
         return {
           ...s,

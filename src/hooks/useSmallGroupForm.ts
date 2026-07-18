@@ -18,7 +18,7 @@ interface UseSmallGroupFormProps {
 
 export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onSubmit, isActive = true }: UseSmallGroupFormProps) => {
   const { proSectors, proGroups, proStaff, saveRecord, visitRequests, syncMasterContact, proGroupLocations, editAuthorizations } = useApp();
-  const { inferPGDetails, inferLeaderDetails } = usePGInference(unit, proGroups, proSectors, proGroupLocations, proStaff);
+  const { inferPGDetails } = usePGInference(unit, proGroups, proSectors, proGroupLocations, proStaff);
   const { showToast } = useToast();
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
@@ -221,8 +221,8 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
     
     if (!isValidWhatsApp(formData.leaderPhone)) { showToast("Por favor, insira um número de WhatsApp válido para o líder.", "error"); return; }
 
-    const isOfficialLeader = proStaff.some(s => normalizeString(s.name) === normalizeString(formData.leader) && s.unit === unit);
-    if (!isOfficialLeader) {
+    const officialLeaderStaff = proStaff.find(s => normalizeString(s.name) === normalizeString(formData.leader) && s.unit === unit);
+    if (!officialLeaderStaff) {
         showToast("Líder não reconhecido. Por favor, use o campo de busca para selecionar um colaborador oficial do RH.", "warning");
         return;
     }
@@ -255,11 +255,14 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
           const phoneChanged = cleanPhone !== (pgMaster.leaderPhone || '');
           const sectorChanged = targetSector && pgMaster.sectorId !== targetSector.id;
           
-          if (leaderChanged || phoneChanged || sectorChanged) {
-              await saveRecord('proGroups', { 
-                  ...pgMaster, 
+          const leaderIdChanged = pgMaster.leaderStaffId !== officialLeaderStaff.id;
+
+          if (leaderChanged || leaderIdChanged || phoneChanged || sectorChanged) {
+              await saveRecord('proGroups', {
+                  ...pgMaster,
                   leader: formData.leader,
                   currentLeader: formData.leader,
+                  leaderStaffId: officialLeaderStaff.id,
                   leaderPhone: cleanPhone,
                   ...(targetSector ? { sectorId: targetSector.id } : {})
               });
