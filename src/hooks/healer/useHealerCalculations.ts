@@ -16,10 +16,21 @@ export const useHealerCalculations = (
   const {
     activeTab, resolvedItems, searchQuery, showAllHistory, filterClassOnly,
     setAttendeeOrphans, setIsLoadingAttendees, setTargetMap, personTypeMap,
-    selectedUnit
+    selectedUnit, pgCoverageOverrides, setPgCoverageOverrides
   } = state;
 
   const { showToast } = useToast();
+
+  // --- BUSCA DE DECISÕES "MANTER" JÁ REGISTRADAS ---
+  useEffect(() => {
+    if (activeTab !== 'pgCoverage') return;
+    if (!supabase) return;
+    (async () => {
+      const { data, error } = await supabase.from('pg_coverage_overrides').select('staff_id, sector_id');
+      if (error) { console.error("Erro ao buscar decisões de cobertura de PG", error); return; }
+      setPgCoverageOverrides(new Set((data || []).map((r: any) => `${r.staff_id}:${r.sector_id}`)));
+    })();
+  }, [activeTab, setPgCoverageOverrides]);
 
   // --- BUSCA DE PRESENÇAS ÓRFÃS ---
   useEffect(() => {
@@ -481,6 +492,7 @@ export const useHealerCalculations = (
       .forEach((s: any) => {
         const key = `pgsectorchange:${s.id}`;
         if (resolvedItems.has(key)) return;
+        if (pgCoverageOverrides.has(`${s.id}:${s.sectorId}`)) return;
 
         const lastHistory = lastHistoryByStaff.get(String(s.id));
         if (!lastHistory) return;
@@ -507,7 +519,7 @@ export const useHealerCalculations = (
       });
 
     return changes;
-  }, [proStaff, proGroups, proSectors, appData.proGroupMembers, appData.proHistoryRecords, selectedUnit, resolvedItems]);
+  }, [proStaff, proGroups, proSectors, appData.proGroupMembers, appData.proHistoryRecords, selectedUnit, resolvedItems, pgCoverageOverrides]);
 
   // --- HEALTH SCORE ---
   const healthScore = useMemo(() => {
