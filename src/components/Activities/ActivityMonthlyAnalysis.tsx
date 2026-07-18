@@ -162,7 +162,16 @@ const ActivityMonthlyAnalysis: React.FC<ActivityMonthlyAnalysisProps> = ({
         usersToProcess.forEach(user => {
             if (!user) return;
             
-            const daySchedules = effectiveSchedules.filter(s => String(s.userId) === String(user.id) && s.dayOfWeek === dayOfWeek && s.month === (formatLocalDate(startOfMonth).substring(0, 7) + '-01'));
+            // Blueprint/Cult são recorrentes por dia da semana; Encontro/Visite Cantando
+            // são eventos de data específica — contá-los pelo dia da semana infla o total
+            // esperado em toda ocorrência do mesmo dia no mês, não só na data real marcada.
+            const daySchedules = effectiveSchedules.filter(s => {
+                if (String(s.userId) !== String(user.id) || s.month !== (formatLocalDate(startOfMonth).substring(0, 7) + '-01')) return false;
+                if (s.activityType === 'encontro' || s.activityType === 'visiteCantando') {
+                    return !!s.date && s.date.substring(0, 10) === dateStr;
+                }
+                return s.dayOfWeek === dayOfWeek;
+            });
             const dayReport = effectiveReports.find(r => String(r.userId) === String(user.id) && r.date === dateStr);
 
             if (daySchedules.length > 0) {

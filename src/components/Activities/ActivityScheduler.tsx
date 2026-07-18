@@ -129,24 +129,16 @@ const ActivityScheduler: React.FC = () => {
   const handleConfirmAddSchedule = async (newSchedules: any[]) => {
     setIsSaving(true);
     try {
+      // Usa slotKey (mesma lógica do gatilho de banco) em vez de comparar campo a campo,
+      // para não esquecer a data de novo — sem isso, Encontro/Visite Cantando (que são
+      // eventos de data específica) eram bloqueados por engano contra outra ocorrência
+      // do mesmo dia da semana em data diferente.
       const toSave = newSchedules.filter(ns => {
-        const nsLocation = String(ns.location);
         if (ns.activityType === 'blueprint' || ns.activityType === 'cult') {
-          const conflict = globalSchedulesForMonth.find(s => 
-            Number(s.dayOfWeek) === Number(ns.dayOfWeek) && 
-            s.activityType === ns.activityType && 
-            String(s.location) === nsLocation &&
-            (s.period || 'tarde') === ns.period
-          );
+          const conflict = globalSchedulesForMonth.find(s => slotKey(s) === slotKey(ns));
           return !conflict;
         } else {
-          const conflict = filteredSchedules.find(s => 
-            s.userId === ns.userId && 
-            Number(s.dayOfWeek) === Number(ns.dayOfWeek) && 
-            s.activityType === ns.activityType && 
-            String(s.location) === nsLocation &&
-            (s.period || 'tarde') === ns.period
-          );
+          const conflict = filteredSchedules.find(s => s.userId === ns.userId && slotKey(s) === slotKey(ns));
           return !conflict;
         }
       });
