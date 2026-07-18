@@ -44,6 +44,13 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
   proData, chaplaincyData, ambassadors, proGroupMembers, proGroupProviderMembers, saveRecord, deleteRecord, deleteRecordsByFilter
 }) => {
   const { showToast } = useToast();
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'danger' | 'primary' | 'warning';
+    onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
   const [showDNAConfirm, setShowDNAConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [pendingDNA, setPendingDNA] = useState<any>(null);
@@ -1327,6 +1334,18 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
           </div>
         </div>
       )}
+      {/* Envolvido num wrapper posicionado com z-index maior que os modais desta
+          tela (z-[7000]), para a confirmação sempre aparecer por cima deles. */}
+      <div className="relative" style={{ zIndex: 8000 }}>
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
+      </div>
     </>
   );
 };
