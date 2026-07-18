@@ -4,7 +4,7 @@ import { useHealerCalculations } from './healer/useHealerCalculations';
 import { useHealerActions } from './healer/useHealerActions';
 import { useDataMaintenance } from './useDataMaintenance';
 
-export type HealerTab = 'people' | 'sectors' | 'attendees' | 'studies' | 'pgs' | 'merge' | 'ambassadors' | 'memberships';
+export type HealerTab = 'people' | 'sectors' | 'attendees' | 'studies' | 'pgs' | 'merge' | 'ambassadors' | 'memberships' | 'pgCoverage';
 export type PersonType = 'Colaborador' | 'Ex-Colaborador' | 'Paciente' | 'Prestador';
 
 export const useDataHealer = () => {

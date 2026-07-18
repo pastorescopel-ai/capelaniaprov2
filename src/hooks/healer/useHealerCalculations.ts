@@ -451,13 +451,71 @@ export const useHealerCalculations = (
     return duplicates;
   }, [appData.proGroupMembers, appData.proGroupProviderMembers, proStaff, proProviders, selectedUnit]);
 
+  // --- MUDANÇA DE SETOR DETECTADA (comparação com o último fechamento) ---
+  // Compara o setor do colaborador no último mês fechado (pro_history_records) com o
+  // setor atual (pro_staff.sector_id). Só aparece aqui quem realmente mudou de setor
+  // desde então — diferente de uma checagem de cobertura ampla, que misturaria isso
+  // com anos de dados nunca reconciliados. Quem já está matriculado num PG cujo
+  // sector_id bate exatamente com o setor novo é considerado resolvido e não aparece.
+  const pgSectorChanges = useMemo(() => {
+    const lastHistoryByStaff = new Map<string, any>();
+    (appData.proHistoryRecords || []).forEach((r: any) => {
+      if (r.unit !== selectedUnit) return;
+      const sid = String(r.staffId);
+      const existing = lastHistoryByStaff.get(sid);
+      if (!existing || r.month > existing.month) lastHistoryByStaff.set(sid, r);
+    });
+
+    const membershipsByStaff = new Map<string, any[]>();
+    (appData.proGroupMembers || []).forEach((m: any) => {
+      if (m.leftAt || m.isError) return;
+      const sid = String(m.staffId);
+      if (!membershipsByStaff.has(sid)) membershipsByStaff.set(sid, []);
+      membershipsByStaff.get(sid)!.push(m);
+    });
+
+    const changes: any[] = [];
+
+    proStaff
+      .filter((s: any) => s.unit === selectedUnit && s.active !== false && s.sectorId)
+      .forEach((s: any) => {
+        const key = `pgsectorchange:${s.id}`;
+        if (resolvedItems.has(key)) return;
+
+        const lastHistory = lastHistoryByStaff.get(String(s.id));
+        if (!lastHistory) return;
+        if (String(lastHistory.sectorId) === String(s.sectorId)) return;
+
+        const memberships = membershipsByStaff.get(String(s.id)) || [];
+        const currentMembership = memberships[0] || null;
+        const currentGroup = currentMembership ? proGroups.find((g: any) => String(g.id) === String(currentMembership.groupId)) : null;
+        const isAlreadyInNewSectorPG = !!(currentGroup && String(currentGroup.sectorId) === String(s.sectorId));
+        if (isAlreadyInNewSectorPG) return;
+
+        const sectorName = proSectors.find((sec: any) => String(sec.id) === String(s.sectorId))?.name || 'Sem Setor';
+
+        changes.push({
+          staffId: s.id,
+          staffName: s.name,
+          sectorId: s.sectorId,
+          sectorName,
+          oldSectorName: lastHistory.sectorName,
+          lastHistoryMonth: lastHistory.month,
+          currentMembershipId: currentMembership?.id || null,
+          currentGroupName: currentGroup?.name || null
+        });
+      });
+
+    return changes;
+  }, [proStaff, proGroups, proSectors, appData.proGroupMembers, appData.proHistoryRecords, selectedUnit, resolvedItems]);
+
   // --- HEALTH SCORE ---
   const healthScore = useMemo(() => {
-    const totalOrphans = peopleOrphans.length + studyOrphans.length + sectorOrphans.length + state.attendeeOrphans.length + duplicatePGs.length + duplicateMemberships.length;
+    const totalOrphans = peopleOrphans.length + studyOrphans.length + sectorOrphans.length + state.attendeeOrphans.length + duplicatePGs.length + duplicateMemberships.length + pgSectorChanges.length;
     if (totalOrphans === 0) return 100;
     const score = 100 - (totalOrphans * 2);
     return Math.max(0, score);
-  }, [peopleOrphans, studyOrphans, sectorOrphans, state.attendeeOrphans, duplicatePGs, duplicateMemberships]);
+  }, [peopleOrphans, studyOrphans, sectorOrphans, state.attendeeOrphans, duplicatePGs, duplicateMemberships, pgSectorChanges]);
 
   const isHealthy = (name: string) => {
       const norm = normalizeString(name);
@@ -477,6 +535,7 @@ export const useHealerCalculations = (
     filteredPeopleList,
     duplicatePGs,
     duplicateMemberships,
+    pgSectorChanges,
     healthScore,
     isHealthy
   };
