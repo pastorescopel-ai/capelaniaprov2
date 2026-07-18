@@ -36,7 +36,7 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   pro_staff: ['id', 'name', 'sector_id', 'unit', 'whatsapp', 'active', 'left_at', 'cycle_month', 'created_at', 'updated_at'],
   pro_patients: ['id', 'name', 'unit', 'whatsapp', 'last_lesson', 'created_at', 'updated_at'],
   pro_providers: ['id', 'name', 'unit', 'whatsapp', 'sector', 'created_at', 'updated_at'],
-  pro_groups: ['id', 'name', 'current_leader', 'leader_phone', 'sector_id', 'unit', 'active', 'cycle_month', 'created_at', 'updated_at'],
+  pro_groups: ['id', 'name', 'current_leader', 'leader_staff_id', 'leader_phone', 'sector_id', 'unit', 'active', 'cycle_month', 'created_at', 'updated_at'],
   pro_group_locations: ['id', 'group_id', 'sector_id', 'unit', 'created_at', 'updated_at'],
   pro_group_members: ['id', 'group_id', 'staff_id', 'joined_at', 'left_at', 'is_error', 'cycle_month', 'created_at', 'updated_at'],
   pro_group_provider_members: ['id', 'group_id', 'provider_id', 'joined_at', 'left_at', 'is_error', 'cycle_month', 'created_at', 'updated_at'],

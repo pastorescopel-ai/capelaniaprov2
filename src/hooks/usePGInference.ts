@@ -37,9 +37,13 @@ export const usePGInference = (
     let sectorId = pg.sectorId || null;
     let staffId: string | null = null;
     
-    // 1. Check Leader's Registration (ProStaff)
-    if (pg.currentLeader) {
-        const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(pg.currentLeader) && s.unit === unit);
+    // 1. Check Leader's Registration (ProStaff) — prioriza o vínculo por ID, já
+    // imune a homônimo/erro de digitação; cai para o nome só quando o PG ainda
+    // não tem leaderStaffId gravado.
+    if (pg.leaderStaffId || pg.currentLeader) {
+        const staff = pg.leaderStaffId
+            ? proStaff.find(s => s.id === pg.leaderStaffId)
+            : proStaff.find(s => normalizeString(s.name) === normalizeString(pg.currentLeader) && s.unit === unit);
         if (staff) {
             staffId = staff.id;
             if (!sectorId) {
@@ -69,21 +73,5 @@ export const usePGInference = (
     };
   }, [proGroups, unit, proGroupLocations, proSectors, proStaff]);
 
-  const inferLeaderDetails = useCallback((leaderName: string) => {
-    if (!leaderName) return null;
-    
-    const staff = proStaff.find(s => normalizeString(s.name) === normalizeString(leaderName) && s.unit === unit);
-    if (!staff) return null;
-
-    const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
-    const sector = validSectorId ? proSectors.find(s => s.id === validSectorId) : null;
-    
-    return {
-      phone: staff.whatsapp || '',
-      sectorName: sector?.name || 'Setor não informado',
-      sectorId: validSectorId
-    };
-  }, [proStaff, unit, proSectors]);
-
-  return { inferPGDetails, inferLeaderDetails };
+  return { inferPGDetails };
 };

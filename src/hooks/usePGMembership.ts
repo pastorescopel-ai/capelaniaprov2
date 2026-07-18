@@ -137,9 +137,15 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       }
 
       if (personName) {
-        const otherPGWhereHeIsLeader = proGroups.find(g => g.unit === unit && g.currentLeader === personName && g.id !== currentPG.id);
+        // Prioriza o vínculo por ID (imune a homônimo/apelido/erro de digitação);
+        // cai para o casamento por nome só quando o PG ainda não tem leaderStaffId gravado.
+        const otherPGWhereHeIsLeader = proGroups.find(g => {
+          if (g.unit !== unit || g.id === currentPG.id) return false;
+          if (type === 'staff' && g.leaderStaffId) return cleanId(g.leaderStaffId) === cleanId(personId);
+          return g.currentLeader === personName;
+        });
         if (otherPGWhereHeIsLeader) {
-          const updatedOldPG = { ...otherPGWhereHeIsLeader, currentLeader: "" };
+          const updatedOldPG = { ...otherPGWhereHeIsLeader, currentLeader: "", leaderStaffId: null };
           await saveRecord('proGroups', updatedOldPG);
         }
       }
@@ -337,8 +343,13 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
           
           if (success) {
             // Se o membro removido era o líder do PG atual, limpa a liderança dele no PG
-            if (currentPG && currentPG.currentLeader === memberToRemove.name) {
-              const updatedPG = { ...currentPG, currentLeader: "" };
+            const wasLeader = currentPG && (
+              currentPG.leaderStaffId
+                ? cleanId(currentPG.leaderStaffId) === cleanId(memberToRemove.staffId)
+                : currentPG.currentLeader === memberToRemove.name
+            );
+            if (wasLeader) {
+              const updatedPG = { ...currentPG, currentLeader: "", leaderStaffId: null };
               await saveRecord('proGroups', updatedPG);
             }
             showToast(removalType === 'error' ? "Erro registrado no histórico." : "Saída registrada no histórico.", "success");
@@ -363,9 +374,10 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
       setIsProcessing(true);
       try {
           const isRemovingLeader = !!member.isLeader;
-          const updatedPG: ProGroup = { 
-              ...currentPG, 
-              currentLeader: isRemovingLeader ? "" : member.staffName 
+          const updatedPG: ProGroup = {
+              ...currentPG,
+              currentLeader: isRemovingLeader ? "" : member.staffName,
+              leaderStaffId: isRemovingLeader ? null : (member.type === 'staff' ? member.staffId : null)
           };
           await saveRecord('proGroups', updatedPG);
           if (isRemovingLeader) {

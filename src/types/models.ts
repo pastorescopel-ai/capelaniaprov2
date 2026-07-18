@@ -53,6 +53,7 @@ export interface ProGroup {
   name: string;
   currentLeader?: string;
   leader?: string;
+  leaderStaffId?: string | null;
   leaderPhone?: string;
   sectorId?: string;
   unit: Unit;

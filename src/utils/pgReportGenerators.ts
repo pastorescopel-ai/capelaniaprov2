@@ -377,10 +377,12 @@ export function generateLeadersReportHtml(proGroups: any[], proStaff: any[], pro
         .filter(g => g.unit === unit && g.active !== false)
         .map(g => {
             const leaderName = g.currentLeader || g.leader || 'Sem Líder Definido';
-            const staff = proStaff.find(s => 
-                s.unit === unit && 
-                normalizeString(s.name) === normalizeString(leaderName)
-            );
+            const staff = g.leaderStaffId
+                ? proStaff.find(s => s.unit === unit && s.id === g.leaderStaffId)
+                : proStaff.find(s =>
+                    s.unit === unit &&
+                    normalizeString(s.name) === normalizeString(leaderName)
+                );
             let sector = null;
             if (staff && staff.sectorId) {
                 sector = proSectors.find(sec => sec.id === staff.sectorId);

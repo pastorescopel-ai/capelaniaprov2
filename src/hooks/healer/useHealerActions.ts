@@ -57,9 +57,11 @@ export const useHealerActions = (
                       const groupsToUpdate = proGroups.filter((g: any) => normalizeString(g.leader) === normOrphan || normalizeString(g.currentLeader) === normOrphan);
                       for (const g of groupsToUpdate) {
                           const { leader, ...groupWithoutLeader } = g;
-                          await saveRecord('proGroups', { 
-                              ...groupWithoutLeader, 
-                              currentLeader: normalizeString(g.currentLeader) === normOrphan ? targetStaff.name : g.currentLeader,
+                          const isCurrentLeaderMatch = normalizeString(g.currentLeader) === normOrphan;
+                          await saveRecord('proGroups', {
+                              ...groupWithoutLeader,
+                              currentLeader: isCurrentLeaderMatch ? targetStaff.name : g.currentLeader,
+                              leaderStaffId: isCurrentLeaderMatch ? targetStaff.id : g.leaderStaffId,
                               leaderPhone: targetStaff.whatsapp || g.leaderPhone
                           });
                       }
@@ -334,7 +336,10 @@ export const useHealerActions = (
               if (pg) {
                   const updates = { ...pg };
                   delete updates.leader;
-                  if (normalizeString(pg.currentLeader) === normalizeString(orphanName)) updates.currentLeader = '';
+                  if (normalizeString(pg.currentLeader) === normalizeString(orphanName)) {
+                      updates.currentLeader = '';
+                      updates.leaderStaffId = null;
+                  }
                   await saveRecord('proGroups', updates);
                   showToast("Nome removido da liderança do PG.", "success");
               }
@@ -665,7 +670,10 @@ export const useHealerActions = (
           if (pg) {
             const updates = { ...pg };
             delete updates.leader;
-            if (normalizeString(pg.currentLeader) === normalizeString(orphanName)) updates.currentLeader = '';
+            if (normalizeString(pg.currentLeader) === normalizeString(orphanName)) {
+              updates.currentLeader = '';
+              updates.leaderStaffId = null;
+            }
             await saveRecord('proGroups', updates);
             success = true;
           }
