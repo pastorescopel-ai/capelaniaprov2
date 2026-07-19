@@ -107,20 +107,21 @@ export const useAppData = () => {
   const saveToCloud = useCallback(async (overrides?: any, showLoader = false) => {
     if (showLoader) setIsSyncing(true);
     try {
-      if (overrides?.config) await saveRecord('config', overrides.config);
-      if (overrides?.users) await saveRecord('users', overrides.users);
-      if (overrides?.proSectors) await saveRecord('proSectors', overrides.proSectors);
-      if (overrides?.proStaff) await saveRecord('proStaff', overrides.proStaff);
-      if (overrides?.proPatients) await saveRecord('proPatients', overrides.proPatients);
-      if (overrides?.proProviders) await saveRecord('proProviders', overrides.proProviders);
-      if (overrides?.proGroups) await saveRecord('proGroups', overrides.proGroups);
-      if (overrides?.proGroupLocations) await saveRecord('proGroupLocations', overrides.proGroupLocations);
-      if (overrides?.proGroupMembers) await saveRecord('proGroupMembers', overrides.proGroupMembers);
-      if (overrides?.proGroupProviderMembers) await saveRecord('proGroupProviderMembers', overrides.proGroupProviderMembers);
-      if (overrides?.proMonthlyStats) await saveRecord('proMonthlyStats', overrides.proMonthlyStats);
-      if (overrides?.proHistoryRecords) await saveRecord('proHistoryRecords', overrides.proHistoryRecords);
-      if (overrides?.ambassadors) await saveRecord('ambassadors', overrides.ambassadors);
-      return true;
+      let allSucceeded = true;
+      if (overrides?.config) allSucceeded = await saveRecord('config', overrides.config) && allSucceeded;
+      if (overrides?.users) allSucceeded = await saveRecord('users', overrides.users) && allSucceeded;
+      if (overrides?.proSectors) allSucceeded = await saveRecord('proSectors', overrides.proSectors) && allSucceeded;
+      if (overrides?.proStaff) allSucceeded = await saveRecord('proStaff', overrides.proStaff) && allSucceeded;
+      if (overrides?.proPatients) allSucceeded = await saveRecord('proPatients', overrides.proPatients) && allSucceeded;
+      if (overrides?.proProviders) allSucceeded = await saveRecord('proProviders', overrides.proProviders) && allSucceeded;
+      if (overrides?.proGroups) allSucceeded = await saveRecord('proGroups', overrides.proGroups) && allSucceeded;
+      if (overrides?.proGroupLocations) allSucceeded = await saveRecord('proGroupLocations', overrides.proGroupLocations) && allSucceeded;
+      if (overrides?.proGroupMembers) allSucceeded = await saveRecord('proGroupMembers', overrides.proGroupMembers) && allSucceeded;
+      if (overrides?.proGroupProviderMembers) allSucceeded = await saveRecord('proGroupProviderMembers', overrides.proGroupProviderMembers) && allSucceeded;
+      if (overrides?.proMonthlyStats) allSucceeded = await saveRecord('proMonthlyStats', overrides.proMonthlyStats) && allSucceeded;
+      if (overrides?.proHistoryRecords) allSucceeded = await saveRecord('proHistoryRecords', overrides.proHistoryRecords) && allSucceeded;
+      if (overrides?.ambassadors) allSucceeded = await saveRecord('ambassadors', overrides.ambassadors) && allSucceeded;
+      return allSucceeded;
     } finally {
       if (showLoader) setIsSyncing(false);
     }

@@ -42,11 +42,16 @@ const AdminPanel: React.FC = () => {
       // Sempre mantemos o histórico futuro e ativo intacto. Nunca deletamos registros de meses posteriores.
 
       // Salvar apenas no Supabase (Tabelas Relacionais)
-      await saveToCloud({
+      const success = await saveToCloud({
         proStaff: newProStaff,
         proSectors: newProSectors,
         proGroups: newProGroups
       });
+
+      if (!success) {
+        showToast("Falha ao salvar parte dos dados no banco. Verifique o console e tente novamente.", "warning");
+        return false;
+      }
 
       showToast("Banco de Dados Profissional atualizado com sucesso!", "success");
       return true;
@@ -86,7 +91,11 @@ const AdminPanel: React.FC = () => {
     setIsSaving(true);
     try {
       const finalConfig = { ...localConfig, lastModifiedBy: currentUser?.name || 'Admin', lastModifiedAt: Date.now() };
-      await saveToCloud({ config: applySystemOverrides(finalConfig) }, true);
+      const success = await saveToCloud({ config: applySystemOverrides(finalConfig) }, true);
+      if (!success) {
+        showToast('Falha ao salvar configurações no banco.', 'warning');
+        return;
+      }
       showToast('Configurações salvas no Supabase!', 'success');
     } catch (error) { 
       showToast('Falha ao salvar configurações.', 'warning'); 
