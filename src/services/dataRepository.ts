@@ -446,7 +446,9 @@ async syncAll() {
                 // 4. Adicionar os novos
                 if (namesToAdd.length > 0) {
                     const attendeesPayload = namesToAdd.map((name: string) => {
-                        const match = name.match(/\(([^)]+)\)$/);
+                        // Sem âncora de fim de string: nomes de colaboradores inativos têm um sufixo
+                        // " [INATIVO]" depois do "(ID)", então o "(...)" nunca é o último caractere.
+                        const match = name.match(/\(([^)]+)\)/);
                         const extractedId = match ? match[1].trim() : null;
                         
                         const pType = originalItem.participantType || cls.participantType || 'Colaborador';
