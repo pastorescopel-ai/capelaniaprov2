@@ -17,7 +17,7 @@ interface UseSmallGroupFormProps {
 }
 
 export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onSubmit, isActive = true }: UseSmallGroupFormProps) => {
-  const { proSectors, proGroups, proStaff, saveRecord, visitRequests, syncMasterContact, proGroupLocations, editAuthorizations } = useApp();
+  const { proSectors, proGroups, proStaff, proProviders, proPatients, saveRecord, visitRequests, syncMasterContact, proGroupLocations, editAuthorizations } = useApp();
   const { inferPGDetails } = usePGInference(unit, proGroups, proSectors, proGroupLocations, proStaff);
   const { showToast } = useToast();
   

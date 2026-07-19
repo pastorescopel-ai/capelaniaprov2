@@ -379,7 +379,11 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
               currentLeader: isRemovingLeader ? "" : member.staffName,
               leaderStaffId: isRemovingLeader ? null : (member.type === 'staff' ? member.staffId : null)
           };
-          await saveRecord('proGroups', updatedPG);
+          const success = await saveRecord('proGroups', updatedPG);
+          if (!success) {
+              showToast("Erro ao definir líder.", "warning");
+              return;
+          }
           if (isRemovingLeader) {
               showToast(`Função de líder removida de ${member.staffName}!`, "success");
           } else {

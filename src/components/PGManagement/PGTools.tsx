@@ -68,7 +68,11 @@ const PGTools: React.FC<PGToolsProps> = ({ unit }) => {
         updatedAt: Date.now()
       };
 
-      await saveRecord('proGroups', newPG);
+      const success = await saveRecord('proGroups', newPG);
+      if (!success) {
+        showToast("Erro ao criar PG no banco de dados.", "warning");
+        return;
+      }
       showToast(`PG ${newPG.id} - ${newPG.name} criado com sucesso!`, "success");
       setNewPGName('');
     } catch (error) {

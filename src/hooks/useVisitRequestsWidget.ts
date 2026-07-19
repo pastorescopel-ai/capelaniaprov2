@@ -176,7 +176,11 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
         assignedChaplainId: assignedId || req.assignedChaplainId,
         isRead: false
       };
-      await saveRecord('visitRequests', updatedReq);
+      const success = await saveRecord('visitRequests', updatedReq);
+      if (!success) {
+        showToast('Erro ao atualizar escala.', 'error');
+        return;
+      }
       showToast('Escala atualizada com sucesso.', 'success');
       setSelectedRequest(null);
       setActionType(null);
@@ -191,7 +195,11 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
   const handleDeleteRequest = async (id: string) => {
     setIsProcessing(true);
     try {
-      await deleteRecord('visitRequests', id);
+      const success = await deleteRecord('visitRequests', id);
+      if (!success) {
+        showToast('Erro ao remover agendamento.', 'error');
+        return;
+      }
       showToast('Agendamento removido com sucesso.', 'success');
       setSelectedRequest(null);
       setActionType(null);
