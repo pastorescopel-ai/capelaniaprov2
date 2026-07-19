@@ -24,7 +24,7 @@ interface AdminListsProps {
 }
 
 const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit, setActiveUnit }) => {
-  const { config, saveRecord, proGroupMembers, proGroupProviderMembers, ambassadors, proMonthlyStats } = useApp();
+  const { config, saveRecord, proGroupMembers, proGroupProviderMembers, ambassadors, proMonthlyStats, proProviders } = useApp();
   const { showToast } = useToast();
   const { processExcelFile, isProcessing: isReadingFile } = useExcelProcessor();
 
@@ -425,7 +425,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                     const sourceProviderMemberships = (proData.providerMemberships || []).filter(m => m.cycleMonth === sourceMonthRecentral && !m.leftAt);
                     if (sourceProviderMemberships.length > 0) {
                         const newProviderMemberships: ProGroupProviderMember[] = [];
-                        const activeProviderIds = new Set((proData.providers || []).filter(p => p.unit === activeUnit && p.active !== false).map(p => cleanID(p.id)));
+                        const activeProviderIds = new Set((proProviders || []).filter(p => p.unit === activeUnit && p.active !== false).map(p => cleanID(p.id)));
                         const existingTargetProviderMemberships = new Set((proGroupProviderMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.providerId)}|${cleanID(m.groupId)}`));
                         const providerIdsWithAnyTargetMembership = new Set((proGroupProviderMembers || []).filter(m => m.cycleMonth === selectedMonth && (!m.leftAt || m.leftAt > Date.now())).map(m => cleanID(m.providerId)));
 

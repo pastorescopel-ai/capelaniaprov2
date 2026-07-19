@@ -124,7 +124,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
     if (unread.length === 0) return;
     try {
       const updates = unread.map(req => ({ ...req, isRead: true }));
-      await saveRecord('visitRequests', updates);
+      const success = await saveRecord('visitRequests', updates);
+      if (!success) {
+        showToast("Erro ao limpar notificações.", "error");
+        return;
+      }
       showToast("Notificações marcadas como lidas.", "success");
     } catch (e) {
       console.error("Erro ao marcar como lido:", e);

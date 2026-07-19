@@ -53,7 +53,11 @@ const PGLeaders: React.FC<PGLeadersProps> = ({ unit }) => {
 
   const handleSave = async (staff: ProStaff, now: number) => {
     try {
-      await saveRecord('proStaff', { ...staff, whatsapp: newWhatsapp, updatedAt: now });
+      const success = await saveRecord('proStaff', { ...staff, whatsapp: newWhatsapp, updatedAt: now });
+      if (!success) {
+        showToast('Erro ao atualizar WhatsApp.', 'warning');
+        return;
+      }
       showToast('WhatsApp atualizado!', 'success');
       setEditingStaffId(null);
     } catch (e) {
