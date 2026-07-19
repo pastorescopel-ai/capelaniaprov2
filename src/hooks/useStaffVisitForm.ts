@@ -275,12 +275,11 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
         if (!isValidWhatsApp(formData.whatsapp)) { showToast("Por favor, insira um número de WhatsApp válido.", "error"); return; }
         dataToSubmit.sector = '';
 
-        // AUTO-RECOVERY DE PROVIDER ID: Garante que o providerId correto seja persistido no banco
+        // Não busca o providerId aqui: para prestador novo (ainda não cadastrado), o registro só
+        // é criado pelo syncMasterContact logo abaixo — buscar antes sempre resultava em id vazio
+        // na primeira vez que o prestador era citado, deixando a visita órfã para sempre.
         dataToSubmit.staffId = '';
-        if (!dataToSubmit.providerId) {
-            const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
-            if (provider) dataToSubmit.providerId = provider.id;
-        }
+        dataToSubmit.providerId = '';
     }
 
     if (isRecordLocked(formData.date, currentUser.role, 'staffVisits', editAuthorizations)) {
@@ -293,9 +292,10 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       if (isStaff) {
           if (dataToSubmit.whatsapp) await syncMasterContact(dataToSubmit.staffName, dataToSubmit.whatsapp, unit, ParticipantType.STAFF);
       } else {
-          await syncMasterContact(dataToSubmit.staffName, dataToSubmit.whatsapp, unit, ParticipantType.PROVIDER, dataToSubmit.sector);
+          const syncedId = await syncMasterContact(dataToSubmit.staffName, dataToSubmit.whatsapp, unit, ParticipantType.PROVIDER, dataToSubmit.sector);
+          if (syncedId) dataToSubmit.providerId = syncedId;
       }
-      
+
       await onSubmit({...dataToSubmit, unit});
       setFormData({ ...defaultState, date: getToday(), returnDate: getToday(), participantType: dataToSubmit.participantType });
       setIsSectorLocked(false);

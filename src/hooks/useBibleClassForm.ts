@@ -529,8 +529,14 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       let finalObservations = formData.observations;
       if (formData.participantType !== ParticipantType.STAFF) {
           const repName = formData.students[0].split(' (')[0].trim();
-          await syncMasterContact(repName, formData.representativePhone, unit, formData.participantType, formData.sector);
+          const syncedId = await syncMasterContact(repName, formData.representativePhone, unit, formData.participantType, formData.sector);
           if (formData.representativePhone) finalObservations = `[Rep. WhatsApp: ${formData.representativePhone}]\n${finalObservations}`;
+          // Sem isso, um Paciente/Prestador novo (sem cadastro prévio) era criado pelo
+          // syncMasterContact mas o "(ID)" nunca entrava no nome salvo em bible_class_attendees,
+          // virando um registro órfão permanente na Auditoria de Qualidade.
+          if (syncedId && !formData.students[0].includes('(')) {
+              formData.students[0] = `${repName} (${syncedId})`;
+          }
       } else {
           await Promise.all(formData.students.map(studentStr => {
               const nameOnly = studentStr.split(' (')[0].trim();

@@ -368,16 +368,11 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
             if (staff) dataToSubmit.staffId = staff.id;
         }
     } else {
+        // Não busca o id aqui: para Paciente/Prestador novos (ainda não cadastrados), o registro
+        // só é criado pelo syncMasterContact logo abaixo — buscar antes sempre resultava em id
+        // vazio na primeira vez que a pessoa era citada, deixando o registro órfão para sempre.
         dataToSubmit.staffId = '';
-        if (!dataToSubmit.participantId) {
-            if (formData.participantType === ParticipantType.PATIENT) {
-                const patient = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
-                if (patient) dataToSubmit.participantId = patient.id;
-            } else if (formData.participantType === ParticipantType.PROVIDER) {
-                const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
-                if (provider) dataToSubmit.participantId = provider.id;
-            }
-        }
+        dataToSubmit.participantId = '';
     }
 
     if (isStaff) {
@@ -396,7 +391,8 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
     setIsSubmitting(true);
     try {
-      await syncMasterContact(dataToSubmit.name, dataToSubmit.whatsapp, unit, dataToSubmit.participantType!, dataToSubmit.sector);
+      const syncedId = await syncMasterContact(dataToSubmit.name, dataToSubmit.whatsapp, unit, dataToSubmit.participantType!, dataToSubmit.sector);
+      if (!isStaff && syncedId) dataToSubmit.participantId = syncedId;
       const result = await onSubmit({ ...dataToSubmit, unit, participantType: dataToSubmit.participantType });
       
       // Se o onSubmit retornar um objeto com success (como o useBibleModule faz)
