@@ -440,8 +440,15 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
       const historyRes = await DataRepository.fetchFullTable('pro_history_records', 199999);
       const prevMonthHistory = toCamel(historyRes.data || []).filter((h: any) => h.month === prevMonthISO && h.isEnrolled === true);
       
-      const currentMemberships = proGroupMembers.filter(m => m.cycleMonth === selectedCloseMonth);
-      const currentStaffIdsInPGs = new Set(currentMemberships.map(m => cleanID(m.staffId)));
+      // Considera "já matriculado" tanto quem já tem registro no mês sendo fechado quanto quem
+      // já tem uma matrícula viva (sem leftAt) em QUALQUER outro mês que nunca foi migrada para
+      // cá — sem essa segunda checagem, a rematrícula automática criava uma segunda matrícula
+      // ativa duplicada para quem já estava vivo num ciclo anterior.
+      const currentStaffIdsInPGs = new Set(
+        proGroupMembers
+          .filter(m => (m.cycleMonth === selectedCloseMonth) || (!m.leftAt && m.isError !== true))
+          .map(m => cleanID(m.staffId))
+      );
 
       const newMembershipsToSync: any[] = [];
       
