@@ -256,7 +256,31 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
 
         if (activeTab === 'staff') {
             const finalStaff = mergeData(proData.staff, previewData, 'staff');
-            const success = await onSavePro(finalStaff, proData.sectors, proData.groups, saveOptions);
+
+            // Se um colaborador que era líder de PG saiu da planilha (foi desativado), remove a
+            // liderança dele no PG agora. Sem isso, ao reaparecer numa planilha futura ele reaproveita
+            // o mesmo id (regra de preservação de id acima) e volta como líder automaticamente, mesmo
+            // que a remoção tenha sido só um erro de digitação/exclusão acidental na planilha.
+            const previouslyActiveIds = new Set(
+                proData.staff.filter(s => s.unit === activeUnit && s.active !== false).map(s => cleanID(s.id))
+            );
+            const nowInactiveStaff = finalStaff.filter(s => s.unit === activeUnit && s.active === false && previouslyActiveIds.has(cleanID(s.id)));
+
+            let finalGroups = proData.groups;
+            if (nowInactiveStaff.length > 0) {
+                const deactivatedIds = new Set(nowInactiveStaff.map(s => cleanID(s.id)));
+                const deactivatedNames = new Set(nowInactiveStaff.map(s => normalizeString(s.name)));
+                finalGroups = proData.groups.map(g => {
+                    if (g.unit !== activeUnit) return g;
+                    const isLeaderGone = g.leaderStaffId
+                        ? deactivatedIds.has(cleanID(g.leaderStaffId))
+                        : (!!g.currentLeader && deactivatedNames.has(normalizeString(g.currentLeader)));
+                    if (!isLeaderGone) return g;
+                    return { ...g, currentLeader: "", leaderStaffId: null, updatedAt: Date.now() };
+                });
+            }
+
+            const success = await onSavePro(finalStaff, proData.sectors, finalGroups, saveOptions);
             
             if (success) {
                 // AUTO-REMATRICULAÇÃO: Trazer matrículas do mês anterior ou do último disponível
