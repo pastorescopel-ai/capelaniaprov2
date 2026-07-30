@@ -616,15 +616,27 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
 
       {isMonthClosed && (
         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl">
-              <i className="fas fa-user-edit"></i>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl">
+                <i className="fas fa-user-edit"></i>
+              </div>
+              <div>
+                <h3 className="text-slate-800 font-black uppercase text-sm tracking-tight">Corrigir Colaborador em Mês Fechado</h3>
+                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
+                  Ajusta setor/PG de UM colaborador em {formatMonthLabel(selectedCloseMonth)} sem reabrir o mês — os demais registros ficam intactos
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-slate-800 font-black uppercase text-sm tracking-tight">Corrigir Colaborador em Mês Fechado</h3>
-              <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
-                Ajusta setor/PG de UM colaborador em {formatMonthLabel(selectedCloseMonth)} sem reabrir o mês — os demais registros ficam intactos
-              </p>
+
+            <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200 shadow-sm">
+              <label className="text-[9px] font-black text-slate-400 uppercase px-2">Mês a corrigir:</label>
+              <input
+                type="month"
+                value={selectedCloseMonth.substring(0, 7)}
+                onChange={(e) => setSelectedCloseMonth(e.target.value + '-01')}
+                className="bg-transparent border-none rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-700 focus:ring-0"
+              />
             </div>
           </div>
 

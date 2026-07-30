@@ -1,9 +1,11 @@
 
-import { useMemo } from 'react';
-import { Unit } from '../types';
+import { useMemo, useState, useEffect } from 'react';
+import { Unit, ProHistoryRecord } from '../types';
 import { usePro } from '../contexts/ProContext';
 import { useApp } from './useApp';
 import { getTimestamp, normalizeString, cleanID } from '../utils/formatters';
+import { DataRepository } from '../services/dataRepository';
+import { toCamel } from '../utils/transformers';
 
 interface UsePGReportsDataProps {
   unit: Unit;
@@ -34,6 +36,36 @@ export function usePGReportsData({
   } = usePro();
   const { config } = useApp();
 
+  // A sincronização geral só mantém ~45 dias de pro_history_records em memória (ver
+  // dataRepository.ts). Para meses fora dessa janela, busca o snapshot direto no Supabase —
+  // mesmo padrão já usado em PGDashboard.tsx — para não mostrar tudo zerado em meses antigos.
+  const monthKeyForFetch = useMemo(() => {
+    const sDate = new Date(startDate + 'T12:00:00');
+    return new Date(sDate.getFullYear(), sDate.getMonth(), 1).toISOString().split('T')[0];
+  }, [startDate]);
+  const [localHistory, setLocalHistory] = useState<ProHistoryRecord[] | null>(null);
+
+  useEffect(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 45);
+    const limitMonth = d.toISOString().substring(0, 7) + '-01';
+
+    if (monthKeyForFetch < limitMonth) {
+      let cancelled = false;
+      DataRepository.fetchFullTable('pro_history_records', 199999, q => q.eq('month', monthKeyForFetch))
+        // fetchFullTable retorna as colunas cruas do Supabase (snake_case) — sem essa conversão,
+        // os campos camelCase que o resto do app espera (isEnrolled, groupName, staffId...) ficam
+        // undefined e todo o relatório computa como zero, mesmo com os dados corretos vindo da API.
+        .then(res => { if (!cancelled) setLocalHistory(res.data ? toCamel(res.data) : []); })
+        .catch(err => { console.error('Error loading historical report data', err); if (!cancelled) setLocalHistory([]); });
+      return () => { cancelled = true; };
+    } else {
+      setLocalHistory(null);
+    }
+  }, [monthKeyForFetch]);
+
+  const effectiveHistoryRecords = localHistory !== null ? localHistory : proHistoryRecords;
+
   return useMemo(() => {
     const sectors = proSectors.filter(s => s.unit === unit).sort((a, b) => a.name.localeCompare(b.name));
     let activePGCount = 0;
@@ -45,7 +77,7 @@ export function usePGReportsData({
     const providersById = new Map(proProviders.map(p => [cleanID(p.id), p]));
 
     const monthStr = new Date(sDate.getFullYear(), sDate.getMonth(), 1).toISOString().split('T')[0];
-    const historyForMonth = proHistoryRecords.filter(r => r.month === monthStr && r.unit === unit);
+    const historyForMonth = effectiveHistoryRecords.filter(r => r.month === monthStr && r.unit === unit);
 
     let data: any[] = [];
 
@@ -364,5 +396,5 @@ export function usePGReportsData({
         }),
         activePGCount: activePGCount
     };
-  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, proHistoryRecords, unit, searchTerm, selectedTarget, startDate, endDate, filterCritical]);
+  }, [proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proProviders, proGroupLocations, proGroups, effectiveHistoryRecords, unit, searchTerm, selectedTarget, startDate, endDate, filterCritical]);
 }

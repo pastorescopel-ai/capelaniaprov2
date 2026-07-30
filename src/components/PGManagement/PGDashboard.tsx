@@ -8,6 +8,7 @@ import { getTimestamp, normalizeString, cleanID, formatMonthLabel } from '../../
 import StatusModal from './StatusModal';
 import { calculateDashboardMetrics } from '../../utils/metricsEngine';
 import { DataRepository } from '../../services/dataRepository';
+import { toCamel } from '../../utils/transformers';
 import { Loader2 } from 'lucide-react';
 
 
@@ -40,8 +41,11 @@ const PGDashboard = memo(({ unit }: { unit: Unit }) => {
         DataRepository.fetchFullTable('pro_history_records', 199999, q => q.eq('month', selectedMonth)),
         DataRepository.fetchFullTable('pro_group_members', 49999, q => q.eq('cycle_month', selectedMonth))
       ]).then(([histRes, memRes]) => {
-        setLocalHistory(histRes.data || []);
-        setLocalMembers(memRes.data || []);
+        // fetchFullTable retorna colunas cruas do Supabase (snake_case) — sem converter para
+        // camelCase aqui, os campos que calculateDashboardMetrics espera (isEnrolled, groupId,
+        // staffId...) ficam undefined e o painel mostra tudo zerado mesmo com dados reais vindos da API.
+        setLocalHistory(histRes.data ? toCamel(histRes.data) : []);
+        setLocalMembers(memRes.data ? toCamel(memRes.data) : []);
         setIsLoadingHistory(false);
       }).catch(err => {
         console.error('Error loading historical data', err);
