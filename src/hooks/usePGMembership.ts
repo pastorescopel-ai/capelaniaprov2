@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Unit, ProGroup } from '../types';
+import { Unit, ProGroup, ProHistoryRecord } from '../types';
 import { usePro } from '../contexts/ProContext';
 import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePGMembershipData } from './usePGMembershipData';
 import { isCurrentlyActive, isLiveMembership } from '../utils/pgMembership';
+import { DataRepository } from '../services/dataRepository';
+import { toCamel } from '../utils/transformers';
 
 interface UsePGMembershipProps {
   unit: Unit;
@@ -48,6 +50,29 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
   const isFutureMonth = selectedMonth > activeComp;
   const isOpenMonth = selectedMonth === activeComp;
 
+  // Quando o mês está fechado (histórico), a tela lê de proHistoryRecords — mas a sincronização
+  // geral só mantém ~45 dias desse histórico em memória (ver dataRepository.ts). Para meses mais
+  // antigos, busca o snapshot direto no Supabase, senão a lista fica vazia mesmo com dados reais.
+  const [localHistory, setLocalHistory] = useState<ProHistoryRecord[] | null>(null);
+
+  useEffect(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 45);
+    const limitMonth = d.toISOString().substring(0, 7) + '-01';
+
+    if (isMonthClosed && selectedMonth < limitMonth) {
+      let cancelled = false;
+      DataRepository.fetchFullTable('pro_history_records', 199999, q => q.eq('month', selectedMonth))
+        .then(res => { if (!cancelled) setLocalHistory(res.data ? toCamel(res.data) : []); })
+        .catch(err => { console.error('Error loading historical membership data', err); if (!cancelled) setLocalHistory([]); });
+      return () => { cancelled = true; };
+    } else {
+      setLocalHistory(null);
+    }
+  }, [isMonthClosed, selectedMonth]);
+
+  const effectiveHistoryRecords = localHistory !== null ? localHistory : proHistoryRecords;
+
   // --- ESTADOS OTIMISTAS (UI Instantânea) ---
   const [pendingTransfers, setPendingTransfers] = useState<Set<string>>(new Set());
   const [pendingRemovals, setPendingRemovals] = useState<Set<string>>(new Set());
@@ -88,7 +113,7 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
     proGroupProviderMembers,
     proGroupLocations,
     proProviders,
-    proHistoryRecords,
+    proHistoryRecords: effectiveHistoryRecords,
     staffSearch: debouncedStaffSearch,
     providerSearch: debouncedProviderSearch,
     selectedSectorName,
