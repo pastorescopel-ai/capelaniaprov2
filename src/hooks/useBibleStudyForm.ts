@@ -381,10 +381,12 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
             showToast("Para colaboradores, o nome deve ser selecionado da lista oficial do RH.", "error");
             return;
         }
-        if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
+        // Setor não bloqueia mais o salvamento: ele é preenchido automaticamente a partir do
+        // cadastro do colaborador (handleSelectStudent) assim que o nome é selecionado — pedir
+        // confirmação manual de algo que o sistema já sabe era uma etapa redundante.
     } else {
-        if (!formData.whatsapp || formData.whatsapp.length < 10) { showToast(`O WhatsApp é obrigatório para ${formData.participantType}.`, "warning"); return; }
-        if (!isValidWhatsApp(formData.whatsapp)) { showToast("Por favor, insira um número de WhatsApp válido.", "error"); return; }
+        // WhatsApp deixou de ser obrigatório — só valida o formato se algo for preenchido.
+        if (formData.whatsapp && !isValidWhatsApp(formData.whatsapp)) { showToast("Por favor, insira um número de WhatsApp válido.", "error"); return; }
         dataToSubmit.sector = '';
         dataToSubmit.sectorId = '';
     }
