@@ -105,9 +105,9 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date || ''} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all" /></div>
           
           <div className="space-y-1">
-              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>{isStaff ? 'Setor (Obrigatório)' : 'Local (Opcional)'}</label>
+              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>{isStaff ? 'Setor (opcional, ajuda a buscar)' : 'Local (Opcional)'}</label>
               {isStaff ? (
-                  <Autocomplete options={sectorOptions} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} onSelectOption={handleSelectSector} placeholder="Selecione ou digite o local..." isStrict={false} />
+                  <Autocomplete options={sectorOptions} value={formData.sector || ''} onChange={v => setFormData({...formData, sector: v})} onSelectOption={handleSelectSector} placeholder="Buscar setor (opcional)..." isStrict={false} />
               ) : (
                   <input 
                     type="text" 
@@ -132,9 +132,9 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           </div>
           
           <div className="space-y-1 md:col-span-2">
-            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Chamada de Presença (Filtro: {formData.participantType})</label>
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Chamada de Presença — busque um aluno da turma</label>
             <div className="flex gap-2">
-              <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent || ''} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={`Buscar ${formData.participantType.toLowerCase()}...`} isStrict={false} /></div>
+              <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent || ''} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={`Digite o nome de um aluno da turma...`} isStrict={false} /></div>
               <button type="button" onClick={() => addStudent()} className="w-12 h-12 md:w-14 md:h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all"><i className="fas fa-plus"></i></button>
             </div>
             
@@ -176,7 +176,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                       </div>
                     );
                  })}
-                 {callList.length === 0 && (<div className="p-6 md:p-10 text-center flex flex-col items-center gap-3"><div className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 text-xl"><i className="fas fa-user-slash"></i></div><p className="text-[10px] md:text-xs text-slate-400 font-bold uppercase italic">{isStaff ? 'Nenhum aluno na lista. Selecione um setor para carregar.' : 'Adicione o primeiro aluno para buscar familiares/colegas.'}</p></div>)}
+                 {callList.length === 0 && (<div className="p-6 md:p-10 text-center flex flex-col items-center gap-3"><div className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 text-xl"><i className="fas fa-user-slash"></i></div><p className="text-[10px] md:text-xs text-slate-400 font-bold uppercase italic">Adicione um aluno da turma — o resto da turma da última vez é carregado automaticamente.</p></div>)}
               </div>
             </div>
           </div>

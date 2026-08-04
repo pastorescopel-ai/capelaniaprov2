@@ -59,9 +59,29 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       .map(s => `${s.name} (${String(s.id).split('-')[1] || s.id})`);
   }, [formData.sector, proSectors, proStaff, unit, formData.participantType]);
 
+  // A turma não é mais amarrada ao setor: assim que QUALQUER aluno já presente é reconhecido,
+  // busca a última classe em que ele apareceu e traz os colegas dela pra lista de chamada — o
+  // setor continua existindo só como atalho de busca (sectorStaff acima), não como obrigação.
+  const linkedClassmates = useMemo(() => {
+    if (formData.students.length === 0 || !unit) return [];
+    const relevant = allHistory.filter(c => c.unit === unit && (c.participantType || ParticipantType.STAFF) === formData.participantType && Array.isArray(c.students));
+    const names = new Set<string>();
+    formData.students.forEach(presentName => {
+      const lastClassOfThis = [...relevant]
+        .filter(c => c.students.includes(presentName))
+        .sort((a, b) => {
+          const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+          if (dateDiff !== 0) return dateDiff;
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        })[0];
+      if (lastClassOfThis) lastClassOfThis.students.forEach(s => names.add(s));
+    });
+    return Array.from(names);
+  }, [formData.students, allHistory, unit, formData.participantType]);
+
   const callList = useMemo(() => {
     const present = formData.students;
-    const potential = Array.from(new Set([...lastClassStudents, ...sectorStaff]));
+    const potential = Array.from(new Set([...lastClassStudents, ...sectorStaff, ...linkedClassmates]));
     const absent = potential.filter(s => !present.includes(s));
     
     absent.sort((a, b) => {
@@ -73,7 +93,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     });
 
     return [...present, ...absent];
-  }, [formData.students, lastClassStudents, sectorStaff]);
+  }, [formData.students, lastClassStudents, sectorStaff, linkedClassmates]);
 
   useEffect(() => {
     if (!editingItem) {
@@ -352,74 +372,81 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
           return;
       }
 
-      let peersToAdd: string[] = [];
       let nextGuide = formData.guide;
       let nextLesson = formData.lesson;
       let nextStatus = formData.status;
       let nextPhone = formData.representativePhone;
+      let nextSector = formData.sector;
 
       if (formData.students.length === 0 && !nextPhone) {
           const match = finalString.match(/\((.*?)\)$/);
           let staff: any;
           if (match) staff = proStaff.find(s => s.id === `${unit}-${match[1]}` || s.id === match[1]);
           if (!staff) staff = proStaff.find(s => normalizeString(s.name) === normalizeString(nameToAdd) && s.unit === unit);
-          
+
           if (staff && staff.whatsapp) {
               nextPhone = formatWhatsApp(staff.whatsapp);
               showToast(`WhatsApp de ${nameToAdd} vinculado.`, "info");
           }
       }
 
-      if (formData.participantType !== ParticipantType.STAFF) {
-          let lastClassWithStudent = [...allHistory]
-              .filter(c => c.students && c.students.includes(finalString) && (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit)
+      // A turma é reconhecida pelo aluno, não pelo setor: buscamos a última classe em que esta
+      // pessoa apareceu (de qualquer setor) e trazemos o resto dela — vale pra Colaborador
+      // também agora, não só Paciente/Prestador. O setor do registro é inferido dessa classe
+      // encontrada em vez de precisar ser escolhido manualmente antes.
+      let lastClassWithStudent = [...allHistory]
+          .filter(c => c.students && c.students.includes(finalString) && (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit)
+          .sort((a, b) => {
+              const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+              if (dateDiff !== 0) return dateDiff;
+              return (b.createdAt || 0) - (a.createdAt || 0);
+          })[0];
+
+      if (!lastClassWithStudent) {
+          // Se não achou na aba atual, busca em qualquer aba (Migração)
+          lastClassWithStudent = [...allHistory]
+              .filter(c => c.students && c.students.includes(finalString) && c.unit === unit)
               .sort((a, b) => {
                   const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
                   if (dateDiff !== 0) return dateDiff;
                   return (b.createdAt || 0) - (a.createdAt || 0);
               })[0];
-          
-          if (!lastClassWithStudent) {
-              // Se não achou na aba atual, busca em qualquer aba (Migração)
-              lastClassWithStudent = [...allHistory]
-                  .filter(c => c.students && c.students.includes(finalString) && c.unit === unit)
-                  .sort((a, b) => {
-                      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
-                      if (dateDiff !== 0) return dateDiff;
-                      return (b.createdAt || 0) - (a.createdAt || 0);
-                  })[0];
-          }
-
-          if (lastClassWithStudent) {
-              peersToAdd = lastClassWithStudent.students.filter(s => s !== finalString && !formData.students.includes(s));
-              nextGuide = lastClassWithStudent.guide;
-              const lastNum = parseInt(lastClassWithStudent.lesson);
-              nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClassWithStudent.lesson;
-              nextStatus = RecordStatus.CONTINUACAO;
-              
-              // PONTO 6: Recuperar WhatsApp do representante do histórico do aluno
-              const historyPhone = lastClassWithStudent.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1];
-              if (historyPhone && (!nextPhone || nextPhone.length < 10)) {
-                  nextPhone = historyPhone;
-              }
-
-              if (peersToAdd.length > 0) showToast(`Histórico encontrado! Agrupando com ${peersToAdd.length} colega(s).`, "info");
-          }
       }
-      
+
+      if (lastClassWithStudent) {
+          const peersFound = lastClassWithStudent.students.filter(s => s !== finalString && !formData.students.includes(s));
+          nextGuide = lastClassWithStudent.guide;
+          const lastNum = parseInt(lastClassWithStudent.lesson);
+          nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClassWithStudent.lesson;
+          nextStatus = RecordStatus.CONTINUACAO;
+          if (!nextSector) nextSector = lastClassWithStudent.sector || nextSector;
+
+          // PONTO 6: Recuperar WhatsApp do representante do histórico do aluno
+          const historyPhone = lastClassWithStudent.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1];
+          if (historyPhone && (!nextPhone || nextPhone.length < 10)) {
+              nextPhone = historyPhone;
+          }
+
+          // Os colegas NÃO entram automaticamente como presentes — eles aparecem na lista de
+          // chamada (via linkedClassmates) como ausentes, prontos pra serem marcados um a um.
+          // Só quem foi buscado/clicado agora entra direto como presente.
+          if (peersFound.length > 0) showToast(`Turma reconhecida! ${peersFound.length} colega(s) da última vez apareceram na lista pra chamada.`, "info");
+      }
+
       // Garante que não haja duplicatas na lista final
-      const updatedStudents = Array.from(new Set([...formData.students, finalString, ...peersToAdd]));
-      
-      setFormData(prev => ({ 
-        ...prev, 
-        students: updatedStudents, 
-        guide: nextGuide, 
-        lesson: nextLesson, 
-        status: nextStatus, 
-        representativePhone: nextPhone 
-      })); 
-      setNewStudent(''); 
-    } 
+      const updatedStudents = Array.from(new Set([...formData.students, finalString]));
+
+      setFormData(prev => ({
+        ...prev,
+        students: updatedStudents,
+        guide: nextGuide,
+        lesson: nextLesson,
+        status: nextStatus,
+        representativePhone: nextPhone,
+        sector: nextSector
+      }));
+      setNewStudent('');
+    }
   };
 
   const handleClear = () => {
@@ -499,8 +526,9 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     }
 
     if (formData.participantType === ParticipantType.STAFF) {
-        if (!formData.sector) { showToast("Para colaboradores, o Setor é obrigatório.", "warning"); return; }
-        
+        // Setor não bloqueia mais o salvamento — é inferido da última classe do aluno buscado
+        // (ver addStudent) assim que a turma é reconhecida; segue opcional pra turmas realmente novas.
+
         // PONTO 1: Validar que todos os alunos são colaboradores oficiais
         const nonStaff = formData.students.filter(studentStr => {
             const nameOnly = studentStr.split(' (')[0].trim();
