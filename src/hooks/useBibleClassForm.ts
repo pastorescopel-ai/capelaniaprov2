@@ -33,7 +33,6 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   const [formData, setFormData] = useState(defaultState);
   const [newStudent, setNewStudent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [ownershipConflict, setOwnershipConflict] = useState<{show: boolean, message: string}>({show: false, message: ''});
 
   const lastClassStudents = useMemo(() => {
     if (!formData.sector || !unit) return [];
@@ -364,12 +363,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
           showToast(`${nameToAdd} consta na lista de colaboradores. Por favor, mude o tipo para colaborador ou peça ao capelão para alterar.`, "warning");
       }
 
-      // Verifica se o aluno está em um estudo ativo com outro capelão
+      // Avisa (sem bloquear) se o aluno já está em estudo individual com outro capelão
       const ownership = checkOwnershipConflict(nameToAdd, 'study', unit, currentUser.id, currentUser.role);
       if (ownership.hasConflict) {
-          setOwnershipConflict({ show: true, message: ownership.message });
-          setNewStudent('');
-          return;
+          showToast(ownership.message, "warning");
       }
 
       let nextGuide = formData.guide;
@@ -518,11 +515,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     });
     formData.students = enrichedStudents;
 
-    // Verifica se a classe (setor) pertence a outro capelão
-    const classOwnership = checkOwnershipConflict(formData.sector, 'class', unit, currentUser.id, currentUser.role);
+    // Avisa (sem bloquear) se esta turma já está sendo acompanhada por outro capelão
+    const classOwnership = checkOwnershipConflict(formData.students, 'class', unit, currentUser.id, currentUser.role);
     if (classOwnership.hasConflict) {
-        setOwnershipConflict({ show: true, message: classOwnership.message });
-        return;
+        showToast(classOwnership.message, "warning");
     }
 
     if (formData.participantType === ParticipantType.STAFF) {
@@ -623,7 +619,6 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         }));
         showToast(`Continuando classe de ${baseItem.sector}`, "info");
     },
-    defaultState,
-    ownershipConflict, setOwnershipConflict
+    defaultState
   };
 };

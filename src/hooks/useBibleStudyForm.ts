@@ -33,7 +33,6 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
   const [formData, setFormData] = useState(defaultState);
   const [isSectorLocked, setIsSectorLocked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [ownershipConflict, setOwnershipConflict] = useState<{show: boolean, message: string}>({show: false, message: ''});
 
   useEffect(() => {
     if (!editingItem) {
@@ -210,13 +209,11 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
   const handleSelectStudent = (selectedLabel: string) => {
     const targetName = selectedLabel.split(' (')[0].trim();
 
-    // STRICT OWNERSHIP CHECK: Aborta preenchimento se pertencer a outro
+    // Apenas informa se o aluno já está em estudo com outro capelão — não bloqueia mais o
+    // lançamento, só avisa quem é o responsável pra contato/alinhamento entre capelães.
     const ownership = checkOwnershipConflict(targetName, 'study', unit, currentUser.id, currentUser.role);
     if (ownership.hasConflict) {
-        setOwnershipConflict({ show: true, message: ownership.message });
-        setFormData(prev => ({ ...prev, name: '', sector: '', sectorId: '', staffId: '', whatsapp: '', guide: '', lesson: '', status: RecordStatus.INICIO }));
-        setIsSectorLocked(false);
-        return;
+        showToast(ownership.message, "warning");
     }
 
     const match = selectedLabel.match(/\((.*?)\)$/);
@@ -348,11 +345,10 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         return;
     }
 
-    // Double check on submit
+    // Double check no envio — só avisa, não bloqueia
     const ownership = checkOwnershipConflict(formData.name, 'study', unit, currentUser.id, currentUser.role);
     if (ownership.hasConflict) {
-        setOwnershipConflict({ show: true, message: ownership.message });
-        return;
+        showToast(ownership.message, "warning");
     }
 
     const isStaff = formData.participantType === ParticipantType.STAFF;
@@ -447,7 +443,6 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         }));
         showToast(`Continuando estudo de ${baseItem.name}`, "info");
     },
-    defaultState,
-    ownershipConflict, setOwnershipConflict
+    defaultState
   };
 };

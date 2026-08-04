@@ -37,7 +37,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     editAuthorizations,
     handleSelectSector,
     addStudent, handleClear, handleFormSubmit,
-    handleContinueClass, defaultState, ownershipConflict, setOwnershipConflict
+    handleContinueClass, defaultState
   } = useBibleClassForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
   const isAdmin = currentUser.role === UserRole.ADMIN;
@@ -63,30 +63,6 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
   return (
     <>
-      {ownershipConflict.show && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="bg-rose-500 p-6 text-center">
-              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                <i className="fas fa-lock text-3xl text-white"></i>
-              </div>
-              <h3 className="text-xl font-black text-white uppercase tracking-wider">Acesso Bloqueado</h3>
-            </div>
-            <div className="p-6 text-center space-y-6">
-              <p className="text-slate-600 font-medium leading-relaxed">
-                {ownershipConflict.message}
-              </p>
-              <button 
-                type="button"
-                onClick={() => setOwnershipConflict({ show: false, message: '' })}
-                className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl uppercase tracking-widest transition-colors"
-              >
-                Entendi
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       <FormScaffold title="Classe Bíblica" headerActions={headerActions} history={historySection}>
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
