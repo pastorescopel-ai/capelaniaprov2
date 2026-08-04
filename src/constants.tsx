@@ -30,6 +30,7 @@ export const STATUS_OPTIONS = [RecordStatus.INICIO, RecordStatus.CONTINUACAO, Re
 export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
   { id: 'bibleStudy', label: 'Estudo Bíblico', icon: '📖', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
+  { id: 'bibleClass', label: 'Classe Bíblica', icon: '👥', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
   { id: 'smallGroup', label: 'Pequenos Grupos', icon: '🏠', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
   { id: 'staffVisit', label: 'Visitas', icon: '🤝', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },
   { id: 'activities', label: 'Atividades', icon: '📋', roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.INTERN] },

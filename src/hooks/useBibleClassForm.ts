@@ -513,8 +513,8 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
             return;
         }
     } else {
-        // WhatsApp do representante deixou de ser obrigatório — só valida o formato se preenchido.
-        if (formData.representativePhone && !isValidWhatsApp(formData.representativePhone)) { showToast("Por favor, insira um número de WhatsApp válido para o representante.", "error"); return; }
+        if (!formData.representativePhone || formData.representativePhone.length < 10) { showToast("O WhatsApp do Representante é obrigatório para este grupo.", "warning"); return; }
+        if (!isValidWhatsApp(formData.representativePhone)) { showToast("Por favor, insira um número de WhatsApp válido para o representante.", "error"); return; }
         // Clear sector info for non-staff
         formData.sector = '';
     }

@@ -3,17 +3,18 @@ import { User, Unit } from '../../types';
 import { useBibleModule } from './useBibleModule';
 
 const BibleStudyForm = lazy(() => import('../../components/Forms/BibleStudyForm'));
+const BibleClassForm = lazy(() => import('../../components/Forms/BibleClassForm'));
 
 interface BibleModuleProps {
+  type: 'study' | 'class';
   currentUser: User;
   users: any[];
   editingItem: any;
   isLoading: boolean;
   unit: Unit;
-  studyHistory: any[];
-  allStudyHistory: any[];
-  classHistory: any[];
-  allClassHistory: any[];
+  history: any[];
+  allHistory: any[];
+  sectors?: string[];
   onCancelEdit: () => void;
   onEdit: (item: any) => void;
   setItemToDelete: (data: {type: string, id: string}) => void;
@@ -22,32 +23,47 @@ interface BibleModuleProps {
 }
 
 const BibleModule: React.FC<BibleModuleProps> = ({
-  currentUser, users, editingItem, isLoading, unit, studyHistory, allStudyHistory, classHistory, allClassHistory,
+  type, currentUser, users, editingItem, isLoading, unit, history, allHistory, sectors,
   onCancelEdit, onEdit, setItemToDelete, handleTransfer, isActive
 }) => {
   const { saveStudy, saveClass } = useBibleModule(currentUser);
 
   return (
     <Suspense fallback={<div className="p-8 animate-pulse bg-slate-100 rounded-3xl h-64" />}>
-      <BibleStudyForm
-        currentUser={currentUser}
-        users={users}
-        editingItem={editingItem}
-        isLoading={isLoading}
-        onCancelEdit={onCancelEdit}
-        unit={unit}
-        studyHistory={studyHistory}
-        allStudyHistory={allStudyHistory}
-        classHistory={classHistory}
-        allClassHistory={allClassHistory}
-        onDeleteStudy={id => setItemToDelete({type: 'study', id})}
-        onDeleteClass={id => setItemToDelete({type: 'class', id})}
-        onEdit={onEdit}
-        onSubmitStudy={saveStudy}
-        onSubmitClass={saveClass}
-        onTransfer={handleTransfer}
-        isActive={isActive}
-      />
+      {type === 'study' ? (
+        <BibleStudyForm
+          currentUser={currentUser}
+          users={users}
+          editingItem={editingItem}
+          isLoading={isLoading}
+          onCancelEdit={onCancelEdit}
+          allHistory={allHistory}
+          unit={unit}
+          history={history}
+          onDelete={id => setItemToDelete({type: 'study', id})}
+          onEdit={onEdit}
+          onSubmit={saveStudy}
+          onTransfer={handleTransfer}
+          isActive={isActive}
+        />
+      ) : (
+        <BibleClassForm
+          currentUser={currentUser}
+          users={users}
+          editingItem={editingItem}
+          isLoading={isLoading}
+          onCancelEdit={onCancelEdit}
+          allHistory={allHistory}
+          unit={unit}
+          sectors={sectors || []}
+          history={history}
+          onDelete={id => setItemToDelete({type: 'class', id})}
+          onEdit={onEdit}
+          onSubmit={saveClass}
+          onTransfer={handleTransfer}
+          isActive={isActive}
+        />
+      )}
     </Suspense>
   );
 };

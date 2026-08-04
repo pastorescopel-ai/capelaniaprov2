@@ -101,7 +101,7 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    if (['bibleStudy', 'smallGroup', 'staffVisit', 'ambassadors'].includes(activeTab)) {
+    if (['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit', 'ambassadors'].includes(activeTab)) {
         if (skipClearRef.current) {
             skipClearRef.current = false;
         } else {
@@ -174,7 +174,7 @@ const App: React.FC = () => {
         />
 
         {/* Seletor de Unidade (Fixo no Topo para Formulários) */}
-        {['bibleStudy', 'smallGroup', 'staffVisit'].includes(activeTab) && (
+        {['bibleStudy', 'bibleClass', 'smallGroup', 'staffVisit'].includes(activeTab) && (
           <div className="mb-8 flex bg-white p-1.5 rounded-full shadow-sm border border-slate-100 max-w-fit mx-auto md:mx-0 animate-in slide-in-from-left duration-300">
             {[Unit.HAB, Unit.HABA].map(u => (
               <button 

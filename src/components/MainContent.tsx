@@ -119,17 +119,35 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         );
       case 'bibleStudy':
         return (
-          <BibleModule
-            currentUser={currentUser}
-            users={users}
-            editingItem={editingItem}
-            isLoading={isLoading}
-            onCancelEdit={() => setEditingItem(null)}
-            allStudyHistory={bibleStudies}
-            studyHistory={getVisibleHistory(bibleStudies)}
-            allClassHistory={bibleClasses}
-            classHistory={getVisibleHistory(bibleClasses)}
-            unit={currentUnit}
+          <BibleModule 
+            type="study" 
+            currentUser={currentUser} 
+            users={users} 
+            editingItem={editingItem} 
+            isLoading={isLoading} 
+            onCancelEdit={() => setEditingItem(null)} 
+            allHistory={bibleStudies} 
+            unit={currentUnit} 
+            history={getVisibleHistory(bibleStudies)}
+            setItemToDelete={setItemToDelete}
+            onEdit={setEditingItem}
+            handleTransfer={handleTransfer}
+            isActive={isVisible}
+          />
+        );
+      case 'bibleClass':
+        return (
+          <BibleModule 
+            type="class" 
+            currentUser={currentUser} 
+            users={users} 
+            editingItem={editingItem} 
+            isLoading={isLoading} 
+            onCancelEdit={() => setEditingItem(null)} 
+            allHistory={bibleClasses} 
+            unit={currentUnit} 
+            sectors={unitSectors} 
+            history={getVisibleHistory(bibleClasses)}
             setItemToDelete={setItemToDelete}
             onEdit={setEditingItem}
             handleTransfer={handleTransfer}
