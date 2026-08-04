@@ -20,8 +20,10 @@ export const useIdentityGuard = () => {
     currentUserId: string,
     currentUserRole: UserRole
   ): { hasConflict: boolean; message: string; ownerName?: string } => {
+    // Antes pulava Admin/Gestor pra não travar quem gerencia o sistema — mas agora que isso é só
+    // um aviso informativo (não bloqueia mais o lançamento), não há motivo pra pular ninguém.
     const isEmpty = Array.isArray(nameOrStudents) ? nameOrStudents.length === 0 : !nameOrStudents;
-    if (currentUserRole === UserRole.ADMIN || isEmpty) {
+    if (isEmpty) {
       return { hasConflict: false, message: '' };
     }
 
