@@ -366,7 +366,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       // Avisa (sem bloquear) se o aluno já está em estudo individual com outro capelão
       const ownership = checkOwnershipConflict(nameToAdd, 'study', unit, currentUser.id, currentUser.role);
       if (ownership.hasConflict) {
-          showToast(ownership.message, "warning");
+          showToast(ownership.message, "warning", true);
       }
 
       let nextGuide = formData.guide;
@@ -518,7 +518,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     // Avisa (sem bloquear) se esta turma já está sendo acompanhada por outro capelão
     const classOwnership = checkOwnershipConflict(formData.students, 'class', unit, currentUser.id, currentUser.role);
     if (classOwnership.hasConflict) {
-        showToast(classOwnership.message, "warning");
+        showToast(classOwnership.message, "warning", true);
     }
 
     if (formData.participantType === ParticipantType.STAFF) {

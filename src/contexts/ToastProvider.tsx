@@ -1,17 +1,19 @@
-import React, { useState, useCallback, useContext } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { hapticFeedback } from '../utils/haptics';
-import { ToastContext, ToastContextType } from './ToastContext';
+import { ToastContext } from './ToastContext';
 
 type ToastType = 'success' | 'warning' | 'info' | 'error';
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [toast, setToast] = useState<{ show: boolean; message: string; type: ToastType }>({ 
-    show: false, 
-    message: '', 
-    type: 'info' 
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: ToastType }>({
+    show: false,
+    message: '',
+    type: 'info'
   });
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showToast = useCallback((message: string, type: ToastType = 'info') => {
+  const showToast = useCallback((message: string, type: ToastType = 'info', persistent = false) => {
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
     setToast({ show: true, message, type });
 
     // Trigger haptic feedback based on type
@@ -20,7 +22,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     else if (type === 'warning') hapticFeedback.warning();
     else hapticFeedback.light();
 
-    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+    if (!persistent) {
+      dismissTimer.current = setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+    }
   }, []);
 
   const getToastStyles = (type: ToastType) => {
@@ -46,8 +50,11 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             <div className="flex-1">
               <p className="font-black uppercase text-[10px] tracking-widest leading-tight">{toast.message}</p>
             </div>
-            <button 
-              onClick={() => setToast({ ...toast, show: false })} 
+            <button
+              onClick={() => {
+                if (dismissTimer.current) clearTimeout(dismissTimer.current);
+                setToast(prev => ({ ...prev, show: false }));
+              }}
               className="w-8 h-8 rounded-full hover:bg-white/10 transition-colors flex items-center justify-center text-slate-400"
             >
               <i className="fas fa-times text-xs"></i>

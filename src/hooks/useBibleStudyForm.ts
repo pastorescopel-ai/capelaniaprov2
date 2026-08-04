@@ -213,7 +213,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     // lançamento, só avisa quem é o responsável pra contato/alinhamento entre capelães.
     const ownership = checkOwnershipConflict(targetName, 'study', unit, currentUser.id, currentUser.role);
     if (ownership.hasConflict) {
-        showToast(ownership.message, "warning");
+        showToast(ownership.message, "warning", true);
     }
 
     const match = selectedLabel.match(/\((.*?)\)$/);
@@ -348,7 +348,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     // Double check no envio — só avisa, não bloqueia
     const ownership = checkOwnershipConflict(formData.name, 'study', unit, currentUser.id, currentUser.role);
     if (ownership.hasConflict) {
-        showToast(ownership.message, "warning");
+        showToast(ownership.message, "warning", true);
     }
 
     const isStaff = formData.participantType === ParticipantType.STAFF;
