@@ -11,8 +11,31 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
   const [hasUpdate, setHasUpdate] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [changelog, setChangelog] = useState<string[]>([]);
   const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastCheckTimeRef = useRef<number>(0);
+
+  // Busca o resumo do que mudou nesta atualização (public/changelog.json, servido estático,
+  // independente do hash dos bundles JS/CSS). É atualizado a cada release com um resumo curto
+  // dos ajustes feitos, pra mostrar ao usuário o que ele vai ganhar ao clicar em "Atualizar Agora"
+  // em vez do texto genérico de sempre.
+  const fetchChangelog = useCallback(async () => {
+    try {
+      const res = await fetch(`/changelog.json?cb=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+      });
+      if (!res.ok) return;
+      const entries = await res.json();
+      const latest = Array.isArray(entries) ? entries[0] : null;
+      if (latest && Array.isArray(latest.changes)) {
+        setChangelog(latest.changes);
+      }
+    } catch {
+      // Falha silenciosa: se não conseguir buscar o changelog, o banner cai pro texto genérico
+    }
+  }, []);
 
   // Obtém URLs completas de scripts e folhas de estilo do documento e filtra somente o que for local (/assets/)
   const getAssetFingerprints = useCallback((doc: Document): string[] => {
@@ -74,13 +97,14 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
           local: localAssets
         });
         setHasUpdate(true);
+        fetchChangelog();
       }
     } catch (error) {
       if (navigator.onLine) console.warn('[Capelania AutoUpdate] Falha de rede ao checar atualização (ignorando):', error);
     } finally {
       setIsChecking(false);
     }
-  }, [getAssetFingerprints, isChecking, hasUpdate]);
+  }, [getAssetFingerprints, isChecking, hasUpdate, fetchChangelog]);
 
   const handleUpdate = async () => {
     setIsUpdating(true);
@@ -127,6 +151,7 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
     (window as any).__simularAtualizacaoCapelania = () => {
       console.log('[Capelania AutoUpdate] 🧪 Simulação de atualização ativada manualmente pelo Console!');
       setHasUpdate(true);
+      fetchChangelog();
     };
 
     return () => {
@@ -138,7 +163,7 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
       window.removeEventListener('focus', handleFocus);
       delete (window as any).__simularAtualizacaoCapelania;
     };
-  }, [checkForUpdates]);
+  }, [checkForUpdates, fetchChangelog]);
 
   const primaryCol = config?.primaryColor || '#005a9c';
 
@@ -165,9 +190,20 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
                 <h4 className="font-bold text-xs uppercase tracking-wider text-slate-900 opacity-100">
                   Melhoria Instalada
                 </h4>
-                <p className="text-[11px] text-slate-700 mt-1 leading-relaxed opacity-90">
-                  Uma nova atualização está disponível com correções e novas funcionalidades para a capelania.
-                </p>
+                {changelog.length > 0 ? (
+                  <ul className="text-[11px] text-slate-700 mt-1.5 space-y-1 opacity-90">
+                    {changelog.map((item, i) => (
+                      <li key={i} className="flex items-start gap-1.5 leading-relaxed">
+                        <i className="fas fa-check text-[9px] mt-[3px] shrink-0" style={{ color: primaryCol }}></i>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-[11px] text-slate-700 mt-1 leading-relaxed opacity-90">
+                    Uma nova atualização está disponível com correções e novas funcionalidades para a capelania.
+                  </p>
+                )}
               </div>
               <button 
                 onClick={() => setHasUpdate(false)}

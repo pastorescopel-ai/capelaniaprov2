@@ -1,0 +1,10 @@
+[
+  {
+    "version": "2026-08-05",
+    "date": "2026-08-05",
+    "changes": [
+      "Corrigido: um PG não mostra mais dois líderes coroados ao mesmo tempo em meses já fechados — o crachá de líder de cada mês histórico agora respeita apenas quem liderava naquele mês.",
+      "O aviso de conflito de responsável (capelão) agora fica fixo na tela até ser fechado manualmente, em vez de sumir sozinho."
+    ]
+  }
+]
