@@ -296,7 +296,15 @@ export const usePGMembershipData = ({
         joinedDate: r.joinedAt ? new Date(r.joinedAt).toLocaleDateString('pt-BR') : '',
         cycleMonth: r.cycleMonth,
         isOptimistic: false,
-        isLeader: r.leaderName === r.staffName || (currentPG.leaderStaffId ? cleanID(currentPG.leaderStaffId) === cleanID(r.staffId) : currentPG.currentLeader === r.staffName),
+        // Mês fechado: usa SOMENTE o líder congelado no histórico daquele mês (r.leaderName).
+        // Antes isso caía num "||" com o líder ATUAL do PG (currentPG.leaderStaffId/currentLeader),
+        // então trocar de líder hoje fazia o novo líder aparecer coroado em TODOS os meses antigos
+        // também, junto com quem realmente era líder naquele mês — dois líderes ao mesmo tempo.
+        // O fallback pro líder atual só deve valer pra registros de histórico antigos que nunca
+        // chegaram a gravar leaderName.
+        isLeader: r.leaderName
+          ? r.leaderName === r.staffName
+          : (currentPG.leaderStaffId ? cleanID(currentPG.leaderStaffId) === cleanID(r.staffId) : currentPG.currentLeader === r.staffName),
         type: 'staff'
       })).sort((a: any, b: any) => {
         if (a.isLeader && !b.isLeader) return -1;
