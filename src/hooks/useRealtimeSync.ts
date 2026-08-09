@@ -28,7 +28,6 @@ export const useRealtimeSync = (setters: Record<string, any>, refreshData: () =>
         'pro_history_records': 'proHistoryRecords',
         'ambassadors': 'ambassadors',
         'bible_class_attendees': 'bibleClassAttendees',
-        'edit_authorizations': 'editAuthorizations',
         'users': 'users',
         'app_config': 'config'
       };

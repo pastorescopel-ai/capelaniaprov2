@@ -17,7 +17,7 @@ interface UseSmallGroupFormProps {
 }
 
 export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onSubmit, isActive = true }: UseSmallGroupFormProps) => {
-  const { proSectors, proGroups, proStaff, proProviders, proPatients, saveRecord, visitRequests, syncMasterContact, proGroupLocations, editAuthorizations } = useApp();
+  const { proSectors, proGroups, proStaff, proProviders, proPatients, saveRecord, visitRequests, syncMasterContact, proGroupLocations } = useApp();
   const { inferPGDetails } = usePGInference(unit, proGroups, proSectors, proGroupLocations, proStaff);
   const { showToast } = useToast();
   
@@ -230,7 +230,7 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
     if (!proGroups.some(g => g.name === formData.groupName && g.unit === unit)) { showToast("Selecione um Pequeno Grupo válido da lista.", "warning"); return; }
     if (!proSectors.some(s => s.name === formData.sector && s.unit === unit)) { showToast("Selecione um setor oficial válido.", "warning"); return; }
     
-    if (isRecordLocked(formData.date, currentUser.role, 'smallGroups', editAuthorizations)) {
+    if (isRecordLocked(formData.date, currentUser.role)) {
         showToast("Este período está bloqueado para lançamentos.", "error");
         return;
     }
@@ -347,7 +347,6 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
     isSectorLocked, setIsSectorLocked,
     isSubmitting,
     sectorOptions, pgOptions, staffOptions,
-    editAuthorizations,
     handleSelectPG, handleSelectLeader, handleLeaderChange, handleClear, handleFormSubmit,
     defaultState
   };

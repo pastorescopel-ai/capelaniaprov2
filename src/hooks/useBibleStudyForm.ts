@@ -19,7 +19,7 @@ interface UseBibleStudyFormProps {
 }
 
 export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit, isActive = true }: UseBibleStudyFormProps) => {
-  const { proStaff, proPatients, proProviders, proSectors, syncMasterContact, editAuthorizations } = useApp();
+  const { proStaff, proPatients, proProviders, proSectors, syncMasterContact } = useApp();
   const { showToast } = useToast();
   const { checkIdentityConflict, checkOwnershipConflict } = useIdentityGuard();
   
@@ -334,7 +334,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     if (isSubmitting) return;
     if (!formData.name || !formData.guide || !formData.lesson) { showToast("Preencha Nome, Guia e Lição."); return; }
     
-    if (isRecordLocked(formData.date, currentUser.role, 'bibleStudies', editAuthorizations)) {
+    if (isRecordLocked(formData.date, currentUser.role)) {
         showToast("Este período está bloqueado para lançamentos.", "error");
         return;
     }
@@ -414,7 +414,6 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     isSectorLocked, setIsSectorLocked,
     isSubmitting,
     guideOptions, sectorOptions, studentOptions,
-    editAuthorizations,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
     handleContinueStudy: (item: BibleStudy) => {
         const normName = normalizeString(item.name);

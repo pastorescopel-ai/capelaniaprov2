@@ -18,8 +18,7 @@ import { ensureISODate } from './utils/formatters';
 const App: React.FC = () => {
   const {
     users, smallGroups, staffVisits,
-    config, isSyncing, isConnected, loadFromCloud, saveToCloud, saveRecord, deleteRecord,
-    editAuthorizations
+    config, isSyncing, isConnected, loadFromCloud, saveToCloud, saveRecord, deleteRecord
   } = useApp();
 
   const { bibleStudies, bibleClasses } = useBible();
@@ -33,7 +32,7 @@ const App: React.FC = () => {
     editingItem, setEditingItem,
     itemToDelete, setItemToDelete,
     handleSaveItem, confirmDeletion, getVisibleHistory
-  } = useAppFlow({ currentUser, saveRecord, deleteRecord, editAuthorizations });
+  } = useAppFlow({ currentUser, saveRecord, deleteRecord });
 
   const [isTabTransitionPending, startTabTransition] = React.useTransition();
 

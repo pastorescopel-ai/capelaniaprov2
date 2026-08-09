@@ -260,11 +260,10 @@ export const DataRepository = {
         DataRepository.fetchFullTable('pro_patients', MAX_ROWS),
         DataRepository.fetchFullTable('pro_providers', MAX_ROWS),
         DataRepository.fetchFullTable('pro_group_provider_members', MAX_ROWS),
-        DataRepository.fetchFullTable('ambassadors', MAX_ROWS),
-        DataRepository.fetchFullTable('edit_authorizations', MAX_ROWS)
+        DataRepository.fetchFullTable('ambassadors', MAX_ROWS)
       ]);
 
-      const [phr, pgm, pst, pms, sv, bca, bs, bc, pp, pr, pgpm, amb, ea] = results;
+      const [phr, pgm, pst, pms, sv, bca, bs, bc, pp, pr, pgpm, amb] = results;
 
       const classes = bc.data ? toCamel(bc.data) : null;
       const attendees = bca.data ? toCamel(bca.data) : null;
@@ -296,7 +295,6 @@ export const DataRepository = {
         proProviders: pr.data ? toCamel(pr.data) : null,
         proGroupProviderMembers: pgpm.data ? toCamel(pgpm.data) : null,
         ambassadors: amb.data ? toCamel(amb.data) : null,
-        editAuthorizations: ea.data ? toCamel(ea.data) : null,
       };
     } catch (error) {
       console.error("Erro fatal ao sincronizar background com Supabase:", error);

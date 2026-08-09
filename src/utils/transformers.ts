@@ -17,7 +17,6 @@ export const COLLECTION_TO_TABLE: Record<string, string> = {
   ambassadors: 'ambassadors',
   bibleClassAttendees: 'bible_class_attendees',
   proMonthlyStats: 'pro_monthly_stats',
-  editAuthorizations: 'edit_authorizations',
   proHistoryRecords: 'pro_history_records'
 };
 
@@ -40,7 +39,6 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   pro_group_provider_members: ['id', 'group_id', 'provider_id', 'joined_at', 'left_at', 'is_error', 'cycle_month', 'created_at', 'updated_at'],
   ambassadors: ['id', 'registration_id', 'name', 'sector_id', 'unit', 'completion_date', 'cycle_month', 'created_at', 'updated_at'],
   pro_monthly_stats: ['id', 'month', 'type', 'target_id', 'total_staff', 'total_participants', 'active_groups', 'percentage', 'goal', 'unit', 'snapshot_data', 'created_at', 'updated_at'],
-  edit_authorizations: ['id', 'user_id', 'user_name', 'allowed_tabs', 'month_to_unlock', 'expiry_date', 'created_by', 'created_at', 'updated_at'],
   pro_history_records: ['id', 'month', 'unit', 'staff_id', 'staff_name', 'sector_id', 'sector_name', 'group_id', 'group_name', 'leader_name', 'role', 'is_enrolled', 'joined_at', 'left_at', 'created_at', 'updated_at']
 };
 

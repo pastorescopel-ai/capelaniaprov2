@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ProMonthlyStats, EditAuthorization, ProHistoryRecord } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ProMonthlyStats, ProHistoryRecord } from '../types';
 import { INITIAL_CONFIG } from '../constants';
 import { useRealtimeSync } from './useRealtimeSync';
 import { useDataActions } from './useDataActions';
@@ -26,8 +26,7 @@ export const useAppData = () => {
   const [proHistoryRecords, setProHistoryRecords] = useState<ProHistoryRecord[]>([]);
   const [ambassadors, setAmbassadors] = useState<any[]>([]);
   const [bibleClassAttendees, setBibleClassAttendees] = useState<any[]>([]);
-  const [editAuthorizations, setEditAuthorizations] = useState<EditAuthorization[]>([]);
-  
+
   const [config, setConfig] = useState<Config>(() => {
     if (typeof window !== 'undefined') {
       const cached = localStorage.getItem('capelania_pro_config_data');
@@ -75,7 +74,6 @@ export const useAppData = () => {
     proHistoryRecords: setProHistoryRecords,
     ambassadors: setAmbassadors,
     bibleClassAttendees: setBibleClassAttendees,
-    editAuthorizations: setEditAuthorizations,
     config: setConfig
   }), []);
 
@@ -199,7 +197,6 @@ export const useAppData = () => {
     users, setUsers, bibleStudies, setBibleStudies, bibleClasses, setBibleClasses, smallGroups, setSmallGroups, staffVisits, setStaffVisits, visitRequests, setVisitRequests,
     proStaff, setProStaff, proPatients, setProPatients, proProviders, setProProviders, proSectors, setProSectors, proGroups, setProGroups, proGroupLocations, setProGroupLocations, proGroupMembers, setProGroupMembers, proGroupProviderMembers, setProGroupProviderMembers, proMonthlyStats, setProMonthlyStats, proHistoryRecords, setProHistoryRecords, ambassadors, setAmbassadors,
     bibleClassAttendees, setBibleClassAttendees,
-    editAuthorizations, setEditAuthorizations,
     config, setConfig, isSyncing, isConnected, isInitialized,
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, deleteRecordsByFilter, refreshData, applySystemOverrides, syncMasterContact
   };

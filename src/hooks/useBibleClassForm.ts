@@ -19,7 +19,7 @@ interface UseBibleClassFormProps {
 }
 
 export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit, isActive = true }: UseBibleClassFormProps) => {
-  const { proStaff, proPatients, proProviders, proSectors, syncMasterContact, editAuthorizations } = useApp();
+  const { proStaff, proPatients, proProviders, proSectors, syncMasterContact } = useApp();
   const { showToast } = useToast();
   const { checkOwnershipConflict } = useIdentityGuard();
   
@@ -543,7 +543,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         formData.sector = '';
     }
 
-    if (isRecordLocked(formData.date, currentUser.role, 'bibleClasses', editAuthorizations)) {
+    if (isRecordLocked(formData.date, currentUser.role)) {
         showToast("Este período está bloqueado para lançamentos.", "error");
         return;
     }
@@ -591,7 +591,6 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     isSubmitting,
     lastClassStudents, callList,
     guideOptions, studentSearchOptions, sectorOptions,
-    editAuthorizations,
     handleSelectSector,
     addStudent, handleClear, handleFormSubmit,
     handleContinueClass: (item: BibleClass) => {

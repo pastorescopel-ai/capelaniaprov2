@@ -313,18 +313,6 @@ export interface Ambassador {
   createdAt?: string;
 }
 
-export interface EditAuthorization {
-  id: string;
-  userId: string;
-  userName: string;
-  allowedTabs: string[]; // ['estudos', 'classes', 'pg', 'visitas', 'relatorio']
-  monthToUnlock: string; // YYYY-MM-DD (primeiro dia do mês)
-  expiryDate: string; // YYYY-MM-DDTHH:mm:ss (Data e hora de expiração)
-  createdAt: number;
-  updatedAt?: number;
-  createdBy: string;
-}
-
 export interface ProHistoryRecord {
   id: string;
   month: string; // YYYY-MM-DD

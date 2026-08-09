@@ -32,7 +32,6 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     isSectorLocked, setIsSectorLocked,
     isSubmitting,
     guideOptions, sectorOptions, studentOptions,
-    editAuthorizations,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
     handleContinueStudy
   } = useBibleStudyForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
@@ -63,7 +62,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         title={item.name} 
         subtitle={`${item.sector} • ${item.status}`} 
         chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} 
-        isLocked={isLoading ? false : isRecordLocked(item.date, currentUser.role, 'bibleStudies', editAuthorizations)} 
+        isLocked={isLoading ? false : isRecordLocked(item.date, currentUser.role)}
         isAdmin={currentUser.role === UserRole.ADMIN} 
         users={users} 
         onTransfer={(newUid) => onTransfer?.('study', item.id, newUid)} 
@@ -72,7 +71,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         onContinue={() => handleContinueStudy(item)} 
         middle={item.participantType && item.participantType !== ParticipantType.STAFF && (<span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${item.participantType === ParticipantType.PATIENT ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{item.participantType}</span>)}/>
     )} />
-  ), [history, users, currentUser, isLoading, onTransfer, onEdit, onDelete, handleContinueStudy, editAuthorizations]);
+  ), [history, users, currentUser, isLoading, onTransfer, onEdit, onDelete, handleContinueStudy]);
 
   return (
     <>

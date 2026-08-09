@@ -19,7 +19,7 @@ interface UseStaffVisitFormProps {
 }
 
 export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit, isActive = true }: UseStaffVisitFormProps) => {
-  const { proStaff, proProviders, proSectors, syncMasterContact, editAuthorizations } = useApp();
+  const { proStaff, proProviders, proSectors, syncMasterContact } = useApp();
   const { showToast } = useToast();
   const { checkIdentityConflict } = useIdentityGuard();
 
@@ -282,7 +282,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
         dataToSubmit.providerId = '';
     }
 
-    if (isRecordLocked(formData.date, currentUser.role, 'staffVisits', editAuthorizations)) {
+    if (isRecordLocked(formData.date, currentUser.role)) {
         showToast("Este período está bloqueado para lançamentos.", "error");
         return;
     }
@@ -390,7 +390,6 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     isSectorLocked, setIsSectorLocked,
     isSubmitting,
     sectorOptions, nameOptions,
-    editAuthorizations,
     handleSelectName, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
     sortedHistory, defaultState
   };

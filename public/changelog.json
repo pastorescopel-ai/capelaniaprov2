@@ -3,7 +3,8 @@
     "version": "2026-08-09",
     "date": "2026-08-09",
     "changes": [
-      "A aba Atividades foi removida do menu — o registro de blueprints, cultos, encontros e visite cantando não faz mais parte do app."
+      "A aba Atividades foi removida do menu — o registro de blueprints, cultos, encontros e visite cantando não faz mais parte do app.",
+      "A aba Permissões (Painel Admin) foi removida — não é mais possível delegar edição de meses fechados para outros usuários; só o Admin pode ajustar registros de meses anteriores."
     ]
   },
   {
