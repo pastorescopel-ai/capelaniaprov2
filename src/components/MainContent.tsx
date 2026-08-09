@@ -13,7 +13,6 @@ const Reports = lazy(() => import('./Reports'));
 const PGManager = lazy(() => import('./PGManagement/PGManagerLayout'));
 const AmbassadorsManager = lazy(() => import('./Ambassadors/AmbassadorsManager'));
 const DataHealer = lazy(() => import('./DataHealer'));
-const ActivityManager = lazy(() => import('./Activities/ActivityManager'));
 
 // Modular Components
 const StaffModule = lazy(() => import('../modules/staff/StaffModule'));
@@ -23,7 +22,6 @@ const CoreModule = lazy(() => import('../modules/core/CoreModule'));
 
 interface MainContentProps {
   activeTab: string;
-  activitiesSubTab?: 'analysis' | 'checklist' | 'scheduler' | 'reports';
   visitedTabs: Set<string>;
   currentUser: User;
   currentUnit: Unit;
@@ -77,7 +75,7 @@ const TabLoading = () => (
 
 const MainContent: React.FC<MainContentProps> = (props) => {
   const {
-    activeTab, activitiesSubTab, visitedTabs, currentUser, currentUnit, unitSectors, editingItem, isLoading,
+    activeTab, visitedTabs, currentUser, currentUnit, unitSectors, editingItem, isLoading,
     setActiveTab, setCurrentUnit, setEditingItem, setItemToDelete,
     updateCurrentUser, handleSaveItem, onRegisterMission, onGoToReturnHistory, getVisibleHistory
   } = props;
@@ -203,8 +201,6 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         return <CoreModule type="admin" currentUser={currentUser} users={users} isLoading={isLoading} />;
       case 'dataHealing':
         return <CoreModule type="dataHealing" currentUser={currentUser} users={users} isLoading={isLoading} />;
-      case 'activities':
-        return <ActivityManager isActive={activeTab === 'activities'} initialSubTab={activitiesSubTab} />;
       default:
         return null;
     }

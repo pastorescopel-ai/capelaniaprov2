@@ -8,7 +8,7 @@ const MEMORY_CACHE: Record<string, any> = {};
 
 function safeSetLocalStorage(key: string, value: any, tableName: string) {
   try {
-    const heavyTables = ['pro_history_records', 'pro_monthly_stats', 'staff_visits', 'bible_class_attendees', 'activity_schedules', 'daily_activity_reports'];
+    const heavyTables = ['pro_history_records', 'pro_monthly_stats', 'staff_visits', 'bible_class_attendees'];
     
     // Não salvar tabelas pesadas no localStorage para evitar QuotaExceededError
     if (heavyTables.includes(tableName)) {
@@ -254,8 +254,6 @@ export const DataRepository = {
         DataRepository.fetchFullTable('pro_staff', MAX_ROWS),
         DataRepository.fetchFullTable('pro_monthly_stats', 99999), 
         DataRepository.fetchFullTable('staff_visits', MAX_ROWS, q => q.gte('date', limitDate)),
-        DataRepository.fetchFullTable('activity_schedules', MAX_ROWS, q => q.gte('month', limitMonth)),
-        DataRepository.fetchFullTable('daily_activity_reports', MAX_ROWS, q => q.gte('date', limitDate)),
         DataRepository.fetchFullTable('bible_class_attendees', MAX_ROWS, q => q.gte('date', limitDate)),
         DataRepository.fetchFullTable('bible_study_sessions', MAX_ROWS),
         DataRepository.fetchFullTable('bible_classes', MAX_ROWS),
@@ -266,7 +264,7 @@ export const DataRepository = {
         DataRepository.fetchFullTable('edit_authorizations', MAX_ROWS)
       ]);
 
-      const [phr, pgm, pst, pms, sv, asch, dar, bca, bs, bc, pp, pr, pgpm, amb, ea] = results;
+      const [phr, pgm, pst, pms, sv, bca, bs, bc, pp, pr, pgpm, amb, ea] = results;
 
       const classes = bc.data ? toCamel(bc.data) : null;
       const attendees = bca.data ? toCamel(bca.data) : null;
@@ -291,8 +289,6 @@ export const DataRepository = {
         proStaff: pst.data ? toCamel(pst.data) : null,
         proMonthlyStats: pms.data ? toCamel(pms.data) : null,
         staffVisits: sv.data ? toCamel(sv.data) : null,
-        activitySchedules: asch.data ? toCamel(asch.data) : null,
-        dailyActivityReports: dar.data ? toCamel(dar.data) : null,
         bibleClassAttendees: attendees,
         bibleStudies: bs.data ? toCamel(bs.data) : null,
         bibleClasses: classes,

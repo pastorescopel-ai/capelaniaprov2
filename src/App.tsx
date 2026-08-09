@@ -19,7 +19,7 @@ const App: React.FC = () => {
   const {
     users, smallGroups, staffVisits,
     config, isSyncing, isConnected, loadFromCloud, saveToCloud, saveRecord, deleteRecord,
-    activitySchedules, dailyActivityReports, editAuthorizations
+    editAuthorizations
   } = useApp();
 
   const { bibleStudies, bibleClasses } = useBible();
@@ -39,18 +39,12 @@ const App: React.FC = () => {
 
   // Controle de abas visitadas para renderização sob demanda (Performance)
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['dashboard']));
-  const [activitiesSubTab, setActivitiesSubTab] = useState<'analysis' | 'checklist' | 'scheduler' | 'reports' | undefined>(undefined);
   const skipClearRef = React.useRef(false);
 
-  const handleTabChange = (tab: string, subTab?: any) => {
+  const handleTabChange = (tab: string, _subTab?: any) => {
     startTabTransition(() => {
       setActiveTab(tab);
       setVisitedTabs(prev => new Set(prev).add(tab));
-      if (tab === 'activities' && subTab) {
-        setActivitiesSubTab(subTab);
-      } else if (tab !== 'activities') {
-        setActivitiesSubTab(undefined);
-      }
     });
   };
 
@@ -190,9 +184,8 @@ const App: React.FC = () => {
         )}
         
         {/* Conteúdo Principal Modularizado */}
-        <MainContent 
+        <MainContent
           activeTab={activeTab}
-          activitiesSubTab={activitiesSubTab}
           visitedTabs={visitedTabs}
           currentUser={currentUser}
           currentUnit={currentUnit}

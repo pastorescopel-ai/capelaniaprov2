@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ActivitySchedule, DailyActivityReport, ProMonthlyStats, EditAuthorization, ProHistoryRecord } from '../types';
+import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ProMonthlyStats, EditAuthorization, ProHistoryRecord } from '../types';
 import { INITIAL_CONFIG } from '../constants';
 import { useRealtimeSync } from './useRealtimeSync';
 import { useDataActions } from './useDataActions';
@@ -25,8 +25,6 @@ export const useAppData = () => {
   const [proMonthlyStats, setProMonthlyStats] = useState<ProMonthlyStats[]>([]);
   const [proHistoryRecords, setProHistoryRecords] = useState<ProHistoryRecord[]>([]);
   const [ambassadors, setAmbassadors] = useState<any[]>([]);
-  const [activitySchedules, setActivitySchedules] = useState<ActivitySchedule[]>([]);
-  const [dailyActivityReports, setDailyActivityReports] = useState<DailyActivityReport[]>([]);
   const [bibleClassAttendees, setBibleClassAttendees] = useState<any[]>([]);
   const [editAuthorizations, setEditAuthorizations] = useState<EditAuthorization[]>([]);
   
@@ -76,8 +74,6 @@ export const useAppData = () => {
     proMonthlyStats: setProMonthlyStats,
     proHistoryRecords: setProHistoryRecords,
     ambassadors: setAmbassadors,
-    activitySchedules: setActivitySchedules,
-    dailyActivityReports: setDailyActivityReports,
     bibleClassAttendees: setBibleClassAttendees,
     editAuthorizations: setEditAuthorizations,
     config: setConfig
@@ -202,7 +198,7 @@ export const useAppData = () => {
   return {
     users, setUsers, bibleStudies, setBibleStudies, bibleClasses, setBibleClasses, smallGroups, setSmallGroups, staffVisits, setStaffVisits, visitRequests, setVisitRequests,
     proStaff, setProStaff, proPatients, setProPatients, proProviders, setProProviders, proSectors, setProSectors, proGroups, setProGroups, proGroupLocations, setProGroupLocations, proGroupMembers, setProGroupMembers, proGroupProviderMembers, setProGroupProviderMembers, proMonthlyStats, setProMonthlyStats, proHistoryRecords, setProHistoryRecords, ambassadors, setAmbassadors,
-    activitySchedules, setActivitySchedules, dailyActivityReports, setDailyActivityReports, bibleClassAttendees, setBibleClassAttendees,
+    bibleClassAttendees, setBibleClassAttendees,
     editAuthorizations, setEditAuthorizations,
     config, setConfig, isSyncing, isConnected, isInitialized,
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, deleteRecordsByFilter, refreshData, applySystemOverrides, syncMasterContact

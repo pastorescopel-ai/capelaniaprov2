@@ -27,8 +27,6 @@ export const useRealtimeSync = (setters: Record<string, any>, refreshData: () =>
         'pro_monthly_stats': 'proMonthlyStats',
         'pro_history_records': 'proHistoryRecords',
         'ambassadors': 'ambassadors',
-        'activity_schedules': 'activitySchedules',
-        'daily_activity_reports': 'dailyActivityReports',
         'bible_class_attendees': 'bibleClassAttendees',
         'edit_authorizations': 'editAuthorizations',
         'users': 'users',
