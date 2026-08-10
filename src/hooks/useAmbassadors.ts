@@ -66,6 +66,60 @@ export const useAmbassadors = (proSectors: any[]) => {
     }
   }, [fetchAmbassadors]);
 
+  // Tempo real: quando um colaborador conclui a prova no app Embaixadores, o Supabase grava
+  // direto na tabela `ambassadors` — sem isso, essa tela só refletia a resposta depois de um
+  // F5 ou de trocar o mês selecionado (o fetch acima só roda uma vez por mudança de mês).
+  useEffect(() => {
+    if (!supabase) return;
+
+    const toRecord = (row: any): Ambassador => ({
+      id: row.id,
+      name: row.name,
+      registrationId: row.registration_id,
+      email: row.email,
+      sectorId: row.sector_id ? String(row.sector_id) : null,
+      unit: row.unit,
+      completionDate: row.completion_date,
+      cycleMonth: row.cycle_month,
+      createdAt: row.created_at
+    });
+
+    // Sem filtro de `cycle_month` no canal: a tabela `ambassadors` tem REPLICA IDENTITY padrão
+    // (só a chave primária), então o Postgres não envia o `cycle_month` antigo em eventos de
+    // DELETE — um filtro de servidor nesse campo faria o Supabase descartar todo DELETE em
+    // silêncio. Em vez disso, escutamos a tabela inteira e filtramos no cliente.
+    const channel = supabase
+      .channel('realtime-ambassadors')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ambassadors' },
+        (payload: any) => {
+          const { eventType, new: newRow, old: oldRow } = payload;
+
+          if (eventType === 'INSERT' || eventType === 'UPDATE') {
+            if (newRow.cycle_month !== selectedMonth) return;
+            const record = toRecord(newRow);
+            setAmbassadors(prev => {
+              const index = prev.findIndex(a => a.id === record.id);
+              if (index !== -1) {
+                const next = [...prev];
+                next[index] = record;
+                return next;
+              }
+              return [...prev, record];
+            });
+          } else if (eventType === 'DELETE') {
+            // oldRow só traz o id (replica identity padrão) — remover por id é suficiente e
+            // seguro mesmo sem saber o cycle_month do registro apagado.
+            setAmbassadors(prev => prev.filter(a => a.id !== oldRow.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedMonth]);
+
   const deleteAmbassador = async (id: string) => {
     try {
       const { error } = await supabase.from('ambassadors').delete().eq('id', id);

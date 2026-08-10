@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-10c",
+    "date": "2026-08-10",
+    "changes": [
+      "A aba Embaixadores agora atualiza em tempo real — quando um colaborador conclui a prova no app Embaixadores, o total e a lista aqui no Capelania Pro mudam na hora, sem precisar dar refresh na página."
+    ]
+  },
+  {
     "version": "2026-08-10b",
     "date": "2026-08-10",
     "changes": [
