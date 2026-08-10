@@ -226,13 +226,23 @@ export const useHealerActions = (
               }
               success = await saveRecord('proGroupMembers', { ...membership, groupId: targetGroupId, updatedAt: Date.now() });
           } else {
-              success = await saveRecord('proGroupMembers', {
-                  groupId: targetGroupId,
-                  staffId: item.staffId,
-                  joinedAt: Date.now(),
-                  leftAt: null,
-                  isError: false
-              });
+              // Sem matrícula original pra "mover" (item órfão) — antes de criar uma nova, fecha
+              // qualquer outra matrícula que essa pessoa ainda tenha aberta, senão viola a trava
+              // de "uma matrícula aberta por pessoa" do banco.
+              const otherOpens = (appData.proGroupMembers || []).filter((m: any) =>
+                  String(m.staffId) === String(item.staffId) && !m.leftAt && !m.isError
+              );
+              const rows = [
+                  ...otherOpens.map((m: any) => ({ ...m, leftAt: 1, isError: true, updatedAt: Date.now() })),
+                  {
+                      groupId: targetGroupId,
+                      staffId: item.staffId,
+                      joinedAt: Date.now(),
+                      leftAt: null,
+                      isError: false
+                  }
+              ];
+              success = await saveRecord('proGroupMembers', rows);
           }
 
           if (success) {

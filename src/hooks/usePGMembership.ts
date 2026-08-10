@@ -177,20 +177,36 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
 
       const { firstDayMs } = getCycleDates(selectedMonth);
 
+      // Uma pessoa só pode ter UMA matrícula de PG aberta por vez (regra reforçada no banco por
+      // um índice único em staff_id/provider_id). Por isso essa checagem abaixo é GLOBAL — em
+      // qualquer PG, de qualquer unidade — e não só nos PGs da unidade selecionada no momento:
+      // se checássemos só a unidade atual, uma matrícula viva noutra unidade ficaria invisível
+      // aqui e a matrícula nova violaria essa trava do banco.
+      const { firstDayMs: mStart, lastDayMs: mEnd } = getCycleDates(selectedMonth);
+      const allOpenMemberships = membersList.filter(m => {
+        if (cleanId((m as any)[idField]) !== cleanId(personId)) return false;
+        return isLiveMembership(m, selectedMonth, { start: mStart, end: mEnd }, isOpenMonth);
+      });
+
     // 1. PRIORIDADE: Destravar registros com erro (isError: true)
       const errorRecord = membersList.find(m => cleanId((m as any)[idField]) === cleanId(personId) && m.isError);
-      
+
       if (errorRecord) {
-        const update = { 
-          ...errorRecord, 
+        const update = {
+          ...errorRecord,
           groupId: currentPG.id,
           joinedAt: firstDayMs,
           cycleMonth: selectedMonth,
-          leftAt: null, 
+          leftAt: null,
           isError: false,
           updatedAt: Date.now()
         };
-        const success = await saveRecord(collection, [update]);
+        // Fecha qualquer OUTRA matrícula ainda aberta (em qualquer PG/unidade) antes de reativar
+        // esta, pra não violar a trava de "uma matrícula aberta por pessoa" do banco.
+        const otherOpensToClose = allOpenMemberships
+          .filter(m => m.id !== errorRecord.id)
+          .map(m => ({ ...m, leftAt: 1, isError: true, updatedAt: Date.now() }));
+        const success = await saveRecord(collection, [update, ...otherOpensToClose]);
         if (success) {
           showToast("Matrícula reativada no novo grupo!", "success");
           if (type === 'provider') setProviderSearch('');
@@ -198,20 +214,9 @@ export const usePGMembership = ({ unit }: UsePGMembershipProps) => {
         }
       }
 
-      // 2. MOVIMENTAÇÃO: Verificar todos os registros ativos na unidade inteira
-      const unitGroupIds = new Set(proGroups.filter(g => g.unit === unit).map(g => g.id));
-      
-      const allRelevantMemberships = membersList.filter(m => {
-        const isSamePerson = cleanId((m as any)[idField]) === cleanId(personId);
-        if (!isSamePerson) return false;
-        
-        const isSameUnit = unitGroupIds.has(m.groupId);
-        if (!isSameUnit) return false;
-        
-        const { firstDayMs: mStart, lastDayMs: mEnd } = getCycleDates(selectedMonth);
-        return isLiveMembership(m, selectedMonth, { start: mStart, end: mEnd }, isOpenMonth);
-      });
-      
+      // 2. MOVIMENTAÇÃO: Verificar todos os registros ativos da pessoa (qualquer PG/unidade)
+      const allRelevantMemberships = allOpenMemberships;
+
       if (allRelevantMemberships.length > 0) {
         // Se já existe no mês selecionado, fazemos o "Hard Move" (Limpa antigos e atualiza para o novo)
         const updates = allRelevantMemberships.map((m, idx) => {

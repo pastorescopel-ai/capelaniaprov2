@@ -153,15 +153,18 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
             });
             restoredStaff++;
 
-            const closedMemberships = proGroupMembers.filter(m => 
-              cleanID(m.staffId) === cleanID(staff.id) && 
+            // Restaura só a matrícula MAIS RECENTE (a pessoa só pode ter um PG aberto por vez —
+            // reabrir todo o histórico de PGs antigos violaria essa regra e a trava do banco).
+            const closedMemberships = proGroupMembers.filter(m =>
+              cleanID(m.staffId) === cleanID(staff.id) &&
               m.leftAt
             );
-
-            for (const membership of closedMemberships) {
+            if (closedMemberships.length > 0) {
+              const mostRecent = [...closedMemberships].sort((a, b) => (b.joinedAt || 0) - (a.joinedAt || 0))[0];
               await saveRecord('proGroupMembers', {
-                ...membership,
+                ...mostRecent,
                 leftAt: null,
+                isError: false,
                 updatedAt: now
               });
               restoredMemberships++;

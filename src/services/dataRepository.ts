@@ -382,6 +382,9 @@ async syncAll() {
           if (error.code === '23502') { // NOT NULL violation
              console.error(`DICA: Coluna obrigatória ausente em ${tableName}. Verifique o payload.`);
           }
+          if (error.code === '23505' && (tableName === 'pro_group_members' || tableName === 'pro_group_provider_members')) { // unique violation
+             console.error(`DICA: essa pessoa já tem outra matrícula de PG aberta (regra: só uma matrícula ativa por vez — feche/transfira a antiga antes de criar uma nova).`);
+          }
           
           return false;
         }
