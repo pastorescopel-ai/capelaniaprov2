@@ -1,0 +1,15 @@
+-- Limpa a duplicidade de dados em pro_history_records de março/2026: o mês tinha sido
+-- fechado duas vezes (09/04 e 23/04) sem apagar o lote antigo antes de regravar, deixando
+-- 2 linhas por pessoa (3400 linhas para 1700 colaboradores únicos em HAB, 378 para 189 em
+-- HABA). A tela já mostrava o número certo porque deduplica por staffId ao ler, mas o dado
+-- bruto ficava com registros redundantes — e 11 dos pares tinham pequenas divergências entre
+-- si (PG/setor/matrícula), então os dois lotes não eram 100% idênticos.
+--
+-- Documentação do que foi aplicado diretamente via MCP (registro histórico, não reexecutável):
+-- 1. DELETE das 1700+189 linhas do lote mais antigo (created_at = 2026-04-09), mantendo o
+--    lote mais recente (2026-04-23).
+-- 2. DELETE + regeneração completa de pro_monthly_stats para março/2026 a partir do
+--    pro_history_records já deduplicado.
+--
+-- Resultado: HAB 1700 colaboradores / 1600 matriculados (94.12%); HABA 189 / 166 (87.83%).
+select 1; -- no-op: ver comentário acima.
