@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-10b",
+    "date": "2026-08-10",
+    "changes": [
+      "Corrigido o flash rápido de \"0% / centenas de anomalias\" que aparecia por uma fração de segundo ao entrar na Auditoria de Qualidade logo após atualizar a página — agora a tela mostra um carregamento até os dados terminarem de sincronizar, em vez de calcular em cima de dados ainda incompletos."
+    ]
+  },
+  {
     "version": "2026-08-10",
     "date": "2026-08-10",
     "changes": [

@@ -47,6 +47,12 @@ export const useAppData = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  // loadFromCloud só espera a fase "core" (rápida) antes de marcar isInitialized — a fase
+  // "background" (proStaff, proGroupMembers, histórico etc.) roda em segundo plano e não é
+  // aguardada. Telas como a Auditoria de Qualidade, que calculam anomalias em cima justamente
+  // desses dados de background, precisam saber quando ESSA fase também termina, senão calculam
+  // (e mostram por um instante) resultados errados a partir de arrays ainda vazios.
+  const [isBackgroundSynced, setIsBackgroundSynced] = useState(false);
 
   const applySystemOverrides = useCallback((baseConfig: Config) => {
     if (baseConfig.primaryColor) {
@@ -79,10 +85,11 @@ export const useAppData = () => {
 
   // 1. Data Actions (Load, Save, Delete, Refresh)
   const { loadFromCloud, refreshData, saveRecord, deleteRecord, deleteRecordsByFilter } = useDataActions(
-    setters, 
-    setIsSyncing, 
-    setIsConnected, 
-    applySystemOverrides
+    setters,
+    setIsSyncing,
+    setIsConnected,
+    applySystemOverrides,
+    setIsBackgroundSynced
   );
 
   // 2. Realtime Synchronization
@@ -197,7 +204,7 @@ export const useAppData = () => {
     users, setUsers, bibleStudies, setBibleStudies, bibleClasses, setBibleClasses, smallGroups, setSmallGroups, staffVisits, setStaffVisits, visitRequests, setVisitRequests,
     proStaff, setProStaff, proPatients, setProPatients, proProviders, setProProviders, proSectors, setProSectors, proGroups, setProGroups, proGroupLocations, setProGroupLocations, proGroupMembers, setProGroupMembers, proGroupProviderMembers, setProGroupProviderMembers, proMonthlyStats, setProMonthlyStats, proHistoryRecords, setProHistoryRecords, ambassadors, setAmbassadors,
     bibleClassAttendees, setBibleClassAttendees,
-    config, setConfig, isSyncing, isConnected, isInitialized,
+    config, setConfig, isSyncing, isConnected, isInitialized, isBackgroundSynced,
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, deleteRecordsByFilter, refreshData, applySystemOverrides, syncMasterContact
   };
 };

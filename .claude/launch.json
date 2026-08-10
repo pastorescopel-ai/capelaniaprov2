@@ -7,6 +7,27 @@
       "runtimeArgs": ["run", "dev"],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "capelaniaprov2-local-test",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd '/Users/carlosescopel/dev/capelania-hab-local' && PORT=3001 npm run dev"],
+      "port": 3001,
+      "autoPort": true
+    },
+    {
+      "name": "embaixadores-hab-preview",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd '/Users/carlosescopel/dev/EmbaixadoresHAB-real' && PORT=4322 npm run dev"],
+      "port": 4322,
+      "autoPort": true
+    },
+    {
+      "name": "lideranca-pg",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/carlosescopel/Library/CloudStorage/OneDrive-Pessoal/PESSOAL/APP 2026/PEQUENOS GRUPOS/07 novo sistema pg"],
+      "port": 5173,
+      "autoPort": true
     }
   ]
 }

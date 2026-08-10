@@ -25,6 +25,7 @@ export const useDataHealer = () => {
     ...state,
     ...calculations,
     ...actions,
-    proGroups: appData.proGroups
+    proGroups: appData.proGroups,
+    isDataInitialized: appData.isInitialized && appData.isBackgroundSynced
   };
 };

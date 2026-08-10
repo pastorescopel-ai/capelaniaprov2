@@ -4,8 +4,8 @@ import { DataRepository } from '../services/dataRepository';
 import { supabase } from '../services/supabaseClient';
 import { toCamel } from '../utils/transformers';
 
-export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val: boolean) => void, setIsConnected: (val: boolean) => void, applySystemOverrides: (config: any) => void) => {
-  
+export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val: boolean) => void, setIsConnected: (val: boolean) => void, applySystemOverrides: (config: any) => void, setIsBackgroundSynced?: (val: boolean) => void) => {
+
   const loadFromCloud = useCallback(async (showLoader = false) => {
     if (showLoader) setIsSyncing(true);
     try {
@@ -22,7 +22,7 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
         }
         setIsConnected(true);
       }
-      
+
       // 2. Fase Pesada/Background (não bloqueia o retorno)
       DataRepository.syncBackground().then(bgData => {
 
@@ -33,16 +33,20 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
               }
             });
          }
+         setIsBackgroundSynced?.(true);
       }).catch(err => {
          console.error('Erro na fase background:', err);
+         // Mesmo em erro, marca como "tentado" pra não travar telas que esperam essa fase
+         // (ex: Auditoria de Qualidade) num loading infinito.
+         setIsBackgroundSynced?.(true);
       });
-      
+
     } catch (e) {
       setIsConnected(false);
     } finally {
       if (showLoader) setIsSyncing(false);
     }
-  }, [setters, setIsSyncing, setIsConnected, applySystemOverrides]);
+  }, [setters, setIsSyncing, setIsConnected, applySystemOverrides, setIsBackgroundSynced]);
 
   const refreshData = useCallback(async () => {
     setIsSyncing(true);

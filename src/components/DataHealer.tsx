@@ -51,7 +51,8 @@ const DataHealer: React.FC = () => {
     handleMoveSectorUnit,
     handleTransferRecordsUnit,
     selectedUnit, setSelectedUnit,
-    confirmModal, setConfirmModal
+    confirmModal, setConfirmModal,
+    isDataInitialized
   } = useDataHealer();
 
   // Tema dinâmico
@@ -69,6 +70,20 @@ const DataHealer: React.FC = () => {
   const currentTheme = getTheme();
 
   const totalOrphans = peopleOrphans.length + studyOrphans.length + sectorOrphans.length + attendeeOrphans.length + duplicatePGs.length + duplicateMemberships.length + pgSectorChanges.length;
+
+  // Enquanto os dados ainda não terminaram de carregar do Supabase (logo após abrir/recarregar
+  // a página), proStaff/proGroupMembers/etc. começam vazios e só vão sendo preenchidos aos poucos
+  // — calcular a saúde da base nesse meio-tempo produzia um flash de "0% / centenas de anomalias"
+  // que se corrigia sozinho um instante depois, quando os dados terminavam de chegar. Mostra um
+  // estado de carregamento em vez de números que ainda não refletem a base real.
+  if (!isDataInitialized) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-32">
+        <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+        <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Carregando Auditoria</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-32 max-w-5xl mx-auto">
