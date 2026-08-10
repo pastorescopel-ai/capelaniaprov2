@@ -1,0 +1,23 @@
+-- Corrige os dados congelados de julho/2026 (pro_history_records / pro_monthly_stats), que
+-- estavam inflados: 2837 colaboradores em HAB e 310 em HABA, contra os 1702/187 reais da
+-- planilha de julho enviada pelo usuário. Causa: a planilha de julho só foi importada em
+-- 05/08 (mês seguinte), e a lógica de fechamento de mês (já corrigida em código separado)
+-- reconstruía "quem existia no mês" usando leftAt/createdAt — datas que não refletiam o mês
+-- de competência real, incluindo erroneamente ~1135/123 pessoas que já não estavam na
+-- planilha de julho.
+--
+-- Backup feito antes desta correção: pro_history_records_backup_20260810 (só julho) e
+-- pro_monthly_stats_backup_20260810 (julho + março, que tem o mesmo problema e será corrigido
+-- separadamente quando a planilha de março estiver disponível).
+--
+-- Esta migração documenta o resultado da correção (que foi aplicada usando os dados reais da
+-- planilha de julho, carregados numa tabela temporária _tmp_july_roster já removida) — não é
+-- reexecutável como está, é só o registro histórico do que foi feito:
+--
+-- 1. DELETE dos ~1258 registros de pro_history_records de julho/2026 cujo staff_id não
+--    aparecia na planilha real (1135 em HAB, 123 em HABA).
+-- 2. DELETE + regeneração completa de pro_monthly_stats para julho/2026 (setores, PGs e os
+--    dois resumos globais "all"), recalculados a partir do pro_history_records já corrigido.
+--
+-- Resultado: HAB 1702 colaboradores / 1640 matriculados (96.36%); HABA 187 / 186 (99.47%).
+select 1; -- no-op: ver comentário acima, a correção real já foi aplicada diretamente via MCP.

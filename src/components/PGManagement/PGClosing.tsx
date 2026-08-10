@@ -149,32 +149,17 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
         const snapshots: ProMonthlyStats[] = [];
         const historyRecords: any[] = [];
         const units = [Unit.HAB, Unit.HABA];
-        const targetDate = new Date(selectedCloseMonth + 'T12:00:00');
 
         for (const u of units) {
-            const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0, 23, 59, 59).getTime();
-
-            const unitStaff = proStaff.filter(s => {
-                if (s.unit !== u) return false;
-                
-                // 1. Verificar se já existia no mês (Criado antes do fim do mês)
-                const createdDate = getTimestamp(s.createdAt);
-                if (createdDate && createdDate > monthEnd) return false;
-                
-                // Fallback: Se não tem createdAt, usamos o cycleMonth como pista
-                if (!createdDate && s.cycleMonth) {
-                    const cycleDate = new Date(s.cycleMonth + 'T12:00:00').getTime();
-                    if (cycleDate > monthEnd) return false;
-                }
-
-                // 2. Verificar se ainda estava na unidade no mês (Saiu depois do início do mês ou ainda não saiu)
-                const leftDate = getTimestamp(s.leftAt);
-                if (leftDate && leftDate < targetDate.getTime()) return false;
-
-                // Se passou pelos filtros acima, ele era um colaborador válido no período, 
-                // independente de estar ativo HOJE ou não.
-                return true;
-            });
+            // A planilha enviada ANTES do fechamento sempre prevalece — mesmo que ela só tenha sido
+            // importada nos primeiros dias do mês seguinte (fluxo normal: importa a planilha do mês
+            // X, depois fecha o mês X). Por isso o universo de colaboradores do mês é simplesmente
+            // quem está ATIVO agora, no momento do fechamento — não uma reconstrução por createdAt/
+            // leftAt, que tentava adivinhar quem "existia" no mês usando datas que nem sempre refletem
+            // o mês de competência real (ex: leftAt fica com a data em que uma planilha foi importada,
+            // não com o mês a que ela se refere, e planilhas atrasadas inflavam a contagem de meses
+            // já fechados com gente que nunca esteve na planilha daquele mês).
+            const unitStaff = proStaff.filter(s => s.unit === u && s.active !== false);
 
             const staffBySector = new Map<string, any[]>();
             const unassignedStaff: any[] = [];
@@ -213,11 +198,10 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
 
             // 1.1 Snapshot de "Sem Setor"
             if (unassignedStaff.length > 0) {
-                const enrolledUnassigned = unassignedStaff.filter(s => 
-                    proGroupMembers.some(m => 
-                        String(m.staffId) === String(s.id) && 
-                        (!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && 
-                        (!m.leftAt || m.leftAt >= targetDate.getTime())
+                const enrolledUnassigned = unassignedStaff.filter(s =>
+                    proGroupMembers.some(m =>
+                        String(m.staffId) === String(s.id) &&
+                        !m.leftAt && m.isError !== true
                     )
                 ).length;
 
@@ -236,10 +220,9 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
             // 2. Snapshots de PGs
             proGroups.filter(g => g.unit === u && g.active !== false).forEach(group => {
                 const groupId = String(group.id);
-                const members = proGroupMembers.filter(m => 
-                    String(m.groupId) === groupId && 
-                    (!m.cycleMonth || new Date(m.cycleMonth) <= targetDate) && 
-                    (!m.leftAt || getTimestamp(m.leftAt) >= targetDate.getTime())
+                const members = proGroupMembers.filter(m =>
+                    String(m.groupId) === groupId &&
+                    !m.leftAt && m.isError !== true
                 );
                 const sectorId = String(group.sectorId || '');
                 const staffInSector = sectorId ? (staffBySector.get(sectorId) || []) : [];
@@ -265,12 +248,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
             const activeMembershipsInUnit = proGroupMembers.filter(m => {
                 const group = proGroups.find(g => g.id === m.groupId);
                 if (!group || group.unit !== u) return false;
-                
-                const mCycleDate = m.cycleMonth ? new Date(m.cycleMonth + 'T12:00:00').getTime() : 0;
-                const mLeftDate = getTimestamp(m.leftAt);
-                
-                return (!m.cycleMonth || mCycleDate <= targetDate.getTime()) && 
-                       (!mLeftDate || mLeftDate >= targetDate.getTime());
+                return !m.leftAt && m.isError !== true;
             });
 
             const membershipMap = new Map(activeMembershipsInUnit.map(m => [cleanID(m.staffId), m]));
