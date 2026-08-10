@@ -63,7 +63,8 @@ const PGTools: React.FC<PGToolsProps> = ({ unit }) => {
         name: newPGName.trim().toUpperCase(),
         unit: unit,
         active: true,
-        cycleMonth: config.activeCompetenceMonth || new Date().toISOString().split('T')[0],
+        // Nunca cair pra "hoje" literal — cycleMonth deve sempre ser o dia 1 do mês.
+        cycleMonth: config.activeCompetenceMonth || (() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1).toISOString().split('T')[0]; })(),
         createdAt: Date.now(),
         updatedAt: Date.now()
       };

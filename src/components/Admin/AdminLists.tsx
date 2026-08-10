@@ -37,7 +37,13 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
   
   const [activeTab, setActiveTab] = useState<'staff' | 'sectors' | 'pgs'>('staff');
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    return config.activeCompetenceMonth || new Date().toISOString().split('T')[0];
+    if (config.activeCompetenceMonth) return config.activeCompetenceMonth;
+    // Nunca cair pra "hoje" literal (ex: dia 7) — sempre normaliza pro dia 1 do mês.
+    // Um selectedMonth fora do dia 1 quebra as contas de "fim do mês anterior" usadas na
+    // importação de planilha (fechamento retroativo de matrículas/colaboradores), gerando
+    // entradas com joined_at depois de left_at.
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   });
   const [syncState, setSyncState] = useState<{isOpen: boolean; status: SyncStatus; title: string; message: string; error?: string;}>({ isOpen: false, status: 'idle', title: '', message: '' });
   

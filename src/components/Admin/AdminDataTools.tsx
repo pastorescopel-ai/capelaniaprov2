@@ -571,28 +571,11 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
         });
       }
 
-      // 6. Migration Date Check (Detection of reset createdAt)
-      const migrationDate = new Date('2026-04-04').getTime();
-      const resetStaff = proData.staff.filter(s => getTimestamp(s.createdAt) >= migrationDate);
-      const restoredStaff = proData.staff.filter(s => getTimestamp(s.createdAt) < migrationDate && getTimestamp(s.createdAt) >= new Date('2026-01-01').getTime());
-
-      if (resetStaff.length > 0) {
-        report.dataIntegrity.push({
-          type: 'warning',
-          message: `${resetStaff.length} colaboradores ainda possuem data de criação de hoje (04/04/2026).`,
-          details: 'Estes registros podem não ter sido afetados pelo seu comando SQL ou não possuem cycle_month.'
-        });
-        report.summary.totalWarnings++;
-      }
-
-      if (restoredStaff.length > 0) {
-        report.dataIntegrity.push({
-          type: 'ok',
-          message: `${restoredStaff.length} colaboradores foram restaurados com sucesso para datas passadas.`,
-          details: `Amostra de data restaurada: ${new Date(getTimestamp(restoredStaff[0].createdAt)).toLocaleDateString()}`
-        });
-        report.summary.totalOk++;
-      }
+      // (Removido: checagem de migração de 04/04/2026 — era um diagnóstico de uso único pra
+      // confirmar a restauração manual de datas após um incidente pontual naquele dia. Ficou
+      // obsoleta e passou a contar TODO colaborador admitido depois de abril como "erro",
+      // gerando um falso alarme permanente e crescente. Ver commit que adicionou este
+      // comentário para o histórico completo do que ela fazia.)
 
       // 7. Legacy Backup Consistency Check
       const legacyCheckTables = [
@@ -687,7 +670,11 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
       console.log("[DEBUG] Iniciando Diagnóstico de Auditoria Profunda...");
 
       // 8.1. Overlapping Enrollments (Sobreposição de Matrículas)
-      const activeMemberships = proGroupMembers.filter(m => !m.leftAt);
+      // Mesma regra do índice único do banco (uq_pro_group_members_one_open_pg_per_staff):
+      // uma matrícula com is_error=true não conta como "ativa", mesmo sem left_at gravado.
+      // Sem esse filtro, registros de erro antigos (fechados via "Resolver Tudo" antes de
+      // sempre gravar left_at junto) apareciam aqui como falso positivo.
+      const activeMemberships = proGroupMembers.filter(m => !m.leftAt && !m.isError);
       const staffMembershipMap = new Map<string, string[]>();
       activeMemberships.forEach(m => {
         const sid = cleanID(m.staffId);
@@ -719,10 +706,15 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
       }
 
       // 8.2. Date Integrity (joinedAt vs leftAt)
+      // leftAt=1 (1ms depois da época Unix) é o valor "sentinela" que o próprio app usa em
+      // vários lugares (usePGMembership.ts, useHealerActions.ts) pra marcar "isso foi um erro,
+      // ignore" — qualquer joinedAt real é sempre "depois" de 1970, então isso NUNCA deve
+      // contar como uma inconsistência real de datas.
+      const LEFT_AT_ERROR_SENTINEL = 1;
       const invalidDateRecords: any[] = [];
       const checkDateIntegrity = (list: any[], tableName: string) => {
         list.forEach(item => {
-          if (item.joinedAt && item.leftAt && Number(item.joinedAt) > Number(item.leftAt)) {
+          if (item.joinedAt && item.leftAt && Number(item.leftAt) !== LEFT_AT_ERROR_SENTINEL && Number(item.joinedAt) > Number(item.leftAt)) {
             invalidDateRecords.push({ ...item, tableName });
           }
         });

@@ -1,5 +1,15 @@
 [
   {
+    "version": "2026-08-10",
+    "date": "2026-08-10",
+    "changes": [
+      "Corrigido o bug que fazia o mês de competência às vezes cair num dia qualquer em vez do dia 1 — isso causava matrículas com data de entrada depois da data de saída.",
+      "O Diagnóstico do Sistema (Painel Admin > Ferramentas) agora usa as mesmas regras de \"matrícula ativa\" do resto do app, sem mais alarmes falsos de colaboradores em múltiplos PGs.",
+      "Removida uma checagem antiga do Diagnóstico do Sistema que ficou obsoleta e vinha marcando todo colaborador novo como erro.",
+      "Adicionadas travas no banco de dados que impedem fisicamente matrícula com data de entrada depois da saída, ou marcada como erro sem data de saída."
+    ]
+  },
+  {
     "version": "2026-08-09",
     "date": "2026-08-09",
     "changes": [
