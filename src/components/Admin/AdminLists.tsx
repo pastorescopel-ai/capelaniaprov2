@@ -286,31 +286,55 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                 // AUTO-REMATRICULAÇÃO: Trazer matrículas do mês anterior ou do último disponível
                 const now = new Date(selectedMonth + 'T12:00:00');
                 const currentActiveStaffIds = new Set(finalStaff.filter(s => s.active !== false && s.unit === activeUnit).map(s => cleanID(s.id)));
-                const existingTargetMemberships = new Set((proGroupMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.staffId)}|${cleanID(m.groupId)}`));
-                const staffIdsWithAnyTargetMembership = new Set((proGroupMembers || []).filter(m => m.cycleMonth === selectedMonth && (!m.leftAt || m.leftAt > Date.now())).map(m => cleanID(m.staffId)));
+
+                // Mapeia staffId|groupId -> matrícula ainda aberta (left_at nulo, sem erro) em QUALQUER
+                // ciclo, não só no mês sendo importado. Antes essa checagem só olhava m.cycleMonth ===
+                // selectedMonth, então uma matrícula viva de um mês anterior nunca fechado ficava
+                // invisível aqui — e a rematrícula automática criava uma SEGUNDA matrícula ativa pra
+                // mesma pessoa no mesmo PG a cada planilha nova importada (era isso que enchia a
+                // Auditoria de Qualidade > Matrículas de duplicatas a cada fechamento de mês).
+                const openMembershipByKey = new Map<string, ProGroupMember>();
+                (proGroupMembers || []).forEach(m => {
+                    if ((m.leftAt && m.leftAt <= Date.now()) || (m as any).isError) return;
+                    const key = `${cleanID(m.staffId)}|${cleanID(m.groupId)}`;
+                    const existing = openMembershipByKey.get(key);
+                    if (!existing || (m.joinedAt || 0) < (existing.joinedAt || 0)) openMembershipByKey.set(key, m);
+                });
+                const staffIdsWithAnyTargetMembership = new Set(Array.from(openMembershipByKey.keys()).map(k => k.split('|')[0]));
                 const newMemberships: ProGroupMember[] = [];
                 const staffIdsWithNewMemberships = new Set<string>();
+
+                // Atualiza uma matrícula já aberta em vez de duplicá-la: só avança o ciclo/updatedAt,
+                // preservando a data de entrada original (tenure) da pessoa no PG.
+                const renewOpenMembership = (openExisting: ProGroupMember) => {
+                    if (openExisting.cycleMonth !== selectedMonth) {
+                        newMemberships.push({ ...openExisting, cycleMonth: selectedMonth, updatedAt: Date.now() });
+                    }
+                };
 
                 // 1. Prioridade: Se a planilha ATUAL já tem informação de PG, usa ela (Recuperação Direta)
                 const spreadsheetMemberships = previewData.filter(p => (p as any).pgNameRaw);
                 if (spreadsheetMemberships.length > 0) {
                     setSyncState(prev => ({ ...prev, message: `Staff updated. Importando ${spreadsheetMemberships.length} matrículas detectadas na planilha...` }));
-                    
+
                     spreadsheetMemberships.forEach(p => {
                         const sid = cleanID(p.id);
                         if (staffIdsWithNewMemberships.has(sid)) return; // Prevents spreadsheet duplicate rows
 
                         const pgName = (p as any).pgNameRaw;
                         const isLeader = (p as any).isLeaderRaw;
-                        
+
                         const matchedPG = proData.groups.find(g => g.unit === activeUnit && normalizeString(g.name) === normalizeString(pgName));
-                        
+
                         if (matchedPG) {
                             staffIdsWithNewMemberships.add(sid);
                             staffIdsWithAnyTargetMembership.add(sid);
                             const key = `${sid}|${cleanID(matchedPG.id)}`;
-                            if (!existingTargetMemberships.has(key)) {
-                                const activeOldMemberships = (proData.memberships || []).filter(m => 
+                            const openExisting = openMembershipByKey.get(key);
+                            if (openExisting) {
+                                renewOpenMembership(openExisting);
+                            } else {
+                                const activeOldMemberships = (proData.memberships || []).filter(m =>
                                     cleanID(m.staffId) === sid &&
                                     (!m.cycleMonth || m.cycleMonth <= selectedMonth) &&
                                     (!m.leftAt || m.leftAt > Date.now()) &&
@@ -324,7 +348,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                                     });
                                 });
 
-                                newMemberships.push({
+                                const created: ProGroupMember = {
                                     id: crypto.randomUUID(),
                                     groupId: matchedPG.id,
                                     staffId: sid,
@@ -333,8 +357,9 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                                     joinedAt: Date.now(),
                                     createdAt: Date.now(),
                                     updatedAt: Date.now()
-                                });
-                                existingTargetMemberships.add(key);
+                                };
+                                newMemberships.push(created);
+                                openMembershipByKey.set(key, created);
                             }
                         }
                     });
@@ -377,8 +402,12 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                             const sid = cleanID(snapshot.staffId);
                             if (currentActiveStaffIds.has(sid) && snapshot.groupId && !staffIdsWithAnyTargetMembership.has(sid)) {
                                 const key = `${sid}|${cleanID(snapshot.groupId)}`;
-                                if (!existingTargetMemberships.has(key)) {
-                                    const activeOldMemberships = (proData.memberships || []).filter(m => 
+                                const openExisting = openMembershipByKey.get(key);
+                                if (openExisting) {
+                                    renewOpenMembership(openExisting);
+                                    staffIdsWithAnyTargetMembership.add(sid);
+                                } else {
+                                    const activeOldMemberships = (proData.memberships || []).filter(m =>
                                         cleanID(m.staffId) === sid &&
                                         (!m.cycleMonth || m.cycleMonth <= selectedMonth) &&
                                         (!m.leftAt || m.leftAt > Date.now()) &&
@@ -392,7 +421,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                                         });
                                     });
 
-                                    newMemberships.push({
+                                    const created: ProGroupMember = {
                                         id: crypto.randomUUID(),
                                         groupId: snapshot.groupId,
                                         staffId: snapshot.staffId,
@@ -400,8 +429,10 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                                         joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
                                         createdAt: Date.now(),
                                         updatedAt: Date.now()
-                                    });
-                                    existingTargetMemberships.add(key);
+                                    };
+                                    newMemberships.push(created);
+                                    openMembershipByKey.set(key, created);
+                                    staffIdsWithAnyTargetMembership.add(sid);
                                 }
                             }
                         });
@@ -414,8 +445,12 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                             const sid = cleanID(oldM.staffId);
                             if (currentActiveStaffIds.has(sid) && !staffIdsWithAnyTargetMembership.has(sid)) {
                                 const key = `${sid}|${cleanID(oldM.groupId)}`;
-                                if (!existingTargetMemberships.has(key)) {
-                                    const activeOldMemberships = (proData.memberships || []).filter(m => 
+                                const openExisting = openMembershipByKey.get(key);
+                                if (openExisting) {
+                                    renewOpenMembership(openExisting);
+                                    staffIdsWithAnyTargetMembership.add(sid);
+                                } else {
+                                    const activeOldMemberships = (proData.memberships || []).filter(m =>
                                         cleanID(m.staffId) === sid &&
                                         (!m.cycleMonth || m.cycleMonth <= selectedMonth) &&
                                         (!m.leftAt || m.leftAt > Date.now()) &&
@@ -429,7 +464,7 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                                         });
                                     });
 
-                                    newMemberships.push({
+                                    const created: ProGroupMember = {
                                         id: crypto.randomUUID(),
                                         groupId: oldM.groupId,
                                         staffId: oldM.staffId,
@@ -438,8 +473,10 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                                         joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
                                         createdAt: Date.now(),
                                         updatedAt: Date.now()
-                                    });
-                                    existingTargetMemberships.add(key);
+                                    };
+                                    newMemberships.push(created);
+                                    openMembershipByKey.set(key, created);
+                                    staffIdsWithAnyTargetMembership.add(sid);
                                 }
                             }
                         });
@@ -450,15 +487,28 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                     if (sourceProviderMemberships.length > 0) {
                         const newProviderMemberships: ProGroupProviderMember[] = [];
                         const activeProviderIds = new Set((proProviders || []).filter(p => p.unit === activeUnit && p.active !== false).map(p => cleanID(p.id)));
-                        const existingTargetProviderMemberships = new Set((proGroupProviderMembers || []).filter(m => m.cycleMonth === selectedMonth).map(m => `${cleanID(m.providerId)}|${cleanID(m.groupId)}`));
-                        const providerIdsWithAnyTargetMembership = new Set((proGroupProviderMembers || []).filter(m => m.cycleMonth === selectedMonth && (!m.leftAt || m.leftAt > Date.now())).map(m => cleanID(m.providerId)));
+                        // Mesmo raciocínio do bloco de STAFF acima: considera aberta uma matrícula de
+                        // prestador de QUALQUER ciclo, não só do mês sendo importado, pra não duplicar.
+                        const openProviderMembershipByKey = new Map<string, ProGroupProviderMember>();
+                        (proGroupProviderMembers || []).forEach(m => {
+                            if ((m.leftAt && m.leftAt <= Date.now()) || (m as any).isError) return;
+                            const key = `${cleanID(m.providerId)}|${cleanID(m.groupId)}`;
+                            const existing = openProviderMembershipByKey.get(key);
+                            if (!existing || (m.joinedAt || 0) < (existing.joinedAt || 0)) openProviderMembershipByKey.set(key, m);
+                        });
+                        const providerIdsWithAnyTargetMembership = new Set(Array.from(openProviderMembershipByKey.keys()).map(k => k.split('|')[0]));
 
                         sourceProviderMemberships.forEach(oldM => {
                             const pid = cleanID(oldM.providerId);
                             if (activeProviderIds.has(pid) && !providerIdsWithAnyTargetMembership.has(pid)) {
                                 const key = `${pid}|${cleanID(oldM.groupId)}`;
-                                if (!existingTargetProviderMemberships.has(key)) {
-                                    newProviderMemberships.push({
+                                const openExisting = openProviderMembershipByKey.get(key);
+                                if (openExisting) {
+                                    if (openExisting.cycleMonth !== selectedMonth) {
+                                        newProviderMemberships.push({ ...openExisting, cycleMonth: selectedMonth, updatedAt: Date.now() });
+                                    }
+                                } else {
+                                    const created: ProGroupProviderMember = {
                                         id: crypto.randomUUID(),
                                         groupId: oldM.groupId,
                                         providerId: oldM.providerId,
@@ -466,9 +516,11 @@ const AdminLists: React.FC<AdminListsProps> = ({ proData, onSavePro, activeUnit,
                                         joinedAt: new Date(selectedMonth + 'T12:00:00').getTime(),
                                         createdAt: Date.now(),
                                         updatedAt: Date.now()
-                                    });
-                                    existingTargetProviderMemberships.add(key);
+                                    };
+                                    newProviderMemberships.push(created);
+                                    openProviderMembershipByKey.set(key, created);
                                 }
+                                providerIdsWithAnyTargetMembership.add(pid);
                             }
                         });
 
