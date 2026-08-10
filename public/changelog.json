@@ -6,7 +6,8 @@
       "A aba Atividades foi removida do menu — o registro de blueprints, cultos, encontros e visite cantando não faz mais parte do app.",
       "A aba Permissões (Painel Admin) foi removida — não é mais possível delegar edição de meses fechados para outros usuários; só o Admin pode ajustar registros de meses anteriores.",
       "Corrigido de vez o bug que duplicava matrículas de PG a cada planilha importada — a Auditoria de Qualidade não vai mais encher de duplicatas de mês em mês.",
-      "Reforçado: cada pessoa agora só pode ter um PG ativo por vez em todo o sistema — ao mudar de PG, o mais novo sempre prevalece e o antigo é fechado automaticamente."
+      "Reforçado: cada pessoa agora só pode ter um PG ativo por vez em todo o sistema — ao mudar de PG, o mais novo sempre prevalece e o antigo é fechado automaticamente.",
+      "Corrigido: a Cobertura de Discipulado de meses fechados estava contando colaboradores a mais quando a planilha era importada com atraso — a planilha enviada antes do fechamento agora sempre prevalece, e julho já foi recalculado com os números certos."
     ]
   },
   {
