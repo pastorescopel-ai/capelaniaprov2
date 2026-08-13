@@ -5,7 +5,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useApp } from '../../hooks/useApp';
 import { usePro } from '../../contexts/ProContext';
 import { useBible } from '../../contexts/BibleContext';
-import { getTimestamp, cleanID, getStudentKey } from '../../utils/formatters';
+import { getTimestamp, cleanID, getStudentKey, countUniqueClasses } from '../../utils/formatters';
 import { getValidSectorId } from '../../utils/sectorValidation';
 import { toCamel } from '../../utils/transformers';
 import { DataRepository } from '../../services/dataRepository';
@@ -349,7 +349,10 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                     performanceMetrics: {
                         pgPercentage,
                         totalBibleStudies: monthStudies.length,
-                        totalBibleClasses: monthClasses.length,
+                        // Deduplicado por turma (mesmo grupo de alunos = 1 turma), igual ao
+                        // relatório ao vivo (useReportLogic.ts) — antes contava linha por linha,
+                        // o que diverge do relatório assim que uma turma se reunir 2x no mês.
+                        totalBibleClasses: countUniqueClasses(monthClasses),
                         totalSmallGroups: monthGroups.length,
                         totalStaffVisits: monthVisits.length,
                         totalUniqueStudents: uniqueStudents.size,

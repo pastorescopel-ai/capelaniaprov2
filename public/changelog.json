@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-08-13c",
+    "date": "2026-08-13",
+    "changes": [
+      "Segurança: removidas duas funções antigas do banco que deixavam matricular/desmatricular colaboradores de PG sem nenhuma checagem de permissão, e duas funções de senha antiga não usadas mais por nenhum app.",
+      "Segurança: as tabelas de backup criadas durante correções recentes agora exigem permissão (antes ficavam abertas para qualquer chave pública).",
+      "Corrigido: a contagem de \"Classes Bíblicas\" gravada no fechamento do mês agora conta turmas (não linhas), igual ao relatório ao vivo — evita divergência quando uma turma se reúne mais de uma vez no mesmo mês."
+    ]
+  },
+  {
     "version": "2026-08-13b",
     "date": "2026-08-13",
     "changes": [
