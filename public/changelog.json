@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-13",
+    "date": "2026-08-13",
+    "changes": [
+      "Corrigido: editar só a DATA de uma Classe Bíblica já salva (mantendo os mesmos alunos) não atualizava a data das presenças já registradas — a classe aparecia no mês certo, mas as presenças individuais ficavam presas no mês antigo, o que podia sumir com alunos em relatórios de meses fechados mais antigos. Também corrigidos os 4 registros que já estavam divergentes na base."
+    ]
+  },
+  {
     "version": "2026-08-10c",
     "date": "2026-08-10",
     "changes": [

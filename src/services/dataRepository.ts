@@ -414,9 +414,9 @@ async syncAll() {
                 // 1. Buscar participantes atuais no banco para fazer o "diff"
                 const { data: currentAttendees, error: fetchError } = await supabase
                     .from('bible_class_attendees')
-                    .select('id, student_name')
+                    .select('id, student_name, date')
                     .eq('class_id', cls.id);
-                
+
                 if (fetchError) {
                     console.error("Erro ao buscar participantes atuais:", fetchError);
                     continue;
@@ -438,6 +438,28 @@ async syncAll() {
                         .delete()
                         .in('id', idsToRemove);
                     if (delError) console.error("Erro ao remover participantes:", delError);
+                }
+
+                // 3b. Realinhar a data/mês dos que PERMANECEM: o diff acima só cobre quem entrou
+                // ou saiu da lista — se a classe teve só a DATA editada (mesmos alunos), as
+                // presenças já existentes nunca eram tocadas e ficavam com a data antiga pra
+                // sempre, quebrando relatórios/consultas que filtram bible_class_attendees.date
+                // diretamente (ex: Cobertura de meses fechados fora da janela de sync de 45 dias).
+                if (cls.date) {
+                    const d = new Date(cls.date + (cls.date.includes('T') ? '' : 'T12:00:00'));
+                    if (!isNaN(d.getTime())) {
+                        const cycleMonth = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+                        const idsToRealign = (currentAttendees || [])
+                            .filter(a => newNames.includes(a.student_name) && a.date !== cls.date)
+                            .map(a => a.id);
+                        if (idsToRealign.length > 0) {
+                            const { error: realignError } = await supabase
+                                .from('bible_class_attendees')
+                                .update({ date: cls.date, cycle_month: cycleMonth })
+                                .in('id', idsToRealign);
+                            if (realignError) console.error("Erro ao realinhar data das presenças:", realignError);
+                        }
+                    }
                 }
 
                 // 4. Adicionar os novos
