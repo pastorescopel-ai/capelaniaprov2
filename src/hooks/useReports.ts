@@ -231,7 +231,10 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
       proGroupMembers
         .filter(m => {
             const staff = proStaff.find(s => String(s.id) === String(m.staffId));
-            return staff && (filters.selectedUnit === 'all' || staff.unit === filters.selectedUnit) && !m.leftAt;
+            // O denominador (unitStaff) já exige "ativo" — sem essa mesma checagem aqui, um
+            // colaborador desligado cuja matrícula de PG nunca foi fechada continua contando
+            // como matriculado sem contar no total, o que já gerou % de adesão acima de 100%.
+            return staff && staff.active !== false && (filters.selectedUnit === 'all' || staff.unit === filters.selectedUnit) && !m.leftAt;
         })
         .map(m => String(m.staffId))
     );

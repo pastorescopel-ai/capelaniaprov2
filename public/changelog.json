@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-13d",
+    "date": "2026-08-13",
+    "changes": [
+      "Corrigido: a Adesão aos PGs no Relatórios podia passar de 100% (ex: 101,6%) quando um colaborador desligado ainda tinha matrícula de PG aberta — ele contava como matriculado sem contar no total de colaboradores ativos. Fechadas 43 matrículas nessa situação (40 na HAB, 3 na HABA) e corrigido o cálculo para não repetir o problema."
+    ]
+  },
+  {
     "version": "2026-08-13c",
     "date": "2026-08-13",
     "changes": [
