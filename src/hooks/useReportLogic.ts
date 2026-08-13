@@ -60,7 +60,7 @@ export const useReportLogic = (
   const averageStats = useMemo(() => {
     const monthlyUnique = new Map<string, Set<string>>();
 
-    const addMonthlyName = (dateStr: string, rawName: string) => {
+    const addMonthlyName = (dateStr: string, rawName: string, explicitId?: string | number | null) => {
       if (!rawName || !dateStr) return;
       // Meio-dia evita que o fuso horário empurre datas no dia 1º para o mês anterior.
       const d = new Date(dateStr.split('T')[0] + 'T12:00:00');
@@ -68,11 +68,13 @@ export const useReportLogic = (
 
       const monthKey = `${d.getFullYear()}-${d.getMonth() + 1}`;
       if (!monthlyUnique.has(monthKey)) monthlyUnique.set(monthKey, new Set());
-      const key = getStudentKey(rawName);
+      const key = getStudentKey(rawName, explicitId);
       if (key) monthlyUnique.get(monthKey)!.add(key);
     };
 
-    filteredData.studies.forEach(s => addMonthlyName(s.date, s.name));
+    // Estudos individuais têm staffId/participantId reais em colunas próprias — usa isso como
+    // chave em vez do nome (que pode não ter "(ID)", ex: pacientes digitados só como "Socorro").
+    filteredData.studies.forEach(s => addMonthlyName(s.date, s.name, (s as any).staffId || (s as any).participantId));
     filteredData.classes.forEach(c => {
       if (Array.isArray(c.students)) c.students.forEach(n => addMonthlyName(c.date!, n));
     });
@@ -115,14 +117,15 @@ export const useReportLogic = (
     // "Estudos Bíblicos Individuais". A contagem de SESSÕES (com repetição) continua em
     // `studies` abaixo, usada no ranking por capelão e nos relatórios exportados.
     const uniqueIndividualStudents = new Set<string>();
-    const addUniqueName = (rawName: string) => {
-      const key = getStudentKey(rawName);
+    const addUniqueName = (rawName: string, explicitId?: string | number | null) => {
+      const key = getStudentKey(rawName, explicitId);
       if (key) uniqueStudentsPeriod.add(key);
       return key;
     };
     filteredData.studies.forEach(s => {
       if (!s.name) return;
-      const key = addUniqueName(s.name);
+      // Mesma razão do addMonthlyName acima: prioriza staffId/participantId reais.
+      const key = addUniqueName(s.name, (s as any).staffId || (s as any).participantId);
       if (key) uniqueIndividualStudents.add(key);
     });
     filteredData.classes.forEach(c => {

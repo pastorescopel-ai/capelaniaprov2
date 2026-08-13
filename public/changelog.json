@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-08-13b",
+    "date": "2026-08-13",
+    "changes": [
+      "Corrigido: o relatório de um mês já fechado (Painel > Relatórios) nunca usava a \"foto\" congelada daquele mês — sempre recalculava com os dados de HOJE, o que podia gerar números impossíveis (ex: 101,6% de adesão a PG). Agora usa corretamente o snapshot travado do mês selecionado (\"DADO TRAVADO\").",
+      "Corrigido: pessoas diferentes com nome igual/genérico e sem matrícula no texto (comum em Pacientes/Prestadores, ex: \"Socorro\") eram contadas como uma pessoa só no \"Total de Estudantes da Bíblia\" — agora usa a matrícula real quando disponível.",
+      "Regerada a foto congelada (snapshot) de março e julho, que tinha ficado incompleta numa correção anterior."
+    ]
+  },
+  {
     "version": "2026-08-13",
     "date": "2026-08-13",
     "changes": [

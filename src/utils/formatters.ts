@@ -195,9 +195,18 @@ export const formatMonthLabel = (iso: string) => {
   const d = new Date(iso.includes('T') ? iso : iso + 'T12:00:00');
   return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 };
-export const getStudentKey = (raw: string): string => {
+// `explicitId` (staffId/participantId real, vindo da coluna do banco) tem prioridade sobre
+// qualquer coisa extraída do texto — evita que duas pessoas DIFERENTES com nome igual/genérico
+// (comum em Pacientes/Prestadores digitados como "Socorro", "Andrea" etc., sem "(ID)" no nome)
+// sejam contadas como uma pessoa só nos totais de "estudantes únicos".
+export const getStudentKey = (raw: string, explicitId?: string | number | null): string => {
+  if (explicitId !== undefined && explicitId !== null && String(explicitId).trim() !== '') {
+    return normalizeString(String(explicitId).trim());
+  }
   if (!raw) return '';
-  const match = raw.match(/\(([^)]+)\)\s*$/);
+  // Sem âncora de fim de string: nomes de colaboradores/pacientes inativos têm um sufixo
+  // " [INATIVO]" depois do "(ID)", então o "(...)" nem sempre é o último trecho do texto.
+  const match = raw.match(/\(([^)]+)\)/);
   const id = match ? match[1].trim() : '';
   if (id) return normalizeString(id);
   return normalizeString(raw.split(' (')[0].trim());

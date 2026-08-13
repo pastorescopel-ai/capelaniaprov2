@@ -5,7 +5,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useApp } from '../../hooks/useApp';
 import { usePro } from '../../contexts/ProContext';
 import { useBible } from '../../contexts/BibleContext';
-import { getTimestamp, cleanID } from '../../utils/formatters';
+import { getTimestamp, cleanID, getStudentKey } from '../../utils/formatters';
 import { getValidSectorId } from '../../utils/sectorValidation';
 import { toCamel } from '../../utils/transformers';
 import { DataRepository } from '../../services/dataRepository';
@@ -287,10 +287,22 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
             const monthGroups = smallGroups.filter(g => g.unit === u && g.date?.startsWith(targetMonth));
             const monthVisits = staffVisits.filter(v => v.unit === u && v.date?.startsWith(targetMonth));
 
-            const uniqueStudents = new Set();
+            // Mesma lógica de deduplicação usada no relatório ao vivo (useReportLogic.ts):
+            // inclui Estudos Bíblicos individuais (não só Classes) e usa staffId/participantId
+            // reais como chave quando disponíveis, em vez do nome puro — evita que pessoas
+            // diferentes com nome igual/genérico (comum em Pacientes/Prestadores) sejam
+            // contadas como uma só.
+            const uniqueStudents = new Set<string>();
+            monthStudies.forEach(s => {
+                const key = getStudentKey(s.name, (s as any).staffId || (s as any).participantId);
+                if (key) uniqueStudents.add(key);
+            });
             monthClasses.forEach(c => {
                 if (Array.isArray(c.students)) {
-                    c.students.forEach((s: string) => uniqueStudents.add(s));
+                    c.students.forEach((s: string) => {
+                        const key = getStudentKey(s);
+                        if (key) uniqueStudents.add(key);
+                    });
                 }
             });
 

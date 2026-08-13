@@ -71,7 +71,12 @@ export const useDashboardStats = (
     const currentYear = now.getFullYear();
     const mName = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(now);
 
-    // Verificar se há snapshot para o mês selecionado
+    // NOTA: não existe (nem deveria existir aqui) um snapshot type:'summary' — o único snapshot
+    // gravado no fechamento (type:'pg'/targetId:'all', ver getMonthStatsFromSnapshot abaixo) é
+    // um agregado de TODOS os capelães da unidade, e esse bloco é "meu impacto" (só do capelão
+    // logado) — usar aquele agregado aqui mostraria os números de todo mundo como se fossem só
+    // do usuário. Então isso cai (corretamente) sempre pro cálculo ao vivo, filtrando cada
+    // registro pela própria data — o que é seguro mesmo para meses passados.
     const monthISO = selectedMonth || `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
     const snapshot = proMonthlyStats.find(s => s.month === monthISO && s.type === 'summary');
 
@@ -100,7 +105,7 @@ export const useDashboardStats = (
     const mVisits = userVisits.filter(v => isCurrentMonth(v.date));
 
     const uStudents = new Set<string>();
-    mStudies.forEach(s => { const key = getStudentKey(s.name); if (key) uStudents.add(key); });
+    mStudies.forEach(s => { const key = getStudentKey(s.name, (s as any).staffId || (s as any).participantId); if (key) uStudents.add(key); });
     mClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(name => { const key = getStudentKey(name); if (key) uStudents.add(key); }); });
 
     return {
@@ -157,7 +162,7 @@ export const useDashboardStats = (
       const uniqueClasses = countUniqueClasses(mC);
 
       const uS = new Set<string>();
-      mS.forEach(s => { const key = getStudentKey(s.name); if (key) uS.add(key); });
+      mS.forEach(s => { const key = getStudentKey(s.name, (s as any).staffId || (s as any).participantId); if (key) uS.add(key); });
       mC.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(n => { const key = getStudentKey(n); if (key) uS.add(key); }); });
 
       return {

@@ -147,8 +147,15 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
 
     if (isFullMonth) {
       const monthISO = filters.startDate;
-      // Buscar snapshots de sumário para o mês
-      const snapshots = proMonthlyStats.filter(s => s.month === monthISO && s.type === 'summary');
+      // Buscar snapshots de sumário para o mês. O fechamento (PGClosing.tsx) grava a foto
+      // global do mês com type:'pg' + targetId:'all' (mesma tag que usePGMembership.ts usa
+      // pra saber se o mês está fechado) — nunca existiu um type:'summary' de verdade, então
+      // esse filtro sempre vinha vazio e o relatório de QUALQUER mês fechado caía, sem avisar,
+      // pro cálculo ao vivo (dados de HOJE, não do mês do filtro — inclusive causando % de
+      // adesão a PG impossíveis, tipo >100%, quando o quadro de colaboradores mudou desde
+      // então). Ver `pro_monthly_stats_backfill_summary_...` para o backfill dos meses já
+      // fechados sem os dados de `snapshot_data`.
+      const snapshots = proMonthlyStats.filter(s => s.month === monthISO && s.type === 'pg' && s.targetId === 'all' && s.snapshotData);
       
       // Filtrar pela unidade selecionada
       const targetSnapshots = filters.selectedUnit === 'all' 
@@ -255,7 +262,7 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
         const uG = filterByUid(filteredData.groups).filter(i => (i.unit || Unit.HAB) === unit);
         const uV = filterByUid(filteredData.visits).filter(i => (i.unit || Unit.HAB) === unit);
         const names = new Set<string>();
-        uS.forEach(s => { const key = getStudentKey(s.name); if (key) names.add(key); });
+        uS.forEach(s => { const key = getStudentKey(s.name, (s as any).staffId || (s as any).participantId); if (key) names.add(key); });
         uC.forEach(c => c.students?.forEach((n: any) => { const key = getStudentKey(n); if (key) names.add(key); }));
         const uniqueClasses = countUniqueClasses(uC);
         return { students: names.size, studies: uS.length, classes: uniqueClasses, groups: uG.length, visits: uV.length, total: uS.length + uniqueClasses + uG.length + uV.length };
