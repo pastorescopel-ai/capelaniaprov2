@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-08-14",
+    "date": "2026-08-14",
+    "changes": [
+      "Corrigido: no formulário de Pequeno Grupo, selecionar o líder na busca por nome podia trazer o WhatsApp de outra pessoa com nome parecido (homônimo) — agora usa a matrícula do colaborador selecionado, que não tem ambiguidade.",
+      "Corrigido: em Agenda PG, o campo WhatsApp do Líder era sobrescrito sozinho de tempos em tempos (mesmo depois de você corrigir o número na mão), por causa da atualização automática de dados em segundo plano.",
+      "Adicionado aviso nos formulários de Pequeno Grupo e Agenda PG pedindo para conferir se o WhatsApp está correto antes de salvar — vários números no cadastro estão sem o DDD (perderam os 2 primeiros dígitos)."
+    ]
+  },
+  {
     "version": "2026-08-13d",
     "date": "2026-08-13",
     "changes": [

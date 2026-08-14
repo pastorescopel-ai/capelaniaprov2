@@ -82,15 +82,21 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Líder Atual *</label><Autocomplete options={staffOptions} value={formData.leader || ''} onChange={handleLeaderChange} onSelectOption={handleSelectLeader} placeholder="Busque o líder no banco..." /></div>
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">WhatsApp do Líder *</label>
-            <input 
-              ref={phoneInputRef} 
+            <input
+              ref={phoneInputRef}
               type="tel"
               inputMode="numeric"
-              placeholder="(00) 00000-0000" 
-              value={formData.leaderPhone || ''} 
-              onChange={e => setFormData({...formData, leaderPhone: formatWhatsApp(e.target.value)})} 
-              className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all" 
+              placeholder="(00) 00000-0000"
+              value={formData.leaderPhone || ''}
+              onChange={e => setFormData({...formData, leaderPhone: formatWhatsApp(e.target.value)})}
+              className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all"
             />
+            {/* Há números incompletos/de outra pessoa no cadastro (preenchimento automático por
+                nome pode pegar o registro errado em caso de homônimo) -- por isso o campo é
+                editável e pedimos confirmação explícita antes de salvar. */}
+            <p className="text-[10px] font-bold text-amber-600 ml-2 mt-0.5">
+              ⚠️ Confira se este é realmente o WhatsApp correto do líder antes de salvar — o preenchimento automático pode trazer um número desatualizado ou de outra pessoa.
+            </p>
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Setor / Localização *</label>

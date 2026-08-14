@@ -135,7 +135,7 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
   const handleSelectLeader = (label: string) => {
       const nameOnly = label.split(' (')[0].trim();
       const normName = normalizeString(nameOnly);
-      
+
       // CROSS-VALIDATION: Se for Paciente ou Prestador mas selecionado como Líder (Ponto 2)
       const isProvider = proProviders.some(p => normalizeString(p.name) === normName && p.unit === unit);
       const isPatient = proPatients.some(p => normalizeString(p.name) === normName && p.unit === unit);
@@ -143,9 +143,16 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
           showToast(`${nameOnly} consta na lista de ${isProvider ? 'prestadores' : 'pacientes'}. Pequenos Grupos são para colaboradores.`, "warning");
       }
 
-      // Check if leader is in RH (proStaff)
-      const staff = proStaff.find(s => normalizeString(s.name) === normName);
-      
+      // O label vem como "Nome (matrícula)" (staffOptions monta assim) -- usa a matrícula
+      // pra achar o colaborador exato, em vez de buscar por nome de novo. Buscar por nome
+      // (sem nem filtrar unidade) já pegou o WhatsApp de um homônimo errado pelo menos uma
+      // vez -- a matrícula é inequívoca, o nome não.
+      const idMatch = label.match(/\(([^)]+)\)\s*$/);
+      const staffId = idMatch ? idMatch[1].trim() : null;
+      const staff = staffId
+          ? proStaff.find(s => (String(s.id).split('-')[1] || String(s.id)) === staffId && s.unit === unit)
+          : proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
+
       if (staff) {
           // Found in RH: Update sector, update phone if exists, else clear phone
           const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);

@@ -1,5 +1,5 @@
 
-import React, { useMemo, useEffect, memo } from 'react';
+import React, { useMemo, useEffect, useRef, memo } from 'react';
 import { Unit, UserRole } from '../../types';
 import { usePro } from '../../contexts/ProContext';
 import { useApp } from '../../hooks/useApp';
@@ -8,6 +8,7 @@ import Autocomplete from '../Shared/Autocomplete';
 import ConfirmationModal from '../Shared/ConfirmationModal';
 import { usePGInference } from '../../hooks/usePGInference';
 import { useVisitManagement } from '../../hooks/useVisitManagement';
+import { formatWhatsApp } from '../../utils/formatters';
 import VisitHistoryList from './VisitHistoryList';
 import { getTimestamp } from '../../utils/formatters';
 
@@ -46,12 +47,19 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
 
   const { setLeaderPhone, setMeetingLocation } = form;
 
-  // Sincronizar WhatsApp e Local quando o PG é selecionado
+  // Sincronizar WhatsApp e Local quando o PG é TROCADO -- só nesse momento, não a cada
+  // recálculo de leaderInfo. Antes isso rodava toda vez que `leaderInfo` mudava de
+  // identidade (inclusive por causa do polling/realtime que atualiza proGroups a cada
+  // ~30s), e sobrescrevia silenciosamente um número que o capelão tinha acabado de
+  // corrigir manualmente no campo abaixo.
+  const lastAutoFilledPG = useRef<string | null>(null);
   useEffect(() => {
-    if (leaderInfo && form.selectedPG && !editingRequestId) {
-        setLeaderPhone(leaderInfo.leaderPhone || '');
+    if (leaderInfo && form.selectedPG && !editingRequestId && lastAutoFilledPG.current !== form.selectedPG) {
+        setLeaderPhone(leaderInfo.leaderPhone ? formatWhatsApp(leaderInfo.leaderPhone) : '');
         setMeetingLocation(leaderInfo.sectorName || '');
+        lastAutoFilledPG.current = form.selectedPG;
     }
+    if (!form.selectedPG) lastAutoFilledPG.current = null;
   }, [leaderInfo, form.selectedPG, editingRequestId, setLeaderPhone, setMeetingLocation]);
 
   const onSave = () => {
@@ -116,18 +124,26 @@ const PGOps: React.FC<PGOpsProps> = memo(({ unit }) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">WhatsApp do Líder (Fixo)</label>
+                        {/* O rótulo dizia "(Fixo)" mas o campo sempre foi editável -- o nome era
+                            enganoso. Deixado explicitamente editável porque o valor preenchido
+                            automaticamente pode vir incompleto ou de outra pessoa (ver aviso
+                            abaixo); o capelão precisa poder corrigir e confirmar. */}
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">WhatsApp do Líder</label>
                         <div className="relative">
                             <i className="fab fa-whatsapp absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 text-lg"></i>
-                            <input 
-                                type="text" 
+                            <input
+                                type="tel"
+                                inputMode="numeric"
                                 autoComplete="off"
-                                value={form.leaderPhone} 
-                                onChange={e => form.setLeaderPhone(e.target.value)} 
+                                value={form.leaderPhone}
+                                onChange={e => form.setLeaderPhone(formatWhatsApp(e.target.value))}
                                 placeholder="(00) 00000-0000"
                                 className="w-full pl-12 p-4 bg-slate-50 border-none rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                             />
                         </div>
+                        <p className="text-[10px] font-bold text-amber-600 ml-2 mt-0.5">
+                            ⚠️ Confira se este é realmente o WhatsApp correto do líder antes de salvar — o preenchimento automático pode trazer um número desatualizado ou de outra pessoa.
+                        </p>
                     </div>
                     <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Local da Reunião (Texto Livre)</label>
