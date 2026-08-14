@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-14g",
+    "date": "2026-08-14",
+    "changes": [
+      "Manutenção de banco (sem mudança visível no app): 21 índices adicionados para acelerar consultas, 10 tabelas antigas de backup/recursos desativados removidas ou arquivadas (a antiga aba Atividades, desativada em 08/09, e correções já concluídas), e ~45 políticas de segurança do banco revisadas uma a uma e otimizadas para rodar mais rápido em telas com muitos registros — sem alterar quem pode ver ou editar o quê."
+    ]
+  },
+  {
     "version": "2026-08-14f",
     "date": "2026-08-14",
     "changes": [

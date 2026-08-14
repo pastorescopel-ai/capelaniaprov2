@@ -149,8 +149,11 @@ export const useDataMaintenance = (
             'pro_groups',
             'pro_group_locations',
             'pro_history_records',
-            'ambassadors',
-            'activity_schedules'
+            'ambassadors'
+            // 'activity_schedules' removido em 2026-08-14: a tabela foi renomeada para
+            // activity_schedules_backup_20260814 (feature "Atividades" já tinha sido
+            // desativada em 08/09) -- mantê-la aqui faria essa ferramenta de correção
+            // tentar escrever numa tabela que não existe mais com esse nome.
         ];
         
         let totalUpdated = 0;
