@@ -70,8 +70,17 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
   const pgOptions = useMemo(() => proGroups.filter(g => g.unit === unit).map(g => ({ value: g.name, label: g.name })), [proGroups, unit]);
   const staffOptions = useMemo(() => proStaff.filter(s => s.unit === unit).map(staff => ({ value: staff.name, label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, category: 'RH' as const })), [proStaff, unit]);
 
+  // Carrega os dados de `editingItem` no formulário só uma vez por item selecionado.
+  // `inferPGDetails` (e por tabela o `showToast`) muda de identidade a cada ~30s por
+  // causa do polling/realtime que atualiza proGroups/proStaff em segundo plano -- sem
+  // esta trava, este efeito reexecutava nesse ritmo mesmo com o `editingItem` intacto,
+  // apagando o que o usuário tinha acabado de digitar e reexibindo o toast "Missão
+  // carregada" repetidamente.
+  const loadedEditingItemRef = useRef<SmallGroup | null>(null);
   useEffect(() => {
     if (editingItem) {
+      if (loadedEditingItemRef.current === editingItem) return;
+      loadedEditingItemRef.current = editingItem;
       if ((editingItem as any).isMission) {
         const mission = editingItem as any;
         const details = inferPGDetails(mission.groupName);
@@ -115,6 +124,8 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
         const details = inferPGDetails(editingItem.groupName);
         setIsSectorLocked(!!details.sectorId);
       }
+    } else {
+      loadedEditingItemRef.current = null;
     }
   }, [editingItem, inferPGDetails, unit, getToday, currentUser.id, showToast]);
 

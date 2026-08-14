@@ -39,17 +39,29 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
   const phoneInputRef = React.useRef<HTMLInputElement>(null);
   const participantsInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Foca uma única vez quando a missão é carregada -- antes dependia de
+  // `formData.leaderPhone`, então rodava de novo a cada dígito digitado no campo de
+  // WhatsApp e, 500ms depois, arrancava o foco pro campo de participantes (porque o
+  // telefone tinha acabado de deixar de estar vazio). Usa o valor do telefone que já
+  // veio com a missão (não o estado ao vivo do formulário) pra decidir o foco inicial.
+  const focusedMissionIdRef = React.useRef<string | null>(null);
   useEffect(() => {
     if (editingItem && (editingItem as any).isMission) {
+      const missionId = (editingItem as any).id || (editingItem as any).visitRequestId || (editingItem as any).groupName;
+      if (focusedMissionIdRef.current === missionId) return;
+      focusedMissionIdRef.current = missionId;
+      const initialPhone = (editingItem as any).leaderPhone;
       setTimeout(() => {
-        if (!formData.leaderPhone) {
+        if (!initialPhone) {
           phoneInputRef.current?.focus();
         } else {
           participantsInputRef.current?.focus();
         }
       }, 500);
+    } else if (!editingItem) {
+      focusedMissionIdRef.current = null;
     }
-  }, [editingItem, formData.leaderPhone]);
+  }, [editingItem]);
 
   const headerActions = React.useMemo(() => (
     <button type="button" onClick={handleClear} className="w-9 h-9 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 active:scale-95 transition-all flex items-center justify-center text-sm shadow-sm" title="Limpar Campos"><i className="fas fa-eraser"></i></button>

@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-14d",
+    "date": "2026-08-14",
+    "changes": [
+      "Corrigido: ao registrar uma Missão de PG, digitar o WhatsApp do líder fazia o cursor pular sozinho para o campo de participantes a cada dígito.",
+      "Corrigido: a notificação \"Missão carregada\" ficava reaparecendo sozinha e apagando o que você tinha acabado de digitar no formulário de Pequeno Grupo, por causa da atualização automática de dados em segundo plano."
+    ]
+  },
+  {
     "version": "2026-08-14c",
     "date": "2026-08-14",
     "changes": [
