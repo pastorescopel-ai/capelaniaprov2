@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-14i",
+    "date": "2026-08-14",
+    "changes": [
+      "Corrigido de vez: o campo \"Lição nº\" (Estudo Bíblico e Classe Bíblica) ainda permitia número negativo ao clicar na setinha pra baixo do teclado/navegador — testado e confirmado que não passa mais de zero, em qualquer navegador."
+    ]
+  },
+  {
     "version": "2026-08-14h",
     "date": "2026-08-14",
     "changes": [

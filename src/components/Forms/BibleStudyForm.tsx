@@ -131,8 +131,14 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Guia de Estudo</label><Autocomplete options={guideOptions} value={formData.guide} onChange={v => setFormData({...formData, guide: v})} placeholder="Ex: O Grande Conflito" /></div>
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Lição nº</label><input type="number" min={0} value={formData.lesson} onChange={e => {
-              const val = e.target.value.replace(/-/g, '');
-              const num = parseInt(val);
+              // Trava numérica de verdade (não só apagar o sinal "-" do texto): remover só o
+              // caractere "-" transformava "-1" (que alguns navegadores, principalmente
+              // Safari, mandam ao clicar na setinha pra baixo com o campo vazio/zerado) em
+              // "1" em vez de "0". Agora sempre calcula o número e nunca deixa passar de 0,
+              // igual ao campo "Nº de Participantes".
+              const raw = e.target.value;
+              const num = raw === '' ? NaN : parseInt(raw, 10);
+              const val = isNaN(num) ? '' : String(Math.max(0, num));
               setFormData({...formData, lesson: val, status: (!isNaN(num) && num > 1) ? RecordStatus.CONTINUACAO : formData.status});
           }} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-black text-sm focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-3 md:py-3.5 rounded-2xl font-black text-[10px] uppercase border-2 transition-all active:scale-95 ${formData.status === opt ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm' : 'border-slate-100 text-slate-400 bg-slate-50 hover:bg-slate-100'}`}>{opt}</button>))}</div></div>

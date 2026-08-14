@@ -343,7 +343,8 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     e.preventDefault();
     if (isSubmitting) return;
     if (!formData.name || !formData.guide || !formData.lesson) { showToast("Preencha Nome, Guia e Lição."); return; }
-    
+    if (isNaN(Number(formData.lesson)) || Number(formData.lesson) < 1) { showToast("O número da Lição precisa ser 1 ou maior.", "warning"); return; }
+
     if (isRecordLocked(formData.date, currentUser.role)) {
         showToast("Este período está bloqueado para lançamentos.", "error");
         return;
