@@ -179,9 +179,17 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     return options;
   }, [allHistory, formData.userId, proStaff, proPatients, proProviders, proSectors, unit, formData.participantType]);
 
+  // Carrega `editingItem` no formulário só uma vez por registro selecionado. `proStaff`
+  // muda de identidade a cada ~30s por causa do polling/realtime em segundo plano --
+  // sem esta trava, este efeito reexecutava nesse ritmo mesmo com o editingItem intacto,
+  // apagando o que o usuário tinha acabado de digitar (mesmo bug já corrigido em
+  // useSmallGroupForm.ts e useStaffVisitForm.ts).
+  const loadedEditingItemRef = useRef<BibleStudy | null>(null);
   useEffect(() => {
     if (editingItem) {
-      setFormData({ 
+      if (loadedEditingItemRef.current === editingItem) return;
+      loadedEditingItemRef.current = editingItem;
+      setFormData({
         id: editingItem.id || '',
         userId: editingItem.userId || currentUser.id,
         date: ensureISODate(editingItem.date) || getToday(),
@@ -203,6 +211,8 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
       } else {
           setIsSectorLocked(false);
       }
+    } else {
+      loadedEditingItemRef.current = null;
     }
   }, [editingItem, unit, proStaff, getToday, currentUser.id]);
 

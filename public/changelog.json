@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-14f",
+    "date": "2026-08-14",
+    "changes": [
+      "Corrigido: editar uma Visita de Colaborador ou um Estudo Bíblico por mais de ~30 segundos apagava sozinho o que estava sendo digitado (mesma causa dos bugs de Pequeno Grupo corrigidos hoje) — o formulário recarregava do zero por causa da atualização de dados em segundo plano.",
+      "Segurança: fechada uma brecha numa função do banco (close_open_leader_permission) que rodava sem um caminho de schema fixo — não muda nada no uso normal do app."
+    ]
+  },
+  {
     "version": "2026-08-14e",
     "date": "2026-08-14",
     "changes": [

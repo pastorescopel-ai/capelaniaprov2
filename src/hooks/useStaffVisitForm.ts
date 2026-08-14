@@ -98,8 +98,16 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     return options;
   }, [proStaff, proProviders, proSectors, unit, history, formData.participantType]);
 
+  // Carrega `editingItem` no formulário só uma vez por registro selecionado. `proStaff`
+  // muda de identidade a cada ~30s por causa do polling/realtime em segundo plano --
+  // sem esta trava, este efeito reexecutava nesse ritmo mesmo com o editingItem intacto,
+  // apagando o que o usuário tinha acabado de digitar (mesmo bug já corrigido em
+  // useSmallGroupForm.ts e useBibleStudyForm.ts).
+  const loadedEditingItemRef = useRef<StaffVisit | null>(null);
   useEffect(() => {
     if (editingItem) {
+      if (loadedEditingItemRef.current === editingItem) return;
+      loadedEditingItemRef.current = editingItem;
       if ((editingItem as any).isReturn) {
         // É um agendamento de retorno vindo do Dashboard
         setFormData({
@@ -152,6 +160,8 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
             setIsSectorLocked(false);
         }
       }
+    } else {
+      loadedEditingItemRef.current = null;
     }
   }, [editingItem, unit, proStaff, getToday, currentUser.id]);
 
