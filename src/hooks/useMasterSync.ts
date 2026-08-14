@@ -23,45 +23,21 @@ export const useMasterSync = (
 
     const normName = normalizeString(name);
 
+    // BLOQUEIO (2026-08-14): esta função NUNCA MAIS sobrescreve o WhatsApp de um cadastro que
+    // já existe (colaborador, paciente ou prestador). Isso já corrompeu números certos pelo
+    // menos duas vezes (maio e julho/2026) e é o suspeito nº1 do incidente em massa de 05/08 --
+    // um formulário de Visita/PG/Estudo Bíblico não é o lugar certo para "corrigir" o telefone
+    // mestre de alguém: quem preenche o formulário pode digitar incompleto, pode estar vendo o
+    // número errado de um homônimo, ou o campo pode nem ser sobre a pessoa certa. O número só é
+    // gravado aqui na CRIAÇÃO de um cadastro novo (que ainda não tem nenhum número a proteger).
+    // Qualquer correção de um número já cadastrado precisa ser uma ação explícita e deliberada
+    // em uma tela de edição dedicada, nunca um efeito colateral de salvar outro formulário.
     if (type === ParticipantType.STAFF) {
         const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
-        if (staff) {
-            const updates: any = {};
-            let hasUpdates = false;
-
-            // Só sobrescreve o WhatsApp "mestre" do colaborador com um número que passa na
-            // mesma validação usada nos formulários (>= 10 dígitos). Antes bastavam 8 dígitos
-            // -- suficiente para um número sem DDD apagar silenciosamente um número correto
-            // toda vez que alguém preenchia um formulário de Visita/PG com um valor incompleto.
-            if (cleanPhone && isValidWhatsApp(cleanPhone) && cleanPhone !== (staff.whatsapp || '')) {
-                updates.whatsapp = cleanPhone;
-                hasUpdates = true;
-            }
-
-            if (extra) {
-                const targetSector = proSectors.find(s => s.name === extra && s.unit === unit);
-                if (targetSector && staff.sectorId !== targetSector.id) {
-                    updates.sectorId = targetSector.id;
-                    updates.updatedAt = Date.now();
-                    hasUpdates = true;
-                }
-            }
-
-            if (hasUpdates) {
-                await saveRecord('proStaff', { ...staff, ...updates });
-
-                if (updates.whatsapp) {
-                    const pendingRequests = visitRequests.filter(req =>
-                        req.unit === unit &&
-                        req.status === 'assigned' &&
-                        normalizeString(req.leaderName) === normName &&
-                        req.leaderPhone !== updates.whatsapp
-                    );
-
-                    for (const req of pendingRequests) {
-                        await saveRecord('visitRequests', { ...req, leaderPhone: updates.whatsapp });
-                    }
-                }
+        if (staff && extra) {
+            const targetSector = proSectors.find(s => s.name === extra && s.unit === unit);
+            if (targetSector && staff.sectorId !== targetSector.id) {
+                await saveRecord('proStaff', { ...staff, sectorId: targetSector.id, updatedAt: Date.now() });
             }
         }
         return staff?.id;
@@ -71,24 +47,21 @@ export const useMasterSync = (
             // pro_patients.id é BIGINT (auto-incremento) — nunca um id gerado no cliente.
             // Insere direto via DataRepository (em vez de saveRecord) para conseguir ler de
             // volta o id real que o Postgres atribuiu, e devolvê-lo a quem chamou.
-            const payload = { name, unit, whatsapp: cleanPhone, updatedAt: Date.now() } as any;
+            const payload = { name, unit, whatsapp: isValidWhatsApp(cleanPhone) ? cleanPhone : '', updatedAt: Date.now() } as any;
             const result = await DataRepository.upsertRecord('proPatients', payload);
             return result.success && result.data?.[0] ? result.data[0].id : undefined;
-        }
-        if (cleanPhone && isValidWhatsApp(cleanPhone) && cleanPhone !== (patient.whatsapp || '')) {
-            await saveRecord('proPatients', { ...patient, whatsapp: cleanPhone, updatedAt: Date.now() } as ProPatient);
         }
         return patient.id;
     } else if (type === ParticipantType.PROVIDER) {
         const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
         if (!provider) {
             // pro_providers.id também é BIGINT — mesma lógica do ramo de Paciente acima.
-            const payload = { name, unit, whatsapp: cleanPhone, sector: extra, updatedAt: Date.now() } as any;
+            const payload = { name, unit, whatsapp: isValidWhatsApp(cleanPhone) ? cleanPhone : '', sector: extra, updatedAt: Date.now() } as any;
             const result = await DataRepository.upsertRecord('proProviders', payload);
             return result.success && result.data?.[0] ? result.data[0].id : undefined;
         }
-        if ((cleanPhone && isValidWhatsApp(cleanPhone) && cleanPhone !== (provider.whatsapp || '')) || (extra && extra !== provider.sector)) {
-            await saveRecord('proProviders', { ...provider, whatsapp: cleanPhone || provider.whatsapp, sector: extra || provider.sector, updatedAt: Date.now() } as ProProvider);
+        if (extra && extra !== provider.sector) {
+            await saveRecord('proProviders', { ...provider, sector: extra, updatedAt: Date.now() } as ProProvider);
         }
         return provider.id;
     }

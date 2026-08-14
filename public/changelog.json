@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-14c",
+    "date": "2026-08-14",
+    "changes": [
+      "Confirmado: a importação de planilha de colaboradores NÃO mexe no campo WhatsApp (não é a causa dos números sem DDD).",
+      "Bloqueado de vez: salvar um formulário de Visita PG, Pequeno Grupo, Agenda PG ou Estudo Bíblico não altera mais o WhatsApp \"mestre\" de um colaborador/paciente/prestador já cadastrado, mesmo que o número digitado seja válido — essa atualização automática em segundo plano é quem causava os números incorretos. O WhatsApp de alguém só é gravado agora na primeira vez que a pessoa é cadastrada (paciente/prestador novo); corrigir um número já existente exige edição manual direta."
+    ]
+  },
+  {
     "version": "2026-08-14b",
     "date": "2026-08-14",
     "changes": [
