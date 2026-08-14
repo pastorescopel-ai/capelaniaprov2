@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-14e",
+    "date": "2026-08-14",
+    "changes": [
+      "Bloqueado número negativo nos campos \"Nº de Participantes\" (Pequeno Grupo) e \"Lição nº\" (Estudo Bíblico e Classe Bíblica) — não é mais possível digitar um valor negativo nesses campos."
+    ]
+  },
+  {
     "version": "2026-08-14d",
     "date": "2026-08-14",
     "changes": [
