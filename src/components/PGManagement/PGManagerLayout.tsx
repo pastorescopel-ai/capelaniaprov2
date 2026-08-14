@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useTransition } from 'react';
-import { Unit } from '../../types';
+import { Unit, UserRole } from '../../types';
 import PGDashboard from './PGDashboard';
 import PGMembership from './PGMembership';
 import PGReports from './PGReports';
@@ -9,9 +9,12 @@ import PGLeaders from './PGLeaders';
 import PGClosing from './PGClosing';
 import PGTools from './PGTools';
 import { useApp } from '../../hooks/useApp';
+import { useAuth } from '../../contexts/AuthContext';
 
 const PGManagerLayout: React.FC = () => {
   const { proMonthlyStats, config } = useApp();
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
   const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'membership' | 'ops' | 'reports' | 'leaders' | 'fechamento' | 'tools'>('dashboard');
   const [currentUnit, setCurrentUnit] = useState<Unit>(Unit.HAB);
   const [isPending, startTransition] = useTransition();
@@ -49,6 +52,8 @@ const PGManagerLayout: React.FC = () => {
     });
   };
 
+  // "Fechamento" trava os números oficiais do mês (Adesão a PG etc.) -- restrito a Admin
+  // tanto aqui (a aba nem aparece pra quem não é admin) quanto na regra do banco de dados.
   const tabs = [
     { id: 'dashboard', label: 'Visão Geral (Painel PGs)', icon: 'fas fa-chart-pie' },
     { id: 'membership', label: 'Matrícula', icon: 'fas fa-user-plus' },
@@ -56,14 +61,14 @@ const PGManagerLayout: React.FC = () => {
     { id: 'ops', label: 'Agenda PG', icon: 'fas fa-calendar-check' },
     { id: 'reports', label: 'Relatórios', icon: 'fas fa-print' },
     { id: 'tools', label: 'Ferramentas', icon: 'fas fa-tools' },
-    { id: 'fechamento', label: 'Fechamento', icon: 'fas fa-lock' },
+    ...(isAdmin ? [{ id: 'fechamento', label: 'Fechamento', icon: 'fas fa-lock' }] : []),
   ];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20 relative">
       
       {/* Notificação de Fechamento Pendente */}
-      {!previousMonthClosed() && activeSubTab !== 'fechamento' && (
+      {isAdmin && !previousMonthClosed() && activeSubTab !== 'fechamento' && (
         <div className="max-w-7xl mx-auto bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between gap-4 animate-bounce-subtle shadow-sm">
           <div className="flex items-center gap-3 text-amber-800">
             <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
@@ -145,7 +150,7 @@ const PGManagerLayout: React.FC = () => {
           {activeSubTab === 'reports' && <PGReports unit={currentUnit} />}
           {activeSubTab === 'leaders' && <PGLeaders unit={currentUnit} />}
           {activeSubTab === 'tools' && <PGTools unit={currentUnit} />}
-          {activeSubTab === 'fechamento' && <PGClosing unit={currentUnit} />}
+          {activeSubTab === 'fechamento' && isAdmin && <PGClosing unit={currentUnit} />}
         </main>
       </div>
     </div>

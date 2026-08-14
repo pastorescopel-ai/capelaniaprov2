@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Unit, ProMonthlyStats } from '../../types';
+import { Unit, UserRole, ProMonthlyStats } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import { useApp } from '../../hooks/useApp';
+import { useAuth } from '../../contexts/AuthContext';
 import { usePro } from '../../contexts/ProContext';
 import { useBible } from '../../contexts/BibleContext';
 import { getTimestamp, cleanID, getStudentKey, countUniqueClasses } from '../../utils/formatters';
@@ -32,6 +33,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
   } = usePro();
 
   const { showToast } = useToast();
+  const { currentUser } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCloseConfirmModalOpen, setIsCloseConfirmModalOpen] = useState(false);
   const [isReopenConfirmModalOpen, setIsReopenConfirmModalOpen] = useState(false);
@@ -129,6 +131,13 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
 
   const confirmCloseMonth = async () => {
     setIsCloseConfirmModalOpen(false);
+    // Defesa extra: a aba "Fechamento" já é escondida de quem não é Admin em
+    // PGManagerLayout.tsx, e a regra do banco também recusa a escrita -- esta checagem
+    // aqui é só uma segunda trava, caso a tela seja alcançada por outro caminho.
+    if (currentUser?.role !== UserRole.ADMIN) {
+      showToast('Apenas administradores podem fechar o mês.', 'error');
+      return;
+    }
     const isAlreadyClosed = proMonthlyStats?.some(s => s.month === selectedCloseMonth);
     const actionText = isAlreadyClosed ? 'ATUALIZAR' : 'FECHAR';
     

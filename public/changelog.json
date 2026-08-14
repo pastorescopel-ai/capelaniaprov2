@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-08-14h",
+    "date": "2026-08-14",
+    "changes": [
+      "Segurança: fechada uma função do banco que permitia a qualquer visitante (mesmo sem login) disparar uma fusão/exclusão em massa de Pequenos Grupos — agora exige ser Admin, com backup da versão anterior guardado.",
+      "Segurança: o login do app de líderes de PG não aceita mais um WhatsApp incompleto (menos de 10 dígitos) como senha no primeiro acesso — evita travar o líder com uma senha quebrada.",
+      "\"Fechamento\" (Pequenos Grupos > Gestão Estratégica) agora é uma ação exclusiva do Admin — a aba nem aparece mais para os demais capelães, e a trava foi replicada no banco de dados."
+    ]
+  },
+  {
     "version": "2026-08-14g",
     "date": "2026-08-14",
     "changes": [
