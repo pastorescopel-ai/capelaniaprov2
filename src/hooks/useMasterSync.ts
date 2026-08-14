@@ -2,6 +2,7 @@
 import { useCallback } from 'react';
 import { ParticipantType, Unit, ProPatient, ProProvider } from '../types';
 import { normalizeString } from '../utils/formatters';
+import { isValidWhatsApp } from '../utils/validators';
 import { DataRepository } from '../services/dataRepository';
 
 export const useMasterSync = (
@@ -28,7 +29,11 @@ export const useMasterSync = (
             const updates: any = {};
             let hasUpdates = false;
 
-            if (cleanPhone && cleanPhone.length >= 8 && cleanPhone !== (staff.whatsapp || '')) {
+            // Só sobrescreve o WhatsApp "mestre" do colaborador com um número que passa na
+            // mesma validação usada nos formulários (>= 10 dígitos). Antes bastavam 8 dígitos
+            // -- suficiente para um número sem DDD apagar silenciosamente um número correto
+            // toda vez que alguém preenchia um formulário de Visita/PG com um valor incompleto.
+            if (cleanPhone && isValidWhatsApp(cleanPhone) && cleanPhone !== (staff.whatsapp || '')) {
                 updates.whatsapp = cleanPhone;
                 hasUpdates = true;
             }
@@ -70,7 +75,7 @@ export const useMasterSync = (
             const result = await DataRepository.upsertRecord('proPatients', payload);
             return result.success && result.data?.[0] ? result.data[0].id : undefined;
         }
-        if (cleanPhone && cleanPhone !== (patient.whatsapp || '')) {
+        if (cleanPhone && isValidWhatsApp(cleanPhone) && cleanPhone !== (patient.whatsapp || '')) {
             await saveRecord('proPatients', { ...patient, whatsapp: cleanPhone, updatedAt: Date.now() } as ProPatient);
         }
         return patient.id;
@@ -82,7 +87,7 @@ export const useMasterSync = (
             const result = await DataRepository.upsertRecord('proProviders', payload);
             return result.success && result.data?.[0] ? result.data[0].id : undefined;
         }
-        if ((cleanPhone && cleanPhone !== (provider.whatsapp || '')) || (extra && extra !== provider.sector)) {
+        if ((cleanPhone && isValidWhatsApp(cleanPhone) && cleanPhone !== (provider.whatsapp || '')) || (extra && extra !== provider.sector)) {
             await saveRecord('proProviders', { ...provider, whatsapp: cleanPhone || provider.whatsapp, sector: extra || provider.sector, updatedAt: Date.now() } as ProProvider);
         }
         return provider.id;

@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-14b",
+    "date": "2026-08-14",
+    "changes": [
+      "Corrigido: qualquer formulário (Visita PG, Pequeno Grupo, Estudo Bíblico) que sincroniza o WhatsApp \"oficial\" de um colaborador/paciente/prestador aceitava números com só 8 dígitos e sobrescrevia o cadastro correto na hora — agora exige o mesmo mínimo de 10 dígitos já usado nos formulários.",
+      "Segurança: adicionada trava no banco de dados que impede fisicamente gravar um WhatsApp/telefone com menos de 10 dígitos em Colaboradores, PGs, Pacientes e Prestadores — protege contra esse mesmo tipo de erro mesmo vindo de fora do app. Investigado e confirmado: os 39 números sem DDD encontrados na planilha enviada vieram de uma operação em lote pontual do dia 05/08, não recorrente."
+    ]
+  },
+  {
     "version": "2026-08-14",
     "date": "2026-08-14",
     "changes": [
