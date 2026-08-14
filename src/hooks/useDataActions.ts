@@ -1,10 +1,21 @@
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { DataRepository } from '../services/dataRepository';
 import { supabase } from '../services/supabaseClient';
 import { toCamel } from '../utils/transformers';
 
+// Trava compartilhada por TODAS as origens de refreshData (poll de 30s, foco/visibilidade
+// da aba, e reconexão do canal Realtime) -- antes só o poll/foco tinham uma trava local de
+// 5s; a reconexão do Realtime disparava um refreshData() sem trava nenhuma, então numa
+// internet instável (Realtime caindo e reconectando várias vezes seguidas) o app empilhava
+// várias recargas completas do banco ao mesmo tempo, piorando exatamente o momento em que a
+// rede já estava ruim. Centralizado aqui dentro do próprio refreshData para proteger
+// qualquer chamador, atual ou futuro, sem precisar duplicar a lógica em cada lugar.
+const REFRESH_THROTTLE_MS = 5000;
+
 export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val: boolean) => void, setIsConnected: (val: boolean) => void, applySystemOverrides: (config: any) => void, setIsBackgroundSynced?: (val: boolean) => void) => {
+  const lastRefreshAtRef = useRef(0);
+  const isRefreshingRef = useRef(false);
 
   const loadFromCloud = useCallback(async (showLoader = false) => {
     if (showLoader) setIsSyncing(true);
@@ -49,6 +60,12 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
   }, [setters, setIsSyncing, setIsConnected, applySystemOverrides, setIsBackgroundSynced]);
 
   const refreshData = useCallback(async () => {
+    const now = Date.now();
+    if (isRefreshingRef.current || now - lastRefreshAtRef.current < REFRESH_THROTTLE_MS) {
+      return { success: true, skipped: true };
+    }
+    lastRefreshAtRef.current = now;
+    isRefreshingRef.current = true;
     setIsSyncing(true);
     try {
       // 1. Fase Rápida/Crítica — aplica imediatamente (ex: Escala de Visitas PG)
@@ -83,6 +100,7 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
       return { success: false, error: err };
     } finally {
       setIsSyncing(false);
+      isRefreshingRef.current = false;
     }
   }, [setters, setIsSyncing]);
 

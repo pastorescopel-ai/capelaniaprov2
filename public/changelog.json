@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-14j",
+    "date": "2026-08-14",
+    "changes": [
+      "Corrigido: numa internet instável, a reconexão automática do canal em tempo real podia disparar várias recargas completas do banco empilhadas, uma em cima da outra, piorando exatamente o momento em que a conexão já estava ruim. Agora só recarrega no máximo uma vez a cada 5 segundos, com a mesma trava usada ao focar a aba."
+    ]
+  },
+  {
     "version": "2026-08-14i",
     "date": "2026-08-14",
     "changes": [
