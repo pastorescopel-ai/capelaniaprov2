@@ -8,6 +8,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import InstallAppBanner from './components/InstallAppBanner';
 import { AppProvider } from './contexts/AppProvider';
 import { AuthProvider } from './contexts/AuthProvider';
 import { ToastProvider } from './contexts/ToastProvider';
@@ -24,6 +25,7 @@ root.render(
       <ToastProvider>
         <AuthProvider>
           <App />
+          <InstallAppBanner />
         </AuthProvider>
       </ToastProvider>
     </AppProvider>
