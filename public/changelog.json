@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15",
+    "date": "2026-08-15",
+    "changes": [
+      "O ícone do app na aba do navegador (favicon) agora é o logo oficial do Hospital Adventista de Belém, no lugar do símbolo azul genérico."
+    ]
+  },
+  {
     "version": "2026-08-14j",
     "date": "2026-08-14",
     "changes": [
