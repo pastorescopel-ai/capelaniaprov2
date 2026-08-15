@@ -51,12 +51,22 @@ export default defineConfig({
         display: "standalone",
         orientation: "portrait",
         start_url: "/",
+        // Ícone do app instalado (tela inicial/launcher) = logo do Hospital Adventista de
+        // Belém, gerado a partir de public/logo_hospital.png. purpose "any" (não "maskable")
+        // porque o logo não foi desenhado com a margem de segurança que o recorte adaptativo
+        // do Android exige -- como "maskable" ele ficaria cortado nas bordas.
         icons: [
           {
-            src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSIxMjAiIGZpbGw9IiMwMDVhOWMiLz48cGF0aCBkPSJNMjU2IDExMlY0MDBNMTEyIDI1Nkg0MDAiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iODAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==",
+            src: "/icon-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any"
+          },
+          {
+            src: "/icon-512.png",
             sizes: "512x512",
-            type: "image/svg+xml",
-            purpose: "any maskable"
+            type: "image/png",
+            purpose: "any"
           }
         ]
       }

@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15g",
+    "date": "2026-08-15",
+    "changes": [
+      "O ícone do app na tela inicial do celular (ao instalar pelo Android ou iPhone/iPad) agora é o logo oficial do Hospital Adventista de Belém — antes, mesmo já tendo trocado o favicon da aba do navegador, o ícone de instalação continuava com o símbolo azul genérico."
+    ]
+  },
+  {
     "version": "2026-08-15f",
     "date": "2026-08-15",
     "changes": [
