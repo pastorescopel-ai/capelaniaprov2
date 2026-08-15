@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15e",
+    "date": "2026-08-15",
+    "changes": [
+      "A animação de boas-vindas não escurece mais o fundo — agora só desfoca o Dashboard atrás do logo, e volta ao normal quando termina."
+    ]
+  },
+  {
     "version": "2026-08-15d",
     "date": "2026-08-15",
     "changes": [

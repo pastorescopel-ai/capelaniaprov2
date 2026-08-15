@@ -29,7 +29,7 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({ onDone }) => {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
       onClick={onDone}
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/85 backdrop-blur-md cursor-pointer"
+      className="fixed inset-0 z-[300] flex items-center justify-center backdrop-blur-md cursor-pointer"
     >
       <motion.img
         initial={{ scale: 0.85, opacity: 0 }}
