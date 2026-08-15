@@ -10,7 +10,14 @@
     <meta name="apple-mobile-web-app-title" content="Capelania Pro">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="description" content="Sistema Profissional de Capelania Hospitalar - HAB/HABA">
-    <link rel="manifest" href="/manifest.json">
+    <!-- O <link rel="manifest"> é injetado automaticamente aqui pelo plugin vite-plugin-pwa,
+         apontando pro manifest.webmanifest gerado a partir do bloco `manifest:` em
+         vite.config.ts -- não escrever um <link> manual aqui. Havia um manifest.json
+         desatualizado (com o ícone azul antigo) solto na raiz do projeto, fora da pasta
+         public/, e esse link manual apontava pra ele -- o navegador via os DOIS manifests
+         (o velho e o novo) e nem sempre usava o certo, o que explicava o ícone antigo
+         continuar aparecendo mesmo depois do logo do HAB já estar configurado em
+         vite.config.ts. Arquivo removido. -->
 
     <!-- Open Graph: quando o link do app é colado numa mensagem (WhatsApp, etc.), o app do
          destinatário busca essas tags e monta um cartão de prévia com imagem, título e

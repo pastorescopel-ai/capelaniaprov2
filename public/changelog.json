@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15h",
+    "date": "2026-08-15",
+    "changes": [
+      "Corrigida a causa real do ícone antigo continuar aparecendo ao instalar o app: havia um arquivo manifest.json duplicado e esquecido desde fevereiro, escondido na raiz do projeto, que o navegador enxergava junto com o manifest correto — removido. Quem já instalou o app com o ícone antigo precisa remover o atalho da tela inicial e instalar de novo para ver o ícone atualizado."
+    ]
+  },
+  {
     "version": "2026-08-15g",
     "date": "2026-08-15",
     "changes": [
