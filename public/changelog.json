@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15b",
+    "date": "2026-08-15",
+    "changes": [
+      "Agora, ao colar o link do Capelania Pro numa mensagem (WhatsApp, etc.), aparece automaticamente uma prévia com o logo do Hospital Adventista de Belém, título e descrição — antes o link aparecia sem nenhuma imagem."
+    ]
+  },
+  {
     "version": "2026-08-15",
     "date": "2026-08-15",
     "changes": [
