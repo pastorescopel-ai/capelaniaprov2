@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15i",
+    "date": "2026-08-15",
+    "changes": [
+      "O nome que aparece embaixo do ícone na tela inicial do Android agora é \"Capelania Pro\" (estava só \"Capelania\"). No iOS já estava certo."
+    ]
+  },
+  {
     "version": "2026-08-15h",
     "date": "2026-08-15",
     "changes": [

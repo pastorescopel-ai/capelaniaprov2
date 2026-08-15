@@ -43,8 +43,11 @@ export default defineConfig({
         ]
       },
       manifest: {
-        name: "Capelania Hospitalar Pro",
-        short_name: "Capelania",
+        name: "Capelania Pro",
+        // short_name é o texto que aparece embaixo do ícone na tela inicial do Android
+        // (iOS já usa "Capelania Pro" via <meta name="apple-mobile-web-app-title"> no
+        // index.html) -- estava "Capelania", sem o "Pro".
+        short_name: "Capelania Pro",
         description: "Sistema Profissional de Capelania Hospitalar - HAB/HABA",
         theme_color: "#005a9c",
         background_color: "#f1f5f9",
