@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15j",
+    "date": "2026-08-15",
+    "changes": [
+      "O aviso \"Instalar App\" agora também aparece no Safari do Mac, com o passo a passo certo pra lá (Arquivo > Adicionar ao Dock) — antes só cobria Android/Chrome e iPhone/iPad."
+    ]
+  },
+  {
     "version": "2026-08-15i",
     "date": "2026-08-15",
     "changes": [

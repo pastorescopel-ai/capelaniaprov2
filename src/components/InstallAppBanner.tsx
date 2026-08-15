@@ -14,17 +14,20 @@ const wasRecentlyDismissed = () => {
   return elapsedDays < DISMISS_DAYS;
 };
 
-// Banner "Instalar App" que funciona em qualquer navegador -- mas não da mesma forma em
-// todos: no Android/Chrome/Edge o botão instala de verdade com 1 clique; no iOS (onde não
-// existe API nenhuma pra isso) o botão abre o passo a passo manual (Compartilhar > Adicionar
-// à Tela de Início). Fica escondido se o app já está instalado, ou se a pessoa já fechou o
-// banner há menos de 14 dias.
-const InstallAppBanner: React.FC = () => {
-  const { isInstalled, isIOS, canPromptInstall, canShowIOSInstructions, promptInstall } = useInstallPrompt();
-  const [visible, setVisible] = useState(false);
-  const [showIOSSteps, setShowIOSSteps] = useState(false);
+type StepsMode = null | 'ios' | 'mac-safari';
 
-  const eligible = !isInstalled && (canPromptInstall || canShowIOSInstructions);
+// Banner "Instalar App" que funciona em qualquer navegador -- mas não da mesma forma em
+// todos: no Android/Chrome/Edge o botão instala de verdade com 1 clique; no Safari (iOS ou
+// Mac, nenhum dos dois dispara o evento de instalação) o botão abre o passo a passo manual --
+// diferente em cada plataforma (iOS usa Compartilhar > Adicionar à Tela de Início; Safari no
+// Mac usa Arquivo > Adicionar ao Dock). Fica escondido se o app já está instalado, ou se a
+// pessoa já fechou o banner há menos de 14 dias.
+const InstallAppBanner: React.FC = () => {
+  const { isInstalled, isIOS, isMacSafari, canPromptInstall, canShowIOSInstructions, canShowMacSafariInstructions, promptInstall } = useInstallPrompt();
+  const [visible, setVisible] = useState(false);
+  const [stepsMode, setStepsMode] = useState<StepsMode>(null);
+
+  const eligible = !isInstalled && (canPromptInstall || canShowIOSInstructions || canShowMacSafariInstructions);
 
   useEffect(() => {
     if (!eligible || wasRecentlyDismissed()) return;
@@ -35,7 +38,7 @@ const InstallAppBanner: React.FC = () => {
   const dismiss = () => {
     localStorage.setItem(DISMISS_KEY, String(Date.now()));
     setVisible(false);
-    setShowIOSSteps(false);
+    setStepsMode(null);
   };
 
   const handleInstallClick = async () => {
@@ -44,7 +47,8 @@ const InstallAppBanner: React.FC = () => {
       if (accepted) setVisible(false);
       return;
     }
-    if (isIOS) setShowIOSSteps(true);
+    if (isIOS) setStepsMode('ios');
+    else if (isMacSafari) setStepsMode('mac-safari');
   };
 
   return (
@@ -57,7 +61,7 @@ const InstallAppBanner: React.FC = () => {
           transition={{ duration: 0.3 }}
           className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[250] w-[calc(100vw-2rem)] max-w-xs bg-white rounded-3xl shadow-2xl border border-slate-100 p-4"
         >
-          {!showIOSSteps ? (
+          {!stepsMode ? (
             <div className="flex items-start gap-3">
               <div className="w-11 h-11 flex-shrink-0 rounded-2xl bg-[#005a9c] flex items-center justify-center text-white shadow-lg">
                 <i className="fas fa-arrow-down text-sm"></i>
@@ -77,7 +81,7 @@ const InstallAppBanner: React.FC = () => {
                 <i className="fas fa-times"></i>
               </button>
             </div>
-          ) : (
+          ) : stepsMode === 'ios' ? (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-black text-slate-800 uppercase tracking-tight">Como instalar no iPhone/iPad</p>
@@ -97,6 +101,29 @@ const InstallAppBanner: React.FC = () => {
                 <li className="flex items-center gap-2">
                   <span className="w-5 h-5 flex-shrink-0 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500">3</span>
                   Toque em "Adicionar"
+                </li>
+              </ol>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-black text-slate-800 uppercase tracking-tight">Como instalar no Safari (Mac)</p>
+                <button onClick={dismiss} className="text-slate-300 hover:text-slate-500 transition-colors" aria-label="Fechar">
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <ol className="space-y-2 text-[11px] font-bold text-slate-600">
+                <li className="flex items-center gap-2">
+                  <span className="w-5 h-5 flex-shrink-0 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500">1</span>
+                  No menu superior, clique em <span className="font-black">Arquivo</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-5 h-5 flex-shrink-0 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500">2</span>
+                  Escolha "Adicionar ao Dock..."
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-5 h-5 flex-shrink-0 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500">3</span>
+                  Clique em "Adicionar"
                 </li>
               </ol>
             </div>
