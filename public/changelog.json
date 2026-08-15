@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15c",
+    "date": "2026-08-15",
+    "changes": [
+      "Adicionada uma animação de boas-vindas (logo do HAB) logo após fazer login com e-mail e senha — aparece por cima do Dashboard já carregando ao fundo, some sozinha depois de tocar por completo (ou na hora, se você tocar na tela). Não aparece de novo ao só reabrir o app com a sessão já ativa."
+    ]
+  },
+  {
     "version": "2026-08-15b",
     "date": "2026-08-15",
     "changes": [

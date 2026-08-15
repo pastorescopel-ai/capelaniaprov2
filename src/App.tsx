@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Layout from './components/Layout';
 import Login from './components/Login';
+import WelcomeSplash from './components/WelcomeSplash';
 import ConfirmationModal from './components/Shared/ConfirmationModal';
 import MainContent from './components/MainContent';
 import { Unit } from './types/enums';
@@ -24,7 +25,7 @@ const App: React.FC = () => {
   const { bibleStudies, bibleClasses } = useBible();
   const { proSectors } = usePro();
 
-  const { isAuthenticated, currentUser, login, logout, updateCurrentUser, loginError, isAuthLoading } = useAuth();
+  const { isAuthenticated, currentUser, login, logout, updateCurrentUser, loginError, isAuthLoading, justLoggedIn, clearJustLoggedIn } = useAuth();
 
   const {
     activeTab, isPending, setActiveTab,
@@ -124,13 +125,19 @@ const App: React.FC = () => {
   }
 
   return (
-    <Layout 
-      activeTab={activeTab} 
-      setActiveTab={handleTabChange} 
-      currentUser={currentUser} 
-      isSyncing={isSyncing} 
-      isConnected={isConnected} 
-      config={config} 
+    <>
+      {/* Dashboard já monta e carrega os dados por trás, sem atraso artificial -- a
+          animação só cobre a tela por cima, sem bloquear nada. */}
+      <AnimatePresence>
+        {justLoggedIn && <WelcomeSplash onDone={clearJustLoggedIn} />}
+      </AnimatePresence>
+      <Layout
+      activeTab={activeTab}
+      setActiveTab={handleTabChange}
+      currentUser={currentUser}
+      isSyncing={isSyncing}
+      isConnected={isConnected}
+      config={config}
       onLogout={logout}
       onGoToReturnHistory={handleGoToReturnHistory}
     >
@@ -206,7 +213,8 @@ const App: React.FC = () => {
         <AppUpdateChecker config={config} />
 
       </div>
-    </Layout>
+      </Layout>
+    </>
   );
 };
 
