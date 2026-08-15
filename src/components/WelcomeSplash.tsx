@@ -29,7 +29,7 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({ onDone }) => {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
       onClick={onDone}
-      className="fixed inset-0 z-[300] flex flex-col items-center justify-center gap-6 bg-slate-900/85 backdrop-blur-md cursor-pointer"
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/85 backdrop-blur-md cursor-pointer"
     >
       <motion.img
         initial={{ scale: 0.85, opacity: 0 }}
@@ -39,14 +39,6 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({ onDone }) => {
         alt="Hospital Adventista de Belém"
         className="w-56 md:w-72 rounded-[2rem] shadow-2xl"
       />
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        className="text-[10px] font-black text-white/60 uppercase tracking-widest"
-      >
-        Toque para continuar
-      </motion.span>
     </motion.div>
   );
 };

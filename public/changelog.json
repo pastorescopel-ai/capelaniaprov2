@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15d",
+    "date": "2026-08-15",
+    "changes": [
+      "Removido o texto \"Toque para continuar\" da animação de boas-vindas — continua fechando sozinha no final do gif ou ao tocar na tela, só sem o aviso escrito."
+    ]
+  },
+  {
     "version": "2026-08-15c",
     "date": "2026-08-15",
     "changes": [
