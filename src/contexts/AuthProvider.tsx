@@ -6,7 +6,7 @@ import { DataRepository } from '../services/dataRepository';
 import { AuthContext } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
 
-const INACTIVITY_LIMIT = 4 * 60 * 60 * 1000; // 4 horas em milissegundos
+const INACTIVITY_LIMIT = 60 * 60 * 1000; // 1 hora em milissegundos
 const LAST_ACTIVITY_KEY = 'capelania_last_activity';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

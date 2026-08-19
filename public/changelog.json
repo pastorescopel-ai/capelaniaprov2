@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15m",
+    "date": "2026-08-15",
+    "changes": [
+      "O tempo de logout automático por inatividade foi reduzido de 4 horas para 1 hora, por segurança — o app já deslogava sozinho quando ficava aberto sem uso, só que o tempo era longo demais."
+    ]
+  },
+  {
     "version": "2026-08-15l",
     "date": "2026-08-15",
     "changes": [
