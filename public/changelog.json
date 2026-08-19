@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15l",
+    "date": "2026-08-15",
+    "changes": [
+      "Diminuído mais um pouco o tamanho do logo animado na tela de abertura, pra ficar mais discreto."
+    ]
+  },
+  {
     "version": "2026-08-15k",
     "date": "2026-08-15",
     "changes": [

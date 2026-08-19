@@ -37,7 +37,7 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({ onDone }) => {
         transition={{ duration: 0.4, delay: 0.1 }}
         src="/welcome-logo.gif"
         alt="Hospital Adventista de Belém"
-        className="w-56 md:w-72 rounded-[2rem] shadow-2xl"
+        className="w-32 md:w-40 rounded-[2rem] shadow-2xl"
       />
     </motion.div>
   );
