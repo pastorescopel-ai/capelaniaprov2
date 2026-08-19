@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-19",
+    "date": "2026-08-19",
+    "changes": [
+      "Adicionado um aviso na tela principal (canto inferior esquerdo) convidando a ativar o lembrete diário de notificação, sem precisar entrar em Perfil pra achar essa opção. Some sozinho se você já ativou, se fechar no X, ou se seu navegador não suportar."
+    ]
+  },
+  {
     "version": "2026-08-15o",
     "date": "2026-08-15",
     "changes": [

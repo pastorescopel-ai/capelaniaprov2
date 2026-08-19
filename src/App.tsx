@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Layout from './components/Layout';
 import Login from './components/Login';
 import WelcomeSplash from './components/WelcomeSplash';
+import NotificationPromptBanner from './components/NotificationPromptBanner';
 import ConfirmationModal from './components/Shared/ConfirmationModal';
 import MainContent from './components/MainContent';
 import { Unit } from './types/enums';
@@ -154,7 +155,11 @@ const App: React.FC = () => {
       onGoToReturnHistory={handleGoToReturnHistory}
     >
       <div className="max-w-7xl mx-auto px-2 md:px-0 relative">
-        
+
+        {/* Convite pra ativar o lembrete diário -- fica escondido sozinho se já estiver
+            ativo, se o navegador não suportar, ou se a pessoa já tiver fechado antes. */}
+        <NotificationPromptBanner />
+
         {/* Loader de Transição Suave (Top Progress Bar) */}
         <AnimatePresence>
           {isPending && (
