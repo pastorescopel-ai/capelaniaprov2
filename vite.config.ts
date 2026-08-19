@@ -7,41 +7,18 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // Trocado de 'generateSW' (automático) para 'injectManifest' -- precisa de um service
+      // worker escrito à mão (src/sw.ts) pra poder reagir a notificações push (lembrete
+      // diário). O cache de fontes/ícones que antes ficava aqui em `workbox:` foi movido pra
+      // dentro do próprio src/sw.ts.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,png,svg}']
+      },
       registerType: 'autoUpdate',
       includeAssets: [], // Removido para evitar 404 em arquivos que são Data URI no HTML
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-          {
-            urlPattern: /^https:\/\/cdnjs\.cloudflare\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'font-awesome-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ]
-      },
       manifest: {
         name: "Capelania Pro",
         // short_name é o texto que aparece embaixo do ícone na tela inicial do Android

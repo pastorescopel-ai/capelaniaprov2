@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15n",
+    "date": "2026-08-15",
+    "changes": [
+      "Novo: lembrete diário por notificação (12h e 18h) avisando quem ainda não registrou atividades no dia, e quantas visitas de PG estão pendentes de confirmação. Ative em Perfil > Lembrete Diário. No iPhone/iPad só funciona depois de instalar o app na tela de início."
+    ]
+  },
+  {
     "version": "2026-08-15m",
     "date": "2026-08-15",
     "changes": [

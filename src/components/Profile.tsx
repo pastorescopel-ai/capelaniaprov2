@@ -3,6 +3,7 @@ import React from 'react';
 import Cropper from 'react-easy-crop';
 import { User } from '../types';
 import Button from './Shared/Button';
+import NotificationSettings from './NotificationSettings';
 import { useProfile } from '../hooks/useProfile';
 
 interface ProfileProps {
@@ -167,6 +168,8 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
           </div>
         </div>
       </div>
+
+      <NotificationSettings />
 
       <form onSubmit={handleUpdateProfile} className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-8">
         <div className="space-y-6">
