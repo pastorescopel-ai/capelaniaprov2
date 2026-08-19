@@ -61,7 +61,11 @@ const NotificationPromptBanner: React.FC = () => {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
           transition={{ duration: 0.3 }}
-          className="fixed bottom-4 left-4 md:bottom-6 md:left-6 z-[250] w-[calc(100vw-2rem)] max-w-xs bg-white rounded-3xl shadow-2xl border border-slate-100 p-4"
+          // No celular existe uma barra de navegação fixa embaixo (ver Layout.tsx) -- bottom-4
+          // fazia esse card ficar espremido/sobreposto em cima dela. bottom-24 abre espaço
+          // suficiente pra ficar por cima da barra, não colado nela; no desktop não tem essa
+          // barra, então volta pro respiro normal.
+          className="fixed bottom-24 left-4 md:bottom-6 md:left-6 z-[250] w-[calc(100vw-2rem)] max-w-xs bg-white rounded-3xl shadow-2xl border border-slate-100 p-4"
         >
           <div className="flex items-start gap-3">
             <div className="w-11 h-11 flex-shrink-0 rounded-2xl bg-[#005a9c] flex items-center justify-center text-white shadow-lg">

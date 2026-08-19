@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-19b",
+    "date": "2026-08-19",
+    "changes": [
+      "Corrigido: no celular, os avisos de \"Ativar Lembrete Diário\" e \"Instalar App\" apareciam espremidos em cima do menu de navegação de baixo, cortando o botão. Agora ficam bem acima do menu.",
+      "Corrigido: notificações de lembrete diário podiam falhar com erro de permissão ao tentar ativar em duas telas diferentes (faltava uma regra de segurança no banco para atualizar a inscrição já existente)."
+    ]
+  },
+  {
     "version": "2026-08-19",
     "date": "2026-08-19",
     "changes": [
