@@ -5,6 +5,7 @@ import { INITIAL_CONFIG } from '../constants';
 import { useRealtimeSync } from './useRealtimeSync';
 import { useDataActions } from './useDataActions';
 import { useMasterSync } from './useMasterSync';
+import { supabase } from '../services/supabaseClient';
 
 export const useAppData = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -144,13 +145,23 @@ export const useAppData = () => {
     let lastRefresh = 0;
     const throttleTime = 5000; // Evita múltiplas chamadas consecutivas em menos de 5s
 
-    const triggerRefresh = () => {
+    const triggerRefresh = async () => {
       const now = Date.now();
-      if (now - lastRefresh > throttleTime) {
-        lastRefresh = now;
-        console.log("🔄 Reativando/Focando app (ou Polling): Atualizando dados do Supabase...");
-        refreshData();
+      if (now - lastRefresh <= throttleTime) return;
+
+      // Este hook roda fora do AuthProvider (AppProvider engloba o AuthProvider na árvore),
+      // então não tem acesso direto a isAuthenticated -- sem esta checagem, o polling de 30s
+      // e o "voltar pro foco da aba" disparavam recarga de dados até na tela de login, sem
+      // ninguém logado, gerando chamadas ao Supabase à toa (e o log repetido "Reativando/
+      // Focando..." que aparecia mesmo parado na tela de login).
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
       }
+
+      lastRefresh = now;
+      console.log("🔄 Reativando/Focando app (ou Polling): Atualizando dados do Supabase...");
+      refreshData();
     };
 
     const handleVisibilityChange = () => {

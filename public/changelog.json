@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15o",
+    "date": "2026-08-15",
+    "changes": [
+      "Corrigido: a atualização automática de dados (a cada 30s, ou toda vez que a aba ganhava foco) estava rodando até na tela de login, sem ninguém logado — gerando chamadas desnecessárias ao servidor. Agora só roda com alguém realmente autenticado."
+    ]
+  },
+  {
     "version": "2026-08-15n",
     "date": "2026-08-15",
     "changes": [
