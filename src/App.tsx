@@ -25,7 +25,13 @@ const App: React.FC = () => {
   const { bibleStudies, bibleClasses } = useBible();
   const { proSectors } = usePro();
 
-  const { isAuthenticated, currentUser, login, logout, updateCurrentUser, loginError, isAuthLoading, justLoggedIn, clearJustLoggedIn } = useAuth();
+  const { isAuthenticated, currentUser, login, logout, updateCurrentUser, loginError, isAuthLoading } = useAuth();
+
+  // Splash de boas-vindas (logo do HAB) antes da tela de login -- só uma vez por carregamento
+  // do app (useState(true) não reseta em re-renders, só ao recarregar a página de verdade).
+  // Não aparece mais depois do login: se a sessão já estava ativa (isAuthenticated no
+  // carregamento), o usuário nunca vê a tela de login, então nunca vê a splash também.
+  const [showIntroSplash, setShowIntroSplash] = useState(true);
 
   const {
     activeTab, isPending, setActiveTab,
@@ -121,17 +127,23 @@ const App: React.FC = () => {
   }
 
   if (!isAuthenticated || !currentUser) {
+    // A splash cobre a tela de login (já montada por trás) até terminar o gif ou ser tocada --
+    // aparece uma vez por carregamento do app, nunca depois do login em si.
+    if (showIntroSplash) {
+      return (
+        <>
+          <Login onLogin={login} isSyncing={isSyncing} errorMsg={loginError} isConnected={isConnected} config={config} />
+          <AnimatePresence>
+            <WelcomeSplash onDone={() => setShowIntroSplash(false)} />
+          </AnimatePresence>
+        </>
+      );
+    }
     return <Login onLogin={login} isSyncing={isSyncing} errorMsg={loginError} isConnected={isConnected} config={config} />;
   }
 
   return (
-    <>
-      {/* Dashboard já monta e carrega os dados por trás, sem atraso artificial -- a
-          animação só cobre a tela por cima, sem bloquear nada. */}
-      <AnimatePresence>
-        {justLoggedIn && <WelcomeSplash onDone={clearJustLoggedIn} />}
-      </AnimatePresence>
-      <Layout
+    <Layout
       activeTab={activeTab}
       setActiveTab={handleTabChange}
       currentUser={currentUser}
@@ -213,8 +225,7 @@ const App: React.FC = () => {
         <AppUpdateChecker config={config} />
 
       </div>
-      </Layout>
-    </>
+    </Layout>
   );
 };
 

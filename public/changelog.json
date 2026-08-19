@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-15k",
+    "date": "2026-08-15",
+    "changes": [
+      "A animação de boas-vindas (logo do HAB) agora aparece ANTES da tela de login, não depois — some sozinha (ou ao tocar na tela) revelando a tela de login normalmente. Só aparece uma vez por vez que o app é aberto."
+    ]
+  },
+  {
     "version": "2026-08-15j",
     "date": "2026-08-15",
     "changes": [

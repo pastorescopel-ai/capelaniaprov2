@@ -15,7 +15,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [justLoggedIn, setJustLoggedIn] = useState(false);
   const isAuthenticatedRef = React.useRef(isAuthenticated);
 
   useEffect(() => {
@@ -147,7 +146,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         setCurrentUser(dbUser);
         setIsAuthenticated(true);
-        setJustLoggedIn(true);
         updateActivity();
         return true;
       }
@@ -185,7 +183,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setCurrentUser(dbUser);
       setIsAuthenticated(true);
-      setJustLoggedIn(true);
       updateActivity();
       return true;
     } else {
@@ -200,16 +197,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setCurrentUser(null);
     setIsAuthenticated(false);
-    setJustLoggedIn(false);
     setLoginError(null);
     localStorage.removeItem(LAST_ACTIVITY_KEY);
   };
 
   const updateCurrentUser = (user: User) => setCurrentUser(user);
-  const clearJustLoggedIn = () => setJustLoggedIn(false);
 
   return (
-    <AuthContext.Provider value={{ currentUser, isAuthenticated, login, logout, updateCurrentUser, loginError, isAuthLoading, justLoggedIn, clearJustLoggedIn }}>
+    <AuthContext.Provider value={{ currentUser, isAuthenticated, login, logout, updateCurrentUser, loginError, isAuthLoading }}>
       {children}
     </AuthContext.Provider>
   );
