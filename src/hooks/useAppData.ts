@@ -139,6 +139,30 @@ export const useAppData = () => {
     }
   }, [loadFromCloud, isInitialized]);
 
+  // Recuperação automática de "Offline" -- se a PRIMEIRA tentativa de carregar falhar (ex: o
+  // app instalado abriu antes do Wi-Fi/dados reconectarem, um problema comum logo depois do
+  // aparelho "acordar"), isConnected ficava preso em false pro resto da sessão: nada tentava
+  // de novo sozinho, nem depois da internet voltar (o polling de foco/visibilidade em
+  // useAppData.ts exige sessão autenticada, então nem roda na tela de login, que é
+  // exatamente onde o "Offline" aparece). Aqui, sem depender de estar logado: reage ao evento
+  // 'online' do navegador, e também tenta de novo sozinho depois de alguns segundos caso esse
+  // evento não dispare (alguns WebViews/PWAs instalados não são consistentes nisso).
+  useEffect(() => {
+    if (!isInitialized || isConnected) return;
+
+    const retry = () => { loadFromCloud(true); };
+
+    window.addEventListener('online', retry);
+    // Repete a cada 10s enquanto continuar offline -- só um único fallbackTimer não seria
+    // suficiente se a rede ainda estiver instável na primeira nova tentativa também.
+    const fallbackInterval = setInterval(retry, 10000);
+
+    return () => {
+      window.removeEventListener('online', retry);
+      clearInterval(fallbackInterval);
+    };
+  }, [isInitialized, isConnected, loadFromCloud]);
+
   // Auto-refresh inteligente ao focar ou reativar a janela (crucial para o iOS/Safari PWA)
   // Além de um polling de segurança a cada 30 segundos
   useEffect(() => {

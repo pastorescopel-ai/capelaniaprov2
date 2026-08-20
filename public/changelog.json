@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20n",
+    "date": "2026-08-20",
+    "changes": [
+      "Corrigido: se a primeira tentativa de conectar falhasse (ex: abrir o app instalado antes do Wi-Fi/dados reconectarem), o app ficava mostrando \"Offline\" pro resto da sessão, mesmo depois da internet voltar -- nada tentava de novo sozinho. Agora tenta reconectar automaticamente assim que a internet volta, e continua tentando de tempos em tempos até conseguir."
+    ]
+  },
+  {
     "version": "2026-08-20m",
     "date": "2026-08-20",
     "changes": [
