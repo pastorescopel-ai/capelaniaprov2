@@ -108,14 +108,12 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
 
   const handleUpdate = async () => {
     setIsUpdating(true);
-    // Tenta limpar caches do Service Worker, se houver
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      for (const registration of registrations) {
-        await registration.unregister();
-      }
-    }
-    // Força o reload completo, ignorando o cache do navegador e limpando a sessão atual
+    // NÃO desregistra o Service Worker -- ele já se atualiza sozinho (self.skipWaiting() +
+    // clients.claim() em sw.ts) assim que o navegador detecta um sw.js com conteúdo novo, o
+    // que só de recarregar a página (com cache-busting abaixo) já dispara. Desregistrar criava
+    // um registration novo do zero a cada atualização, e a inscrição de notificação push
+    // pertence ao registration antigo -- ela ficava "perdida" (mesmo continuando cadastrada no
+    // banco) e o app achava que notificação nunca tinha sido ativada, pedindo de novo toda vez.
     window.location.assign(window.location.origin + window.location.pathname + '?update=' + Date.now());
   };
 

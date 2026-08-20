@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20f",
+    "date": "2026-08-20",
+    "changes": [
+      "Corrigido: o app pedia pra ativar o lembrete diário de novo toda vez que você clicava em \"Atualizar Agora\", mesmo já tendo ativado antes. O botão de atualizar estava desregistrando o Service Worker por completo, o que apagava o vínculo local da inscrição de notificação (mesmo ela continuando cadastrada certinho). Agora a atualização acontece sem esse passo, e a notificação continua ativa como estava."
+    ]
+  },
+  {
     "version": "2026-08-20e",
     "date": "2026-08-20",
     "changes": [
