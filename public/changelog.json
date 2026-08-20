@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20c",
+    "date": "2026-08-20",
+    "changes": [
+      "Todos os botões do app agora dão um feedback visual ao toque/clique (afundam levemente), pra ficar mais claro que o toque foi registrado."
+    ]
+  },
+  {
     "version": "2026-08-20b",
     "date": "2026-08-20",
     "changes": [

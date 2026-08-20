@@ -65,6 +65,26 @@ body {
   z-index: 10;
 }
 
+/* Feedback de clique/toque em TODOS os botões do app (regra global, sem precisar mexer em
+   cada componente) -- afunda levemente ao pressionar, volta ao soltar. Fica de fora quem já
+   tem sua própria transformação em :active via classe Tailwind (active:scale-95 etc.), pra
+   não brigar/dobrar o efeito nesses casos específicos. Respeita prefers-reduced-motion pra
+   quem desativou animação no aparelho. */
+button:not(:disabled):not([class*="active:scale"]),
+[role="button"]:not([class*="active:scale"]) {
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+button:not(:disabled):not([class*="active:scale"]):active,
+[role="button"]:not([class*="active:scale"]):active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+@media (prefers-reduced-motion: reduce) {
+  button:active, [role="button"]:active {
+    transform: none;
+  }
+}
+
 /* Animations */
 @keyframes ring {
   0% { transform: rotate(0); }
