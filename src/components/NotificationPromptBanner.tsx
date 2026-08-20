@@ -20,7 +20,7 @@ const wasRecentlyDismissed = () => {
 // direito) pra não empilhar os dois banners um em cima do outro. Só aparece pra quem já está
 // logado (a inscrição de notificação é vinculada ao usuário).
 const NotificationPromptBanner: React.FC = () => {
-  const { isSupported, isSubscribed, isBusy, subscribe } = usePushNotifications();
+  const { isSupported, isSubscribed, isStatusLoading, isBusy, subscribe } = usePushNotifications();
   const { showToast } = useToast();
   const [visible, setVisible] = useState(false);
 
@@ -29,8 +29,11 @@ const NotificationPromptBanner: React.FC = () => {
     && !((window.navigator as any).standalone === true || window.matchMedia('(display-mode: standalone)').matches);
 
   // No iPhone/iPad sem o app instalado ainda, a notificação não funciona de jeito nenhum
-  // (regra da Apple) -- não adianta convidar pra ativar algo que vai falhar.
-  const eligible = isSupported && !isSubscribed && !isIOSNotStandalone;
+  // (regra da Apple) -- não adianta convidar pra ativar algo que vai falhar. !isStatusLoading
+  // evita mostrar o convite baseado num "ainda não sei se está inscrito" (isSubscribed começa
+  // false até a checagem assíncrona terminar) -- sem isso, logo após um "Atualizar Agora" o
+  // banner podia aparecer sozinho por uns segundos, mesmo com a notificação já ativada.
+  const eligible = isSupported && !isStatusLoading && !isSubscribed && !isIOSNotStandalone;
 
   useEffect(() => {
     if (!eligible || wasRecentlyDismissed()) return;

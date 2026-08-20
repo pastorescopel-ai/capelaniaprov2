@@ -24,12 +24,23 @@ export const usePushNotifications = () => {
   const [permission, setPermission] = useState<PushSupportState>('unsupported');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
+  // Começa true de propósito -- enquanto ainda não sabemos de verdade se a pessoa já está
+  // inscrita (a checagem é assíncrona, via navigator.serviceWorker.ready), isSubscribed fica
+  // no valor padrão (false). Sem esse loading separado, qualquer tela que decida "mostrar o
+  // convite pra ativar" baseada em `!isSubscribed` confundia "ainda não sei" com "não está
+  // inscrito" -- bem visível logo depois de um "Atualizar Agora": a página recarrega, o
+  // Service Worker novo às vezes demora alguns segundos pra baixar/instalar tudo de novo
+  // antes de ficar pronto (navigator.serviceWorker.ready só resolve depois disso), e nesse
+  // meio-tempo o app achava, por alguns segundos, que a notificação nunca tinha sido ativada
+  // -- tempo suficiente pro banner de convite (que aparece após 5s) já ter disparado errado.
+  const [isStatusLoading, setIsStatusLoading] = useState(true);
 
   const isSupported = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && !!VAPID_PUBLIC_KEY;
 
   const refreshStatus = useCallback(async () => {
     if (!isSupported) {
       setPermission('unsupported');
+      setIsStatusLoading(false);
       return;
     }
     setPermission(Notification.permission as PushSupportState);
@@ -39,6 +50,8 @@ export const usePushNotifications = () => {
       setIsSubscribed(!!existing);
     } catch {
       setIsSubscribed(false);
+    } finally {
+      setIsStatusLoading(false);
     }
   }, [isSupported]);
 
@@ -109,5 +122,5 @@ export const usePushNotifications = () => {
     }
   }, [isSupported]);
 
-  return { isSupported, permission, isSubscribed, isBusy, subscribe, unsubscribe };
+  return { isSupported, permission, isSubscribed, isStatusLoading, isBusy, subscribe, unsubscribe };
 };

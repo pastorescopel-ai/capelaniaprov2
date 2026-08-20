@@ -25,6 +25,11 @@ type StepsMode = null | 'ios' | 'mac-safari';
 const InstallAppBanner: React.FC = () => {
   const { isInstalled, isIOS, isMacSafari, canPromptInstall, canShowIOSInstructions, canShowMacSafariInstructions, promptInstall } = useInstallPrompt();
   const [visible, setVisible] = useState(false);
+  // Começa fechado (só o botão redondo) -- o card cheio só aparece quando a pessoa toca nele
+  // de propósito. Antes o card já abria sozinho, largo (quase a largura toda da tela) e podia
+  // cair bem em cima de botões da página por baixo (reportado com print: cobria o "Acessar
+  // Sistema" da tela de login). Um botão pequeno no cantinho nunca tampa nada sem querer.
+  const [expanded, setExpanded] = useState(false);
   const [stepsMode, setStepsMode] = useState<StepsMode>(null);
 
   const eligible = !isInstalled && (canPromptInstall || canShowIOSInstructions || canShowMacSafariInstructions);
@@ -38,6 +43,7 @@ const InstallAppBanner: React.FC = () => {
   const dismiss = () => {
     localStorage.setItem(DISMISS_KEY, String(Date.now()));
     setVisible(false);
+    setExpanded(false);
     setStepsMode(null);
   };
 
@@ -53,17 +59,31 @@ const InstallAppBanner: React.FC = () => {
 
   return (
     <AnimatePresence>
-      {visible && (
+      {visible && !expanded && (
+        <motion.button
+          key="collapsed"
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.5 }}
+          transition={{ duration: 0.25 }}
+          onClick={() => setExpanded(true)}
+          aria-label="Instalar Capelania Pro"
+          title="Instalar Capelania Pro"
+          // Mesmo cantinho de sempre, mas agora é só um botão redondo pequeno -- não tem como
+          // tampar um botão de página nenhuma nesse tamanho.
+          className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-[250] w-12 h-12 rounded-full bg-[#005a9c] text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform"
+        >
+          <i className="fas fa-arrow-down text-sm"></i>
+        </motion.button>
+      )}
+      {visible && expanded && (
         <motion.div
-          initial={{ opacity: 0, y: 40, scale: 0.95 }}
+          key="expanded"
+          initial={{ opacity: 0, y: 20, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 20, scale: 0.95 }}
-          transition={{ duration: 0.3 }}
-          // No celular existe uma barra de navegação fixa embaixo (ver Layout.tsx) -- bottom-4
-          // fazia esse card ficar espremido/sobreposto em cima dela. bottom-24 abre espaço
-          // suficiente pra ficar por cima da barra, não colado nela; no desktop não tem essa
-          // barra, então volta pro respiro normal.
-          className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-[250] w-[calc(100vw-2rem)] max-w-xs bg-white rounded-3xl shadow-2xl border border-slate-100 p-4"
+          exit={{ opacity: 0, y: 20, scale: 0.9 }}
+          transition={{ duration: 0.2 }}
+          className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-[250] w-64 max-w-[calc(100vw-2rem)] bg-white rounded-3xl shadow-2xl border border-slate-100 p-4"
         >
           {!stepsMode ? (
             <div className="flex items-start gap-3">

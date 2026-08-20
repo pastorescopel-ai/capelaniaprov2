@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-20j",
+    "date": "2026-08-20",
+    "changes": [
+      "Corrigido: o aviso \"Ativar Lembrete Diário\" podia aparecer sozinho de novo por alguns segundos logo depois de um \"Atualizar Agora\", mesmo com a notificação já ativada -- o app checava o status rápido demais, antes do Service Worker novo terminar de ficar pronto.",
+      "O aviso \"Instalar App\" agora começa como um botãozinho redondo no canto, não um card grande -- toque nele pra ver os detalhes e instalar. Antes podia cobrir botões da página (relatado: tampava o \"Acessar Sistema\" da tela de login)."
+    ]
+  },
+  {
     "version": "2026-08-20i",
     "date": "2026-08-20",
     "changes": [
