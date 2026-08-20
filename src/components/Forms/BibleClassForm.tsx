@@ -94,7 +94,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
               )}
           </div>
 
-          <div className={`space-y-1 ${!isStaff ? 'order-first md:order-none col-span-2 md:col-span-2 animate-in slide-in-from-top-2' : ''}`}>
+          <div className={`space-y-1 ${!isStaff ? 'order-first md:order-none md:col-span-2 animate-in slide-in-from-top-2' : ''}`}>
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-indigo-600' : 'text-slate-400'}`}>WhatsApp do Representante {!isStaff ? '*' : '(Opcional)'}</label>
               <input 
                 type="tel"

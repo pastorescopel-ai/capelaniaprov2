@@ -77,12 +77,12 @@ const PGLeaders: React.FC<PGLeadersProps> = ({ unit }) => {
       />
       <div className="space-y-2">
         {leaders.map(leader => (
-          <div key={leader.id} className="grid grid-cols-12 gap-4 items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
-            <div className="col-span-4">
+          <div key={leader.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 md:items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+            <div className="md:col-span-4">
               <p className="text-xs font-black text-slate-800">{leader.name}</p>
               <p className="text-[10px] text-slate-500 font-bold">{leader.groupName} • {leader.sectorName}</p>
             </div>
-            <div className="col-span-6">
+            <div className="md:col-span-6">
               {editingStaffId === leader.id ? (
                 <input
                   type="text"
@@ -94,7 +94,7 @@ const PGLeaders: React.FC<PGLeadersProps> = ({ unit }) => {
                 <p className="text-xs font-mono text-slate-600">{leader.whatsapp || 'Sem WhatsApp'}</p>
               )}
             </div>
-            <div className="col-span-2 flex justify-end">
+            <div className="md:col-span-2 flex justify-end">
               {editingStaffId === leader.id ? (
                 <div className="flex gap-2">
                   <button onClick={() => handleSave(leader, Date.now())} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Save size={16} /></button>

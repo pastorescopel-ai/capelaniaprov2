@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20g",
+    "date": "2026-08-20",
+    "changes": [
+      "Corrigido: no celular, o formulário de Classe Bíblica (Cadastro de Paciente/Prestador) aparecia com os campos espremidos em duas colunas -- nome do capelão e data cortados lado a lado, resto do formulário desalinhado. Era uma classe de CSS faltando o prefixo certo pra mobile. Também ajustada a lista de \"Gestão de Líderes\" (Gestão de PGs), que ficava com nome/WhatsApp/ações espremidos numa linha só e agora empilha no celular."
+    ]
+  },
+  {
     "version": "2026-08-20f",
     "date": "2026-08-20",
     "changes": [
