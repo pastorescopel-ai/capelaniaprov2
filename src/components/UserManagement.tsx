@@ -332,14 +332,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onU
                 <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Equipe Ativa</h2>
                 <div className="grid gap-4">
                 {users.map(u => (
-                    <div key={u.id} className="flex items-center justify-between p-6 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group">
-                    <div className="flex items-center gap-5">
-                        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-blue-600 font-black shadow-inner border border-slate-100 group-hover:bg-blue-50 transition-colors">
+                    <div key={u.id} className="flex flex-col md:flex-row md:items-center gap-4 md:justify-between p-4 md:p-6 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group">
+                    <div className="flex items-center gap-5 min-w-0">
+                        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-blue-600 font-black shadow-inner border border-slate-100 group-hover:bg-blue-50 transition-colors flex-shrink-0">
                         {u.name[0]}
                         </div>
-                        <div>
+                        <div className="min-w-0">
                         <h4 className="font-black text-slate-800 uppercase text-sm leading-tight mb-1">{u.name}</h4>
-                        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest">
+                        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest flex-wrap">
                             <span className="text-slate-500">{u.email}</span>
                             <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                             {u.staffId ? (

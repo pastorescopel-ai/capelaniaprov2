@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-20i",
+    "date": "2026-08-20",
+    "changes": [
+      "Corrigido: card \"Ativos Hoje\" (Equipe > Quem Está Online) mostrava sempre o mesmo número do \"Total da Equipe\" por engano. Agora mostra de verdade quem está online agora ou logou hoje. A ficha de cada colaborador também passou a mostrar a data do último acesso de forma clara (antes ficava ilegível/sobreposta no celular).",
+      "Corrigido: no celular, as listas \"Equipe Ativa\" (Gestão de Equipe) e \"Quem Está Online\" apareciam com nome, e-mail e botões espremidos numa linha só, cortando o avatar na borda da tela. Agora empilham corretamente."
+    ]
+  },
+  {
     "version": "2026-08-20h",
     "date": "2026-08-20",
     "changes": [
