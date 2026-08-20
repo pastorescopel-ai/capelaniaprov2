@@ -18,16 +18,15 @@ interface CoreModuleProps {
 }
 
 const CoreModule: React.FC<CoreModuleProps> = ({
-  type, currentUser, users, isLoading, onUpdateUser, onUpdateUsers
+  type, currentUser, users, onUpdateUser, onUpdateUsers
 }) => {
   const { saveUser } = useCore(currentUser);
 
   return (
     <Suspense fallback={<div className="p-8 animate-pulse bg-slate-100 rounded-3xl h-64" />}>
       {type === 'profile' && (
-        <Profile 
-          user={currentUser} 
-          isSyncing={isLoading} 
+        <Profile
+          user={currentUser}
           onUpdateUser={u => {
             if (onUpdateUser) onUpdateUser(u);
             saveUser(u);

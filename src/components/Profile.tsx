@@ -8,11 +8,10 @@ import { useProfile } from '../hooks/useProfile';
 
 interface ProfileProps {
   user: User;
-  isSyncing?: boolean;
   onUpdateUser: (updatedUser: User) => void;
 }
 
-const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
+const Profile: React.FC<ProfileProps> = ({ user, onUpdateUser }) => {
   const {
     name, setName,
     passData, setPassData,
@@ -28,7 +27,8 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
     handleCancelCrop,
     handleRemovePhoto,
     triggerFileInput,
-    handleUpdateProfile
+    handleUpdateProfile,
+    isSaving
   } = useProfile({ user, onUpdateUser });
 
   return (
@@ -114,7 +114,7 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
         </div>
       )}
 
-      {isSyncing && (
+      {isSaving && (
         <div className="fixed inset-0 z-[1000]">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl" />
           <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-12 rounded-[3.5rem] shadow-2xl flex flex-col items-center gap-8 max-w-md w-full text-center border-4 border-blue-50 animate-in zoom-in duration-300">
@@ -209,7 +209,7 @@ const Profile: React.FC<ProfileProps> = ({ user, isSyncing, onUpdateUser }) => {
         <Button 
           type="submit" 
           variant="dark"
-          isLoading={isSyncing}
+          isLoading={isSaving}
           className="w-full py-5 text-xs tracking-[0.2em]"
         >
           Confirmar e Salvar Perfil

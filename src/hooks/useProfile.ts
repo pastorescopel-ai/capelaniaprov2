@@ -13,6 +13,11 @@ export const useProfile = ({ user, onUpdateUser }: UseProfileProps) => {
   const [name, setName] = useState(user.name);
   const [passData, setPassData] = useState({ current: '', new: '', confirm: '' });
   const [profilePic, setProfilePic] = useState(user.profilePic || '');
+  // Estado próprio do formulário, ligado só ao clique em "Salvar Perfil" -- antes o modal
+  // de tela cheia usava o `isSyncing` global do app (o mesmo do polling de 30s/foco de aba),
+  // então ele aparecia sozinho, sem ninguém ter salvado nada, toda vez que esse refresh de
+  // fundo rodava com a pessoa parada na tela de Perfil.
+  const [isSaving, setIsSaving] = useState(false);
   const { showToast } = useToast();
 
   // Cropper State
@@ -74,51 +79,56 @@ export const useProfile = ({ user, onUpdateUser }: UseProfileProps) => {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const updatedUser = { ...user, name, profilePic };
-    
-    if (passData.new || passData.confirm) {
-      if (!passData.current) {
-        showToast('Você deve informar sua senha atual para definir uma nova!', "error");
-        return;
+    setIsSaving(true);
+
+    try {
+      const updatedUser = { ...user, name, profilePic };
+
+      if (passData.new || passData.confirm) {
+        if (!passData.current) {
+          showToast('Você deve informar sua senha atual para definir uma nova!', "error");
+          return;
+        }
+
+        if (passData.new !== passData.confirm) {
+          showToast('As novas senhas digitadas não coincidem!', "error");
+          return;
+        }
+
+        if (passData.new.length < 6) {
+          showToast('A nova senha deve ter pelo menos 6 caracteres.', "error");
+          return;
+        }
+
+        if (!supabase) {
+          showToast('Supabase não configurado.', "error");
+          return;
+        }
+
+        // Confirma a senha atual reautenticando de verdade contra o Supabase Auth
+        // (não usa mais o hash local — a senha real vive no Supabase Auth).
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: passData.current.trim(),
+        });
+        if (signInError) {
+          showToast('A senha atual informada está incorreta.', "error");
+          return;
+        }
+
+        const { error: updateError } = await supabase.auth.updateUser({ password: passData.new.trim() });
+        if (updateError) {
+          showToast('Erro ao atualizar a senha: ' + updateError.message, "error");
+          return;
+        }
       }
 
-      if (passData.new !== passData.confirm) {
-        showToast('As novas senhas digitadas não coincidem!', "error");
-        return;
-      }
-
-      if (passData.new.length < 6) {
-        showToast('A nova senha deve ter pelo menos 6 caracteres.', "error");
-        return;
-      }
-
-      if (!supabase) {
-        showToast('Supabase não configurado.', "error");
-        return;
-      }
-
-      // Confirma a senha atual reautenticando de verdade contra o Supabase Auth
-      // (não usa mais o hash local — a senha real vive no Supabase Auth).
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: passData.current.trim(),
-      });
-      if (signInError) {
-        showToast('A senha atual informada está incorreta.', "error");
-        return;
-      }
-
-      const { error: updateError } = await supabase.auth.updateUser({ password: passData.new.trim() });
-      if (updateError) {
-        showToast('Erro ao atualizar a senha: ' + updateError.message, "error");
-        return;
-      }
+      onUpdateUser(updatedUser);
+      setPassData({ current: '', new: '', confirm: '' });
+      showToast("Suas alterações foram salvas com segurança!", "success");
+    } finally {
+      setIsSaving(false);
     }
-    
-    onUpdateUser(updatedUser);
-    setPassData({ current: '', new: '', confirm: '' });
-    showToast("Suas alterações foram salvas com segurança!", "success");
   };
 
   return {
@@ -136,6 +146,7 @@ export const useProfile = ({ user, onUpdateUser }: UseProfileProps) => {
     handleCancelCrop,
     handleRemovePhoto,
     triggerFileInput,
-    handleUpdateProfile
+    handleUpdateProfile,
+    isSaving
   };
 };

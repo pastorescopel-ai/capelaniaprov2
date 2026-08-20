@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20",
+    "date": "2026-08-20",
+    "changes": [
+      "Corrigido: na tela de Perfil, um modal de tela cheia (\"Sincronizando Perfil\") aparecia sozinho a cada ~30s ou toda vez que a aba voltava a ficar em foco, mesmo sem ninguém ter clicado em Salvar — era a atualização automática de dados em segundo plano usando por engano o mesmo indicador visual do salvamento. Agora esse aviso só aparece quando você realmente confirma o Salvar Perfil."
+    ]
+  },
+  {
     "version": "2026-08-19b",
     "date": "2026-08-19",
     "changes": [
