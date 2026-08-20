@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20e",
+    "date": "2026-08-20",
+    "changes": [
+      "Corrigido: o link de \"Esqueceu a senha?\" caía em erro 404 do Vercel em vez de abrir a tela de nova senha -- faltava dizer pro Vercel servir o app pra rotas que só existem dentro do React (como /set-password)."
+    ]
+  },
+  {
     "version": "2026-08-20d",
     "date": "2026-08-20",
     "changes": [
