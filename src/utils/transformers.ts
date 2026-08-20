@@ -53,6 +53,17 @@ export const DATE_FIELDS = [
 // Campos que são apenas DATA (YYYY-MM-DD) e não devem sofrer ajuste de fuso horário
 export const PURE_DATE_FIELDS = ['date', 'month', 'cycle_month', 'snapshot_date', 'month_to_unlock', 'return_date'];
 
+// Espelha as CHECK constraints "chk_*_whatsapp_min_digits" / "chk_*_leader_phone_min_digits"
+// do banco (pro_staff, pro_patients, pro_providers, pro_groups -- ver migração do incidente de
+// corrupção de WhatsApp de 2026-08-05): número não vazio precisa ter pelo menos 10 dígitos
+// (DDD + telefone). Sem essa mesma checagem aqui do lado do cliente, uma planilha importada com
+// um único número incompleto (sem DDD, por exemplo) derrubava o UPSERT do lote de 100 registros
+// inteiro -- o Postgres só barra a linha ruim, não avisa qual é, e nenhuma das outras 99 linhas
+// boas do mesmo lote era salva. Agora o valor incompleto vira '' (o próprio import continua e
+// só aquele contato específico fica sem WhatsApp registrado, sem travar o resto).
+export const MIN_DIGITS_PHONE_FIELDS = ['whatsapp', 'leader_phone'];
+export const MIN_PHONE_DIGITS = 10;
+
 export const isValidUUID = (uuid: string) => {
   const s = "" + uuid;
   // Allow standard UUID or numeric string (for legacy/PRO IDs)
@@ -210,6 +221,14 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
         if (val !== null && !snakeKey.endsWith('_id') && snakeKey !== 'id') {
             val = parseFloat(val);
             if (isNaN(val)) continue;
+        }
+      }
+
+      if (MIN_DIGITS_PHONE_FIELDS.includes(snakeKey) && typeof val === 'string' && val !== '') {
+        const digitCount = val.replace(/\D/g, '').length;
+        if (digitCount > 0 && digitCount < MIN_PHONE_DIGITS) {
+          console.warn(`[cleanAndConvertToSnake] "${snakeKey}" com ${digitCount} dígito(s) (menos que o mínimo de ${MIN_PHONE_DIGITS}, provável DDD faltando) -- salvando em branco em vez de deixar o Postgres rejeitar o registro inteiro. Valor original: "${val}"`);
+          val = '';
         }
       }
 

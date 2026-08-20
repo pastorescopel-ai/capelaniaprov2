@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20o",
+    "date": "2026-08-20",
+    "changes": [
+      "Corrigido: importar planilha de colaboradores/PGs podia falhar em lote inteiro (100 registros de uma vez) por causa de UM único WhatsApp/telefone salvo sem DDD há muito tempo atrás. Agora o app limpa esses números incompletos sozinho antes de salvar, em vez de travar o lote todo."
+    ]
+  },
+  {
     "version": "2026-08-20n",
     "date": "2026-08-20",
     "changes": [
