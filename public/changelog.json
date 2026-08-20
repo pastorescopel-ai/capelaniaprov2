@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20l",
+    "date": "2026-08-20",
+    "changes": [
+      "O aviso \"Instalar App\" agora aparece toda vez que o app é aberto (enquanto não for instalado) -- antes, fechar no X escondia por 14 dias. Só some de vez depois que o app é instalado."
+    ]
+  },
+  {
     "version": "2026-08-20k",
     "date": "2026-08-20",
     "changes": [

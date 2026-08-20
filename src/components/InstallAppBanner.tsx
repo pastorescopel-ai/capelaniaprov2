@@ -3,16 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
 
-const DISMISS_KEY = 'capelania_install_banner_dismissed_at';
-const DISMISS_DAYS = 14;
 const SHOW_DELAY_MS = 3000; // Aparece um pouco depois de carregar, não na cara logo de cara.
-
-const wasRecentlyDismissed = () => {
-  const raw = localStorage.getItem(DISMISS_KEY);
-  if (!raw) return false;
-  const elapsedDays = (Date.now() - Number(raw)) / (1000 * 60 * 60 * 24);
-  return elapsedDays < DISMISS_DAYS;
-};
 
 type StepsMode = null | 'ios' | 'mac-safari';
 
@@ -20,8 +11,9 @@ type StepsMode = null | 'ios' | 'mac-safari';
 // todos: no Android/Chrome/Edge o botão instala de verdade com 1 clique; no Safari (iOS ou
 // Mac, nenhum dos dois dispara o evento de instalação) o botão abre o passo a passo manual --
 // diferente em cada plataforma (iOS usa Compartilhar > Adicionar à Tela de Início; Safari no
-// Mac usa Arquivo > Adicionar ao Dock). Fica escondido se o app já está instalado, ou se a
-// pessoa já fechou o banner há menos de 14 dias.
+// Mac usa Arquivo > Adicionar ao Dock). Só fica escondido de vez quando o app já está
+// instalado -- a pedido do usuário, fechar no X só tira da tela naquela visita, não desativa
+// por dias: da próxima vez que abrir o app (sem estar instalado ainda), aparece de novo.
 const InstallAppBanner: React.FC = () => {
   const { isInstalled, isIOS, isMacSafari, canPromptInstall, canShowIOSInstructions, canShowMacSafariInstructions, promptInstall } = useInstallPrompt();
   const [visible, setVisible] = useState(false);
@@ -30,13 +22,12 @@ const InstallAppBanner: React.FC = () => {
   const eligible = !isInstalled && (canPromptInstall || canShowIOSInstructions || canShowMacSafariInstructions);
 
   useEffect(() => {
-    if (!eligible || wasRecentlyDismissed()) return;
+    if (!eligible) return;
     const timer = setTimeout(() => setVisible(true), SHOW_DELAY_MS);
     return () => clearTimeout(timer);
   }, [eligible]);
 
   const dismiss = () => {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
     setVisible(false);
     setStepsMode(null);
   };
