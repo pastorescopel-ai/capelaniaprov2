@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20b",
+    "date": "2026-08-20",
+    "changes": [
+      "O item \"Auditoria de Qualidade\" só aparece no menu quando há algo pra revisar (nomes não vinculados ao cadastro oficial, setores desconhecidos, PGs ou matrículas duplicadas). Com a base 100% limpa, ele fica escondido sozinho."
+    ]
+  },
+  {
     "version": "2026-08-20",
     "date": "2026-08-20",
     "changes": [

@@ -13,18 +13,27 @@ import { useBible } from './contexts/BibleContext';
 import { usePro } from './contexts/ProContext';
 import { useAuth } from './contexts/AuthContext';
 import { useAppFlow } from './hooks/useAppFlow';
+import { useDataQualitySignal } from './hooks/useDataQualitySignal';
 import { AppUpdateChecker } from './components/AppUpdateChecker';
 
 import { ensureISODate } from './utils/formatters';
 
 const App: React.FC = () => {
   const {
-    users, smallGroups, staffVisits,
+    users, smallGroups, staffVisits, visitRequests,
+    proStaff, proPatients, proProviders, proGroups, proGroupMembers, proGroupProviderMembers,
     config, isSyncing, isConnected, loadFromCloud, saveToCloud, saveRecord, deleteRecord
   } = useApp();
 
   const { bibleStudies, bibleClasses } = useBible();
   const { proSectors } = usePro();
+
+  // Só pra decidir se o item "Auditoria de Qualidade" aparece no menu -- sem isso, o menu ficava
+  // sempre visível mesmo com a base 100% limpa, obrigando quem entra a checar manualmente.
+  const { hasQualityIssues } = useDataQualitySignal({
+    bibleStudies, bibleClasses, staffVisits, smallGroups, visitRequests,
+    proStaff, proPatients, proProviders, proSectors, proGroups, proGroupMembers, proGroupProviderMembers
+  });
 
   const { isAuthenticated, currentUser, login, logout, updateCurrentUser, loginError, isAuthLoading } = useAuth();
 
@@ -153,6 +162,7 @@ const App: React.FC = () => {
       config={config}
       onLogout={logout}
       onGoToReturnHistory={handleGoToReturnHistory}
+      hasQualityIssues={hasQualityIssues}
     >
       <div className="max-w-7xl mx-auto px-2 md:px-0 relative">
 

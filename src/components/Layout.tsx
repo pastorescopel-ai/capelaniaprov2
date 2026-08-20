@@ -21,9 +21,10 @@ interface LayoutProps {
   config: Config;
   onLogout: () => void;
   onGoToReturnHistory?: (visit?: any) => void;
+  hasQualityIssues?: boolean;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, currentUser, isSyncing, isConnected, isLabMode, config, onLogout, onGoToReturnHistory }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, currentUser, isSyncing, isConnected, isLabMode, config, onLogout, onGoToReturnHistory, hasQualityIssues }) => {
   // Normalização da role para garantir match com NAV_ITEMS
   const normalizedRole = String(currentUser?.role || '').toUpperCase().trim();
   
@@ -42,9 +43,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
   
   const visibleNavItems = NAV_ITEMS.filter(item => {
     // Se não houver roles definidas no item, mostra para todos
-    if (!item.roles || item.roles.length === 0) return true;
-    // Verifica se a role do usuário (ADMIN/CHAPLAIN) está na lista
-    return item.roles.some(r => r.toUpperCase() === normalizedRole);
+    if (item.roles && item.roles.length > 0 && !item.roles.some(r => r.toUpperCase() === normalizedRole)) {
+      return false;
+    }
+    // "Auditoria de Qualidade" só aparece no menu quando há algo pra revisar -- com a base
+    // limpa, não faz sentido ocupar espaço no menu com uma tela que só vai mostrar "tudo ok".
+    // Não some se a pessoa já estiver nela (ex: acabou de resolver tudo e o item sumiria de
+    // baixo dela sem aviso).
+    if (item.id === 'dataHealing' && !hasQualityIssues && activeTab !== 'dataHealing') {
+      return false;
+    }
+    return true;
   });
 
   const logoSrc = config?.appLogoUrl || DEFAULT_APP_LOGO;
