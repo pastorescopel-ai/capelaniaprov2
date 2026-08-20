@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20h",
+    "date": "2026-08-20",
+    "changes": [
+      "Corrigido: no celular, o card \"Cobertura de Discipulado\" (Gestão de PGs > Visão Geral) estourava a lateral -- números e o anel de porcentagem cortados nas bordas. Também corrigido um texto que aparecia literalmente como \"(HAB) ou (HABA)\" em vez de mostrar a unidade certa."
+    ]
+  },
+  {
     "version": "2026-08-20g",
     "date": "2026-08-20",
     "changes": [

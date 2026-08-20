@@ -159,12 +159,12 @@ const PGDashboard = memo(({ unit }: { unit: Unit }) => {
       </div>
 
       {/* KPI Global */}
-      <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
+      <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-2 h-full bg-[#005a9c]"></div>
-        
-        <div className="flex flex-col z-10">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Cobertura de Discipulado (HAB) ou (HABA)</h2>
+
+        <div className="flex flex-col z-10 text-center md:text-left">
+          <div className="flex items-center gap-2 justify-center md:justify-start flex-wrap">
+            <h2 className="text-lg md:text-xl font-black text-slate-800 uppercase tracking-tight">Cobertura de Discipulado ({unit})</h2>
             {metrics.displaySectors[0]?.isSnapshot && (
               <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-amber-200">
                 <i className="fas fa-lock mr-1"></i> Mês Fechado
@@ -174,7 +174,11 @@ const PGDashboard = memo(({ unit }: { unit: Unit }) => {
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Colaboradores matriculados em Pequenos Grupos</p>
         </div>
 
-        <div className="flex items-center gap-6 md:gap-8 z-10">
+        {/* flex-wrap: no mobile, os 3 blocos (PGs Ativos, Vidas Alcançadas, anel %) não cabem
+            numa linha só ao lado dos textos grandes -- sem quebra, estouravam os dois lados do
+            card (números cortados na esquerda, anel cortado na direita). Reportado com print
+            pelo usuário. */}
+        <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8 z-10">
           <div className="text-right">
             <span className="block text-4xl font-black text-slate-800">{metrics.activePGCount}</span>
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PGs Ativos</span>
