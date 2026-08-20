@@ -106,8 +106,10 @@ const SetPassword: React.FC = () => {
     }
   };
 
+  // items-start + pb-40 no celular: mesma faixa vazia reservada pro aviso de "Instalar App"
+  // que existe em Login.tsx -- essa tela também roda com ele montado (é global).
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50 flex items-start md:items-center justify-center p-4 pb-40 md:pb-4">
       <div className="bg-white w-full max-w-[420px] p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 space-y-8 animate-in zoom-in duration-300">
 
         <div className="text-center space-y-3">

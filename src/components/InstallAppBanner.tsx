@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
+import { useAuth } from '../contexts/AuthContext';
 
 const SHOW_DELAY_MS = 3000; // Aparece um pouco depois de carregar, não na cara logo de cara.
 
@@ -16,6 +17,12 @@ type StepsMode = null | 'ios' | 'mac-safari';
 // por dias: da próxima vez que abrir o app (sem estar instalado ainda), aparece de novo.
 const InstallAppBanner: React.FC = () => {
   const { isInstalled, isIOS, isMacSafari, canPromptInstall, canShowIOSInstructions, canShowMacSafariInstructions, promptInstall } = useInstallPrompt();
+  // Esse componente é montado globalmente (index.tsx), inclusive na tela de login -- que não
+  // tem a barra de navegação fixa de baixo (só existe depois de autenticado, ver Layout.tsx).
+  // O offset bottom-24 existe só pra desviar dessa barra; sem ela (login/definir senha), usar
+  // esse mesmo offset reserva espaço à toa e empurra o aviso pra cima de conteúdo da página --
+  // foi exatamente o que aconteceu com o botão "Acessar Sistema" (reportado com print).
+  const { isAuthenticated } = useAuth();
   const [visible, setVisible] = useState(false);
   const [stepsMode, setStepsMode] = useState<StepsMode>(null);
 
@@ -54,7 +61,7 @@ const InstallAppBanner: React.FC = () => {
           // fazia esse card ficar espremido/sobreposto em cima dela. bottom-24 abre espaço
           // suficiente pra ficar por cima da barra, não colado nela; no desktop não tem essa
           // barra, então volta pro respiro normal.
-          className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-[250] w-[calc(100vw-2rem)] max-w-xs bg-white rounded-3xl shadow-2xl border border-slate-100 p-4"
+          className={`fixed right-4 md:bottom-6 md:right-6 z-[250] w-[calc(100vw-2rem)] max-w-xs bg-white rounded-3xl shadow-2xl border border-slate-100 p-4 ${isAuthenticated ? 'bottom-24' : 'bottom-4'}`}
         >
           {!stepsMode ? (
             <div className="flex items-start gap-3">

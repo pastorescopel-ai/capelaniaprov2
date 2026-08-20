@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20m",
+    "date": "2026-08-20",
+    "changes": [
+      "Corrigido: no celular, o aviso \"Instalar App\" ainda cobria o botão \"Acessar Sistema\" na tela de login. Deixamos a tela de login um pouco mais compacta e o aviso agora usa o espaço certo de acordo com a tela (a folga extra que ele reserva era só pra desviar da barra de navegação de baixo, que não existe na tela de login)."
+    ]
+  },
+  {
     "version": "2026-08-20l",
     "date": "2026-08-20",
     "changes": [

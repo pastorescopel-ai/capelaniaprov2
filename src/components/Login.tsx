@@ -181,15 +181,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
   const logoSrc = config?.appLogoUrl || DEFAULT_APP_LOGO;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-[420px] p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 space-y-8 animate-in zoom-in duration-300">
-        <div className="text-center space-y-4">
-          <div className="w-full flex items-center justify-center min-h-[120px]">
+    // items-start + pb-40 no celular garante uma faixa vazia embaixo da tela, reservada pro
+    // aviso flutuante de "Instalar App" (fixed, canto inferior) não cair em cima do botão
+    // "Acessar Sistema" -- items-center sozinho deixava o card colado no fundo em telas
+    // menores, e o aviso aparecia bem em cima do botão. No desktop (md:) volta a centralizar
+    // normal, sem essa faixa extra (lá o aviso já tem folga de sobra).
+    <div className="min-h-screen bg-slate-50 flex items-start md:items-center justify-center p-4 pb-40 md:pb-4">
+      <div className="bg-white w-full max-w-[420px] p-6 md:p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 space-y-4 md:space-y-8 animate-in zoom-in duration-300">
+        <div className="text-center space-y-2 md:space-y-4">
+          <div className="w-full flex items-center justify-center min-h-[72px] md:min-h-[120px]">
             {logoSrc ? (
-              <img 
-                src={logoSrc} 
-                className="max-w-full max-h-32 object-contain" 
-                alt="Logo do Sistema" 
+              <img
+                src={logoSrc}
+                className="max-w-full max-h-20 md:max-h-32 object-contain"
+                alt="Logo do Sistema"
                 onError={(e) => {
                   const target = e.currentTarget;
                   console.warn(
@@ -202,13 +207,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
                 }}
               />
             ) : null}
-            <div className={`w-24 h-24 bg-blue-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-200 ${logoSrc ? 'hidden' : ''}`}>
-              <i className="fas fa-hospital-symbol text-white text-4xl"></i>
+            <div className={`w-16 h-16 md:w-24 md:h-24 bg-blue-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-200 ${logoSrc ? 'hidden' : ''}`}>
+              <i className="fas fa-hospital-symbol text-white text-2xl md:text-4xl"></i>
             </div>
           </div>
           
-          <div className="space-y-2">
-            <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Capelania HAB</h1>
+          <div className="space-y-1 md:space-y-2">
+            <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tighter uppercase">Capelania HAB</h1>
             <p className="text-blue-600 font-black text-[10px] uppercase tracking-[0.2em] leading-relaxed px-4">
               Bem-vindo ao sistema de capelania do hospital adventista de Belém
             </p>
@@ -293,7 +298,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
             </form>
           )
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
             <div className="space-y-1">
               <label className="text-sm font-semibold text-slate-600 px-1 uppercase text-[10px] tracking-widest">E-mail</label>
               <input
@@ -302,7 +307,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+                className="w-full p-3.5 md:p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
                 placeholder="seu@email.com"
               />
             </div>
@@ -314,7 +319,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 transition-all font-medium pr-12"
+                  className="w-full p-3.5 md:p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 transition-all font-medium pr-12"
                   placeholder="••••••••"
                 />
                 <button
@@ -348,14 +353,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
             <button
               type="submit"
               disabled={(isConnected && isSyncing) || isLoading || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
-              className={`w-full py-5 font-black rounded-2xl shadow-xl transition-all transform active:scale-[0.98] disabled:opacity-50 mt-4 uppercase text-xs tracking-widest ${isConnected ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-800 hover:bg-slate-900 text-white'}`}
+              className={`w-full py-3.5 md:py-5 font-black rounded-2xl shadow-xl transition-all transform active:scale-[0.98] disabled:opacity-50 mt-2 md:mt-4 uppercase text-xs tracking-widest ${isConnected ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-800 hover:bg-slate-900 text-white'}`}
             >
               {isLoading ? 'Autenticando...' : (isConnected ? (isSyncing ? 'Sincronizando...' : 'Acessar Sistema') : 'Entrar Offline')}
             </button>
           </form>
         )}
 
-        <div className="text-center pt-4 border-t border-slate-50">
+        <div className="text-center pt-2 md:pt-4 border-t border-slate-50">
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter italic">"Amparando vidas com fé e esperança"</p>
         </div>
       </div>
