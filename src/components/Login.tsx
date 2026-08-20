@@ -4,6 +4,7 @@ import { DEFAULT_APP_LOGO } from '../assets';
 import { Config } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { TURNSTILE_SITE_KEY } from '../constants';
+import { supabase } from '../services/supabaseClient';
 
 interface LoginProps {
   onLogin: (email: string, pass: string) => Promise<boolean>;
@@ -21,6 +22,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const { showToast } = useToast();
 
+  // Estados da recuperação de senha ("Esqueceu a senha?")
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [isRecoverySent, setIsRecoverySent] = useState(false);
+
   // Referência para o input de e-mail para forçar o foco automático
   const emailInputRef = useRef<HTMLInputElement>(null);
   const turnstileContainerRef = useRef<HTMLDivElement>(null);
@@ -33,10 +39,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
     }
   }, []);
 
+  // Renderiza (ou re-renderiza) o widget do Turnstile -- roda de novo sempre que troca entre
+  // login e recuperação de senha, porque o container é um <div> diferente em cada formulário
+  // (só um dos dois está montado por vez), então o widget da tela anterior fica órfão e
+  // precisa ser recriado no container novo.
   useEffect(() => {
     if (!TURNSTILE_SITE_KEY || !turnstileContainerRef.current) return;
 
     let cancelled = false;
+    setTurnstileToken(null);
 
     const renderWidget = () => {
       if (cancelled || !window.turnstile || !turnstileContainerRef.current) return;
@@ -67,9 +78,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
       cancelled = true;
       if (window.turnstile && turnstileWidgetId.current) {
         window.turnstile.remove(turnstileWidgetId.current);
+        turnstileWidgetId.current = undefined;
       }
     };
-  }, []);
+  }, [isRecovering]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +120,59 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
       }
     } catch (error) {
       console.error("Login error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      showToast("Complete a verificação de segurança para continuar.", "error");
+      return;
+    }
+    if (!supabase) {
+      showToast("Supabase não configurado.", "error");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      if (TURNSTILE_SITE_KEY && turnstileToken) {
+        const verifyRes = await fetch('/api/verify-turnstile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: turnstileToken }),
+        });
+        const verifyData = await verifyRes.json();
+        if (!verifyData.success) {
+          showToast("Verificação de segurança falhou. Tente novamente.", "error");
+          if (window.turnstile && turnstileWidgetId.current) {
+            window.turnstile.reset(turnstileWidgetId.current);
+          }
+          setTurnstileToken(null);
+          return;
+        }
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        recoveryEmail.toLowerCase().trim(),
+        { redirectTo: window.location.origin + '/set-password' }
+      );
+
+      if (error) {
+        showToast(error.message, "error");
+        if (window.turnstile && turnstileWidgetId.current) {
+          window.turnstile.reset(turnstileWidgetId.current);
+        }
+        setTurnstileToken(null);
+      } else {
+        setIsRecoverySent(true);
+      }
+    } catch (error) {
+      console.error("Recovery error:", error);
+      showToast("Erro ao solicitar redefinição de senha.", "error");
     } finally {
       setIsLoading(false);
     }
@@ -162,57 +227,133 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-sm font-semibold text-slate-600 px-1 uppercase text-[10px] tracking-widest">E-mail</label>
-            <input 
-              ref={emailInputRef}
-              required
-              type="email" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)}
-              className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-              placeholder="seu@email.com"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-semibold text-slate-600 px-1 uppercase text-[10px] tracking-widest">Senha</label>
-            <div className="relative">
-              <input 
-                required
-                type={showPassword ? "text" : "password"}
-                value={password} 
-                onChange={e => setPassword(e.target.value)}
-                className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 transition-all font-medium pr-12"
-                placeholder="••••••••"
-              />
+        {isRecovering ? (
+          isRecoverySent ? (
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300 text-center py-2">
+              <div className="w-14 h-14 mx-auto bg-emerald-50 rounded-[1.25rem] flex items-center justify-center">
+                <i className="fas fa-check-circle text-emerald-500 text-2xl"></i>
+              </div>
+              <p className="text-sm font-bold text-slate-600 px-2">
+                Se <span className="text-blue-600">{recoveryEmail}</span> estiver cadastrado, você vai receber um e-mail com o link de redefinição em instantes.
+              </p>
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                onClick={() => {
+                  setIsRecovering(false);
+                  setIsRecoverySent(false);
+                  setRecoveryEmail('');
+                }}
+                className="w-full py-4 font-bold rounded-2xl text-slate-500 hover:text-slate-800 transition-all bg-slate-100 hover:bg-slate-200 uppercase text-xs tracking-widest"
               >
-                <i className={`fas fa-eye${showPassword ? '-slash' : ''}`}></i>
+                Voltar ao login
               </button>
             </div>
-            {errorMsg && (
-              <p className="text-rose-600 text-[10px] font-bold uppercase tracking-widest px-2 pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                <i className="fas fa-exclamation-circle mr-1"></i> {errorMsg}
-              </p>
+          ) : (
+            <form onSubmit={handleRecoverySubmit} className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="p-3 bg-blue-50 text-blue-700 rounded-2xl flex items-center gap-3">
+                <i className="fas fa-info-circle text-lg"></i>
+                <p className="text-[10px] font-black uppercase tracking-wider leading-snug">
+                  Digite seu e-mail cadastrado para receber o link de redefinição de senha.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-slate-600 px-1 uppercase text-[10px] tracking-widest">E-mail do Cadastro</label>
+                <input
+                  required
+                  type="email"
+                  value={recoveryEmail}
+                  onChange={e => setRecoveryEmail(e.target.value)}
+                  className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+                  placeholder="seu@email.com"
+                />
+              </div>
+
+              {TURNSTILE_SITE_KEY && (
+                <div ref={turnstileContainerRef} className="flex justify-center pt-1"></div>
+              )}
+
+              <div className="flex flex-col gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={isLoading || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
+                  className="w-full py-5 font-black rounded-2xl shadow-xl transition-all transform active:scale-[0.98] disabled:opacity-50 bg-blue-600 hover:bg-blue-700 text-white uppercase text-xs tracking-widest"
+                >
+                  {isLoading ? 'Enviando...' : 'Enviar Link de Redefinição'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsRecovering(false)}
+                  disabled={isLoading}
+                  className="w-full py-4 font-bold rounded-2xl text-slate-500 hover:text-slate-800 transition-all bg-slate-100 hover:bg-slate-200 uppercase text-xs tracking-widest"
+                >
+                  Voltar
+                </button>
+              </div>
+            </form>
+          )
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm font-semibold text-slate-600 px-1 uppercase text-[10px] tracking-widest">E-mail</label>
+              <input
+                ref={emailInputRef}
+                required
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+                placeholder="seu@email.com"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-semibold text-slate-600 px-1 uppercase text-[10px] tracking-widest">Senha</label>
+              <div className="relative">
+                <input
+                  required
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500 transition-all font-medium pr-12"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                >
+                  <i className={`fas fa-eye${showPassword ? '-slash' : ''}`}></i>
+                </button>
+              </div>
+              <div className="flex justify-end px-1 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsRecovering(true)}
+                  className="text-[10px] font-black text-blue-600 hover:text-blue-800 uppercase tracking-widest transition-colors hover:underline"
+                >
+                  Esqueceu a senha?
+                </button>
+              </div>
+              {errorMsg && (
+                <p className="text-rose-600 text-[10px] font-bold uppercase tracking-widest px-2 pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <i className="fas fa-exclamation-circle mr-1"></i> {errorMsg}
+                </p>
+              )}
+            </div>
+
+            {TURNSTILE_SITE_KEY && (
+              <div ref={turnstileContainerRef} className="flex justify-center pt-1"></div>
             )}
-          </div>
 
-          {TURNSTILE_SITE_KEY && (
-            <div ref={turnstileContainerRef} className="flex justify-center pt-1"></div>
-          )}
-
-          <button
-            type="submit"
-            disabled={(isConnected && isSyncing) || isLoading || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
-            className={`w-full py-5 font-black rounded-2xl shadow-xl transition-all transform active:scale-[0.98] disabled:opacity-50 mt-4 uppercase text-xs tracking-widest ${isConnected ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-800 hover:bg-slate-900 text-white'}`}
-          >
-            {isLoading ? 'Autenticando...' : (isConnected ? (isSyncing ? 'Sincronizando...' : 'Acessar Sistema') : 'Entrar Offline')}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={(isConnected && isSyncing) || isLoading || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
+              className={`w-full py-5 font-black rounded-2xl shadow-xl transition-all transform active:scale-[0.98] disabled:opacity-50 mt-4 uppercase text-xs tracking-widest ${isConnected ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-800 hover:bg-slate-900 text-white'}`}
+            >
+              {isLoading ? 'Autenticando...' : (isConnected ? (isSyncing ? 'Sincronizando...' : 'Acessar Sistema') : 'Entrar Offline')}
+            </button>
+          </form>
+        )}
 
         <div className="text-center pt-4 border-t border-slate-50">
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter italic">"Amparando vidas com fé e esperança"</p>

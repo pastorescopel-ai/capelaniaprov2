@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Layout from './components/Layout';
 import Login from './components/Login';
+import SetPassword from './components/Auth/SetPassword';
 import WelcomeSplash from './components/WelcomeSplash';
 import NotificationPromptBanner from './components/NotificationPromptBanner';
 import ConfirmationModal from './components/Shared/ConfirmationModal';
@@ -42,6 +43,17 @@ const App: React.FC = () => {
   // Não aparece mais depois do login: se a sessão já estava ativa (isAuthenticated no
   // carregamento), o usuário nunca vê a tela de login, então nunca vê a splash também.
   const [showIntroSplash, setShowIntroSplash] = useState(true);
+
+  // Detecta a rota /set-password (link de "Esqueceu a senha?" recebido por e-mail) -- guardado
+  // em estado (não recalculado a cada render) porque o próprio SDK do Supabase limpa o hash da
+  // URL (#access_token=...&type=recovery) assim que processa o token, e sem essa trava a
+  // detecção "perderia" a rota no meio do processo.
+  const [isSetPasswordRoute] = useState(() => {
+    const path = window.location.pathname;
+    const hash = window.location.hash;
+    return path === '/set-password' || path.startsWith('/set-password') ||
+      (hash.includes('type=recovery') && hash.includes('access_token'));
+  });
 
   const {
     activeTab, isPending, setActiveTab,
@@ -123,6 +135,14 @@ const App: React.FC = () => {
   const unitSectors = useMemo(() => 
     proSectors.filter(s => s.unit === currentUnit).map(s => s.name).sort(), 
   [proSectors, currentUnit]);
+
+  // Tem prioridade sobre tudo -- inclusive sobre a checagem de sessão logo abaixo, porque o
+  // próprio link de recuperação cria uma sessão temporária do Supabase que, sem essa checagem
+  // vindo primeiro, seria tratada como um login normal e mandaria a pessoa pro Dashboard em vez
+  // de deixar ela definir a senha nova.
+  if (isSetPasswordRoute) {
+    return <SetPassword />;
+  }
 
   // Splash Screen enquanto verifica a sessão
   if (isAuthLoading) {

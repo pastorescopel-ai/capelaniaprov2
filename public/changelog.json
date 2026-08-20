@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20d",
+    "date": "2026-08-20",
+    "changes": [
+      "Novo: \"Esqueceu a senha?\" na tela de login. Digite o e-mail cadastrado, receba um link por e-mail e defina uma senha nova numa tela dedicada -- sem precisar pedir pra um admin redefinir manualmente."
+    ]
+  },
+  {
     "version": "2026-08-20c",
     "date": "2026-08-20",
     "changes": [
