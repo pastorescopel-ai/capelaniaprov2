@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-20k",
+    "date": "2026-08-20",
+    "changes": [
+      "Revertido a pedido do usuário: o aviso \"Instalar App\" voltou a aparecer como o card completo de sempre (não mais como um botãozinho pra tocar antes de expandir)."
+    ]
+  },
+  {
     "version": "2026-08-20j",
     "date": "2026-08-20",
     "changes": [
