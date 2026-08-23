@@ -30,7 +30,7 @@ const Bar: React.FC<{ value: number; maxHeightPx: number; color: string; delay: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInView, maxHeightPx, delay]);
 
-  return <motion.div ref={ref} className="w-full rounded-t-md rounded-b-sm" style={{ height, backgroundColor: color }} />;
+  return <motion.div ref={ref} className="w-7 sm:w-8 rounded-t-md rounded-b-sm" style={{ height, backgroundColor: color }} />;
 };
 
 // Alcance Pessoal -- substitui o antigo "Desempenho Individual" (que só mostrava o número
@@ -76,7 +76,7 @@ const PersonalAchievement: React.FC<PersonalAchievementProps> = ({ data, prevMon
               className={`rounded-2xl p-3 text-center ${d.onClick ? 'cursor-pointer' : ''} ${isDown ? 'bg-rose-50 border border-rose-100' : 'bg-slate-50 border border-transparent'}`}
             >
               <p className={`text-[9px] font-black uppercase tracking-wide ${isDown ? 'text-rose-600' : 'text-slate-500'}`}>{d.name}</p>
-              <div className="flex items-end justify-center gap-2 mt-2" style={{ height: barsMaxHeightPx }}>
+              <div className="flex items-end justify-center gap-3 mt-2" style={{ height: barsMaxHeightPx }}>
                 <div className="flex flex-col items-center gap-1 h-full justify-end">
                   <span className="text-[9px] font-bold text-slate-400">{d.prev}</span>
                   <Bar value={d.prev} maxHeightPx={(d.prev / globalMax) * barsMaxHeightPx} color="#cbd5e1" delay={i * 0.05} />

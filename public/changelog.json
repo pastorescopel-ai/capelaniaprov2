@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23t",
+    "date": "2026-08-23",
+    "changes": [
+      "Ajuste: as barrinhas do 'Alcance Pessoal' estavam finas demais pra ver no celular (a largura seguia o texto do número, não um tamanho fixo) -- agora têm uma largura mínima garantida, bem mais visíveis."
+    ]
+  },
+  {
     "version": "2026-08-23s",
     "date": "2026-08-23",
     "changes": [
