@@ -3,7 +3,8 @@ import { User, VisitRequest, UserRole } from '../types';
 import { useApp } from './useApp';
 import { useToast } from '../contexts/ToastContext';
 import { usePGInference } from './usePGInference';
-import { normalizeString, ensureISODate, getTimestamp } from '../utils/formatters';
+import { getTimestamp } from '../utils/formatters';
+import { isVisitRequestRegistered } from '../utils/visitRequestHelpers';
 
 interface UseVisitRequestsWidgetProps {
   requests: VisitRequest[];
@@ -81,60 +82,19 @@ export const useVisitRequestsWidget = ({ requests, currentUser, users }: UseVisi
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   }, []);
 
-  // Agendamentos "assigned" que ficaram sem confirmação/registro por muito tempo
-  // não devem poluir a escala para sempre.
-  const OVERDUE_LIMIT_DAYS = 7;
-
   const myRequests = useMemo(() => {
     const res = (() => {
-      // 1. Otimização: Criar um índice dos PGs registrados (O(M))
-      const sgIndex = new Map<string, any[]>();
-      smallGroups.forEach(sg => {
-        const sgDate = ensureISODate(sg.date);
-        if (!sgDate) return;
-        const normName = normalizeString(sg.groupName);
-        const key = `${sg.unit}_${sgDate}_${normName}`;
-        if (!sgIndex.has(key)) sgIndex.set(key, []);
-        sgIndex.get(key)!.push(sg);
-      });
-
       return requests.filter(req => {
         if (req.status === 'confirmed' || req.status === 'declined') return false;
 
-        const reqDate = ensureISODate(req.date);
-
-        if (reqDate && reqDate < todayStr) {
-          const daysOverdue = Math.floor((getTimestamp(todayStr) - getTimestamp(reqDate)) / 86400000);
-          if (daysOverdue > OVERDUE_LIMIT_DAYS) return false;
-        }
-
-        const normName = normalizeString(req.pgName);
-        let isAlreadyRegistered = false;
-        
-        if (reqDate && normName) {
-          const key = `${req.unit}_${reqDate}_${normName}`;
-          const matchingSGs = sgIndex.get(key);
-          if (matchingSGs && matchingSGs.length > 0) {
-            let reqShift = 'Manhã';
-            if (req.scheduledTime) {
-              const hour = parseInt(req.scheduledTime.split(':')[0]);
-              if (hour >= 18) reqShift = 'Noite';
-              else if (hour >= 12) reqShift = 'Tarde';
-            }
-            const normReqShift = normalizeString(reqShift);
-            isAlreadyRegistered = matchingSGs.some(sg => {
-              const shiftMatches = normalizeString(sg.shift) === normReqShift;
-              const userMatches = !req.assignedChaplainId || String(sg.userId) === String(req.assignedChaplainId);
-              return shiftMatches && userMatches;
-            });
-          }
-        }
-
-        if (isAlreadyRegistered) return false;
+        // Um agendamento só sai da escala quando o capelão de fato registra a visita
+        // (mesma regra do sino de notificações, ver utils/visitRequestHelpers.ts) -- não existe
+        // mais um prazo que o apague sozinho por estar "velho".
+        if (isVisitRequestRegistered(req, smallGroups)) return false;
 
         const isUserAdmin = String(currentUser.role).toUpperCase() === 'ADMIN';
         if (isUserAdmin) return true;
-        
+
         return req.assignedChaplainId && String(req.assignedChaplainId) === String(currentUser.id);
       }).sort((a, b) => {
         const aIsMine = a.assignedChaplainId && String(a.assignedChaplainId) === String(currentUser.id);

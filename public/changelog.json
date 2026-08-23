@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-23c",
+    "date": "2026-08-23",
+    "changes": [
+      "Corrigido: o card 'Escala de Visitas PG' do Dashboard agora mostra os agendamentos das duas unidades (HAB e HABA) juntos, sem precisar trocar de unidade pra ver -- ao clicar em 'Registrar Visita', a unidade certa continua sendo escolhida sozinha. Também corrigido um agendamento nunca mais sumir sozinho por estar 'velho' (só sai quando o capelão registra a visita de verdade), e o sino de notificações e esse card agora usam exatamente a mesma regra pra saber o que já foi registrado.",
+      "Corrigido: o quadradinho 'Confirme que é humano' (Cloudflare) no login aparecia escuro em aparelhos com o modo escuro do sistema ativado, mesmo o app inteiro estando no visual claro."
+    ]
+  },
+  {
     "version": "2026-08-20o",
     "date": "2026-08-20",
     "changes": [

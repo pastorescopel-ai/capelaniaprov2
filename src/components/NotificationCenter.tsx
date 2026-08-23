@@ -6,7 +6,8 @@ import { useToast } from '../contexts/ToastContext';
 import { UserRole, VisitRequest } from '../types';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { usePGInference } from '../hooks/usePGInference';
-import { normalizeString, ensureISODate, getTimestamp } from '../utils/formatters';
+import { getTimestamp } from '../utils/formatters';
+import { isVisitRequestRegistered } from '../utils/visitRequestHelpers';
 
 interface NotificationCenterProps {
   onGoToReturnHistory?: (visit?: any) => void;
@@ -42,20 +43,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
     return (visitRequests || []).filter(req => {
       if (req.status === 'confirmed' || req.status === 'declined') return false;
 
-      // Filtro de Visita Já Registrada (Sincronizado com Dashboard)
-      const reqDate = ensureISODate(req.date);
-      const normName = normalizeString(req.pgName);
-      
-      const isAlreadyRegistered = reqDate && normName && smallGroups.some(sg => {
-        const sgDate = ensureISODate(sg.date);
-        return sgDate && 
-          normalizeString(sg.groupName) === normName &&
-          sgDate === reqDate &&
-          sg.unit === req.unit &&
-          req.assignedChaplainId && String(sg.userId) === String(req.assignedChaplainId); // Garante que a reunião encontrada foi de fato registrada pelo capelão designado para a visita
-      });
-
-      if (isAlreadyRegistered) {
+      // Filtro de Visita Já Registrada -- mesma regra usada no card "Escala de Visitas PG" do
+      // Dashboard (ver utils/visitRequestHelpers.ts), pra sino e card nunca mais divergirem.
+      if (isVisitRequestRegistered(req, smallGroups)) {
         return false;
       }
 

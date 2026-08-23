@@ -124,12 +124,15 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       ) : null}
 
-      {/* Escala de Visitas PG (VisitRequestsWidget) */}
-      <VisitRequestsWidget 
-        requests={(visitRequests || []).filter(req => req.unit === unit)} 
-        currentUser={currentUser} 
-        users={users} 
-        onRegisterMission={onRegisterMission} 
+      {/* Escala de Visitas PG (VisitRequestsWidget) -- mostra as duas unidades juntas: o
+          capelão não deveria precisar trocar de unidade só pra ver a própria escala, e o card
+          já exibe um selo (HAB/HABA) em cada item. Ao clicar em "Registrar Visita", a unidade
+          correta é assumida automaticamente (ver handleRegisterMission em App.tsx). */}
+      <VisitRequestsWidget
+        requests={visitRequests || []}
+        currentUser={currentUser}
+        users={users}
+        onRegisterMission={onRegisterMission}
       />
 
       {/* Metas de Visitas (VisitGoalWidget) */}

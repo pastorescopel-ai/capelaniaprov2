@@ -53,6 +53,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
       if (cancelled || !window.turnstile || !turnstileContainerRef.current) return;
       turnstileWidgetId.current = window.turnstile.render(turnstileContainerRef.current, {
         sitekey: TURNSTILE_SITE_KEY,
+        // Sem isso, o widget segue o tema do sistema operacional do aparelho (theme padrão é
+        // "auto") -- em celular com modo escuro ativado no Android/iOS, o quadradinho aparecia
+        // escuro mesmo com o app inteiro no visual claro. O app não tem modo escuro; trava aqui
+        // também.
+        theme: 'light',
         callback: (token: string) => setTurnstileToken(token),
         'expired-callback': () => setTurnstileToken(null),
         'error-callback': () => setTurnstileToken(null),
