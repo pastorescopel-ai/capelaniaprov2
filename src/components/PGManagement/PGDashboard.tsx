@@ -13,7 +13,7 @@ import { Loader2 } from 'lucide-react';
 import CoverageRings from './charts/CoverageRings';
 
 
-const PGDashboard = memo(({ unit }: { unit: Unit }) => {
+const PGDashboard = memo(({ unit, isVisible = true }: { unit: Unit; isVisible?: boolean }) => {
   const { proSectors, proStaff, proGroupMembers, proGroupProviderMembers, proGroupLocations, proGroups, proMonthlyStats, proHistoryRecords } = usePro();
   const { config } = useApp();
   const { currentUser } = useAuth();

@@ -59,17 +59,21 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
   const dynamicMessages: DynamicMessage[] = useMemo(() => {
     const list: DynamicMessage[] = [];
 
-    // 1. Progresso da meta da equipe -- só entra no rodízio se o admin já configurou uma meta.
-    if (teamDeficit !== null) {
-      list.push({
-        parts: teamDeficit > 0 ? [
-          'Em ', { shimmer: monthName }, ', a equipe já realizou ', { shimmer: `${teamVisitsThisMonth} visitas` },
-          ' -- faltam ', { shimmer: `${teamDeficit}` }, ' para batermos a meta do mês.'
-        ] : [
-          { shimmer: `Meta de ${monthName} batida!` }, ' A equipe já realizou ', { shimmer: `${teamVisitsThisMonth} visitas` }, ' este mês. 🙏'
-        ]
-      });
-    }
+    // 1. Total de visitas da equipe no mês -- sempre entra no rodízio (dado real, não depende
+    // de configuração nenhuma); só ganha o "faltam X pra meta" quando o admin já configurou
+    // uma meta mensal. Sem essa parte incondicional, num app recém-configurado (sem meta e sem
+    // retornos pendentes) só sobrava a mensagem da contagem regressiva no rodízio inteiro,
+    // fazendo parecer que o mural tinha "travado" numa mensagem só.
+    list.push({
+      parts: teamDeficit !== null && teamDeficit > 0 ? [
+        'Em ', { shimmer: monthName }, ', a equipe já realizou ', { shimmer: `${teamVisitsThisMonth} visitas` },
+        ' -- faltam ', { shimmer: `${teamDeficit}` }, ' para batermos a meta do mês.'
+      ] : teamDeficit === 0 ? [
+        { shimmer: `Meta de ${monthName} batida!` }, ' A equipe já realizou ', { shimmer: `${teamVisitsThisMonth} visitas` }, ' este mês. 🙏'
+      ] : [
+        'Em ', { shimmer: monthName }, ', a equipe já realizou ', { shimmer: `${teamVisitsThisMonth} visitas` }, ' -- continue assim!'
+      ]
+    });
 
     // 2. Contagem regressiva pro fechamento do mês.
     list.push({

@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-08-23i",
+    "date": "2026-08-23",
+    "changes": [
+      "Corrigido: a meta mensal de visitas da equipe (mural dinâmico) não estava salvando -- faltava o campo correspondente no banco de dados.",
+      "Corrigido: o mural às vezes parecia 'travado' sempre na mesma mensagem -- quando não havia meta configurada nem retornos pendentes, sobrava só uma mensagem elegível no rodízio. Agora a mensagem de total de visitas da equipe sempre entra no rodízio, com ou sem meta configurada.",
+      "Corrigido: o anel de Cobertura (HAB/HABA) do Dashboard de PGs às vezes não mostrava o traço crescendo, só os números contando -- agora os dois sempre animam juntos, de forma mais confiável, toda vez que a tela aparece."
+    ]
+  },
+  {
     "version": "2026-08-23h",
     "date": "2026-08-23",
     "changes": [

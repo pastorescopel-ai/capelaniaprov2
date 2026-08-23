@@ -11,7 +11,13 @@ import PGTools from './PGTools';
 import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 
-const PGManagerLayout: React.FC = () => {
+interface PGManagerLayoutProps {
+  // MainContent.tsx mantém abas já visitadas montadas, só trocando display:none/block --
+  // sem isso, as animações do sub-painel de dashboard só tocavam uma vez por sessão.
+  isVisible?: boolean;
+}
+
+const PGManagerLayout: React.FC<PGManagerLayoutProps> = ({ isVisible = true }) => {
   const { proMonthlyStats, config } = useApp();
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.role === UserRole.ADMIN;
@@ -144,7 +150,7 @@ const PGManagerLayout: React.FC = () => {
 
       <div className={`max-w-7xl mx-auto min-h-[500px] transition-opacity duration-200 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
         <main className="animate-in fade-in slide-in-from-top-2 duration-500">
-          {activeSubTab === 'dashboard' && <PGDashboard key={config.activeCompetenceMonth || 'default'} unit={currentUnit} />}
+          {activeSubTab === 'dashboard' && <PGDashboard key={config.activeCompetenceMonth || 'default'} unit={currentUnit} isVisible={isVisible} />}
           {activeSubTab === 'membership' && <PGMembership unit={currentUnit} />}
           {activeSubTab === 'ops' && <PGOps unit={currentUnit} />}
           {activeSubTab === 'reports' && <PGReports unit={currentUnit} />}

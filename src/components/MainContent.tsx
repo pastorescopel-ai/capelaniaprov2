@@ -193,7 +193,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       case 'reports':
         return <Reports studies={bibleStudies} classes={bibleClasses} groups={smallGroups} visits={staffVisits} users={users} currentUser={currentUser} config={config} onRefresh={() => loadFromCloud(true)} />;
       case 'pgManagement':
-        return <PGManager />;
+        return <PGManager isVisible={isVisible} />;
       case 'users':
         return <CoreModule type="users" currentUser={currentUser} users={users} isLoading={isLoading} onUpdateUsers={async u => { await saveToCloud({ users: u }, true); }} />;
       case 'profile':
