@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23aa",
+    "date": "2026-08-23",
+    "changes": [
+      "Melhorado: o mini gráfico 'vs. mês anterior' dos formulários agora tem uma legenda das cores ao lado, destaca o cartão ao passar o mouse, e mostra o nome do mês e a quantidade exata ao passar o mouse em cada barrinha."
+    ]
+  },
+  {
     "version": "2026-08-23z",
     "date": "2026-08-23",
     "changes": [
