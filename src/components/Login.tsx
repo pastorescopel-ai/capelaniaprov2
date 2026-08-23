@@ -51,6 +51,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
 
     const renderWidget = () => {
       if (cancelled || !window.turnstile || !turnstileContainerRef.current) return;
+
+      // Em desenvolvimento, o React.StrictMode roda este efeito, a limpeza dele, e o efeito de
+      // novo -- tudo no mesmo ciclo (mount → cleanup → mount), sem dar tempo do
+      // window.turnstile.remove() da rodada anterior terminar de verdade antes do próximo
+      // render() ser chamado no mesmo <div>. O widget do Cloudflare não lida bem com isso: fica
+      // com estado interno inconsistente e a verificação falha ("Falha na verificação") assim
+      // que a pessoa interage com ele, mesmo o site key/domínio estando liberados. Limpar o
+      // container na unha antes de renderizar de novo garante um slate limpo independente de
+      // quando o remove() anterior efetivamente termina.
+      turnstileContainerRef.current.innerHTML = '';
       turnstileWidgetId.current = window.turnstile.render(turnstileContainerRef.current, {
         sitekey: TURNSTILE_SITE_KEY,
         // Sem isso, o widget segue o tema do sistema operacional do aparelho (theme padrão é
@@ -64,23 +74,28 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
       });
     };
 
-    if (window.turnstile) {
-      renderWidget();
-    } else {
-      const interval = setInterval(() => {
+    // Adia pro próximo frame em vez de renderizar na hora: dá tempo do cleanup da rodada
+    // anterior (se houver) terminar de rodar antes de criar um widget novo no mesmo lugar.
+    const rafId = requestAnimationFrame(() => {
+      if (window.turnstile) {
+        renderWidget();
+      }
+    });
+
+    let interval: ReturnType<typeof setInterval> | undefined;
+    if (!window.turnstile) {
+      interval = setInterval(() => {
         if (window.turnstile) {
           clearInterval(interval);
           renderWidget();
         }
       }, 100);
-      return () => {
-        cancelled = true;
-        clearInterval(interval);
-      };
     }
 
     return () => {
       cancelled = true;
+      cancelAnimationFrame(rafId);
+      if (interval) clearInterval(interval);
       if (window.turnstile && turnstileWidgetId.current) {
         window.turnstile.remove(turnstileWidgetId.current);
         turnstileWidgetId.current = undefined;
