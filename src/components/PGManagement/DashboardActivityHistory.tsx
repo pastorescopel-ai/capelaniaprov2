@@ -1,9 +1,9 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole, Unit } from '../../types/enums';
-import { motion } from 'motion/react';
+import { motion, useInView } from 'motion/react';
 import { 
   BookOpen, 
   Users, 
@@ -28,6 +28,11 @@ const DashboardActivityHistory: React.FC<DashboardActivityHistoryProps> = ({ uni
   } = useApp();
   
   const { currentUser } = useAuth();
+
+  const sectionRef = useRef<HTMLDivElement>(null);
+  // once: true -- entra animado ao rolar até aqui e fica assim; não fica reanimando toda vez
+  // que a seção sai e volta pra tela.
+  const isInView = useInView(sectionRef, { once: true, margin: '-80px' });
 
   const activities = useMemo(() => {
     const isChaplain = currentUser?.role === UserRole.CHAPLAIN;
@@ -122,8 +127,13 @@ const DashboardActivityHistory: React.FC<DashboardActivityHistoryProps> = ({ uni
   if (activities.length === 0) return null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div ref={sectionRef} className="space-y-4">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.4 }}
+        className="flex items-center justify-between"
+      >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-[#005a9c]/10 flex items-center justify-center text-[#005a9c]">
             <History className="w-6 h-6" />
@@ -135,7 +145,7 @@ const DashboardActivityHistory: React.FC<DashboardActivityHistoryProps> = ({ uni
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Últimos registros realizados nesta unidade</p>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
         <div className="divide-y divide-slate-50">
@@ -143,9 +153,10 @@ const DashboardActivityHistory: React.FC<DashboardActivityHistoryProps> = ({ uni
             <motion.div
               key={activity.id}
               initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              className="group p-5 hover:bg-slate-50/50 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              animate={isInView ? { opacity: 1, x: 0 } : {}}
+              transition={{ delay: idx * 0.05, duration: 0.35 }}
+              whileHover={{ x: 4 }}
+              className="group p-5 hover:bg-slate-50/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
               <div className="flex items-center gap-4">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border ${getBadgeColor(activity.type)} transition-transform group-hover:rotate-6`}>

@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23d",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: Dashboard mais dinâmico -- os cartões de estatística entram em cascata e os números 'contam' subindo até o valor certo, os gráficos de desempenho e o histórico de atividades só animam quando você rola a tela até eles, e passar o mouse nos cartões dá uma leve 'levantada' com sombra."
+    ]
+  },
+  {
     "version": "2026-08-23c",
     "date": "2026-08-23",
     "changes": [

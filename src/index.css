@@ -107,3 +107,17 @@ button:not(:disabled):not([class*="active:scale"]):active,
 .animate-reveal {
   animation: reveal 0.4s ease-out forwards;
 }
+
+/* Usada em avisos que precisam chamar atenção só quando aparecem (ex: "Retornos para Hoje"
+   em PGManagerLayout.tsx) -- 2 repetições e para, não fica pulsando pra sempre enquanto o
+   card estiver na tela. Também existia usada em Dashboard/index.tsx mas essa classe nunca
+   tinha sido definida em lugar nenhum (nem aqui, nem via plugin do Tailwind) -- não fazia
+   nada; ali foi trocado por uma animação equivalente feita com motion/react.
+*/
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-bounce-subtle {
+  animation: bounce-subtle 0.5s ease-in-out 2;
+}

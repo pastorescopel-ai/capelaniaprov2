@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Config, Unit } from '../../types';
 import { useApp } from '../../hooks/useApp';
 import { useDashboardStats, GlobalImpactComparisonMode } from '../../hooks/useDashboardStats';
@@ -25,8 +26,8 @@ interface DashboardProps {
   onUpdateUser: (updatedUser: User) => any;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ 
-  unit, studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onGoToReturnHistory, onUpdateConfig 
+const Dashboard: React.FC<DashboardProps> = ({
+  unit, studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onGoToReturnHistory, onUpdateConfig
 }) => {
   const { visitRequests, users, isInitialized, proMonthlyStats } = useApp();
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().split('T')[0].substring(0, 7));
@@ -80,7 +81,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-24">
+    <div className="space-y-6 pb-24">
       {/* Header Row: Mural */}
       <div className="w-full">
         <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
@@ -88,7 +89,14 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Notificações de Retorno */}
       {todaysReturns.length > 0 ? (
-        <div onClick={() => onGoToReturnHistory(todaysReturns[0])} className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-amber-100 transition-all animate-bounce-subtle">
+        <motion.div
+          onClick={() => onGoToReturnHistory(todaysReturns[0])}
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0, scale: [0.96, 1.02, 1] }}
+          transition={{ duration: 0.6, ease: 'easeOut', times: [0, 0.6, 1] }}
+          whileHover={{ y: -2 }}
+          className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-amber-100 transition-colors"
+        >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-amber-200"><i className="fas fa-calendar-check"></i></div>
             <div>
@@ -97,9 +105,16 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
           <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-amber-500 shadow-sm group-hover:translate-x-1 transition-transform border border-amber-100"><i className="fas fa-chevron-right"></i></div>
-        </div>
+        </motion.div>
       ) : pendingReturns.length > 0 ? (
-        <div onClick={() => onGoToReturnHistory(pendingReturns[0])} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-slate-100 transition-all">
+        <motion.div
+          onClick={() => onGoToReturnHistory(pendingReturns[0])}
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          whileHover={{ y: -2 }}
+          className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-slate-100 transition-colors"
+        >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-slate-500 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-slate-200"><i className="fas fa-calendar-alt"></i></div>
             <div>
@@ -112,7 +127,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       const d = new Date(String(v.returnDate).split('T')[0] + 'T12:00:00');
                       return isNaN(d.getTime()) ? Infinity : d.getTime();
                     }).filter(t => t !== Infinity);
-                    
+
                     if (timestamps.length === 0) return '---';
                     return new Date(Math.min(...timestamps)).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
                   })()
@@ -121,27 +136,33 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
           <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-slate-500 shadow-sm group-hover:translate-x-1 transition-transform border border-slate-100"><i className="fas fa-chevron-right"></i></div>
-        </div>
+        </motion.div>
       ) : null}
 
       {/* Escala de Visitas PG (VisitRequestsWidget) -- mostra as duas unidades juntas: o
           capelão não deveria precisar trocar de unidade só pra ver a própria escala, e o card
           já exibe um selo (HAB/HABA) em cada item. Ao clicar em "Registrar Visita", a unidade
           correta é assumida automaticamente (ver handleRegisterMission em App.tsx). */}
-      <VisitRequestsWidget
-        requests={visitRequests || []}
-        currentUser={currentUser}
-        users={users}
-        onRegisterMission={onRegisterMission}
-      />
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05, ease: 'easeOut' }}>
+        <VisitRequestsWidget
+          requests={visitRequests || []}
+          currentUser={currentUser}
+          users={users}
+          onRegisterMission={onRegisterMission}
+        />
+      </motion.div>
 
       {/* Metas de Visitas (VisitGoalWidget) */}
-      <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.1, ease: 'easeOut' }}>
+        <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
+      </motion.div>
 
       {/* Cartões de Estatísticas */}
       <StatCards stats={stats} />
 
-      {/* Gráficos de Impacto */}
+      {/* Gráficos de Impacto -- só animam ao entrar na tela (ver useInView dentro do próprio
+          componente), pra quem já está com o Dashboard aberto não ver tudo disparando de uma
+          vez fora da vista */}
       <ImpactCharts individualData={[
         { name: 'Estudos', val: monthlyStudies.length },
         { name: 'Classes', val: monthlyClasses.length },
