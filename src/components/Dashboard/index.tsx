@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Config, Unit } from '../../types';
 import { useApp } from '../../hooks/useApp';
 import { useDashboardStats, GlobalImpactComparisonMode } from '../../hooks/useDashboardStats';
+import { ensureISODate } from '../../utils/formatters';
 import Mural from './Mural';
 import StatCards from './StatCards';
 import ImpactCharts from './ImpactCharts';
@@ -73,6 +74,18 @@ const Dashboard: React.FC<DashboardProps> = ({
     accumulated
   } = useDashboardStats(studies, classes, groups, visits, currentUser, proMonthlyStats, selectedMonth, comparisonMode, selectedAverageMonths);
 
+  // Contagens PESSOAIS do mês anterior (Estudos/Classes) -- só pra alimentar a mensagem de
+  // "alvo individual" do mural dinâmico, que compara este mês com o passado, não com uma meta
+  // fixa. Sempre o mês civil anterior de verdade, não o filtro de mês do Dashboard.
+  const prevMonthPersonal = React.useMemo(() => {
+    const prevDate = new Date();
+    prevDate.setMonth(prevDate.getMonth() - 1);
+    const prevISO = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+    const studiesCount = (studies || []).filter(s => s.userId === currentUser?.id && ensureISODate(s.date)?.startsWith(prevISO)).length;
+    const classesCount = (classes || []).filter(c => c.userId === currentUser?.id && ensureISODate(c.date)?.startsWith(prevISO)).length;
+    return { studiesCount, classesCount };
+  }, [studies, classes, currentUser?.id]);
+
   if (!isInitialized) {
     return <div className="p-8 text-center text-slate-500 font-bold">Carregando dashboard...</div>;
   }
@@ -100,6 +113,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           monthlyStudiesCount={monthlyStudies.length}
           monthlyClassesCount={monthlyClasses.length}
           monthlyGroupsCount={monthlyGroups.length}
+          prevMonthStudiesCount={prevMonthPersonal.studiesCount}
+          prevMonthClassesCount={prevMonthPersonal.classesCount}
+          visitGoal={accumulated}
           isVisible={isVisible}
         />
       </div>

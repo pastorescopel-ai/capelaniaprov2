@@ -1,5 +1,19 @@
 [
   {
+    "version": "2026-08-23k",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: mural dinâmico ganhou 3 mensagens de alvo individual -- suas visitas em relação ao seu alvo pessoal do mês, e seus Estudos Bíblicos e Classes Bíblicas comparados ao mês anterior (quantos a mais ou a menos)."
+    ]
+  },
+  {
+    "version": "2026-08-23j",
+    "date": "2026-08-23",
+    "changes": [
+      "Mural dinâmico: a mensagem de saudação agora sempre entra no rodízio (antes só aparecia quando havia retornos pendentes) -- sem retornos pendentes, mostra só a saudação com o mês em destaque."
+    ]
+  },
+  {
     "version": "2026-08-23i",
     "date": "2026-08-23",
     "changes": [

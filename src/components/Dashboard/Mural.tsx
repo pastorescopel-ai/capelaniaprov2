@@ -17,6 +17,13 @@ interface MuralProps {
   monthlyStudiesCount: number;
   monthlyClassesCount: number;
   monthlyGroupsCount: number;
+  // Mês anterior (pessoal) -- só Estudos/Classes, pra comparar "este mês vs. o passado" em vez
+  // de uma meta fixa.
+  prevMonthStudiesCount: number;
+  prevMonthClassesCount: number;
+  // Meta individual de visitas do capelão logado (mesmo cálculo do card "Metas de Visitas") --
+  // null enquanto ainda não carregou.
+  visitGoal: { expected: number; current: number; deficit: number } | null;
   // Reanima e sorteia uma nova mensagem toda vez que a aba do Dashboard volta a ficar visível
   // (ver isVisible em Dashboard/index.tsx) -- sem isso, a mesma mensagem ficaria travada a
   // sessão inteira, mesmo o pedido sendo "mudar a cada vez que entrar".
@@ -28,7 +35,7 @@ const MONTH_NAMES = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
-const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits, pendingReturnsCount, currentUserFirstName, monthlyStudiesCount, monthlyClassesCount, monthlyGroupsCount, isVisible = true }) => {
+const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits, pendingReturnsCount, currentUserFirstName, monthlyStudiesCount, monthlyClassesCount, monthlyGroupsCount, prevMonthStudiesCount, prevMonthClassesCount, visitGoal, isVisible = true }) => {
   const { showToast } = useToast();
   const [isEditingMural, setIsEditingMural] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -85,15 +92,16 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
       ]
     });
 
-    // 3. Saudação pessoal + retornos pendentes (só entra se houver algum pendente).
-    if (pendingReturnsCount > 0) {
-      list.push({
-        parts: [
-          `Bem-vindo(a) de volta${currentUserFirstName ? `, ${currentUserFirstName}` : ''}! Estamos em `, { shimmer: monthName },
-          ' -- ', { shimmer: `${pendingReturnsCount} colaborador${pendingReturnsCount === 1 ? '' : 'es'}` }, ' aguardando retorno.'
-        ]
-      });
-    }
+    // 3. Saudação pessoal -- sempre entra no rodízio; ganha o aviso de retornos pendentes
+    // quando existir algum, senão fica só a saudação com o mês em destaque.
+    list.push({
+      parts: pendingReturnsCount > 0 ? [
+        `Bem-vindo(a) de volta${currentUserFirstName ? `, ${currentUserFirstName}` : ''}! Estamos em `, { shimmer: monthName },
+        ' -- ', { shimmer: `${pendingReturnsCount} colaborador${pendingReturnsCount === 1 ? '' : 'es'}` }, ' aguardando retorno.'
+      ] : [
+        `Bem-vindo(a) de volta${currentUserFirstName ? `, ${currentUserFirstName}` : ''}! Estamos em `, { shimmer: monthName }, ' -- que seu trabalho continue sendo de bênção. 🙏'
+      ]
+    });
 
     // 4. Lembrete de lançamento pendente (Estudos/Classes/PGs) -- só a partir do 5º dia do mês,
     // pra não soar como cobrança logo no início (é normal ainda não ter nada lançado no dia 2).
@@ -116,8 +124,52 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
       }
     }
 
+    // 5. Alvo individual de visitas (mesmo cálculo do card "Metas de Visitas").
+    if (visitGoal) {
+      list.push({
+        parts: visitGoal.deficit > 0 ? [
+          'Suas visitas em ', { shimmer: monthName }, ': ', { shimmer: `${visitGoal.current} de ${visitGoal.expected}` },
+          ' esperadas -- faltam ', { shimmer: `${visitGoal.deficit}` }, ' pro seu alvo individual.'
+        ] : [
+          { shimmer: `Alvo de ${monthName} batido!` }, ' Você já fez ', { shimmer: `${visitGoal.current} visitas` }, ' este mês. 🎉'
+        ]
+      });
+    }
+
+    // 6. Alvo individual de Estudos Bíblicos -- comparado ao mês anterior, não a uma meta fixa.
+    if (monthlyStudiesCount > 0 || prevMonthStudiesCount > 0) {
+      const delta = monthlyStudiesCount - prevMonthStudiesCount;
+      list.push({
+        parts: delta > 0 ? [
+          'Você já registrou ', { shimmer: `${monthlyStudiesCount} Estudos Bíblicos` }, ' em ', { shimmer: monthName },
+          ' -- ', { shimmer: `${delta} a mais` }, ' que no mês passado!'
+        ] : delta < 0 ? [
+          'Você registrou ', { shimmer: `${monthlyStudiesCount} Estudos Bíblicos` }, ' em ', { shimmer: monthName },
+          ', ', { shimmer: `${Math.abs(delta)} a menos` }, ' que no mês passado.'
+        ] : [
+          'Você já registrou ', { shimmer: `${monthlyStudiesCount} Estudos Bíblicos` }, ' em ', { shimmer: monthName }, ' -- igual ao mês passado.'
+        ]
+      });
+    }
+
+    // 7. Alvo individual de Classes Bíblicas -- mesma lógica, comparado ao mês anterior.
+    if (monthlyClassesCount > 0 || prevMonthClassesCount > 0) {
+      const delta = monthlyClassesCount - prevMonthClassesCount;
+      list.push({
+        parts: delta > 0 ? [
+          'Você já registrou ', { shimmer: `${monthlyClassesCount} Classes Bíblicas` }, ' em ', { shimmer: monthName },
+          ' -- ', { shimmer: `${delta} a mais` }, ' que no mês passado!'
+        ] : delta < 0 ? [
+          'Você registrou ', { shimmer: `${monthlyClassesCount} Classes Bíblicas` }, ' em ', { shimmer: monthName },
+          ', ', { shimmer: `${Math.abs(delta)} a menos` }, ' que no mês passado.'
+        ] : [
+          'Você já registrou ', { shimmer: `${monthlyClassesCount} Classes Bíblicas` }, ' em ', { shimmer: monthName }, ' -- igual ao mês passado.'
+        ]
+      });
+    }
+
     return list;
-  }, [teamDeficit, teamVisitsThisMonth, monthName, daysLeftInMonth, pendingReturnsCount, currentUserFirstName, monthlyStudiesCount, monthlyClassesCount, monthlyGroupsCount]);
+  }, [teamDeficit, teamVisitsThisMonth, monthName, daysLeftInMonth, pendingReturnsCount, currentUserFirstName, monthlyStudiesCount, monthlyClassesCount, monthlyGroupsCount, prevMonthStudiesCount, prevMonthClassesCount, visitGoal]);
 
   const [messageIndex, setMessageIndex] = useState(0);
   // Sem isso, o primeiro sorteio da sessão comparava contra o valor inicial do estado (0) como
