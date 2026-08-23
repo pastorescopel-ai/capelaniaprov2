@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23o",
+    "date": "2026-08-23",
+    "changes": [
+      "Ajuste: a faixa fina de Visitas a Colaboradores ganhou um efeito de pressionar em 3D ao tocar, um aviso 'Toque para ampliar', e a própria barra de progresso agora é clicável -- leva direto pro formulário de Registrar Visita, sem precisar abrir os detalhes primeiro."
+    ]
+  },
+  {
     "version": "2026-08-23n",
     "date": "2026-08-23",
     "changes": [

@@ -128,7 +128,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Visitas a Colaboradores -- faixa fina entre o mural e a escala de visitas (Opção A);
           toque/clique expande os detalhes completos (meta HABA, histórico total). */}
       <motion.div initial={{ opacity: 0, y: -8 }} animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }} transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}>
-        <VisitProgressStrip accumulated={accumulated} isExpanded={showVisitDetail} onToggle={() => setShowVisitDetail(v => !v)} />
+        <VisitProgressStrip accumulated={accumulated} isExpanded={showVisitDetail} onToggle={() => setShowVisitDetail(v => !v)} onGoToTab={onGoToTab} />
         <AnimatePresence initial={false}>
           {showVisitDetail && (
             <motion.div
