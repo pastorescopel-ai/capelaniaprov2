@@ -5,6 +5,7 @@ import { hashPassword } from '../utils/crypto';
 import { DataRepository } from '../services/dataRepository';
 import { AuthContext } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
+import { clearSessionAnimationFlags } from '../hooks/useAnimateOncePerSession';
 
 const INACTIVITY_LIMIT = 60 * 60 * 1000; // 1 hora em milissegundos
 const LAST_ACTIVITY_KEY = 'capelania_last_activity';
@@ -199,6 +200,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthenticated(false);
     setLoginError(null);
     localStorage.removeItem(LAST_ACTIVITY_KEY);
+    // Libera os gráficos que só animam uma vez por login (ver useAnimateOncePerSession.ts) pra
+    // tocarem de novo no próximo login -- sem isso, ficariam travados sem animação pro resto
+    // da sessão do navegador, mesmo entrando com outro usuário.
+    clearSessionAnimationFlags();
   };
 
   const updateCurrentUser = (user: User) => setCurrentUser(user);

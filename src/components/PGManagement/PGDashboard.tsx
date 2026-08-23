@@ -12,6 +12,7 @@ import { toCamel } from '../../utils/transformers';
 import { Loader2 } from 'lucide-react';
 import CoverageRings from './charts/CoverageRings';
 import AdherenceRanking from './charts/AdherenceRanking';
+import { shouldAnimateThisSession } from '../../hooks/useAnimateOncePerSession';
 
 
 const PGDashboard = memo(({ unit, isVisible = true }: { unit: Unit; isVisible?: boolean }) => {
@@ -24,6 +25,11 @@ const PGDashboard = memo(({ unit, isVisible = true }: { unit: Unit; isVisible?: 
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [statusModalConfig, setStatusModalConfig] = useState<{ title: string, message: string, type: 'success' | 'error' | 'warning' }>({ title: '', message: '', type: 'success' });
   const [selectedSectorStaff, setSelectedSectorStaff] = useState<{name: string, staff: any[]} | null>(null);
+  // Os gráficos (anéis de cobertura + ranking de adesão) só animam a primeira vez que a pessoa
+  // entra nesta tela depois de logar -- trocar de sub-aba dentro de Gestão de PGs e voltar
+  // remonta este componente, mas não deve reanimar de novo; só um novo login libera de novo
+  // (ver clearSessionAnimationFlags, chamado no logout em AuthProvider.tsx).
+  const [animateCharts] = useState(() => shouldAnimateThisSession('pgDashboardCharts'));
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     return config.activeCompetenceMonth || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
@@ -217,6 +223,7 @@ const PGDashboard = memo(({ unit, isVisible = true }: { unit: Unit; isVisible?: 
           <CoverageRings
             outer={{ label: unit, pct: metrics.globalPercentage, color: 'text-[#005a9c]' }}
             inner={{ label: otherUnit, pct: otherMetrics.globalPercentage, color: 'text-amber-400' }}
+            animate={animateCharts}
           />
         </div>
       </div>
@@ -262,6 +269,7 @@ const PGDashboard = memo(({ unit, isVisible = true }: { unit: Unit; isVisible?: 
           pct: data.percentage,
           onClick: () => setSelectedSectorStaff({ name: data.sector.name, staff: data.staffList || [] })
         }))}
+        animate={animateCharts}
       />
 
       {/* Lista de Setores */}

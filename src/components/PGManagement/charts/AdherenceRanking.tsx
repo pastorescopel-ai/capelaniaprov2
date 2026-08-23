@@ -1,6 +1,6 @@
 
-import React, { useEffect, useRef } from 'react';
-import { animate, motion, useInView, useMotionValue, useTransform } from 'motion/react';
+import React, { useEffect } from 'react';
+import { animate, motion, useMotionValue, useTransform } from 'motion/react';
 
 export interface AdherenceRankingDatum {
   id: string;
@@ -13,35 +13,30 @@ interface AdherenceRankingProps {
   data: AdherenceRankingDatum[];
   title: string;
   metaPct?: number;
+  // false depois da primeira entrada na tela neste login -- aí a barra já nasce no valor
+  // final, sem crescer, pra não ficar reanimando à toa numa lista que pode ter muitos itens.
+  animate?: boolean;
 }
 
 const colorFor = (pct: number) => pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : 'bg-rose-500';
 const textColorFor = (pct: number) => pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-rose-600';
 
-// Uma linha do ranking: sabe crescer e contar sozinha (useInView próprio). Diferente dos
-// outros gráficos do Dashboard, aqui é `once: true` de propósito -- a lista pode ter muitos
-// setores/PGs, e reanimar tudo de novo cada vez que rola pra cima/baixo (ou a aba pisca de
-// visível) seria gasto à toa. Anima uma vez ao aparecer e fica parado dali em diante; se o
-// valor real mudar (troca de filtro/mês), a barra ainda acompanha -- `once` só afeta o
-// replay-do-zero ao sair/voltar da tela, não a reatividade a dado novo.
-const Row: React.FC<{ d: AdherenceRankingDatum; index: number; metaPct?: number }> = ({ d, index, metaPct }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-20px' });
-  const width = useMotionValue(0);
+const Row: React.FC<{ d: AdherenceRankingDatum; index: number; metaPct?: number; animate: boolean }> = ({ d, index, metaPct, animate: shouldAnimate }) => {
+  const width = useMotionValue(shouldAnimate ? 0 : d.pct);
   const roundedPct = useTransform(width, latest => `${Math.round(latest)}%`);
 
   useEffect(() => {
-    if (!isInView) {
-      width.set(0);
+    if (!shouldAnimate) {
+      width.set(d.pct);
       return;
     }
     const controls = animate(width, d.pct, { duration: 0.9, ease: 'easeOut', delay: index * 0.05 });
     return controls.stop;
-  }, [isInView, d.pct, index]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldAnimate, d.pct, index]);
 
   return (
     <motion.div
-      ref={ref}
       role={d.onClick ? 'button' : undefined}
       tabIndex={d.onClick ? 0 : undefined}
       onClick={d.onClick}
@@ -70,8 +65,8 @@ const Row: React.FC<{ d: AdherenceRankingDatum; index: number; metaPct?: number 
 
 // Ranking de adesão ordenado do maior pro menor -- versão compacta de "quem precisa de
 // atenção primeiro", complementar aos cards detalhados de cada setor/PG logo abaixo (que
-// continuam existindo com o botão de ver colaboradores).
-const AdherenceRanking: React.FC<AdherenceRankingProps> = ({ data, title, metaPct = 80 }) => {
+// continuam existindo com o botão de ver colaboradores). Reaproveitado também em Embaixadores.
+const AdherenceRanking: React.FC<AdherenceRankingProps> = ({ data, title, metaPct = 80, animate: shouldAnimate = true }) => {
   const sorted = [...data].sort((a, b) => b.pct - a.pct);
   if (sorted.length === 0) return null;
 
@@ -81,15 +76,17 @@ const AdherenceRanking: React.FC<AdherenceRankingProps> = ({ data, title, metaPc
         <h3 className="text-sm md:text-base font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
           <i className="fas fa-ranking-star text-blue-600"></i> {title}
         </h3>
-        <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-          <span className="w-2 h-3 bg-slate-300 inline-block rounded-sm" /> Meta {metaPct}%
-        </div>
+        {typeof metaPct === 'number' && (
+          <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+            <span className="w-2 h-3 bg-slate-300 inline-block rounded-sm" /> Meta {metaPct}%
+          </div>
+        )}
       </div>
       <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.15em] mb-5">
-        Ordenado do maior pro menor -- toque numa barra pra ver os colaboradores
+        Ordenado do maior pro menor -- toque numa barra pra ver os detalhes
       </p>
       <div className="space-y-2.5">
-        {sorted.map((d, i) => <Row key={d.id} d={d} index={i} metaPct={metaPct} />)}
+        {sorted.map((d, i) => <Row key={d.id} d={d} index={i} metaPct={metaPct} animate={shouldAnimate} />)}
       </div>
     </div>
   );

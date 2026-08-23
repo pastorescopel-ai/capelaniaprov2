@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23p",
+    "date": "2026-08-23",
+    "changes": [
+      "Ajuste: os gráficos do Dashboard de PGs (anéis de cobertura e ranking de adesão) agora animam só na primeira vez que você entra nessa tela depois de logar -- trocar de sub-aba dentro de Gestão de PGs não reanima mais à toa. Só volta a animar num próximo login."
+    ]
+  },
+  {
     "version": "2026-08-23o",
     "date": "2026-08-23",
     "changes": [
