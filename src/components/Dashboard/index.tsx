@@ -97,6 +97,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           visits={visits}
           pendingReturnsCount={pendingReturns.length}
           currentUserFirstName={currentUser.name?.split(' ')[0] || ''}
+          monthlyStudiesCount={monthlyStudies.length}
+          monthlyClassesCount={monthlyClasses.length}
+          monthlyGroupsCount={monthlyGroups.length}
           isVisible={isVisible}
         />
       </div>

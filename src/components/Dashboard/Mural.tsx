@@ -12,6 +12,11 @@ interface MuralProps {
   visits: StaffVisit[];
   pendingReturnsCount: number;
   currentUserFirstName: string;
+  // Contagens PESSOAIS do mês (só do capelão logado, não da equipe toda) -- usadas pro
+  // lembrete de "ainda não lancei nada disso este mês".
+  monthlyStudiesCount: number;
+  monthlyClassesCount: number;
+  monthlyGroupsCount: number;
   // Reanima e sorteia uma nova mensagem toda vez que a aba do Dashboard volta a ficar visível
   // (ver isVisible em Dashboard/index.tsx) -- sem isso, a mesma mensagem ficaria travada a
   // sessão inteira, mesmo o pedido sendo "mudar a cada vez que entrar".
@@ -23,7 +28,7 @@ const MONTH_NAMES = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
-const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits, pendingReturnsCount, currentUserFirstName, isVisible = true }) => {
+const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits, pendingReturnsCount, currentUserFirstName, monthlyStudiesCount, monthlyClassesCount, monthlyGroupsCount, isVisible = true }) => {
   const { showToast } = useToast();
   const [isEditingMural, setIsEditingMural] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -86,8 +91,29 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
       });
     }
 
+    // 4. Lembrete de lançamento pendente (Estudos/Classes/PGs) -- só a partir do 5º dia do mês,
+    // pra não soar como cobrança logo no início (é normal ainda não ter nada lançado no dia 2).
+    if (now.getDate() >= 5) {
+      const missing: string[] = [];
+      if (monthlyStudiesCount === 0) missing.push('Estudo Bíblico');
+      if (monthlyClassesCount === 0) missing.push('Classe Bíblica');
+      if (monthlyGroupsCount === 0) missing.push('Pequeno Grupo');
+
+      if (missing.length > 0) {
+        const missingLabel = missing.length === 1
+          ? missing[0]
+          : `${missing.slice(0, -1).join(', ')} e ${missing[missing.length - 1]}`;
+        list.push({
+          parts: [
+            'Ainda sem nenhum registro de ', { shimmer: missingLabel }, ' em ', { shimmer: monthName },
+            ' -- não esqueça de lançar suas atividades!'
+          ]
+        });
+      }
+    }
+
     return list;
-  }, [teamDeficit, teamVisitsThisMonth, monthName, daysLeftInMonth, pendingReturnsCount, currentUserFirstName]);
+  }, [teamDeficit, teamVisitsThisMonth, monthName, daysLeftInMonth, pendingReturnsCount, currentUserFirstName, monthlyStudiesCount, monthlyClassesCount, monthlyGroupsCount]);
 
   const [messageIndex, setMessageIndex] = useState(0);
   // Sem isso, o primeiro sorteio da sessão comparava contra o valor inicial do estado (0) como

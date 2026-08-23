@@ -10,6 +10,7 @@ import { calculateDashboardMetrics } from '../../utils/metricsEngine';
 import { DataRepository } from '../../services/dataRepository';
 import { toCamel } from '../../utils/transformers';
 import { Loader2 } from 'lucide-react';
+import CoverageRings from './charts/CoverageRings';
 
 
 const PGDashboard = memo(({ unit }: { unit: Unit }) => {
@@ -86,6 +87,27 @@ const PGDashboard = memo(({ unit }: { unit: Unit }) => {
       filterType
     );
   }, [proSectors, proStaff, effectiveMembers, proGroupProviderMembers, proGroupLocations, proGroups, unit, debouncedSearchTerm, filterType, selectedMonth, effectiveHistory, proMonthlyStats]);
+
+  // Métricas da OUTRA unidade, só pra alimentar o anel secundário do card de Cobertura --
+  // antes era preciso trocar de aba pra comparar HAB com HABA; agora os dois aparecem juntos
+  // no mesmo anel. Não usa o termo de busca (não filtra lista nenhuma, só o percentual).
+  const otherUnit = unit === Unit.HAB ? Unit.HABA : Unit.HAB;
+  const otherMetrics = useMemo(() => {
+    return calculateDashboardMetrics(
+      otherUnit,
+      selectedMonth,
+      proSectors,
+      proStaff,
+      effectiveMembers,
+      proGroupProviderMembers,
+      proGroupLocations,
+      proGroups,
+      proMonthlyStats,
+      effectiveHistory,
+      '',
+      'sector'
+    );
+  }, [otherUnit, proSectors, proStaff, effectiveMembers, proGroupProviderMembers, proGroupLocations, proGroups, proMonthlyStats, effectiveHistory, selectedMonth]);
 
   // Gerar opções de meses (Últimos 6 meses)
   const monthOptions = useMemo(() => {
@@ -191,17 +213,10 @@ const PGDashboard = memo(({ unit }: { unit: Unit }) => {
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vidas Alcançadas</span>
           </div>
           
-          <div className="relative w-32 h-32 flex items-center justify-center">
-             <svg className="w-full h-full transform -rotate-90">
-               <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-100" />
-               <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" 
-                 strokeDasharray={351.86} 
-                 strokeDashoffset={351.86 - (351.86 * metrics.globalPercentage) / 100} 
-                 className={`${metrics.globalPercentage >= 80 ? 'text-emerald-500' : metrics.globalPercentage >= 50 ? 'text-amber-400' : 'text-rose-500'} transition-all duration-1000 ease-out`} 
-               />
-             </svg>
-             <span className="absolute text-xl font-black text-slate-700">{Math.round(metrics.globalPercentage)}%</span>
-          </div>
+          <CoverageRings
+            outer={{ label: unit, pct: metrics.globalPercentage, color: 'text-[#005a9c]' }}
+            inner={{ label: otherUnit, pct: otherMetrics.globalPercentage, color: 'text-amber-400' }}
+          />
         </div>
       </div>
 

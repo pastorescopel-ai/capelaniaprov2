@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-23h",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: mural dinâmico ganhou uma 4ª mensagem -- lembrete de lançar Estudo Bíblico, Classe Bíblica ou Pequeno Grupo quando algum desses ainda não tem nenhum registro seu no mês (a partir do 5º dia, pra não soar como cobrança logo no início).",
+      "Novo: no Dashboard de PGs, o anel de 'Cobertura de Discipulado' agora mostra HAB e HABA juntos (anéis concêntricos), sem precisar trocar de aba pra comparar as duas unidades."
+    ]
+  },
+  {
     "version": "2026-08-23g",
     "date": "2026-08-23",
     "changes": [
