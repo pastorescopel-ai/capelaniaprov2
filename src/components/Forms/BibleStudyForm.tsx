@@ -7,9 +7,11 @@ import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
+import MonthComparisonBadge from '../Shared/MonthComparisonBadge';
 import { formatWhatsApp } from '../../utils/formatters';
 import { isRecordLocked } from '../../utils/validators';
 import { useBibleStudyForm } from '../../hooks/useBibleStudyForm';
+import { useMonthComparison } from '../../hooks/useMonthComparison';
 
 interface FormProps {
   unit: Unit;
@@ -35,6 +37,8 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
     handleContinueStudy
   } = useBibleStudyForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
+
+  const monthComparison = useMonthComparison(allHistory, currentUser.id, unit);
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
   const isAdmin = currentUser.role === UserRole.ADMIN;
@@ -75,7 +79,12 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
 
   return (
     <>
-      <FormScaffold title="Estudo Bíblico" headerActions={headerActions} history={historySection}>
+      <FormScaffold
+        title="Estudo Bíblico"
+        headerActions={headerActions}
+        history={historySection}
+        compareWidget={<MonthComparisonBadge label="Estudos" {...monthComparison} />}
+      >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
           {isAdmin && (

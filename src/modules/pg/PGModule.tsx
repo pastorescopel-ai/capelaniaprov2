@@ -12,6 +12,7 @@ interface PGModuleProps {
   isLoading: boolean;
   unit: Unit;
   history: any[];
+  allHistory?: any[];
   onCancelEdit: () => void;
   onEdit: (item: any) => void;
   setItemToDelete: (data: {type: string, id: string}) => void;
@@ -19,7 +20,7 @@ interface PGModuleProps {
 }
 
 const PGModule: React.FC<PGModuleProps> = ({
-  currentUser, users, editingItem, isLoading, unit, history,
+  currentUser, users, editingItem, isLoading, unit, history, allHistory,
   onCancelEdit, onEdit, setItemToDelete, isActive
 }) => {
   const { saveSmallGroup } = usePG(currentUser);
@@ -34,6 +35,7 @@ const PGModule: React.FC<PGModuleProps> = ({
         onCancelEdit={onCancelEdit}
         unit={unit}
         history={history}
+        allHistory={allHistory}
         onDelete={id => setItemToDelete({type: 'pg', id})}
         onEdit={onEdit}
         onSubmit={saveSmallGroup}

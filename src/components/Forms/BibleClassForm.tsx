@@ -7,9 +7,11 @@ import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
+import MonthComparisonBadge from '../Shared/MonthComparisonBadge';
 import { isRecordLocked } from '../../utils/validators';
-import { formatWhatsApp } from '../../utils/formatters';
+import { formatWhatsApp, countUniqueClasses } from '../../utils/formatters';
 import { useBibleClassForm } from '../../hooks/useBibleClassForm';
+import { useMonthComparison } from '../../hooks/useMonthComparison';
 
 interface FormProps {
   unit: Unit;
@@ -39,6 +41,11 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     handleContinueClass, defaultState
   } = useBibleClassForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
+  // Classe Bíblica é gravada uma linha por aluno presente -- o "vs. mês anterior" precisa
+  // contar sessões de classe únicas (mesma lógica de countUniqueClasses usada em Relatórios),
+  // não linhas cruas, senão uma classe de 10 alunos contaria como 10 aulas.
+  const monthComparison = useMonthComparison(allHistory, currentUser.id, unit, countUniqueClasses);
+
   const isAdmin = currentUser.role === UserRole.ADMIN;
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
@@ -62,7 +69,12 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
   return (
     <>
-      <FormScaffold title="Classe Bíblica" headerActions={headerActions} history={historySection}>
+      <FormScaffold
+        title="Classe Bíblica"
+        headerActions={headerActions}
+        history={historySection}
+        compareWidget={<MonthComparisonBadge label="Classes" {...monthComparison} />}
+      >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
           {isAdmin && (

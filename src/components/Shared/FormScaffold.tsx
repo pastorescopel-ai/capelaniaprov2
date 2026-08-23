@@ -5,16 +5,18 @@ interface FormScaffoldProps {
   title: string;
   subtitle?: string;
   headerActions?: React.ReactNode; // Botões de Toggle e Limpar
+  compareWidget?: React.ReactNode; // Selo "vs. mês anterior" (MonthComparisonBadge)
   children: React.ReactNode; // O formulário em si (<form>...</form>)
   history?: React.ReactNode; // A seção de histórico abaixo
 }
 
-const FormScaffold: React.FC<FormScaffoldProps> = ({ 
-  title, 
-  subtitle, 
-  headerActions, 
-  children, 
-  history 
+const FormScaffold: React.FC<FormScaffoldProps> = ({
+  title,
+  subtitle,
+  headerActions,
+  compareWidget,
+  children,
+  history
 }) => {
   return (
     <div className="space-y-6 md:space-y-10 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -35,6 +37,8 @@ const FormScaffold: React.FC<FormScaffoldProps> = ({
             </div>
           )}
         </div>
+
+        {compareWidget && <div>{compareWidget}</div>}
 
         {/* Conteúdo do Formulário */}
         {children}

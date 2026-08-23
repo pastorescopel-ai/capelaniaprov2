@@ -6,9 +6,11 @@ import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
+import MonthComparisonBadge from '../Shared/MonthComparisonBadge';
 import { isRecordLocked } from '../../utils/validators';
 import { formatWhatsApp } from '../../utils/formatters';
 import { useStaffVisitForm } from '../../hooks/useStaffVisitForm';
+import { useMonthComparison } from '../../hooks/useMonthComparison';
 
 interface FormProps {
   unit: Unit;
@@ -33,6 +35,8 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     handleSelectName, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
     sortedHistory, defaultState
   } = useStaffVisitForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
+
+  const monthComparison = useMonthComparison(allHistory, currentUser.id, unit);
 
   const isAdmin = currentUser.role === UserRole.ADMIN;
 
@@ -192,7 +196,13 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   ), [sortedHistory, users, currentUser, isLoading, allHistory, history, handlePerformReturn, onDelete, onEdit]);
 
   return (
-    <FormScaffold title="Visita Pastoral" subtitle={`Unidade ${unit}`} headerActions={headerActions} history={historySection}>
+    <FormScaffold
+      title="Visita Pastoral"
+      subtitle={`Unidade ${unit}`}
+      headerActions={headerActions}
+      history={historySection}
+      compareWidget={<MonthComparisonBadge label="Visitas" {...monthComparison} />}
+    >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
           {isAdmin && (

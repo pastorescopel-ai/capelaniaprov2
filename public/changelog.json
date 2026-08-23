@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23x",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: os 4 formulários de registro (Estudo Bíblico, Classe Bíblica, Pequeno Grupo e Visita Pastoral) agora mostram um selo no topo comparando quantos você já fez este mês vs. no mês passado -- verde quando está subindo, vermelho quando caiu."
+    ]
+  },
+  {
     "version": "2026-08-23w",
     "date": "2026-08-23",
     "changes": [

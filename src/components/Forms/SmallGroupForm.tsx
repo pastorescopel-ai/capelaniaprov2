@@ -6,9 +6,11 @@ import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
+import MonthComparisonBadge from '../Shared/MonthComparisonBadge';
 import { isRecordLocked } from '../../utils/validators';
 import { formatWhatsApp } from '../../utils/formatters';
 import { useSmallGroupForm } from '../../hooks/useSmallGroupForm';
+import { useMonthComparison } from '../../hooks/useMonthComparison';
 
 interface FormProps {
   unit: Unit;
@@ -16,6 +18,7 @@ interface FormProps {
   users: User[];
   currentUser: User;
   history: SmallGroup[];
+  allHistory?: SmallGroup[];
   editingItem?: SmallGroup;
   isLoading?: boolean;
   onDelete: (id: string) => void;
@@ -24,7 +27,8 @@ interface FormProps {
   isActive?: boolean;
 }
 
-const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, history, editingItem, isLoading, onSubmit, onDelete, onEdit, isActive }) => {
+const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, isActive }) => {
+  const monthComparison = useMonthComparison(allHistory, currentUser.id, unit);
   const {
     formData, setFormData,
     isSectorLocked, setIsSectorLocked,
@@ -74,7 +78,13 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
   ), [history, users, currentUser, isLoading, onEdit, onDelete]);
 
   return (
-    <FormScaffold title="Pequeno Grupo" subtitle={`Unidade ${unit}`} headerActions={headerActions} history={historySection}>
+    <FormScaffold
+      title="Pequeno Grupo"
+      subtitle={`Unidade ${unit}`}
+      headerActions={headerActions}
+      history={historySection}
+      compareWidget={<MonthComparisonBadge label="PGs" {...monthComparison} />}
+    >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
           {isAdmin && (
