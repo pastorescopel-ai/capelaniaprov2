@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23v",
+    "date": "2026-08-23",
+    "changes": [
+      "Ajuste: o aviso 'Toque para ampliar' da faixa de Visitas no Dashboard estava quase invisível (cinza-claro demais) -- agora aparece em azul com um brilho pulsante pra chamar atenção."
+    ]
+  },
+  {
     "version": "2026-08-23u",
     "date": "2026-08-23",
     "changes": [

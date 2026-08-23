@@ -84,8 +84,9 @@ const VisitProgressStrip: React.FC<VisitProgressStripProps> = ({ accumulated, is
         <i className={`fas fa-chevron-down text-[10px] text-slate-300 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
       </motion.div>
       {!isExpanded && (
-        <p className="text-[8px] font-black text-slate-300 uppercase tracking-wide text-right mt-1 mr-1 truncate">
-          Toque para ampliar
+        <p className="text-[9px] font-black uppercase tracking-wide text-right mt-1.5 mr-1 truncate flex items-center justify-end gap-1 text-[#005a9c]">
+          <i className="fas fa-hand-pointer text-[8px] animate-pulse"></i>
+          <span className="animate-pulse">Toque para ampliar</span>
         </p>
       )}
     </div>
