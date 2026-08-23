@@ -111,10 +111,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
             {/* CENTRAL DE NOTIFICAÇÕES (Sininho) */}
             <NotificationCenter onGoToReturnHistory={onGoToReturnHistory} />
 
-            {/* AVATAR MOBILE (OPÇÃO 2 - MORPHED) */}
+            {/* AVATAR MOBILE (OPÇÃO 2 - MORPHED) -- clicável, leva direto pro Perfil */}
             <AnimatePresence>
               {isScrolled && (
-                <motion.div 
+                <motion.button
+                  type="button"
+                  onClick={() => setActiveTab('profile')}
+                  aria-label="Ir para o Perfil"
                   initial={{ opacity: 0, scale: 0.5, x: 20 }}
                   animate={{ opacity: 1, scale: 1, x: 0 }}
                   exit={{ opacity: 0, scale: 0.5, x: 20 }}
@@ -126,7 +129,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
                   ) : (
                     <i className="fas fa-user text-[10px]"></i>
                   )}
-                </motion.div>
+                </motion.button>
               )}
             </AnimatePresence>
           </div>
@@ -182,9 +185,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
             ))}
           </nav>
 
-          {/* Perfil do Usuário Fixado na Sidebar */}
+          {/* Perfil do Usuário Fixado na Sidebar -- clicável, leva direto pro Perfil */}
           <div className="mt-auto p-4 border-t border-slate-100 bg-slate-50/50">
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-white shadow-sm border border-slate-100 group transition-all hover:shadow-md">
+            <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white shadow-sm border border-slate-100 group transition-all hover:shadow-md hover:border-blue-200 text-left"
+            >
               <div className="w-10 h-10 rounded-xl bg-[#005a9c] flex items-center justify-center text-white text-lg shadow-sm overflow-hidden flex-shrink-0">
                 {currentUser?.profilePic ? (
                   <img src={currentUser.profilePic} className="w-full h-full object-cover" alt="Perfil" />
@@ -198,7 +205,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
                   {currentUser?.role === UserRole.ADMIN ? 'Gestor' : currentUser?.role === UserRole.INTERN ? 'Estagiário' : 'Capelão'}
                 </p>
               </div>
-            </div>
+            </button>
           </div>
         </aside>
 
@@ -214,7 +221,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
                   transition={{ duration: 0.3 }}
                   className="md:hidden mb-4 flex justify-center sticky top-0 z-40"
                 >
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white rounded-full shadow-sm border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('profile')}
+                    className="inline-flex items-center gap-2 px-4 py-1.5 bg-white rounded-full shadow-sm border border-slate-200 active:scale-95 transition-transform"
+                  >
                     <div className="w-6 h-6 rounded-full bg-[#005a9c] flex items-center justify-center text-white text-[10px] shadow-sm overflow-hidden flex-shrink-0">
                       {currentUser?.profilePic ? (
                         <img src={currentUser.profilePic} className="w-full h-full object-cover" alt="Perfil" />
@@ -229,7 +240,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, curr
                         {currentUser?.role === UserRole.ADMIN ? 'Gestor' : currentUser?.role === UserRole.INTERN ? 'Estagiário' : 'Capelão'}
                       </span>
                     </div>
-                  </div>
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>

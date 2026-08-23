@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23f",
+    "date": "2026-08-23",
+    "changes": [
+      "Corrigido: clicar na sua foto de perfil (no cabeçalho, na barra lateral ou no identificador do celular) agora leva direto pra aba Perfil -- antes não fazia nada."
+    ]
+  },
+  {
     "version": "2026-08-23e",
     "date": "2026-08-23",
     "changes": [
