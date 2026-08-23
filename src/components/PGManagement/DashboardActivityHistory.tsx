@@ -30,9 +30,9 @@ const DashboardActivityHistory: React.FC<DashboardActivityHistoryProps> = ({ uni
   const { currentUser } = useAuth();
 
   const sectionRef = useRef<HTMLDivElement>(null);
-  // once: true -- entra animado ao rolar até aqui e fica assim; não fica reanimando toda vez
-  // que a seção sai e volta pra tela.
-  const isInView = useInView(sectionRef, { once: true, margin: '-80px' });
+  // once: false -- reanima toda vez que a seção entra na tela, seja rolando até ela, seja
+  // saindo da aba do Dashboard (fica display:none) e voltando.
+  const isInView = useInView(sectionRef, { once: false, margin: '-80px' });
 
   const activities = useMemo(() => {
     const isChaplain = currentUser?.role === UserRole.CHAPLAIN;
@@ -130,7 +130,7 @@ const DashboardActivityHistory: React.FC<DashboardActivityHistoryProps> = ({ uni
     <div ref={sectionRef} className="space-y-4">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
-        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
         transition={{ duration: 0.4 }}
         className="flex items-center justify-between"
       >
@@ -153,7 +153,7 @@ const DashboardActivityHistory: React.FC<DashboardActivityHistoryProps> = ({ uni
             <motion.div
               key={activity.id}
               initial={{ opacity: 0, x: -20 }}
-              animate={isInView ? { opacity: 1, x: 0 } : {}}
+              animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
               transition={{ delay: idx * 0.05, duration: 0.35 }}
               whileHover={{ x: 4 }}
               className="group p-5 hover:bg-slate-50/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"

@@ -100,19 +100,20 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     switch (tabId) {
       case 'dashboard':
         return (
-          <Dashboard 
+          <Dashboard
             unit={currentUnit}
-            studies={bibleStudies} 
-            classes={bibleClasses} 
-            groups={smallGroups} 
-            visits={staffVisits} 
-            currentUser={currentUser} 
-            config={config} 
-            onGoToTab={setActiveTab} 
+            studies={bibleStudies}
+            classes={bibleClasses}
+            groups={smallGroups}
+            visits={staffVisits}
+            currentUser={currentUser}
+            config={config}
+            onGoToTab={setActiveTab}
             onRegisterMission={onRegisterMission}
             onGoToReturnHistory={onGoToReturnHistory}
-            onUpdateConfig={c => saveToCloud({config: c}, false)} 
-            onUpdateUser={u => saveRecord('users', u)} 
+            onUpdateConfig={c => saveToCloud({config: c}, false)}
+            onUpdateUser={u => saveRecord('users', u)}
+            isVisible={isVisible}
           />
         );
       case 'bibleStudy':

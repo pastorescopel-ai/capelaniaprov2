@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-23e",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: gráficos do Dashboard modernizados. 'Desempenho Individual' agora é um ranking de barras horizontais (a atividade com mais registros aparece primeiro) e 'Impacto Global' virou um comparativo de pontos ligados por categoria (mês anterior → mês atual, verde se subiu e rosa se caiu). Ambos são clicáveis: tocar numa barra ou ponto leva direto pro formulário daquele tipo de registro.",
+      "Corrigido: as animações de entrada do Dashboard (cartões, gráficos, histórico) só tocavam da primeira vez -- agora voltam a acontecer toda vez que você sai da aba e retorna."
+    ]
+  },
+  {
     "version": "2026-08-23d",
     "date": "2026-08-23",
     "changes": [

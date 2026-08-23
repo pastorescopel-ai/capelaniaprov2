@@ -24,10 +24,16 @@ interface DashboardProps {
   onGoToReturnHistory: (visit?: any) => void;
   onUpdateConfig: (newConfig: Config) => any;
   onUpdateUser: (updatedUser: User) => any;
+  // MainContent.tsx mantém as abas já visitadas montadas (só alterna display:none/block pra
+  // trocar de aba, nunca desmonta) -- sem saber quando a aba realmente está visível, as
+  // animações de entrada só tocavam na primeira vez que o Dashboard aparecia na sessão inteira.
+  // Usado pra reanimar os trechos que não dependem de rolagem (useInView cuida sozinho dos que
+  // dependem).
+  isVisible?: boolean;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
-  unit, studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onGoToReturnHistory, onUpdateConfig
+  unit, studies, classes, groups, visits, currentUser, config, onGoToTab, onRegisterMission, onGoToReturnHistory, onUpdateConfig, isVisible = true
 }) => {
   const { visitRequests, users, isInitialized, proMonthlyStats } = useApp();
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().split('T')[0].substring(0, 7));
@@ -92,7 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <motion.div
           onClick={() => onGoToReturnHistory(todaysReturns[0])}
           initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0, scale: [0.96, 1.02, 1] }}
+          animate={isVisible ? { opacity: 1, y: 0, scale: [0.96, 1.02, 1] } : { opacity: 0, y: -10 }}
           transition={{ duration: 0.6, ease: 'easeOut', times: [0, 0.6, 1] }}
           whileHover={{ y: -2 }}
           className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-amber-100 transition-colors"
@@ -110,7 +116,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <motion.div
           onClick={() => onGoToReturnHistory(pendingReturns[0])}
           initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
+          animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
           whileHover={{ y: -2 }}
           className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-slate-100 transition-colors"
@@ -143,7 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           capelão não deveria precisar trocar de unidade só pra ver a própria escala, e o card
           já exibe um selo (HAB/HABA) em cada item. Ao clicar em "Registrar Visita", a unidade
           correta é assumida automaticamente (ver handleRegisterMission em App.tsx). */}
-      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05, ease: 'easeOut' }}>
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }} transition={{ duration: 0.45, delay: 0.05, ease: 'easeOut' }}>
         <VisitRequestsWidget
           requests={visitRequests || []}
           currentUser={currentUser}
@@ -153,12 +159,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       </motion.div>
 
       {/* Metas de Visitas (VisitGoalWidget) */}
-      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.1, ease: 'easeOut' }}>
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }} transition={{ duration: 0.45, delay: 0.1, ease: 'easeOut' }}>
         <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
       </motion.div>
 
       {/* Cartões de Estatísticas */}
-      <StatCards stats={stats} />
+      <StatCards stats={stats} isVisible={isVisible} />
 
       {/* Gráficos de Impacto -- só animam ao entrar na tela (ver useInView dentro do próprio
           componente), pra quem já está com o Dashboard aberto não ver tudo disparando de uma
@@ -170,6 +176,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         { name: 'Visitas', val: monthlyVisits.length },
       ]}
         globalData={globalImpact}
+        onGoToTab={onGoToTab}
         comparisonMode={comparisonMode}
         onComparisonModeChange={setComparisonMode}
         availableMonths={availableMonths}
