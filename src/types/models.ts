@@ -180,6 +180,10 @@ export interface Config {
   lastModifiedAt?: number;
   headerProfiles?: Record<string, HeaderProfile>;
   activeCompetenceMonth?: string; // YYYY-MM-01 (Mês de competência ativo para o sistema)
+  // Meta mensal de visitas da EQUIPE (não confundir com a meta individual de cada capelão,
+  // calculada em useVisitGoals) -- usada pelo mural dinâmico pra dizer "faltam X visitas pra
+  // batermos a meta do mês". Número fixo definido pelo admin, não recalculado sozinho.
+  monthlyTeamVisitGoal?: number;
   createdAt?: number;
   updatedAt?: number;
 }

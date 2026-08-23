@@ -90,7 +90,15 @@ const Dashboard: React.FC<DashboardProps> = ({
     <div className="space-y-6 pb-24">
       {/* Header Row: Mural */}
       <div className="w-full">
-        <Mural config={config} userRole={currentUser.role} onUpdateConfig={onUpdateConfig} />
+        <Mural
+          config={config}
+          userRole={currentUser.role}
+          onUpdateConfig={onUpdateConfig}
+          visits={visits}
+          pendingReturnsCount={pendingReturns.length}
+          currentUserFirstName={currentUser.name?.split(' ')[0] || ''}
+          isVisible={isVisible}
+        />
       </div>
 
       {/* Notificações de Retorno */}

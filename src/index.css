@@ -121,3 +121,28 @@ button:not(:disabled):not([class*="active:scale"]):active,
 .animate-bounce-subtle {
   animation: bounce-subtle 0.5s ease-in-out 2;
 }
+
+/* Brilho que varre o texto do mural dinâmico (mês/números em destaque) -- gradiente
+   branco → âmbar → branco recortado no próprio texto (background-clip: text), deslizando
+   devagar. Usado só nos trechos calculados automaticamente, nunca no aviso escrito à mão
+   pelo admin. */
+@keyframes shimmer-sweep {
+  to { background-position: -150% center; }
+}
+.shimmer-text {
+  background-image: linear-gradient(100deg,
+    rgba(255,255,255,.8) 30%,
+    #ffffff 45%,
+    #fbbf24 50%,
+    #ffffff 55%,
+    rgba(255,255,255,.8) 70%
+  );
+  background-size: 250% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer-sweep 3.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-text { animation: none; }
+}

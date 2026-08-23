@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-23g",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: mural dinâmico. Quando não há aviso escrito pelo admin, o mural passa a alternar sozinho entre 3 mensagens com dados reais do mês (progresso da meta de visitas da equipe, dias para o fechamento, ou retornos pendentes) -- o mês e os números aparecem com um leve efeito de brilho. Sorteia uma mensagem nova toda vez que você volta pra aba do Dashboard. Escrever um aviso manual continua funcionando normalmente e pausa as mensagens automáticas enquanto ele existir.",
+      "Novo: admin agora pode definir a meta mensal de visitas da equipe (usada no mural dinâmico) direto no botão de editar o mural."
+    ]
+  },
+  {
     "version": "2026-08-23f",
     "date": "2026-08-23",
     "changes": [
