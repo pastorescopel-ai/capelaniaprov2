@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useToast } from '../contexts/ToastContext';
 
@@ -9,6 +9,11 @@ import { useToast } from '../contexts/ToastContext';
 const NotificationSettings: React.FC = () => {
   const { isSupported, permission, isSubscribed, isBusy, subscribe, unsubscribe } = usePushNotifications();
   const { showToast } = useToast();
+  // Uma vez que o navegador bloqueia notificações pra um site, ele nunca mais mostra o
+  // pedido de permissão sozinho -- só dá pra reverter mudando a configuração do próprio
+  // navegador. Isso não é um bug do app; um toast que some em poucos segundos não dá tempo
+  // de ler o passo a passo, então esse aviso fica fixo na tela até a pessoa fechar.
+  const [showUnblockHelp, setShowUnblockHelp] = useState(false);
 
   const isIOSNotStandalone = typeof window !== 'undefined'
     && /iphone|ipad|ipod/i.test(navigator.userAgent)
@@ -23,8 +28,8 @@ const NotificationSettings: React.FC = () => {
     const result = await subscribe();
     if (result.success) {
       showToast('Lembrete diário ativado! Você vai receber um aviso às 12h e às 18h.', 'success');
-    } else if (permission === 'denied') {
-      showToast('As notificações estão bloqueadas nas configurações do navegador. Ative lá para poder ligar o lembrete aqui.', 'error');
+    } else if (permission === 'denied' || result.error === 'Permissão não concedida.') {
+      setShowUnblockHelp(true);
     } else {
       showToast(result.error || 'Não foi possível ativar as notificações agora.', 'error');
     }
@@ -49,6 +54,30 @@ const NotificationSettings: React.FC = () => {
         <p className="text-[10px] font-bold text-amber-600 uppercase leading-relaxed">
           <i className="fas fa-info-circle mr-1"></i> No iPhone/iPad, instale o app na tela de início primeiro (veja o aviso "Instalar App") — depois volte aqui para ativar.
         </p>
+      )}
+
+      {(showUnblockHelp || (isSupported && permission === 'denied')) && (
+        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-[10px] font-black text-rose-700 uppercase tracking-widest leading-relaxed">
+              <i className="fas fa-ban mr-1"></i> As notificações estão bloqueadas para este site
+            </p>
+            <button onClick={() => setShowUnblockHelp(false)} className="text-rose-300 hover:text-rose-500 flex-shrink-0" aria-label="Fechar">
+              <i className="fas fa-times text-xs"></i>
+            </button>
+          </div>
+          <p className="text-xs text-rose-700 font-medium leading-relaxed">
+            Isso acontece quando o próprio navegador bloqueia (por exemplo, depois de "Bloquear" num pedido de permissão anterior) — uma vez bloqueado, o navegador nunca pergunta de novo sozinho. Pra reativar, é preciso mudar isso direto na configuração do navegador:
+          </p>
+          <ul className="text-xs text-rose-700 font-medium leading-relaxed space-y-1.5 list-disc pl-4">
+            <li><b>Chrome/Edge (computador):</b> clique no cadeado (ou ícone "ⓘ") ao lado do endereço do site → Notificações → Permitir.</li>
+            <li><b>Chrome (Android):</b> toque nos 3 pontinhos → Informações do site → Notificações → Permitir.</li>
+            <li><b>Safari (iPhone/iPad):</b> Ajustes do iPhone → Notificações → procure o app instalado → ative.</li>
+          </ul>
+          <p className="text-xs text-rose-700 font-medium leading-relaxed">
+            Depois de permitir lá, volte aqui e toque em "Ativar Lembrete Diário" de novo.
+          </p>
+        </div>
       )}
 
       {isSupported && (

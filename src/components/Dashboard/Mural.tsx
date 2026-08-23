@@ -66,6 +66,12 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
   const dynamicMessages: DynamicMessage[] = useMemo(() => {
     const list: DynamicMessage[] = [];
 
+    // Toda mensagem começa com "Bem-vindo(a), {Nome}!" -- a saudação deixou de ser uma
+    // mensagem à parte (era só uma das 7) e virou a abertura fixa de todas elas, sempre
+    // seguida do conteúdo específico como uma segunda frase (às vezes uma terceira, nos
+    // lembretes, pra ficar mais fácil de lembrar).
+    const greeting = `Bem-vindo(a)${currentUserFirstName ? `, ${currentUserFirstName}` : ''}! `;
+
     // 1. Total de visitas da equipe no mês -- sempre entra no rodízio (dado real, não depende
     // de configuração nenhuma); só ganha o "faltam X pra meta" quando o admin já configurou
     // uma meta mensal. Sem essa parte incondicional, num app recém-configurado (sem meta e sem
@@ -73,38 +79,39 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
     // fazendo parecer que o mural tinha "travado" numa mensagem só.
     list.push({
       parts: teamDeficit !== null && teamDeficit > 0 ? [
-        'Em ', { shimmer: monthName }, ', a equipe já realizou ', { shimmer: `${teamVisitsThisMonth} visitas` },
+        greeting, 'Em ', { shimmer: monthName }, ', a equipe já realizou ', { shimmer: `${teamVisitsThisMonth} visitas` },
         ' -- faltam ', { shimmer: `${teamDeficit}` }, ' para batermos a meta do mês.'
       ] : teamDeficit === 0 ? [
-        { shimmer: `Meta de ${monthName} batida!` }, ' A equipe já realizou ', { shimmer: `${teamVisitsThisMonth} visitas` }, ' este mês. 🙏'
+        greeting, { shimmer: `Meta de ${monthName} batida!` }, ' A equipe já realizou ', { shimmer: `${teamVisitsThisMonth} visitas` }, ' este mês. 🙏'
       ] : [
-        'Em ', { shimmer: monthName }, ', a equipe já realizou ', { shimmer: `${teamVisitsThisMonth} visitas` }, ' -- continue assim!'
+        greeting, 'Em ', { shimmer: monthName }, ', a equipe já realizou ', { shimmer: `${teamVisitsThisMonth} visitas` }, ' -- continue assim!'
       ]
     });
 
-    // 2. Contagem regressiva pro fechamento do mês.
+    // 2. Contagem regressiva pro fechamento do mês (lembrete -- duas frases: o fato, depois o
+    // que fazer a respeito).
     list.push({
       parts: daysLeftInMonth > 0 ? [
-        'Faltam ', { shimmer: `${daysLeftInMonth} dia${daysLeftInMonth === 1 ? '' : 's'}` },
-        ' para o fechamento de ', { shimmer: monthName }, ' -- hora de revisar seus registros.'
+        greeting, 'Faltam ', { shimmer: `${daysLeftInMonth} dia${daysLeftInMonth === 1 ? '' : 's'}` },
+        ' para o fechamento de ', { shimmer: monthName }, '. Aproveite para revisar seus registros.'
       ] : [
-        { shimmer: `Último dia de ${monthName}` }, '! Confira se todos os seus registros estão em dia.'
+        greeting, { shimmer: `Último dia de ${monthName}` }, '. Confira se todos os seus registros estão em dia.'
       ]
     });
 
-    // 3. Saudação pessoal -- sempre entra no rodízio; ganha o aviso de retornos pendentes
-    // quando existir algum, senão fica só a saudação com o mês em destaque.
-    list.push({
-      parts: pendingReturnsCount > 0 ? [
-        `Bem-vindo(a) de volta${currentUserFirstName ? `, ${currentUserFirstName}` : ''}! Estamos em `, { shimmer: monthName },
-        ' -- ', { shimmer: `${pendingReturnsCount} colaborador${pendingReturnsCount === 1 ? '' : 'es'}` }, ' aguardando retorno.'
-      ] : [
-        `Bem-vindo(a) de volta${currentUserFirstName ? `, ${currentUserFirstName}` : ''}! Estamos em `, { shimmer: monthName }, ' -- que seu trabalho continue sendo de bênção. 🙏'
-      ]
-    });
+    // 3. Retornos pendentes -- só entra no rodízio quando existe algum de verdade.
+    if (pendingReturnsCount > 0) {
+      list.push({
+        parts: [
+          greeting, 'Estamos em ', { shimmer: monthName }, ' -- ',
+          { shimmer: `${pendingReturnsCount} colaborador${pendingReturnsCount === 1 ? '' : 'es'}` }, ' aguardando retorno.'
+        ]
+      });
+    }
 
     // 4. Lembrete de lançamento pendente (Estudos/Classes/PGs) -- só a partir do 5º dia do mês,
     // pra não soar como cobrança logo no início (é normal ainda não ter nada lançado no dia 2).
+    // Duas frases: o que falta, depois o convite pra agir.
     if (now.getDate() >= 5) {
       const missing: string[] = [];
       if (monthlyStudiesCount === 0) missing.push('Estudo Bíblico');
@@ -117,8 +124,8 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
           : `${missing.slice(0, -1).join(', ')} e ${missing[missing.length - 1]}`;
         list.push({
           parts: [
-            'Ainda sem nenhum registro de ', { shimmer: missingLabel }, ' em ', { shimmer: monthName },
-            ' -- não esqueça de lançar suas atividades!'
+            greeting, 'Ainda sem nenhum registro de ', { shimmer: missingLabel }, ' em ', { shimmer: monthName },
+            '. Não esqueça de lançar suas atividades hoje mesmo!'
           ]
         });
       }
@@ -128,10 +135,10 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
     if (visitGoal) {
       list.push({
         parts: visitGoal.deficit > 0 ? [
-          'Suas visitas em ', { shimmer: monthName }, ': ', { shimmer: `${visitGoal.current} de ${visitGoal.expected}` },
+          greeting, 'Suas visitas em ', { shimmer: monthName }, ': ', { shimmer: `${visitGoal.current} de ${visitGoal.expected}` },
           ' esperadas -- faltam ', { shimmer: `${visitGoal.deficit}` }, ' pro seu alvo individual.'
         ] : [
-          { shimmer: `Alvo de ${monthName} batido!` }, ' Você já fez ', { shimmer: `${visitGoal.current} visitas` }, ' este mês. 🎉'
+          greeting, { shimmer: `Alvo de ${monthName} batido!` }, ' Você já fez ', { shimmer: `${visitGoal.current} visitas` }, ' este mês. 🎉'
         ]
       });
     }
@@ -141,13 +148,13 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
       const delta = monthlyStudiesCount - prevMonthStudiesCount;
       list.push({
         parts: delta > 0 ? [
-          'Você já registrou ', { shimmer: `${monthlyStudiesCount} Estudos Bíblicos` }, ' em ', { shimmer: monthName },
+          greeting, 'Você já registrou ', { shimmer: `${monthlyStudiesCount} Estudos Bíblicos` }, ' em ', { shimmer: monthName },
           ' -- ', { shimmer: `${delta} a mais` }, ' que no mês passado!'
         ] : delta < 0 ? [
-          'Você registrou ', { shimmer: `${monthlyStudiesCount} Estudos Bíblicos` }, ' em ', { shimmer: monthName },
+          greeting, 'Você registrou ', { shimmer: `${monthlyStudiesCount} Estudos Bíblicos` }, ' em ', { shimmer: monthName },
           ', ', { shimmer: `${Math.abs(delta)} a menos` }, ' que no mês passado.'
         ] : [
-          'Você já registrou ', { shimmer: `${monthlyStudiesCount} Estudos Bíblicos` }, ' em ', { shimmer: monthName }, ' -- igual ao mês passado.'
+          greeting, 'Você já registrou ', { shimmer: `${monthlyStudiesCount} Estudos Bíblicos` }, ' em ', { shimmer: monthName }, ' -- igual ao mês passado.'
         ]
       });
     }
@@ -157,13 +164,13 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
       const delta = monthlyClassesCount - prevMonthClassesCount;
       list.push({
         parts: delta > 0 ? [
-          'Você já registrou ', { shimmer: `${monthlyClassesCount} Classes Bíblicas` }, ' em ', { shimmer: monthName },
+          greeting, 'Você já registrou ', { shimmer: `${monthlyClassesCount} Classes Bíblicas` }, ' em ', { shimmer: monthName },
           ' -- ', { shimmer: `${delta} a mais` }, ' que no mês passado!'
         ] : delta < 0 ? [
-          'Você registrou ', { shimmer: `${monthlyClassesCount} Classes Bíblicas` }, ' em ', { shimmer: monthName },
+          greeting, 'Você registrou ', { shimmer: `${monthlyClassesCount} Classes Bíblicas` }, ' em ', { shimmer: monthName },
           ', ', { shimmer: `${Math.abs(delta)} a menos` }, ' que no mês passado.'
         ] : [
-          'Você já registrou ', { shimmer: `${monthlyClassesCount} Classes Bíblicas` }, ' em ', { shimmer: monthName }, ' -- igual ao mês passado.'
+          greeting, 'Você já registrou ', { shimmer: `${monthlyClassesCount} Classes Bíblicas` }, ' em ', { shimmer: monthName }, ' -- igual ao mês passado.'
         ]
       });
     }

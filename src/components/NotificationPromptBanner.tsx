@@ -51,6 +51,10 @@ const NotificationPromptBanner: React.FC = () => {
     if (result.success) {
       showToast('Lembrete diário ativado! Você vai receber um aviso às 12h e às 18h.', 'success');
       setVisible(false);
+    } else if (result.error === 'Permissão não concedida.') {
+      // O navegador bloqueou de vez (não é algo que dá pra resolver reagindo aqui de novo) --
+      // o passo a passo pra desbloquear fica em Perfil, onde tem espaço pra explicar direito.
+      showToast('Notificações bloqueadas pelo navegador. Veja como desbloquear em Perfil > Lembrete Diário.', 'error');
     } else {
       showToast(result.error || 'Não foi possível ativar as notificações agora.', 'error');
     }

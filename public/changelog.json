@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-23l",
+    "date": "2026-08-23",
+    "changes": [
+      "Mural dinâmico: todas as mensagens agora começam com 'Bem-vindo(a), [seu nome]!' e os lembretes ganharam uma segunda frase, pra ficar mais fácil de lembrar do que fazer.",
+      "Novo: quando as notificações estão bloqueadas pelo próprio navegador (não tem como o app pedir de novo sozinho), a tela de Perfil agora mostra o passo a passo pra desbloquear em vez de só um aviso genérico."
+    ]
+  },
+  {
     "version": "2026-08-23k",
     "date": "2026-08-23",
     "changes": [
