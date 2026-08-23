@@ -15,8 +15,9 @@ interface AdherenceRankingProps {
   // Passe `null` explicitamente pra esconder de vez a linha/legenda de meta (contextos sem uma
   // meta definida, ex: engajamento de Embaixadores) -- omitir o prop mantém a meta padrão 80%.
   metaPct?: number | null;
-  // false depois da primeira entrada na tela neste login -- aí a barra já nasce no valor
-  // final, sem crescer, pra não ficar reanimando à toa numa lista que pode ter muitos itens.
+  // Normalmente true -- quem controla se isso reanima ou não é o `key` que o componente pai
+  // (ex: PGDashboard.tsx) dá pra esta lista: um remonte reanima do zero, um re-render comum
+  // (busca, filtro) não.
   animate?: boolean;
 }
 

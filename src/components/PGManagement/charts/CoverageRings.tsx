@@ -12,9 +12,8 @@ interface RingDatum {
 interface CoverageRingsProps {
   outer: RingDatum;
   inner: RingDatum;
-  // false depois da primeira entrada na tela neste login (ver PGDashboard.tsx) -- aí o anel
-  // aparece direto no valor final, sem crescer, pra não ficar reanimando à toa toda vez que a
-  // pessoa troca de sub-aba dentro de Gestão de PGs.
+  // Normalmente true -- PGDashboard.tsx dá um `key` novo pro componente toda vez que a pessoa
+  // sai da aba de Gestão de PGs e volta, forçando um remonte que reanima o anel do zero.
   animate?: boolean;
 }
 

@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-23z",
+    "date": "2026-08-23",
+    "changes": [
+      "Melhorado: os gráficos de Cobertura de Discipulado e Ranking de Adesão (Gestão de PGs) agora reanimam do zero toda vez que você sai da aba e volta, em vez de só na primeira entrada depois de logar.",
+      "Ajuste: o mini gráfico 'vs. mês anterior' dos 4 formulários agora usa fundo verde claro quando o mês está subindo, vermelho claro quando caiu, e amarelo claro quando está igual ao mês passado."
+    ]
+  },
+  {
     "version": "2026-08-23y",
     "date": "2026-08-23",
     "changes": [

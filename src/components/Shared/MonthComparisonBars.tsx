@@ -34,19 +34,27 @@ const Bar: React.FC<{ heightPx: number; color: string; delay: number }> = ({ hei
 const MonthComparisonBars: React.FC<MonthComparisonBarsProps> = ({ label, color, current, prev, deltaPct, prevMonthLabel }) => {
   const barsMaxHeightPx = 40;
   const max = Math.max(current, prev, 1);
-  const isDown = prev > 0 && current < prev;
+  const isDown = current < prev;
   const isUp = current > prev;
+  // "Mês igual" (neutro) é current === prev, incluindo os dois zerados -- fundo amarelo claro
+  // pra diferenciar de "subiu" (verde) e "caiu" (vermelho), a pedido do usuário.
+  const tone = isUp
+    ? 'bg-emerald-50 border-emerald-100'
+    : isDown
+    ? 'bg-rose-50 border-rose-100'
+    : 'bg-amber-50 border-amber-100';
+  const numberTone = isUp ? 'text-emerald-700' : isDown ? 'text-rose-600' : 'text-amber-700';
 
   return (
     <motion.div
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={`inline-flex items-center gap-4 px-4 py-2.5 rounded-2xl border ${isDown ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'}`}
+      className={`inline-flex items-center gap-4 px-4 py-2.5 rounded-2xl border ${tone}`}
     >
       <div className="flex flex-col">
         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label} este mês</span>
-        <span className={`text-lg font-black leading-tight ${isDown ? 'text-rose-600' : 'text-slate-800'}`}>{current}</span>
+        <span className={`text-lg font-black leading-tight ${numberTone}`}>{current}</span>
       </div>
 
       <div className="flex items-end justify-center gap-2.5" style={{ height: barsMaxHeightPx }}>
@@ -62,7 +70,7 @@ const MonthComparisonBars: React.FC<MonthComparisonBarsProps> = ({ label, color,
 
       <div className="flex flex-col items-start gap-0.5">
         <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
-          isUp ? 'bg-emerald-100 text-emerald-700' : isDown ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-500'
+          isUp ? 'bg-emerald-100 text-emerald-700' : isDown ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
         }`}>
           {isUp ? '▲' : isDown ? '▼' : '='} {Math.abs(deltaPct)}%
         </span>

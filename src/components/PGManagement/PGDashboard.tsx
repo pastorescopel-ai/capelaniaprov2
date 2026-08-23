@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect, memo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, memo } from 'react';
 import { Unit, ProHistoryRecord } from '../../types';
 import { usePro } from '../../contexts/ProContext';
 import { useApp } from '../../hooks/useApp';
@@ -12,7 +12,6 @@ import { toCamel } from '../../utils/transformers';
 import { Loader2 } from 'lucide-react';
 import CoverageRings from './charts/CoverageRings';
 import AdherenceRanking from './charts/AdherenceRanking';
-import { shouldAnimateThisSession } from '../../hooks/useAnimateOncePerSession';
 
 
 const PGDashboard = memo(({ unit, isVisible = true }: { unit: Unit; isVisible?: boolean }) => {
@@ -25,11 +24,19 @@ const PGDashboard = memo(({ unit, isVisible = true }: { unit: Unit; isVisible?: 
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [statusModalConfig, setStatusModalConfig] = useState<{ title: string, message: string, type: 'success' | 'error' | 'warning' }>({ title: '', message: '', type: 'success' });
   const [selectedSectorStaff, setSelectedSectorStaff] = useState<{name: string, staff: any[]} | null>(null);
-  // Os gráficos (anéis de cobertura + ranking de adesão) só animam a primeira vez que a pessoa
-  // entra nesta tela depois de logar -- trocar de sub-aba dentro de Gestão de PGs e voltar
-  // remonta este componente, mas não deve reanimar de novo; só um novo login libera de novo
-  // (ver clearSessionAnimationFlags, chamado no logout em AuthProvider.tsx).
-  const [animateCharts] = useState(() => shouldAnimateThisSession('pgDashboardCharts'));
+  // Os gráficos (anéis de cobertura + ranking de adesão) sempre reanimam do zero toda vez que
+  // a pessoa sai da aba de Gestão de PGs e volta -- o componente fica montado (só escondido
+  // via CSS, ver MainContent.tsx), então detectamos a transição hidden->visível aqui e damos
+  // um novo `key` pros gráficos, forçando eles a remontar do zero (em vez de ficar gatilhando
+  // reanimação a cada busca/filtro digitado, que só re-renderiza sem trocar de aba).
+  const [chartAnimKey, setChartAnimKey] = useState(0);
+  const wasVisibleRef = useRef(isVisible);
+  useEffect(() => {
+    if (isVisible && !wasVisibleRef.current) {
+      setChartAnimKey(k => k + 1);
+    }
+    wasVisibleRef.current = isVisible;
+  }, [isVisible]);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     return config.activeCompetenceMonth || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
@@ -221,9 +228,10 @@ const PGDashboard = memo(({ unit, isVisible = true }: { unit: Unit; isVisible?: 
           </div>
           
           <CoverageRings
+            key={chartAnimKey}
             outer={{ label: unit, pct: metrics.globalPercentage, color: 'text-[#005a9c]' }}
             inner={{ label: otherUnit, pct: otherMetrics.globalPercentage, color: 'text-amber-400' }}
-            animate={animateCharts}
+            animate={true}
           />
         </div>
       </div>
@@ -262,6 +270,7 @@ const PGDashboard = memo(({ unit, isVisible = true }: { unit: Unit; isVisible?: 
       {/* Ranking de Adesão -- versão compacta e ordenada dos mesmos dados dos cards abaixo,
           pra deixar óbvio quem precisa de atenção primeiro sem ter que ler card por card. */}
       <AdherenceRanking
+        key={chartAnimKey}
         title={`Ranking de ${filterType === 'sector' ? 'Setores' : 'PGs'} por Adesão`}
         data={metrics.displaySectors.map((data: any) => ({
           id: data.sector.id,
@@ -269,7 +278,7 @@ const PGDashboard = memo(({ unit, isVisible = true }: { unit: Unit; isVisible?: 
           pct: data.percentage,
           onClick: () => setSelectedSectorStaff({ name: data.sector.name, staff: data.staffList || [] })
         }))}
-        animate={animateCharts}
+        animate={true}
       />
 
       {/* Lista de Setores */}
