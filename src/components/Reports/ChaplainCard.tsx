@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { BibleStudy, BibleClass, SmallGroup, StaffVisit } from '../../types';
+import { BibleStudy, BibleClass, SmallGroup, StaffVisit, Unit } from '../../types';
+import { ensureISODate, getStudentKey, countUniqueClasses } from '../../utils/formatters';
 import ChaplainPanorama from './ChaplainPanorama';
 
 interface ChaplainCardProps {
@@ -18,6 +19,9 @@ const SEGMENT_COLORS = {
   groups: 'bg-emerald-500',
   visits: 'bg-rose-500',
 };
+
+const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const MONTH_NAMES_FULL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 // Mini barra de composição -- o mesmo espírito do "mix de atividades" do mockup, só que por
 // capelão em vez de por mês: mostra de relance pra onde o esforço dessa pessoa foi (mais
@@ -51,10 +55,71 @@ const CompositionBar: React.FC<{ data: { studies: number; classes: number; group
   );
 };
 
+const emptyUnitStats = () => ({ studies: 0, classes: 0, groups: 0, visits: 0, total: 0, students: 0 });
+
 const ChaplainCard: React.FC<ChaplainCardProps> = ({ stat, avgTeamActions, studies, classes, groups, visits }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const hasHab = stat.hab.total > 0 || stat.hab.students > 0;
-  const hasHaba = stat.haba.total > 0 || stat.haba.students > 0;
+  const userId = stat.user.id;
+
+  // Últimos 6 meses reais de calendário, com a mesma quebra por unidade (HAB/HABA) que os
+  // cartões de cima já mostram pro período todo do filtro de Relatórios -- clicar num mês no
+  // Panorama troca ESSES números pelos do mês escolhido, em vez de só atualizar o KPI
+  // "Alunos" isolado como fazia antes.
+  const months = useMemo(() => {
+    const now = new Date();
+    const list: { key: string; label: string; fullLabel: string }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      list.push({
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: MONTH_NAMES_SHORT[d.getMonth()],
+        fullLabel: MONTH_NAMES_FULL[d.getMonth()],
+      });
+    }
+    return list;
+  }, []);
+
+  const userStudies = useMemo(() => (studies || []).filter(s => s.userId === userId), [studies, userId]);
+  const userClasses = useMemo(() => (classes || []).filter(c => c.userId === userId), [classes, userId]);
+  const userGroups = useMemo(() => (groups || []).filter(g => g.userId === userId), [groups, userId]);
+  const userVisits = useMemo(() => (visits || []).filter(v => v.userId === userId), [visits, userId]);
+
+  const monthBuckets = useMemo(() => {
+    const getUnitStats = (list: { studies: any[]; classes: any[]; groups: any[]; visits: any[] }, unit: Unit) => {
+      const uS = list.studies.filter(i => (i.unit || Unit.HAB) === unit);
+      const uC = list.classes.filter(i => (i.unit || Unit.HAB) === unit);
+      const uG = list.groups.filter(i => (i.unit || Unit.HAB) === unit);
+      const uV = list.visits.filter(i => (i.unit || Unit.HAB) === unit);
+      const names = new Set<string>();
+      uS.forEach(s => { const key = getStudentKey(s.name, s.staffId || s.participantId); if (key) names.add(key); });
+      uC.forEach(c => (c.students || []).forEach((n: any) => { const key = getStudentKey(n); if (key) names.add(key); }));
+      const uniqueClasses = countUniqueClasses(uC);
+      return { students: names.size, studies: uS.length, classes: uniqueClasses, groups: uG.length, visits: uV.length, total: uS.length + uniqueClasses + uG.length + uV.length };
+    };
+
+    return months.map(m => {
+      const monthList = {
+        studies: userStudies.filter(s => ensureISODate(s.date)?.startsWith(m.key)),
+        classes: userClasses.filter(c => ensureISODate(c.date)?.startsWith(m.key)),
+        groups: userGroups.filter(g => ensureISODate(g.date)?.startsWith(m.key)),
+        visits: userVisits.filter(v => ensureISODate(v.date)?.startsWith(m.key)),
+      };
+      const hab = getUnitStats(monthList, Unit.HAB);
+      const haba = getUnitStats(monthList, Unit.HABA);
+      return { ...m, hab, haba, total: hab.total + haba.total, students: hab.students + haba.students };
+    });
+  }, [months, userStudies, userClasses, userGroups, userVisits]);
+
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string | null>(null);
+  const selectedBucket = selectedMonthKey ? monthBuckets.find(m => m.key === selectedMonthKey) : null;
+
+  const displayHab = selectedBucket ? selectedBucket.hab : (stat.hab || emptyUnitStats());
+  const displayHaba = selectedBucket ? selectedBucket.haba : (stat.haba || emptyUnitStats());
+  const displayTotalActions = selectedBucket ? selectedBucket.total : stat.totalActions;
+  const displayStudents = selectedBucket ? selectedBucket.students : stat.students;
+
+  const hasHab = displayHab.total > 0 || displayHab.students > 0;
+  const hasHaba = displayHaba.total > 0 || displayHaba.students > 0;
   const showBoth = (hasHab && hasHaba) || (!hasHab && !hasHaba);
 
   const renderUnitDetails = (title: string, data: any, colorClass: string, textClass: string) => (
@@ -105,30 +170,41 @@ const ChaplainCard: React.FC<ChaplainCardProps> = ({ stat, avgTeamActions, studi
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter truncate">{stat.name}</h3>
-          <div className="flex gap-2 mt-1">
-            <span className="text-[8px] font-black uppercase bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md">Total Alunos: {stat.students}</span>
-            <span className="text-[8px] font-black uppercase bg-slate-800 text-white px-2 py-0.5 rounded-md">{stat.totalActions} Ações Globais</span>
+          <div className="flex gap-2 mt-1 flex-wrap items-center">
+            <span className="text-[8px] font-black uppercase bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md">Total Alunos: {displayStudents}</span>
+            <span className="text-[8px] font-black uppercase bg-slate-800 text-white px-2 py-0.5 rounded-md">{displayTotalActions} Ações {selectedBucket ? '' : 'Globais'}</span>
+            {selectedBucket && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setSelectedMonthKey(null); }}
+                className="text-[8px] font-black uppercase bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md flex items-center gap-1 hover:bg-amber-200 transition-colors"
+              >
+                {selectedBucket.fullLabel} <i className="fas fa-times text-[7px]"></i>
+              </button>
+            )}
           </div>
         </div>
         <i className={`fas fa-chevron-down text-slate-300 text-xs flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        {(hasHab || showBoth) && renderUnitDetails('HAB', stat.hab, 'bg-blue-50', 'text-blue-700')}
-        {(hasHaba || showBoth) && renderUnitDetails('HABA', stat.haba, 'bg-amber-50', 'text-amber-700')}
+        {(hasHab || showBoth) && renderUnitDetails('HAB', displayHab, 'bg-blue-50', 'text-blue-700')}
+        {(hasHaba || showBoth) && renderUnitDetails('HABA', displayHaba, 'bg-amber-50', 'text-amber-700')}
       </div>
 
       {isOpen && (
         <div onClick={(e) => e.stopPropagation()} className="cursor-default">
           <ChaplainPanorama
-            userId={stat.user.id}
             userName={stat.name}
             totalActions={stat.totalActions}
             avgTeamActions={avgTeamActions}
-            studies={studies}
-            classes={classes}
-            groups={groups}
-            visits={visits}
+            monthBuckets={monthBuckets}
+            selectedMonthKey={selectedMonthKey}
+            onSelectMonth={setSelectedMonthKey}
+            userStudies={userStudies}
+            userClasses={userClasses}
+            userGroups={userGroups}
+            userVisits={userVisits}
           />
         </div>
       )}

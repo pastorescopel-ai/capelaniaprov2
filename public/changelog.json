@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23u",
+    "date": "2026-08-23",
+    "changes": [
+      "Melhorado: no Panorama do Capelão (Relatórios), clicar num mês agora atualiza TODOS os dados do card -- Estudos, Classes, PGs, Visitas e Total de Alunos nos cartões HAB/HABA de cima, não só o número de alunos isolado. Toque no mesmo mês de novo (ou no selo com o nome do mês) pra voltar ao período completo do filtro."
+    ]
+  },
+  {
     "version": "2026-08-23t",
     "date": "2026-08-23",
     "changes": [

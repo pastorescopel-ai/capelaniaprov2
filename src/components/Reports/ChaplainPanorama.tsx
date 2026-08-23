@@ -1,79 +1,49 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit } from '../../types';
-import { ensureISODate, getStudentKey } from '../../utils/formatters';
+import { ensureISODate } from '../../utils/formatters';
+
+interface MonthBucket {
+  key: string;
+  label: string;
+  fullLabel: string;
+  total: number;
+  students: number;
+}
 
 interface ChaplainPanoramaProps {
-  userId: string;
   userName: string;
   totalActions: number;
   avgTeamActions: number;
-  studies: BibleStudy[];
-  classes: BibleClass[];
-  groups: SmallGroup[];
-  visits: StaffVisit[];
+  monthBuckets: MonthBucket[];
+  selectedMonthKey: string | null;
+  onSelectMonth: (key: string | null) => void;
+  userStudies: BibleStudy[];
+  userClasses: BibleClass[];
+  userGroups: SmallGroup[];
+  userVisits: StaffVisit[];
 }
-
-const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-const MONTH_NAMES_FULL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 type ActivityType = 'study' | 'class' | 'group' | 'visit';
 
 const ACTIVITY_META: Record<ActivityType, { icon: string; bg: string; label: string }> = {
-  study: { icon: 'fa-book-open', bg: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600', label: 'Estudo Bíblico' },
+  study: { icon: 'fa-book-open', bg: 'bg-blue-50 text-blue-600', label: 'Estudo Bíblico' },
   class: { icon: 'fa-chalkboard', bg: 'bg-indigo-50 text-indigo-600', label: 'Classe Bíblica' },
   group: { icon: 'fa-house-user', bg: 'bg-emerald-50 text-emerald-600', label: 'Reunião PG' },
   visit: { icon: 'fa-hands-helping', bg: 'bg-rose-50 text-rose-600', label: 'Visita' },
 };
 
 // Painel de "panorama" de um capelão específico -- abre dentro do próprio ChaplainCard ao
-// clicar nele. Filtra as listas brutas (studies/classes/groups/visits, que já chegam pra
-// Relatórios inteiras, sem filtro de capelão) por este userId, calcula os últimos 6 meses
-// reais de calendário, e deixa cada mês clicável pra atualizar a composição/números mostrados
-// no card acima (ver ChaplainCard.tsx).
-const ChaplainPanorama: React.FC<ChaplainPanoramaProps> = ({ userId, userName, totalActions, avgTeamActions, studies, classes, groups, visits }) => {
-  const months = useMemo(() => {
-    const now = new Date();
-    const list: { key: string; label: string; year: number; month: number }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      list.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: MONTH_NAMES_SHORT[d.getMonth()], year: d.getFullYear(), month: d.getMonth() });
-    }
-    return list;
-  }, []);
-
-  const [selectedMonthKey, setSelectedMonthKey] = useState(months[months.length - 1].key);
-
-  const userStudies = useMemo(() => (studies || []).filter(s => s.userId === userId), [studies, userId]);
-  const userClasses = useMemo(() => (classes || []).filter(c => c.userId === userId), [classes, userId]);
-  const userGroups = useMemo(() => (groups || []).filter(g => g.userId === userId), [groups, userId]);
-  const userVisits = useMemo(() => (visits || []).filter(v => v.userId === userId), [visits, userId]);
-
-  const monthBuckets = useMemo(() => {
-    return months.map(m => {
-      const st = userStudies.filter(s => ensureISODate(s.date)?.startsWith(m.key));
-      const cl = userClasses.filter(c => ensureISODate(c.date)?.startsWith(m.key));
-      const gr = userGroups.filter(g => ensureISODate(g.date)?.startsWith(m.key));
-      const vi = userVisits.filter(v => ensureISODate(v.date)?.startsWith(m.key));
-
-      const studentKeys = new Set<string>();
-      st.forEach(s => studentKeys.add(getStudentKey(s.name, s.staffId || s.participantId)));
-      cl.forEach(c => (c.students || []).forEach(name => studentKeys.add(getStudentKey(name))));
-
-      return {
-        ...m,
-        studies: st.length, classes: cl.length, groups: gr.length, visits: vi.length,
-        total: st.length + cl.length + gr.length + vi.length,
-        alunos: studentKeys.size,
-      };
-    });
-  }, [months, userStudies, userClasses, userGroups, userVisits]);
-
+// clicar nele. Os meses/números de composição (HAB/HABA) já vêm prontos do ChaplainCard (única
+// fonte de verdade pros dois lugares); aqui só resta desenhar o gráfico de barras clicável, os
+// KPIs e a atividade recente.
+const ChaplainPanorama: React.FC<ChaplainPanoramaProps> = ({
+  userName, totalActions, avgTeamActions, monthBuckets, selectedMonthKey, onSelectMonth,
+  userStudies, userClasses, userGroups, userVisits
+}) => {
   const selected = monthBuckets.find(m => m.key === selectedMonthKey) || monthBuckets[monthBuckets.length - 1];
   const maxTotal = Math.max(...monthBuckets.map(m => m.total), 1);
-
   const monthsActiveCount = useMemo(() => monthBuckets.filter(m => m.total > 0).length, [monthBuckets]);
-
   const vsTeamPct = avgTeamActions > 0 ? Math.round(((totalActions - avgTeamActions) / avgTeamActions) * 100) : null;
 
   const recentActivity = useMemo(() => {
@@ -105,7 +75,7 @@ const ChaplainPanorama: React.FC<ChaplainPanoramaProps> = ({ userId, userName, t
         <div className="grid grid-cols-3 gap-2.5">
           <div className="bg-slate-50 rounded-2xl p-3">
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Alunos ({selected.label})</p>
-            <p className="text-lg font-black text-slate-800 mt-0.5">{selected.alunos}</p>
+            <p className="text-lg font-black text-slate-800 mt-0.5">{selected.students}</p>
           </div>
           <div className="bg-slate-50 rounded-2xl p-3">
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Meses Ativos</p>
@@ -126,7 +96,7 @@ const ChaplainPanorama: React.FC<ChaplainPanoramaProps> = ({ userId, userName, t
               <button
                 key={m.key}
                 type="button"
-                onClick={() => setSelectedMonthKey(m.key)}
+                onClick={() => onSelectMonth(m.key === selectedMonthKey ? null : m.key)}
                 className="flex-1 flex flex-col items-center gap-1 h-full justify-end group"
               >
                 <div
@@ -137,7 +107,7 @@ const ChaplainPanorama: React.FC<ChaplainPanoramaProps> = ({ userId, userName, t
               </button>
             ))}
           </div>
-          <p className="text-[8px] font-bold text-slate-400 mt-1.5">Toque num mês pra ver o desempenho detalhado dele acima</p>
+          <p className="text-[8px] font-bold text-slate-400 mt-1.5">Toque num mês pra ver os dados dele nos cartões acima -- toque de novo pra voltar ao período todo</p>
         </div>
 
         {recentActivity.length > 0 && (
