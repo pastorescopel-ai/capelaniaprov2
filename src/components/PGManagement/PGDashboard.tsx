@@ -11,6 +11,7 @@ import { DataRepository } from '../../services/dataRepository';
 import { toCamel } from '../../utils/transformers';
 import { Loader2 } from 'lucide-react';
 import CoverageRings from './charts/CoverageRings';
+import AdherenceRanking from './charts/AdherenceRanking';
 
 
 const PGDashboard = memo(({ unit, isVisible = true }: { unit: Unit; isVisible?: boolean }) => {
@@ -250,6 +251,18 @@ const PGDashboard = memo(({ unit, isVisible = true }: { unit: Unit; isVisible?: 
           />
         </div>
       </div>
+
+      {/* Ranking de Adesão -- versão compacta e ordenada dos mesmos dados dos cards abaixo,
+          pra deixar óbvio quem precisa de atenção primeiro sem ter que ler card por card. */}
+      <AdherenceRanking
+        title={`Ranking de ${filterType === 'sector' ? 'Setores' : 'PGs'} por Adesão`}
+        data={metrics.displaySectors.map((data: any) => ({
+          id: data.sector.id,
+          name: data.sector.name,
+          pct: data.percentage,
+          onClick: () => setSelectedSectorStaff({ name: data.sector.name, staff: data.staffList || [] })
+        }))}
+      />
 
       {/* Lista de Setores */}
       <div className="grid lg:grid-cols-2 gap-6">

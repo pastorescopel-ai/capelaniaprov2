@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23m",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: Dashboard de PGs ganhou um Ranking de Adesão -- barras horizontais ordenadas da maior pra menor adesão, com a meta de 80% marcada, cores por faixa (verde/amarelo/vermelho) e clicável (abre a lista de colaboradores daquele setor/PG). Os cards detalhados abaixo continuam do jeito que estavam."
+    ]
+  },
+  {
     "version": "2026-08-23l",
     "date": "2026-08-23",
     "changes": [
