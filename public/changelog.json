@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23r",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: em Relatórios, clique no card de qualquer capelão pra abrir o Panorama dele -- alunos ativos por mês, meses ativos, comparação com a média da equipe, gráfico dos últimos 6 meses (toque num mês pra ver os detalhes daquele período) e as 5 atividades mais recentes registradas pela pessoa."
+    ]
+  },
+  {
     "version": "2026-08-23q",
     "date": "2026-08-23",
     "changes": [

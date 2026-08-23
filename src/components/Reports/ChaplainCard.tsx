@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
+import { BibleStudy, BibleClass, SmallGroup, StaffVisit } from '../../types';
+import ChaplainPanorama from './ChaplainPanorama';
 
 interface ChaplainCardProps {
   stat: any;
+  avgTeamActions: number;
+  studies: BibleStudy[];
+  classes: BibleClass[];
+  groups: SmallGroup[];
+  visits: StaffVisit[];
 }
 
 const SEGMENT_COLORS = {
@@ -44,7 +51,8 @@ const CompositionBar: React.FC<{ data: { studies: number; classes: number; group
   );
 };
 
-const ChaplainCard: React.FC<ChaplainCardProps> = ({ stat }) => {
+const ChaplainCard: React.FC<ChaplainCardProps> = ({ stat, avgTeamActions, studies, classes, groups, visits }) => {
+  const [isOpen, setIsOpen] = useState(false);
   const hasHab = stat.hab.total > 0 || stat.hab.students > 0;
   const hasHaba = stat.haba.total > 0 || stat.haba.students > 0;
   const showBoth = (hasHab && hasHaba) || (!hasHab && !hasHaba);
@@ -84,7 +92,13 @@ const ChaplainCard: React.FC<ChaplainCardProps> = ({ stat }) => {
   );
 
   return (
-    <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col space-y-6 hover:border-blue-300 transition-all group">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => setIsOpen(v => !v)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsOpen(v => !v); } }}
+      className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col space-y-6 hover:border-blue-300 transition-all group cursor-pointer"
+    >
       <div className="flex items-center gap-4">
         <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-blue-600 font-black text-2xl group-hover:scale-110 transition-transform">
           {stat.name[0]}
@@ -96,12 +110,28 @@ const ChaplainCard: React.FC<ChaplainCardProps> = ({ stat }) => {
             <span className="text-[8px] font-black uppercase bg-slate-800 text-white px-2 py-0.5 rounded-md">{stat.totalActions} Ações Globais</span>
           </div>
         </div>
+        <i className={`fas fa-chevron-down text-slate-300 text-xs flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
         {(hasHab || showBoth) && renderUnitDetails('HAB', stat.hab, 'bg-blue-50', 'text-blue-700')}
         {(hasHaba || showBoth) && renderUnitDetails('HABA', stat.haba, 'bg-amber-50', 'text-amber-700')}
       </div>
+
+      {isOpen && (
+        <div onClick={(e) => e.stopPropagation()} className="cursor-default">
+          <ChaplainPanorama
+            userId={stat.user.id}
+            userName={stat.name}
+            totalActions={stat.totalActions}
+            avgTeamActions={avgTeamActions}
+            studies={studies}
+            classes={classes}
+            groups={groups}
+            visits={visits}
+          />
+        </div>
+      )}
     </div>
   );
 };

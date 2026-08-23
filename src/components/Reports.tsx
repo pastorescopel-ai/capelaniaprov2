@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, ActivityFilter } from '../types';
 import { useReports } from '../hooks/useReports';
 import ReportStats from './Reports/ReportStats';
@@ -33,6 +33,15 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     handleGeneratePGReport,
     handleGenerateAudit
   } = useReports({ studies, classes, groups, visits, users, config });
+
+  // Média de ações do time no período filtrado -- usada só pelo Panorama de cada capelão
+  // (dentro do ChaplainCard) pra mostrar "Vs. Média Equipe". Conta só quem teve alguma ação,
+  // senão capelães sem nenhum registro no período puxariam a média pra baixo à toa.
+  const avgTeamActions = useMemo(() => {
+    const active = chaplainStats.filter((s: any) => s.totalActions > 0);
+    if (active.length === 0) return 0;
+    return active.reduce((sum: number, s: any) => sum + s.totalActions, 0) / active.length;
+  }, [chaplainStats]);
 
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
@@ -72,7 +81,15 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
 
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
         {chaplainStats.map((stat) => (
-          <ChaplainCard key={stat.user.id} stat={stat} />
+          <ChaplainCard
+            key={stat.user.id}
+            stat={stat}
+            avgTeamActions={avgTeamActions}
+            studies={studies}
+            classes={classes}
+            groups={groups}
+            visits={visits}
+          />
         ))}
       </div>
     </div>
