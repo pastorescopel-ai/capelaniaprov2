@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23q",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: gráficos modernizados em Embaixadores e Relatórios. Em Embaixadores, o ranking de setores por engajamento agora é animado e clicável, no mesmo estilo do Dashboard de PGs. Em Relatórios, os 6 cartões do topo entram em cascata com os números contando, e o card de cada capelão ganhou uma mini barra mostrando a composição do esforço (estudos/classes/PGs/visitas) de relance."
+    ]
+  },
+  {
     "version": "2026-08-23p",
     "date": "2026-08-23",
     "changes": [

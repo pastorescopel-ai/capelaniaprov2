@@ -12,7 +12,9 @@ export interface AdherenceRankingDatum {
 interface AdherenceRankingProps {
   data: AdherenceRankingDatum[];
   title: string;
-  metaPct?: number;
+  // Passe `null` explicitamente pra esconder de vez a linha/legenda de meta (contextos sem uma
+  // meta definida, ex: engajamento de Embaixadores) -- omitir o prop mantém a meta padrão 80%.
+  metaPct?: number | null;
   // false depois da primeira entrada na tela neste login -- aí a barra já nasce no valor
   // final, sem crescer, pra não ficar reanimando à toa numa lista que pode ter muitos itens.
   animate?: boolean;
@@ -21,7 +23,7 @@ interface AdherenceRankingProps {
 const colorFor = (pct: number) => pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : 'bg-rose-500';
 const textColorFor = (pct: number) => pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-rose-600';
 
-const Row: React.FC<{ d: AdherenceRankingDatum; index: number; metaPct?: number; animate: boolean }> = ({ d, index, metaPct, animate: shouldAnimate }) => {
+const Row: React.FC<{ d: AdherenceRankingDatum; index: number; metaPct?: number | null; animate: boolean }> = ({ d, index, metaPct, animate: shouldAnimate }) => {
   const width = useMotionValue(shouldAnimate ? 0 : d.pct);
   const roundedPct = useTransform(width, latest => `${Math.round(latest)}%`);
 

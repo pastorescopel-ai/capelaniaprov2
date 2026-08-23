@@ -1,5 +1,6 @@
-
 import React from 'react';
+import { motion } from 'motion/react';
+import CountUp from '../Shared/CountUp';
 
 interface StatsProps {
   totalStats: {
@@ -16,6 +17,11 @@ interface StatsProps {
   };
 }
 
+const HIDDEN = { opacity: 0, y: 16, scale: 0.95 };
+const VISIBLE = { opacity: 1, y: 0, scale: 1 };
+
+// Mesma linguagem visual dos cartões de estatística do Dashboard: entram em cascata e o
+// número conta subindo, em vez de aparecer estático.
 const ReportStats: React.FC<StatsProps> = ({ totalStats }) => {
   const cards = [
     {
@@ -24,15 +30,16 @@ const ReportStats: React.FC<StatsProps> = ({ totalStats }) => {
         color: 'bg-slate-800 shadow-slate-200',
         sub: `${totalStats.averageActiveMonths ?? 0} Meses Ativos no Período`
     },
-    { 
-        label: 'Total de Estudantes da Bíblia (Período)', 
-        value: totalStats.totalStudentsPeriod, 
+    {
+        label: 'Total de Estudantes da Bíblia (Período)',
+        value: totalStats.totalStudentsPeriod,
         color: 'bg-blue-600 shadow-blue-100',
         sub: 'Neste Filtro'
     },
-    { 
-        label: 'Adesão aos PGs (%)', 
-        value: `${(totalStats.pgPercentage || 0).toFixed(1)}%`, 
+    {
+        label: 'Adesão aos PGs (%)',
+        value: totalStats.pgPercentage || 0,
+        suffix: '%',
         color: 'bg-emerald-600 shadow-emerald-100',
         sub: totalStats.isLocked ? 'DADO TRAVADO' : 'TEMPO REAL'
     },
@@ -49,16 +56,25 @@ const ReportStats: React.FC<StatsProps> = ({ totalStats }) => {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
       {cards.map((card, i) => (
-        <div key={i} className={`${card.color} p-4 rounded-[2rem] text-white shadow-xl flex flex-col items-center justify-center hover:scale-105 transition-all group min-h-[110px] relative overflow-hidden`}>
+        <motion.div
+          key={i}
+          initial={HIDDEN}
+          animate={VISIBLE}
+          transition={{ delay: i * 0.06, duration: 0.35, ease: 'easeOut' }}
+          whileHover={{ scale: 1.05, y: -2 }}
+          className={`${card.color} p-4 rounded-[2rem] text-white shadow-xl flex flex-col items-center justify-center transition-shadow group min-h-[110px] relative overflow-hidden`}
+        >
           {card.label === 'Adesão aos PGs (%)' && totalStats.isLocked && (
             <div className="absolute top-2 right-2 text-[8px] bg-white/20 px-2 py-0.5 rounded-full font-black">
               <i className="fas fa-lock mr-1"></i>
             </div>
           )}
           <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-1 group-hover:opacity-100 text-center leading-tight">{card.label}</p>
-          <p className="text-2xl font-black leading-none">{card.value}</p>
+          <p className="text-2xl font-black leading-none">
+            <CountUp value={card.value} duration={0.9} />{card.suffix || ''}
+          </p>
           {card.sub && <p className="text-[7px] font-bold uppercase mt-1 opacity-60 bg-black/20 px-2 py-0.5 rounded-full">{card.sub}</p>}
-        </div>
+        </motion.div>
       ))}
     </div>
   );
