@@ -3,11 +3,14 @@ import React, { useRef } from 'react';
 import { motion, useInView } from 'motion/react';
 import { GlobalImpactComparisonMode } from '../../hooks/useDashboardStats';
 import { formatMonthLabel } from '../../utils/formatters';
-import RankedBarChart, { RankedBarDatum } from './charts/RankedBarChart';
+import PersonalAchievement, { PersonalAchievementDatum } from './charts/PersonalAchievement';
 import DumbbellChart, { DumbbellDatum } from './charts/DumbbellChart';
 
 interface ImpactChartsProps {
   individualData: { name: string; val: number }[];
+  // Mesmas 4 categorias, mês anterior -- alimenta o comparativo do "Alcance Pessoal".
+  prevMonthIndividualData: { name: string; val: number }[];
+  prevMonthLabel: string;
   globalData: any;
   comparisonMode: GlobalImpactComparisonMode;
   onComparisonModeChange: (mode: GlobalImpactComparisonMode) => void;
@@ -40,7 +43,7 @@ const CATEGORY_COLOR: Record<string, string> = {
 };
 
 const ImpactCharts: React.FC<ImpactChartsProps> = ({
-  individualData, globalData,
+  individualData, prevMonthIndividualData, prevMonthLabel, globalData,
   comparisonMode, onComparisonModeChange,
   availableMonths, selectedAverageMonths, onToggleAverageMonth,
   onGoToTab
@@ -53,9 +56,13 @@ const ImpactCharts: React.FC<ImpactChartsProps> = ({
   const isCard1InView = useInView(card1Ref, { once: false, margin: '-80px' });
   const isCard2InView = useInView(card2Ref, { once: false, margin: '-80px' });
 
-  const rankedData: RankedBarDatum[] = individualData.map(d => ({
+  const prevByName: Record<string, number> = {};
+  prevMonthIndividualData.forEach(d => { prevByName[d.name] = d.val; });
+
+  const achievementData: PersonalAchievementDatum[] = individualData.map(d => ({
     name: d.name,
-    value: d.val,
+    current: d.val,
+    prev: prevByName[d.name] || 0,
     color: CATEGORY_COLOR[d.name] || '#64748b',
     onClick: onGoToTab && CATEGORY_TAB[d.name] ? () => onGoToTab(CATEGORY_TAB[d.name]) : undefined,
   }));
@@ -70,8 +77,9 @@ const ImpactCharts: React.FC<ImpactChartsProps> = ({
 
   return (
     <div className="space-y-8">
-      {/* Gráfico Individual -- barras horizontais ordenadas do maior pro menor, cada uma
-          clicável (leva pro formulário daquele tipo de registro) */}
+      {/* Alcance Pessoal -- este mês vs. mês passado por categoria, cada cartão clicável (leva
+          pro formulário daquele tipo de registro); alerta automático quando alguma categoria
+          caiu em relação ao mês passado. */}
       <motion.div
         ref={card1Ref}
         initial={{ opacity: 0, y: 30 }}
@@ -80,12 +88,12 @@ const ImpactCharts: React.FC<ImpactChartsProps> = ({
         className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm"
       >
         <h3 className="text-sm md:text-lg font-black text-slate-800 mb-1 flex items-center gap-2 uppercase tracking-tighter">
-          <i className="fas fa-chart-bar text-blue-600"></i> Desempenho Individual
+          <i className="fas fa-chart-bar text-blue-600"></i> Alcance Pessoal
         </h3>
         <p className="text-slate-400 text-[8px] font-black uppercase tracking-[0.2em] mb-6">
-          Ordenado do maior pro menor
+          Este mês comparado a {prevMonthLabel}
         </p>
-        <RankedBarChart data={rankedData} inView={isCard1InView} />
+        <PersonalAchievement data={achievementData} prevMonthLabel={prevMonthLabel} />
       </motion.div>
 
       {/* Gráfico de Impacto Global -- pares de bolinhas conectadas (mês anterior → mês atual)

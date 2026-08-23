@@ -79,17 +79,27 @@ const Dashboard: React.FC<DashboardProps> = ({
     accumulated
   } = useDashboardStats(studies, classes, groups, visits, currentUser, proMonthlyStats, selectedMonth, comparisonMode, selectedAverageMonths);
 
-  // Contagens PESSOAIS do mês anterior (Estudos/Classes) -- só pra alimentar a mensagem de
-  // "alvo individual" do mural dinâmico, que compara este mês com o passado, não com uma meta
-  // fixa. Sempre o mês civil anterior de verdade, não o filtro de mês do Dashboard.
+  // Contagens PESSOAIS do mês anterior -- alimenta a mensagem de "alvo individual" do mural
+  // dinâmico (Estudos/Classes) e o card "Alcance Pessoal" do gráfico (as 4 categorias). Sempre
+  // o mês civil anterior de verdade, não o filtro de mês do Dashboard.
   const prevMonthPersonal = React.useMemo(() => {
     const prevDate = new Date();
     prevDate.setMonth(prevDate.getMonth() - 1);
     const prevISO = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+    const prevMonthLabel = prevDate.toLocaleDateString('pt-BR', { month: 'long' });
     const studiesCount = (studies || []).filter(s => s.userId === currentUser?.id && ensureISODate(s.date)?.startsWith(prevISO)).length;
     const classesCount = (classes || []).filter(c => c.userId === currentUser?.id && ensureISODate(c.date)?.startsWith(prevISO)).length;
-    return { studiesCount, classesCount };
-  }, [studies, classes, currentUser?.id]);
+    const groupsCount = (groups || []).filter(g => g.userId === currentUser?.id && ensureISODate(g.date)?.startsWith(prevISO)).length;
+    const visitsCount = (visits || []).filter(v => v.userId === currentUser?.id && ensureISODate(v.date)?.startsWith(prevISO)).length;
+    return { studiesCount, classesCount, groupsCount, visitsCount, prevMonthLabel: prevMonthLabel.charAt(0).toUpperCase() + prevMonthLabel.slice(1) };
+  }, [studies, classes, groups, visits, currentUser?.id]);
+
+  // Fecha o card expandido de Visitas assim que a pessoa sai da aba do Dashboard -- sem isso,
+  // clicar no card pra ir registrar uma visita e depois voltar pro Dashboard deixava o card
+  // grande aberto do jeito que ficou, em vez de voltar fechado.
+  React.useEffect(() => {
+    if (!isVisible) setShowVisitDetail(false);
+  }, [isVisible]);
 
   if (!isInitialized) {
     return <div className="p-8 text-center text-slate-500 font-bold">Carregando dashboard...</div>;
@@ -230,6 +240,13 @@ const Dashboard: React.FC<DashboardProps> = ({
         { name: 'PGs', val: monthlyGroups.length },
         { name: 'Visitas', val: monthlyVisits.length },
       ]}
+        prevMonthIndividualData={[
+          { name: 'Estudos', val: prevMonthPersonal.studiesCount },
+          { name: 'Classes', val: prevMonthPersonal.classesCount },
+          { name: 'PGs', val: prevMonthPersonal.groupsCount },
+          { name: 'Visitas', val: prevMonthPersonal.visitsCount },
+        ]}
+        prevMonthLabel={prevMonthPersonal.prevMonthLabel}
         globalData={globalImpact}
         onGoToTab={onGoToTab}
         comparisonMode={comparisonMode}

@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-23s",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: 'Desempenho Individual' do Dashboard virou 'Alcance Pessoal' -- cada categoria (Estudos/Classes/PGs/Visitas) agora compara este mês com o mês passado em vez de só mostrar o número absoluto, com um alerta automático quando alguma caiu. Toque em qualquer cartão pra abrir o formulário daquele registro.",
+      "Corrigido: o card grande de 'Metas de Visitas' (dentro da faixa fina de Visitas a Colaboradores) ficava aberto do jeito que você deixou ao sair do Dashboard -- agora fecha sozinho sempre que você troca de aba."
+    ]
+  },
+  {
     "version": "2026-08-23r",
     "date": "2026-08-23",
     "changes": [
