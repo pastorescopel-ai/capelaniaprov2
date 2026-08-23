@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-23n",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: o card 'Metas de Visitas' virou uma faixa fina com barra de progresso, entre o mural e a escala de visitas -- toque nela pra ver os detalhes completos (meta HABA, histórico total).",
+      "Ajuste: o Ranking de Adesão do Dashboard de PGs agora anima só uma vez ao aparecer e fica estável dali em diante (economiza processamento numa lista que pode ter muitos setores/PGs) -- continua acompanhando se o valor real mudar."
+    ]
+  },
+  {
     "version": "2026-08-23m",
     "date": "2026-08-23",
     "changes": [

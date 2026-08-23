@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Config, Unit } from '../../types';
 import { useApp } from '../../hooks/useApp';
 import { useDashboardStats, GlobalImpactComparisonMode } from '../../hooks/useDashboardStats';
@@ -9,6 +9,7 @@ import Mural from './Mural';
 import StatCards from './StatCards';
 import ImpactCharts from './ImpactCharts';
 import VisitGoalWidget from './VisitGoalWidget';
+import VisitProgressStrip from './VisitProgressStrip';
 import VisitRequestsWidget from './VisitRequestsWidget';
 import DashboardActivityHistory from '../PGManagement/DashboardActivityHistory';
 
@@ -40,6 +41,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().split('T')[0].substring(0, 7));
   const [comparisonMode, setComparisonMode] = useState<GlobalImpactComparisonMode>('previousMonth');
   const [selectedAverageMonths, setSelectedAverageMonths] = useState<string[]>([]);
+  // Faixa fina de "Visitas a Colaboradores" (Opção A aprovada) -- fica fechada por padrão;
+  // tocar nela expande os detalhes completos (meta HABA, histórico) que antes ficavam sempre
+  // visíveis num card à parte.
+  const [showVisitDetail, setShowVisitDetail] = useState(false);
 
   // Últimos 12 meses (fechados), do mais recente pro mais antigo, para o seletor de média.
   const availableMonths = React.useMemo(() => {
@@ -120,6 +125,27 @@ const Dashboard: React.FC<DashboardProps> = ({
         />
       </div>
 
+      {/* Visitas a Colaboradores -- faixa fina entre o mural e a escala de visitas (Opção A);
+          toque/clique expande os detalhes completos (meta HABA, histórico total). */}
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }} transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}>
+        <VisitProgressStrip accumulated={accumulated} isExpanded={showVisitDetail} onToggle={() => setShowVisitDetail(v => !v)} />
+        <AnimatePresence initial={false}>
+          {showVisitDetail && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="overflow-hidden"
+            >
+              <div className="pt-4">
+                <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
       {/* Notificações de Retorno */}
       {todaysReturns.length > 0 ? (
         <motion.div
@@ -183,11 +209,6 @@ const Dashboard: React.FC<DashboardProps> = ({
           users={users}
           onRegisterMission={onRegisterMission}
         />
-      </motion.div>
-
-      {/* Metas de Visitas (VisitGoalWidget) */}
-      <motion.div initial={{ opacity: 0, y: 24 }} animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }} transition={{ duration: 0.45, delay: 0.1, ease: 'easeOut' }}>
-        <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
       </motion.div>
 
       {/* Cartões de Estatísticas */}
