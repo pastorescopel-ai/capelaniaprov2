@@ -14,9 +14,6 @@ interface VisitProgressStripProps {
   accumulated: AccumulatedGoal | null;
   isExpanded: boolean;
   onToggle: () => void;
-  // Clicar na própria barra (não na faixa toda) leva direto pro formulário de Visita ao
-  // Colaborador, em vez de só expandir os detalhes.
-  onGoToTab?: (tab: string) => void;
 }
 
 const STATUS_FILL: Record<AccumulatedGoal['status'], string> = {
@@ -31,11 +28,11 @@ const STATUS_ICON_BG: Record<AccumulatedGoal['status'], string> = {
 };
 
 // Versão compacta do card "Metas de Visitas" -- uma faixa fina com barra de progresso (Opção A
-// da proposta aprovada). Clicar na faixa expande os detalhes completos (VisitGoalWidget) logo
-// abaixo, sem precisar sair da tela; clicar especificamente na barra leva direto pro formulário
-// de Visita ao Colaborador. A barra e o número crescem sozinhos ao aparecer, e reanimam toda
-// vez que a tela volta a ficar visível (mesmo padrão dos outros gráficos).
-const VisitProgressStrip: React.FC<VisitProgressStripProps> = ({ accumulated, isExpanded, onToggle, onGoToTab }) => {
+// da proposta aprovada). Clicar em qualquer lugar da faixa expande os detalhes completos
+// (VisitGoalWidget) logo abaixo -- ir pro formulário de Visita ao Colaborador é ação do card
+// expandido, não da faixa fechada (ver Dashboard/index.tsx). A barra e o número crescem
+// sozinhos ao aparecer, e reanimam toda vez que a tela volta a ficar visível.
+const VisitProgressStrip: React.FC<VisitProgressStripProps> = ({ accumulated, isExpanded, onToggle }) => {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: false, margin: '-20px' });
   const width = useMotionValue(0);
@@ -57,11 +54,6 @@ const VisitProgressStrip: React.FC<VisitProgressStripProps> = ({ accumulated, is
     return () => { c1.stop(); c2.stop(); };
   }, [isInView, pct, currentVal]);
 
-  const handleBarClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onGoToTab?.('staffVisit');
-  };
-
   return (
     <div className="w-full">
       <motion.div
@@ -82,11 +74,7 @@ const VisitProgressStrip: React.FC<VisitProgressStripProps> = ({ accumulated, is
         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex-shrink-0 hidden sm:inline">
           Visitas
         </span>
-        <div
-          onClick={handleBarClick}
-          title="Ir para Registrar Visita"
-          className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden hover:h-2.5 hover:bg-slate-200 transition-all"
-        >
+        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
           <motion.div className={`h-full rounded-full ${STATUS_FILL[status]}`} style={{ width: useTransform(width, w => `${w}%`) }} />
         </div>
         <span className="text-xs font-black text-slate-800 tabular-nums flex-shrink-0">

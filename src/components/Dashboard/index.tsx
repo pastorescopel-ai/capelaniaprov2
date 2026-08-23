@@ -128,7 +128,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Visitas a Colaboradores -- faixa fina entre o mural e a escala de visitas (Opção A);
           toque/clique expande os detalhes completos (meta HABA, histórico total). */}
       <motion.div initial={{ opacity: 0, y: -8 }} animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }} transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}>
-        <VisitProgressStrip accumulated={accumulated} isExpanded={showVisitDetail} onToggle={() => setShowVisitDetail(v => !v)} onGoToTab={onGoToTab} />
+        <VisitProgressStrip accumulated={accumulated} isExpanded={showVisitDetail} onToggle={() => setShowVisitDetail(v => !v)} />
         <AnimatePresence initial={false}>
           {showVisitDetail && (
             <motion.div
@@ -138,7 +138,14 @@ const Dashboard: React.FC<DashboardProps> = ({
               transition={{ duration: 0.3, ease: 'easeOut' }}
               className="overflow-hidden"
             >
-              <div className="pt-4">
+              <div
+                className="pt-4 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => onGoToTab('staffVisit')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onGoToTab('staffVisit'); } }}
+                title="Ir para Registrar Visita"
+              >
                 <VisitGoalWidget goals={goals} accumulated={accumulated} currentUser={currentUser} />
               </div>
             </motion.div>
