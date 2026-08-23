@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23w",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: em Relatórios, abrir 2 cartões de capelães ao mesmo tempo agora os coloca lado a lado (com um selo 'Comparando') e sincroniza o mês selecionado entre os dois -- tocar num mês em qualquer um dos dois atualiza os dois juntos. Abrir um 3º cartão fecha o mais antigo automaticamente."
+    ]
+  },
+  {
     "version": "2026-08-23v",
     "date": "2026-08-23",
     "changes": [

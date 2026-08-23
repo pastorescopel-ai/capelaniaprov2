@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, Unit } from '../../types';
 import { ensureISODate, getStudentKey, countUniqueClasses } from '../../utils/formatters';
@@ -11,6 +11,15 @@ interface ChaplainCardProps {
   classes: BibleClass[];
   groups: SmallGroup[];
   visits: StaffVisit[];
+  // Abrir/fechar e o mês selecionado agora vêm de fora (Reports.tsx) -- assim dois ou mais
+  // cards abertos ao mesmo tempo compartilham o mesmo mês quando o usuário clica num deles.
+  isOpen: boolean;
+  onToggleOpen: () => void;
+  selectedMonthKey: string | null;
+  onSelectMonth: (key: string | null) => void;
+  // true quando este card é um dos 2 abertos simultaneamente -- liga o destaque visual de
+  // "modo comparação" (borda azul + selo) pra deixar claro que os dois estão emparelhados.
+  isComparing: boolean;
 }
 
 const SEGMENT_COLORS = {
@@ -57,8 +66,10 @@ const CompositionBar: React.FC<{ data: { studies: number; classes: number; group
 
 const emptyUnitStats = () => ({ studies: 0, classes: 0, groups: 0, visits: 0, total: 0, students: 0 });
 
-const ChaplainCard: React.FC<ChaplainCardProps> = ({ stat, avgTeamActions, studies, classes, groups, visits }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const ChaplainCard: React.FC<ChaplainCardProps> = ({
+  stat, avgTeamActions, studies, classes, groups, visits,
+  isOpen, onToggleOpen, selectedMonthKey, onSelectMonth, isComparing,
+}) => {
   const userId = stat.user.id;
 
   // Últimos 6 meses reais de calendário, com a mesma quebra por unidade (HAB/HABA) que os
@@ -110,7 +121,6 @@ const ChaplainCard: React.FC<ChaplainCardProps> = ({ stat, avgTeamActions, studi
     });
   }, [months, userStudies, userClasses, userGroups, userVisits]);
 
-  const [selectedMonthKey, setSelectedMonthKey] = useState<string | null>(null);
   const selectedBucket = selectedMonthKey ? monthBuckets.find(m => m.key === selectedMonthKey) : null;
 
   const displayHab = selectedBucket ? selectedBucket.hab : (stat.hab || emptyUnitStats());
@@ -160,9 +170,11 @@ const ChaplainCard: React.FC<ChaplainCardProps> = ({ stat, avgTeamActions, studi
     <div
       role="button"
       tabIndex={0}
-      onClick={() => setIsOpen(v => !v)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsOpen(v => !v); } }}
-      className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col space-y-6 hover:border-blue-300 transition-all group cursor-pointer"
+      onClick={onToggleOpen}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleOpen(); } }}
+      className={`bg-white p-8 rounded-[3rem] shadow-sm border flex flex-col space-y-6 transition-all group cursor-pointer ${
+        isComparing ? 'border-blue-300 ring-2 ring-blue-100' : 'border-slate-100 hover:border-blue-300'
+      }`}
     >
       <div className="flex items-center gap-4">
         <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-blue-600 font-black text-2xl group-hover:scale-110 transition-transform">
@@ -171,12 +183,17 @@ const ChaplainCard: React.FC<ChaplainCardProps> = ({ stat, avgTeamActions, studi
         <div className="flex-1 min-w-0">
           <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter truncate">{stat.name}</h3>
           <div className="flex gap-2 mt-1 flex-wrap items-center">
+            {isComparing && (
+              <span className="text-[8px] font-black uppercase bg-blue-600 text-white px-2 py-0.5 rounded-md flex items-center gap-1">
+                <i className="fas fa-arrows-left-right text-[7px]"></i> Comparando
+              </span>
+            )}
             <span className="text-[8px] font-black uppercase bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md">Total Alunos: {displayStudents}</span>
             <span className="text-[8px] font-black uppercase bg-slate-800 text-white px-2 py-0.5 rounded-md">{displayTotalActions} Ações {selectedBucket ? '' : 'Globais'}</span>
             {selectedBucket && (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); setSelectedMonthKey(null); }}
+                onClick={(e) => { e.stopPropagation(); onSelectMonth(null); }}
                 className="text-[8px] font-black uppercase bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md flex items-center gap-1 hover:bg-amber-200 transition-colors"
               >
                 {selectedBucket.fullLabel} <i className="fas fa-times text-[7px]"></i>
@@ -200,7 +217,7 @@ const ChaplainCard: React.FC<ChaplainCardProps> = ({ stat, avgTeamActions, studi
             avgTeamActions={avgTeamActions}
             monthBuckets={monthBuckets}
             selectedMonthKey={selectedMonthKey}
-            onSelectMonth={setSelectedMonthKey}
+            onSelectMonth={onSelectMonth}
             userStudies={userStudies}
             userClasses={userClasses}
             userGroups={userGroups}

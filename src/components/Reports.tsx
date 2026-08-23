@@ -1,5 +1,6 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, ActivityFilter } from '../types';
 import { useReports } from '../hooks/useReports';
 import ReportStats from './Reports/ReportStats';
@@ -43,6 +44,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
     return active.reduce((sum: number, s: any) => sum + s.totalActions, 0) / active.length;
   }, [chaplainStats]);
 
+  // Comparação entre capelães: até 2 cards abertos ao mesmo tempo "furam a fila" pro topo da
+  // grade (lado a lado) e passam a compartilhar o mesmo mês selecionado -- clicar num mês em
+  // qualquer um dos dois já atualiza os dois. Abrir um 3º fecha o mais antigo automaticamente.
+  const [openChaplainIds, setOpenChaplainIds] = useState<string[]>([]);
+  const [sharedMonthKey, setSharedMonthKey] = useState<string | null>(null);
+  const toggleChaplainOpen = (id: string) => {
+    setOpenChaplainIds(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      const next = [...prev, id];
+      return next.length > 2 ? next.slice(next.length - 2) : next;
+    });
+  };
+
   return (
     <div className="space-y-10 pb-32 animate-in fade-in duration-500">
       <section className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
@@ -79,18 +93,34 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
         <ReportStats totalStats={totalStats} />
       </section>
 
+      {openChaplainIds.length >= 2 && (
+        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest -mb-4 flex items-center gap-1.5">
+          <i className="fas fa-arrows-left-right text-[9px]"></i> Comparando 2 capelães -- toque num mês em qualquer um dos dois pra ver o mesmo mês nos dois
+        </p>
+      )}
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {chaplainStats.map((stat) => (
-          <ChaplainCard
-            key={stat.user.id}
-            stat={stat}
-            avgTeamActions={avgTeamActions}
-            studies={studies}
-            classes={classes}
-            groups={groups}
-            visits={visits}
-          />
-        ))}
+        {chaplainStats.map((stat, idx) => {
+          const openIndex = openChaplainIds.indexOf(stat.user.id);
+          const isOpen = openIndex !== -1;
+          const isComparing = openChaplainIds.length >= 2 && isOpen;
+          return (
+            <motion.div key={stat.user.id} layout transition={{ type: 'spring', stiffness: 300, damping: 30 }} style={{ order: isOpen ? openIndex : 100 + idx }}>
+              <ChaplainCard
+                stat={stat}
+                avgTeamActions={avgTeamActions}
+                studies={studies}
+                classes={classes}
+                groups={groups}
+                visits={visits}
+                isOpen={isOpen}
+                onToggleOpen={() => toggleChaplainOpen(stat.user.id)}
+                selectedMonthKey={sharedMonthKey}
+                onSelectMonth={setSharedMonthKey}
+                isComparing={isComparing}
+              />
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );
