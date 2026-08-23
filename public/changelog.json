@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23y",
+    "date": "2026-08-23",
+    "changes": [
+      "Melhorado: o selo 'vs. mês anterior' dos 4 formulários de registro virou um mini gráfico de barras (este mês x mês passado), no mesmo estilo visual do Alcance Pessoal do Dashboard -- mais fácil de bater o olho e comparar."
+    ]
+  },
+  {
     "version": "2026-08-23x",
     "date": "2026-08-23",
     "changes": [

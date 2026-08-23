@@ -6,7 +6,7 @@ import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
-import MonthComparisonBadge from '../Shared/MonthComparisonBadge';
+import MonthComparisonBars from '../Shared/MonthComparisonBars';
 import { isRecordLocked } from '../../utils/validators';
 import { formatWhatsApp } from '../../utils/formatters';
 import { useStaffVisitForm } from '../../hooks/useStaffVisitForm';
@@ -201,7 +201,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       subtitle={`Unidade ${unit}`}
       headerActions={headerActions}
       history={historySection}
-      compareWidget={<MonthComparisonBadge label="Visitas" {...monthComparison} />}
+      compareWidget={<MonthComparisonBars label="Visitas" color="#f43f5e" {...monthComparison} />}
     >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">

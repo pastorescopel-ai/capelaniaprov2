@@ -7,7 +7,7 @@ import HistoryCard from '../Shared/HistoryCard';
 import HistorySection from '../Shared/HistorySection';
 import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
-import MonthComparisonBadge from '../Shared/MonthComparisonBadge';
+import MonthComparisonBars from '../Shared/MonthComparisonBars';
 import { formatWhatsApp } from '../../utils/formatters';
 import { isRecordLocked } from '../../utils/validators';
 import { useBibleStudyForm } from '../../hooks/useBibleStudyForm';
@@ -83,7 +83,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         title="Estudo Bíblico"
         headerActions={headerActions}
         history={historySection}
-        compareWidget={<MonthComparisonBadge label="Estudos" {...monthComparison} />}
+        compareWidget={<MonthComparisonBars label="Estudos" color="#3b82f6" {...monthComparison} />}
       >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">

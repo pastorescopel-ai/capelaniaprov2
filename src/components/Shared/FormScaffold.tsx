@@ -5,7 +5,7 @@ interface FormScaffoldProps {
   title: string;
   subtitle?: string;
   headerActions?: React.ReactNode; // Botões de Toggle e Limpar
-  compareWidget?: React.ReactNode; // Selo "vs. mês anterior" (MonthComparisonBadge)
+  compareWidget?: React.ReactNode; // Mini gráfico "vs. mês anterior" (MonthComparisonBars)
   children: React.ReactNode; // O formulário em si (<form>...</form>)
   history?: React.ReactNode; // A seção de histórico abaixo
 }
