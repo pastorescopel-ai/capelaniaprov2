@@ -57,6 +57,8 @@ export const useReportLogic = (
   // 2. CÁLCULO DE MÉDIA MENSAL (dentro do período/filtros selecionados)
   // Calcula a média de alunos únicos atendidos por mês, considerando apenas os meses
   // que tiveram registros dentro do período e demais filtros já aplicados em filteredData.
+  const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
   const averageStats = useMemo(() => {
     const monthlyUnique = new Map<string, Set<string>>();
 
@@ -93,9 +95,19 @@ export const useReportLogic = (
     // A média é a soma dos mensais dividida pelo número de meses ATIVOS
     const average = activeMonthsCount > 0 ? totalMonthlySum / activeMonthsCount : 0;
 
+    // Detalhe pro card clicável "Média de Alunos (Mensal)" -- não tem uma lista de nomes fixa
+    // (é uma média entre vários meses), então mostra a composição mês a mês em vez de nomes.
+    const monthlyBreakdown = Array.from(monthlyUnique.entries())
+      .map(([key, set]) => {
+        const [year, month] = key.split('-').map(Number);
+        return { label: `${MONTH_NAMES[month - 1]} de ${year}`, count: set.size, sortKey: year * 100 + month };
+      })
+      .sort((a, b) => b.sortKey - a.sortKey);
+
     return {
       averageStudents: Number(average.toFixed(1)),
-      activeMonthsCount
+      activeMonthsCount,
+      monthlyBreakdown
     };
   }, [filteredData]);
 
@@ -113,67 +125,81 @@ export const useReportLogic = (
   }, [filteredData, users]);
 
   const totalStats = useMemo(() => {
-    // Contagem de alunos do PERÍODO SELECIONADO (estudos individuais + classes, sem repetir)
-    const uniqueStudentsPeriod = new Set<string>();
-    // Contagem de alunos ÚNICOS só de estudos individuais (sem classes) — para o card
-    // "Estudos Bíblicos Individuais". A contagem de SESSÕES (com repetição) continua em
-    // `studies` abaixo, usada no ranking por capelão e nos relatórios exportados.
-    const uniqueIndividualStudents = new Set<string>();
-    const addUniqueName = (rawName: string, explicitId?: string | number | null) => {
+    // Mapas (não Sets) pra guardar tanto a chave de dedupe quanto um nome de exibição --
+    // alimenta os cards clicáveis de Relatórios que abrem a lista de nomes por trás do número.
+    const displayName = (raw: string) => raw.split(' (')[0].trim();
+
+    const allStudents = new Map<string, string>();
+    const individualStudents = new Map<string, string>();
+    const patientStudents = new Map<string, string>();
+    const providerStudents = new Map<string, string>();
+    const adventistStudents = new Map<string, string>();
+
+    const addName = (map: Map<string, string>, rawName: string, explicitId?: string | number | null) => {
       const key = getStudentKey(rawName, explicitId);
-      if (key) uniqueStudentsPeriod.add(key);
+      if (key) map.set(key, displayName(rawName));
       return key;
     };
-    // Contagem separada de Pacientes e Prestadores -- só informativo (pra saber a composição do
-    // total de alunos), eles continuam somando normalmente em uniqueStudentsPeriod acima.
-    const uniquePatientStudents = new Set<string>();
-    const uniqueProviderStudents = new Set<string>();
 
     filteredData.studies.forEach(s => {
       if (!s.name) return;
-      // Mesma razão do addMonthlyName acima: prioriza staffId/participantId reais.
-      const key = addUniqueName(s.name, (s as any).staffId || (s as any).participantId);
-      if (key) {
-        uniqueIndividualStudents.add(key);
-        if (s.participantType === ParticipantType.PATIENT) uniquePatientStudents.add(key);
-        else if (s.participantType === ParticipantType.PROVIDER) uniqueProviderStudents.add(key);
-      }
+      const explicitId = (s as any).staffId || (s as any).participantId;
+      const key = addName(allStudents, s.name, explicitId);
+      if (!key) return;
+      addName(individualStudents, s.name, explicitId);
+      if (s.participantType === ParticipantType.PATIENT) addName(patientStudents, s.name, explicitId);
+      else if (s.participantType === ParticipantType.PROVIDER) addName(providerStudents, s.name, explicitId);
     });
     filteredData.classes.forEach(c => {
       if (!Array.isArray(c.students)) return;
       c.students.forEach(n => {
-        const key = addUniqueName(n);
+        const key = addName(allStudents, n);
         if (!key) return;
-        if (c.participantType === ParticipantType.PATIENT) uniquePatientStudents.add(key);
-        else if (c.participantType === ParticipantType.PROVIDER) uniqueProviderStudents.add(key);
+        if (c.participantType === ParticipantType.PATIENT) addName(patientStudents, n);
+        else if (c.participantType === ParticipantType.PROVIDER) addName(providerStudents, n);
       });
     });
 
     // Adventistas vivem em tabela própria (bible_class_adventists) -- nunca entram no total de
     // alunos acima; contados aqui à parte, pro relatório separado "Adventistas em Classes".
-    const uniqueAdventistStudents = new Set<string>();
     let adventistAttendances = 0;
     filteredData.classes.forEach(c => {
       (c.adventistStudents || []).forEach(n => {
         adventistAttendances++;
-        const key = getStudentKey(n);
-        if (key) uniqueAdventistStudents.add(key);
+        addName(adventistStudents, n);
       });
     });
 
+    const sortedNames = (map: Map<string, string>) => Array.from(map.values()).sort((a, b) => a.localeCompare(b));
+
     return {
       studies: filteredData.studies.length,
-      uniqueIndividualStudents: uniqueIndividualStudents.size,
+      uniqueIndividualStudents: individualStudents.size,
       classes: countUniqueClasses(filteredData.classes),
       groups: filteredData.groups.length,
       visits: filteredData.visits.length,
-      totalStudentsPeriod: uniqueStudentsPeriod.size,
+      totalStudentsPeriod: allStudents.size,
       averageStudentsMonthly: averageStats.averageStudents,
       averageActiveMonths: averageStats.activeMonthsCount,
-      adventistUniqueStudents: uniqueAdventistStudents.size,
+      adventistUniqueStudents: adventistStudents.size,
       adventistAttendances,
-      patientStudents: uniquePatientStudents.size,
-      providerStudents: uniqueProviderStudents.size
+      patientStudents: patientStudents.size,
+      providerStudents: providerStudents.size,
+      // Listas de nomes por trás de cada número -- usadas pelos cards clicáveis em Relatórios.
+      details: {
+        allStudentNames: sortedNames(allStudents),
+        individualStudentNames: sortedNames(individualStudents),
+        patientStudentNames: sortedNames(patientStudents),
+        providerStudentNames: sortedNames(providerStudents),
+        adventistStudentNames: sortedNames(adventistStudents),
+        monthlyBreakdown: averageStats.monthlyBreakdown,
+        classSessions: [...filteredData.classes]
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .map(c => ({ label: c.guide || 'Classe Bíblica', sector: c.sector || 'Sem setor', date: c.date, studentsCount: (c.students || []).length })),
+        visitRecords: [...filteredData.visits]
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .map(v => ({ label: v.staffName, sector: v.sector || '', date: v.date }))
+      }
     };
   }, [filteredData, averageStats]);
 

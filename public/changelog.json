@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23ah",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: quase todos os cards de Relatórios agora são clicáveis e abrem a lista por trás do número -- nomes de alunos/adventistas/pacientes/prestadores, as classes do período, as visitas ou a composição mês a mês (só 'Adesão aos PGs' ficou de fora, por vir de um cálculo à parte)."
+    ]
+  },
+  {
     "version": "2026-08-23ag",
     "date": "2026-08-23",
     "changes": [
