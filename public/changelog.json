@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-24d",
+    "date": "2026-08-24",
+    "changes": [
+      "Corrigido: a Classe Bíblica nunca gravava o ID do setor (só o nome), causa raiz do aviso recorrente 'Aulas Bíblicas sem ID de Setor' no Diagnóstico do Sistema -- agora resolve e salva o ID em todos os caminhos (escolher setor, reconhecer turma, continuar classe, e uma rede de segurança na hora de salvar). As 2 aulas já sinalizadas no banco foram corrigidas."
+    ]
+  },
+  {
     "version": "2026-08-24c",
     "date": "2026-08-24",
     "changes": [

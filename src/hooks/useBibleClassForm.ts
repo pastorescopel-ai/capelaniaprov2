@@ -26,7 +26,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({
-    id: '', userId: currentUser.id, date: getToday(), sector: '', location: '', students: [] as string[],
+    id: '', userId: currentUser.id, date: getToday(), sector: '', sectorId: '' as string | number, location: '', students: [] as string[],
     adventistStudents: [] as string[],
     guide: '', lesson: '', status: RecordStatus.INICIO,
     participantType: ParticipantType.STAFF, observations: '', representativePhone: ''
@@ -345,16 +345,22 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         nextPhone = lastClass.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || '';
     }
 
+    // sectorId nunca era gravado aqui (só o nome do setor) -- causa raiz do aviso "Aulas
+    // Bíblicas sem ID de Setor" no Diagnóstico do Sistema, que voltava a acontecer a cada nova
+    // aula mesmo depois de corrigido manualmente. Resolve o ID a partir do nome escolhido.
+    const sectorObj = proSectors.find(s => s.name === sectorName && s.unit === unit);
+
     setFormData(prev => ({
         ...prev,
         sector: sectorName,
+        sectorId: sectorObj?.id || '',
         students: [], // Limpa alunos ao trocar de setor manualmente
         guide: nextGuide || prev.guide,
         lesson: nextLesson || prev.lesson,
         status: nextStatus,
         representativePhone: nextPhone || prev.representativePhone
     }));
-  }, [formData.participantType, allHistory, unit]);
+  }, [formData.participantType, allHistory, unit, proSectors]);
 
   useEffect(() => {
     if (editingItem) {
@@ -363,6 +369,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         userId: editingItem.userId || currentUser.id,
         date: ensureISODate(editingItem.date) || getToday(),
         sector: editingItem.sector || '',
+        sectorId: (editingItem as any).sectorId || '',
         location: editingItem.location || '',
         students: editingItem.students || [],
         adventistStudents: editingItem.adventistStudents || [],
@@ -436,6 +443,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       let nextStatus = formData.status;
       let nextPhone = formData.representativePhone;
       let nextSector = formData.sector;
+      let nextSectorId: string | number = formData.sectorId;
 
       if (formData.students.length === 0 && !nextPhone) {
           const match = finalString.match(/\((.*?)\)$/);
@@ -530,7 +538,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
           const lastNum = parseInt(lastClassWithStudent.lesson);
           nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClassWithStudent.lesson;
           nextStatus = RecordStatus.CONTINUACAO;
-          if (!nextSector) nextSector = lastClassWithStudent.sector || nextSector;
+          if (!nextSector) {
+              nextSector = lastClassWithStudent.sector || nextSector;
+              nextSectorId = (lastClassWithStudent as any).sectorId || (proSectors.find(s => s.name === nextSector && s.unit === unit)?.id || '');
+          }
 
           // PONTO 6: Recuperar WhatsApp do representante do histórico do aluno
           const historyPhone = lastClassWithStudent.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1];
@@ -557,7 +568,8 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         lesson: nextLesson,
         status: nextStatus,
         representativePhone: nextPhone,
-        sector: nextSector
+        sector: nextSector,
+        sectorId: nextSectorId
       }));
       setNewStudent('');
     }
@@ -580,6 +592,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     let nextStatus = formData.status;
     let nextPhone = formData.representativePhone;
     let nextSector = formData.sector;
+    let nextSectorId: string | number = formData.sectorId;
 
     const relevant = allHistory.filter(c => c.unit === unit && (c.participantType || ParticipantType.STAFF) === formData.participantType && Array.isArray(c.students));
     const refClass = [...relevant]
@@ -595,7 +608,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       const lastNum = parseInt(refClass.lesson);
       nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : refClass.lesson;
       nextStatus = RecordStatus.CONTINUACAO;
-      if (!nextSector) nextSector = refClass.sector || nextSector;
+      if (!nextSector) {
+        nextSector = refClass.sector || nextSector;
+        nextSectorId = (refClass as any).sectorId || (proSectors.find(s => s.name === nextSector && s.unit === unit)?.id || '');
+      }
       const historyPhone = refClass.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1];
       if (historyPhone && (!nextPhone || nextPhone.length < 10)) nextPhone = historyPhone;
     }
@@ -608,6 +624,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       status: nextStatus,
       representativePhone: nextPhone,
       sector: nextSector,
+      sectorId: nextSectorId,
     }));
     showToast(`${toAdd.length} aluno(s) adicionado(s) de uma vez.`, 'success');
   };
@@ -714,11 +731,21 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
             showToast(`Os seguintes alunos não constam na lista oficial de colaboradores: ${nonStaff.join(', ')}.`, "error");
             return;
         }
+
+        // REDE DE SEGURANÇA: se por algum motivo o sectorId não foi resolvido antes (ex: setor
+        // veio de um caminho antigo que só grava o nome), resolve aqui na hora de salvar --
+        // mesmo padrão já usado em useBibleStudyForm.ts/useStaffVisitForm.ts. Evita voltar a
+        // gerar o aviso "Aulas Bíblicas sem ID de Setor" no Diagnóstico do Sistema.
+        if (!formData.sectorId && formData.sector) {
+            const sectorObj = proSectors.find(s => s.name === formData.sector && s.unit === unit);
+            if (sectorObj) formData.sectorId = sectorObj.id;
+        }
     } else {
         if (!formData.representativePhone || formData.representativePhone.length < 10) { showToast("O WhatsApp do Representante é obrigatório para este grupo.", "warning"); return; }
         if (!isValidWhatsApp(formData.representativePhone)) { showToast("Por favor, insira um número de WhatsApp válido para o representante.", "error"); return; }
         // Clear sector info for non-staff
         formData.sector = '';
+        formData.sectorId = '';
     }
 
     if (isRecordLocked(formData.date, currentUser.role)) {
@@ -787,6 +814,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
             ...prev,
             id: '', // CRITICAL: Clear ID to ensure a new record is created
             sector: baseItem.sector || '',
+            sectorId: (baseItem as any).sectorId || (proSectors.find(s => s.name === baseItem.sector && s.unit === unit)?.id || ''),
             participantType: baseItem.participantType || ParticipantType.STAFF,
             students: baseItem.students || [],
             adventistStudents: baseItem.adventistStudents || [],
