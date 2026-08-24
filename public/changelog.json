@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23aj",
+    "date": "2026-08-23",
+    "changes": [
+      "Melhorado: clicar fora do modal de detalhes de Relatórios (no fundo escuro) agora fecha ele também, não só o X."
+    ]
+  },
+  {
     "version": "2026-08-23ai",
     "date": "2026-08-23",
     "changes": [
