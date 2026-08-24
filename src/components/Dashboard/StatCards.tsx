@@ -19,6 +19,7 @@ const ICON_TEXT_CLASSES: Record<string, string> = {
   'bg-emerald-500': 'text-emerald-600',
   'bg-amber-500': 'text-amber-600',
   'bg-rose-500': 'text-rose-600',
+  'bg-purple-500': 'text-purple-600',
 };
 
 const HIDDEN = { opacity: 0, y: 24, scale: 0.94 };

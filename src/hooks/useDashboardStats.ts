@@ -65,7 +65,7 @@ export const useDashboardStats = (
   }, [userVisits, visits]);
 
   // 3. Filtros e Cálculos Mensais
-  const { monthlyStudies, monthlyClasses, monthlyGroups, monthlyVisits, uniqueStudentsMonth, monthName } = useMemo(() => {
+  const { monthlyStudies, monthlyClasses, monthlyGroups, monthlyVisits, uniqueStudentsMonth, adventistStudentsMonth, monthName } = useMemo(() => {
     const now = selectedMonth ? new Date(selectedMonth + 'T12:00:00') : new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -88,6 +88,7 @@ export const useDashboardStats = (
         monthlyGroups: Array(metrics.totalSmallGroups || 0).fill({}),
         monthlyVisits: Array(metrics.totalStaffVisits || 0).fill({}),
         uniqueStudentsMonth: new Set(Array(metrics.totalUniqueStudents || 0).fill(0).map((_, i) => i.toString())),
+        adventistStudentsMonth: new Set<string>(),
         monthName: mName
       };
     }
@@ -104,9 +105,22 @@ export const useDashboardStats = (
     const mGroups = userGroups.filter(g => isCurrentMonth(g.date));
     const mVisits = userVisits.filter(v => isCurrentMonth(v.date));
 
+    // Alunos marcados como Adventista não contam como "aluno" aqui (mesma regra já aplicada em
+    // Relatórios) -- ficam de fora do uStudents e são contados à parte pro card "Adventistas em
+    // Classes" do Dashboard.
     const uStudents = new Set<string>();
+    const adventists = new Set<string>();
     mStudies.forEach(s => { const key = getStudentKey(s.name, (s as any).staffId || (s as any).participantId); if (key) uStudents.add(key); });
-    mClasses.forEach(c => { if (Array.isArray(c.students)) c.students.forEach(name => { const key = getStudentKey(name); if (key) uStudents.add(key); }); });
+    mClasses.forEach(c => {
+      if (!Array.isArray(c.students)) return;
+      const adventistSet = new Set(c.adventistStudents || []);
+      c.students.forEach(name => {
+        const key = getStudentKey(name);
+        if (!key) return;
+        if (adventistSet.has(name)) adventists.add(key);
+        else uStudents.add(key);
+      });
+    });
 
     return {
       monthlyStudies: mStudies,
@@ -114,6 +128,7 @@ export const useDashboardStats = (
       monthlyGroups: mGroups,
       monthlyVisits: mVisits,
       uniqueStudentsMonth: uStudents,
+      adventistStudentsMonth: adventists,
       monthName: mName
     };
   }, [userStudies, userClasses, userGroups, userVisits, selectedMonth, proMonthlyStats]);
@@ -246,6 +261,7 @@ export const useDashboardStats = (
      monthlyGroups,
      monthlyVisits,
      uniqueStudentsMonth,
+     adventistStudentsMonth,
      totalActionsMonth,
      globalImpact,
      monthName,

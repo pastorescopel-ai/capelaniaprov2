@@ -1,5 +1,15 @@
 [
   {
+    "version": "2026-08-23ad",
+    "date": "2026-08-23",
+    "changes": [
+      "Corrigido: reconhecer um aluno da Classe Bíblica não trazia os colegas da turma quando a última reunião foi há mais de 45 dias (o app só mantém presenças recentes em memória) -- agora busca no banco quando não acha localmente.",
+      "Melhorado: ao reconhecer um aluno da turma, os colegas da última vez já entram direto como presentes (antes só apareciam como sugestão pra marcar um a um).",
+      "Melhorado: na busca de aluno da Classe Bíblica, quem já está em alguma turma (de qualquer capelão) aparece primeiro na lista, igual já acontecia no Estudo Individual -- a busca por aluno passa a ser o jeito principal de achar/continuar uma turma, o setor é só um filtro a mais.",
+      "Novo: card 'Adventistas em Classes' no Dashboard, com o total do mês -- e os adventistas também deixaram de contar no card 'Alunos Ativos' do Dashboard, igual já valia nos Relatórios."
+    ]
+  },
+  {
     "version": "2026-08-23ac",
     "date": "2026-08-23",
     "changes": [

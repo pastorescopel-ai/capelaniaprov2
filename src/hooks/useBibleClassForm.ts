@@ -7,6 +7,7 @@ import { isRecordLocked, isValidWhatsApp } from '../utils/validators';
 import { getValidSectorId } from '../utils/sectorValidation';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
+import { supabase } from '../services/supabaseClient';
 
 interface UseBibleClassFormProps {
   unit: Unit;
@@ -163,7 +164,16 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     const options: AutocompleteOption[] = [];
     const officialSet = new Set<string>();
     const currentSector = formData.sector;
-    
+
+    // Filtra histórico APENAS da categoria atual (Integridade Categórica) -- calculado ANTES do
+    // pool RH/Pacientes/Prestadores pra poder priorizar quem já está em alguma classe (de
+    // qualquer capelão, não só o selecionado) já na primeira passada, igual o Estudo Individual
+    // já faz. A busca por aluno passa a ser o jeito principal de achar/continuar uma turma --
+    // o setor continua existindo só como filtro secundário.
+    const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit);
+    const namesInAnyClass = new Set<string>();
+    filteredHistory.forEach(c => (c.students || []).forEach(s => namesInAnyClass.add(normalizeString(s))));
+
     // 1. Pool de Dados Categórico (Pool de Origem)
     if (formData.participantType === ParticipantType.STAFF) {
         proStaff.filter(s => s.unit === unit).forEach(staff => {
@@ -171,44 +181,46 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
           const sector = validSectorId ? proSectors.find(sec => sec.id === validSectorId) : null;
           const isFromCurrentSector = sector?.name === currentSector;
           const isInactive = staff.active === false;
-          
-          options.push({ 
-            value: staff.name, 
-            label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})${isInactive ? ' [INATIVO]' : ''}`, 
-            subLabel: sector ? sector.name : 'Setor não informado', 
-            category: isFromCurrentSector ? 'Setor Atual' : 'RH',
-            highlight: isFromCurrentSector && !isInactive
+          const isInSomeClass = namesInAnyClass.has(normalizeString(staff.name));
+
+          options.push({
+            value: staff.name,
+            label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})${isInactive ? ' [INATIVO]' : ''}`,
+            subLabel: sector ? sector.name : 'Setor não informado',
+            category: isInSomeClass ? 'Meus Alunos' : isFromCurrentSector ? 'Setor Atual' : 'RH',
+            highlight: (isInSomeClass || isFromCurrentSector) && !isInactive
           });
           officialSet.add(normalizeString(staff.name));
         });
     } else if (formData.participantType === ParticipantType.PATIENT) {
         proPatients.filter(p => p.unit === unit).forEach(patient => {
-          options.push({ 
-            value: patient.name, 
-            label: `${patient.name} (${patient.id})`, 
-            subLabel: 'Paciente', 
-            category: 'Pacientes' 
+          const isInSomeClass = namesInAnyClass.has(normalizeString(patient.name));
+          options.push({
+            value: patient.name,
+            label: `${patient.name} (${patient.id})`,
+            subLabel: 'Paciente',
+            category: isInSomeClass ? 'Meus Alunos' : 'Pacientes',
+            highlight: isInSomeClass
           });
           officialSet.add(normalizeString(patient.name));
         });
     } else if (formData.participantType === ParticipantType.PROVIDER) {
         proProviders.filter(p => p.unit === unit).forEach(provider => {
           const isFromCurrentSector = provider.sector === currentSector;
-          options.push({ 
-            value: provider.name, 
-            label: `${provider.name} (${provider.id})`, 
-            subLabel: provider.sector || 'Prestador', 
-            category: isFromCurrentSector ? 'Setor Atual' : 'Prestadores',
-            highlight: isFromCurrentSector
+          const isInSomeClass = namesInAnyClass.has(normalizeString(provider.name));
+          options.push({
+            value: provider.name,
+            label: `${provider.name} (${provider.id})`,
+            subLabel: provider.sector || 'Prestador',
+            category: isInSomeClass ? 'Meus Alunos' : isFromCurrentSector ? 'Setor Atual' : 'Prestadores',
+            highlight: isInSomeClass || isFromCurrentSector
           });
           officialSet.add(normalizeString(provider.name));
         });
     }
 
     const uniqueHistoryNames = new Set<string>();
-    // Filtra histórico APENAS da categoria atual (Integridade Categórica)
-    const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit);
-    
+
     // 2. Alunos das classes do capelão selecionado (Destaque Amarelo)
     filteredHistory.filter(c => c.userId === formData.userId).forEach(c => {
        if (Array.isArray(c.students)) {
@@ -318,7 +330,9 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     }
   }, [editingItem, getToday, currentUser.id]);
 
-  const addStudent = (val?: string) => { 
+  const [isLinkingClass, setIsLinkingClass] = useState(false);
+
+  const addStudent = async (val?: string) => {
     const inputVal = val || newStudent;
     if (!inputVal.trim()) return;
 
@@ -412,6 +426,54 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
               })[0];
       }
 
+      // FALLBACK NO BANCO: o app só mantém em memória as presenças (bible_class_attendees) dos
+      // últimos 45 dias (ver dataRepository.ts syncBackground) -- classes com a última reunião
+      // mais antiga que isso ficam com `.students` vazio em memória, e a busca acima nunca
+      // encontra a turma dele. Sem esse fallback, reconhecer um aluno de uma turma "antiga"
+      // silenciosamente não trazia os colegas -- bug relatado pelo usuário.
+      if (!lastClassWithStudent && supabase) {
+          setIsLinkingClass(true);
+          try {
+              const { data: hitRows } = await supabase
+                  .from('bible_class_attendees')
+                  .select('class_id, student_name, date')
+                  .ilike('student_name', `${nameToAdd}%`)
+                  .eq('unit', unit)
+                  .order('date', { ascending: false })
+                  .limit(1);
+
+              const foundClassId = hitRows?.[0]?.class_id;
+              if (foundClassId) {
+                  const classRecord = allHistory.find(c => c.id === foundClassId);
+                  const { data: classmateRows } = await supabase
+                      .from('bible_class_attendees')
+                      .select('*')
+                      .eq('class_id', foundClassId);
+
+                  if (classRecord && classmateRows && classmateRows.length > 0) {
+                      const studentsList = classmateRows.map((a: any) => {
+                          const id = a.staff_id || a.participant_id;
+                          if (id && !String(a.student_name).includes(`(${id})`)) return `${a.student_name} (${id})`;
+                          return a.student_name;
+                      });
+                      const adventistList = classmateRows.filter((a: any) => a.is_adventist).map((a: any) => {
+                          const id = a.staff_id || a.participant_id;
+                          if (id && !String(a.student_name).includes(`(${id})`)) return `${a.student_name} (${id})`;
+                          return a.student_name;
+                      });
+                      lastClassWithStudent = { ...classRecord, students: studentsList, adventistStudents: adventistList } as BibleClass;
+                  }
+              }
+          } catch (err) {
+              console.error('Erro ao buscar turma antiga do aluno:', err);
+          } finally {
+              setIsLinkingClass(false);
+          }
+      }
+
+      let updatedStudents = Array.from(new Set([...formData.students, finalString]));
+      let updatedAdventists = [...formData.adventistStudents];
+
       if (lastClassWithStudent) {
           const peersFound = lastClassWithStudent.students.filter(s => s !== finalString && !formData.students.includes(s));
           nextGuide = lastClassWithStudent.guide;
@@ -426,18 +488,21 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
               nextPhone = historyPhone;
           }
 
-          // Os colegas NÃO entram automaticamente como presentes — eles aparecem na lista de
-          // chamada (via linkedClassmates) como ausentes, prontos pra serem marcados um a um.
-          // Só quem foi buscado/clicado agora entra direto como presente.
-          if (peersFound.length > 0) showToast(`Turma reconhecida! ${peersFound.length} colega(s) da última vez apareceram na lista pra chamada.`, "info");
+          // Turma reconhecida: os colegas da última vez entram direto como PRESENTES (a pedido
+          // do usuário -- antes só apareciam como sugestão ausente pra marcar um a um). O selo
+          // de Adventista de quem entra automaticamente também é herdado da última classe.
+          if (peersFound.length > 0) {
+              updatedStudents = Array.from(new Set([...updatedStudents, ...peersFound]));
+              const inheritedAdventists = (lastClassWithStudent.adventistStudents || []).filter(s => updatedStudents.includes(s));
+              updatedAdventists = Array.from(new Set([...updatedAdventists, ...inheritedAdventists]));
+              showToast(`Turma reconhecida! ${peersFound.length} colega(s) da última vez já entraram como presentes.`, "success");
+          }
       }
-
-      // Garante que não haja duplicatas na lista final
-      const updatedStudents = Array.from(new Set([...formData.students, finalString]));
 
       setFormData(prev => ({
         ...prev,
         students: updatedStudents,
+        adventistStudents: updatedAdventists,
         guide: nextGuide,
         lesson: nextLesson,
         status: nextStatus,
@@ -651,7 +716,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   return {
     formData, setFormData,
     newStudent, setNewStudent,
-    isSubmitting,
+    isSubmitting, isLinkingClass,
     lastClassStudents, callList,
     guideOptions, studentSearchOptions, sectorOptions,
     handleSelectSector,

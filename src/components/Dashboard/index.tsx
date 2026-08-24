@@ -72,6 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     monthlyGroups,
     monthlyVisits,
     uniqueStudentsMonth,
+    adventistStudentsMonth,
     totalActionsMonth,
     globalImpact,
     monthName,
@@ -112,6 +113,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     { label: `Meus PGs (${monthName})`, value: monthlyGroups.length, icon: <i className="fas fa-house-user"></i>, color: 'bg-emerald-500' },
     { label: `Minhas Ações (${monthName})`, value: totalActionsMonth, icon: <i className="fas fa-bolt"></i>, color: 'bg-amber-500' },
     { label: `Minhas Visitas (${monthName})`, value: monthlyVisits.length, icon: <i className="fas fa-hands-helping"></i>, color: 'bg-rose-500' },
+    { label: `Adventistas em Classes (${monthName})`, value: adventistStudentsMonth.size, icon: <i className="fas fa-star"></i>, color: 'bg-purple-500' },
   ];
 
   return (

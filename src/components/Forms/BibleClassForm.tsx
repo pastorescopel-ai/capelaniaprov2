@@ -33,7 +33,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
   const {
     formData, setFormData,
     newStudent, setNewStudent,
-    isSubmitting,
+    isSubmitting, isLinkingClass,
     lastClassStudents, callList,
     guideOptions, studentSearchOptions, sectorOptions,
     handleSelectSector,
@@ -122,8 +122,15 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Chamada de Presença — busque um aluno da turma</label>
             <div className="flex gap-2">
               <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent || ''} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={`Digite o nome de um aluno da turma...`} isStrict={false} /></div>
-              <button type="button" onClick={() => addStudent()} className="w-12 h-12 md:w-14 md:h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all"><i className="fas fa-plus"></i></button>
+              <button type="button" onClick={() => addStudent()} disabled={isLinkingClass} className="w-12 h-12 md:w-14 md:h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all disabled:opacity-60 disabled:hover:translate-y-0">
+                <i className={`fas ${isLinkingClass ? 'fa-spinner fa-spin' : 'fa-plus'}`}></i>
+              </button>
             </div>
+            {isLinkingClass && (
+              <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest mt-1.5 ml-2 flex items-center gap-1.5">
+                <i className="fas fa-spinner fa-spin"></i> Procurando a turma deste aluno no histórico...
+              </p>
+            )}
 
             {/* Atalho de continuidade: some quando não há mais ninguém da turma reconhecida
                 pra adicionar de uma vez (turma nova, ou já todo mundo presente). */}
