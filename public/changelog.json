@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-24c",
+    "date": "2026-08-24",
+    "changes": [
+      "Ajuste: a mensagem do mural agora entra em negrito e amarelo sólido (mais forte e legível) e só depois passa a brilhar continuamente -- antes o brilho começava junto com a entrada, deixando o texto meio apagado enquanto ainda estava aparecendo."
+    ]
+  },
+  {
     "version": "2026-08-24b",
     "date": "2026-08-24",
     "changes": [

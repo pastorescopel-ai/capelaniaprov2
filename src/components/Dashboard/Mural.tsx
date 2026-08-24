@@ -220,6 +220,21 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
 
   const activeMessage = dynamicMessages[messageIndex] || dynamicMessages[0];
 
+  // As palavras entram em amarelo sólido (mais forte/legível durante o movimento) e só viram o
+  // brilho animado (shimmer-text) depois que a última palavra termina de entrar -- shimmer e
+  // motion juntos desde o início deixavam o efeito "sujo" (a cor já saindo semitransparente
+  // enquanto ainda estava subindo/aparecendo).
+  const [entranceDone, setEntranceDone] = useState(false);
+  useEffect(() => {
+    setEntranceDone(false);
+    if (!activeMessage) return;
+    const wordCount = buildWordTokens(activeMessage.parts).filter(t => !/^\s+$/.test(t.text)).length;
+    // Mesma matemática do delay escalonado + duração de cada motion.span abaixo (35ms por
+    // palavra + 350ms de duração), com uma folga de 150ms.
+    const timer = setTimeout(() => setEntranceDone(true), wordCount * 35 + 350 + 150);
+    return () => clearTimeout(timer);
+  }, [messageIndex, activeMessage]);
+
   const handleSaveMural = async () => {
     setIsSaving(true);
     try {
@@ -297,7 +312,7 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.035, duration: 0.35, ease: 'easeOut' }}
-                        className={`shimmer-text inline-block ${token.isShimmerPhrase ? 'font-black' : ''}`}
+                        className={`inline-block font-black ${entranceDone ? 'shimmer-text' : 'text-amber-400'}`}
                       >
                         {token.text}
                       </motion.span>
