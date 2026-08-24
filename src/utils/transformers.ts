@@ -16,6 +16,7 @@ export const COLLECTION_TO_TABLE: Record<string, string> = {
   proGroupProviderMembers: 'pro_group_provider_members',
   ambassadors: 'ambassadors',
   bibleClassAttendees: 'bible_class_attendees',
+  bibleClassAdventists: 'bible_class_adventists',
   proMonthlyStats: 'pro_monthly_stats',
   proHistoryRecords: 'pro_history_records'
 };
@@ -24,7 +25,8 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   users: ['id', 'name', 'email', 'password', 'role', 'profile_pic', 'attends_haba', 'haba_days', 'created_at', 'updated_at', 'auth_id', 'staff_id', 'daily_visit_goal', 'subunit_monthly_visit_goal', 'visit_goal_period', 'last_login_at'],
   bible_study_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'location', 'name', 'staff_id', 'participant_id', 'whatsapp', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
   bible_classes: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'location', 'status', 'participant_type', 'guide', 'lesson', 'observations', 'created_at', 'updated_at'],
-  bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'participant_id', 'date', 'cycle_month', 'created_at', 'updated_at', 'unit', 'is_adventist'],
+  bible_class_attendees: ['id', 'class_id', 'student_name', 'staff_id', 'participant_id', 'date', 'cycle_month', 'created_at', 'updated_at', 'unit'],
+  bible_class_adventists: ['id', 'class_id', 'student_name', 'staff_id', 'participant_id', 'date', 'cycle_month', 'created_at', 'updated_at', 'unit'],
   small_group_sessions: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'group_name', 'leader', 'leader_phone', 'shift', 'participants_count', 'observations', 'created_at', 'updated_at'],
   staff_visits: ['id', 'user_id', 'date', 'unit', 'sector', 'sector_id', 'location', 'reason', 'staff_name', 'staff_id', 'provider_id', 'whatsapp', 'participant_type', 'provider_role', 'requires_return', 'return_date', 'return_completed', 'observations', 'created_at', 'updated_at'],
   visit_requests: ['id', 'pg_name', 'leader_name', 'leader_phone', 'unit', 'date', 'status', 'request_notes', 'preferred_chaplain_id', 'assigned_chaplain_id', 'chaplain_response', 'sector_id', 'meeting_location', 'scheduled_time', 'is_read', 'created_at', 'updated_at'],
@@ -188,7 +190,7 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
       }
 
       // PRO Tables and Bible Tables specific logic for IDs (inclui staff_visits e bible_classes para Integridade Total)
-      const isTargetTable = tableName.startsWith('pro_') || tableName === 'bible_study_sessions' || tableName === 'bible_class_attendees' || tableName === 'staff_visits' || tableName === 'bible_classes';
+      const isTargetTable = tableName.startsWith('pro_') || tableName === 'bible_study_sessions' || tableName === 'bible_class_attendees' || tableName === 'bible_class_adventists' || tableName === 'staff_visits' || tableName === 'bible_classes';
       const isIdField = (snakeKey === 'id' || snakeKey === 'sector_id' || snakeKey === 'group_id' || snakeKey === 'staff_id' || snakeKey === 'provider_id' || snakeKey === 'participant_id');
       
       if (isTargetTable && isIdField) {
@@ -264,7 +266,7 @@ export const cleanAndConvertToSnake = (obj: any, allowedFields: string[], tableN
       }
 
       if (tableName !== 'visit_requests' && tableName !== 'daily_activity_reports' && !tableName.startsWith('pro_') && snakeKey !== 'staff_id' && snakeKey !== 'provider_id' && snakeKey !== 'sector_id') {
-        if (isFK && val && !isValidUUID(val) && tableName !== 'bible_class_attendees' && !String(val).match(/^\d+$/)) {
+        if (isFK && val && !isValidUUID(val) && tableName !== 'bible_class_attendees' && tableName !== 'bible_class_adventists' && !String(val).match(/^\d+$/)) {
           newObj[snakeKey] = null;
           continue;
         }

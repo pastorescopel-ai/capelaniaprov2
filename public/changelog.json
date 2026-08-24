@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-23ag",
+    "date": "2026-08-23",
+    "changes": [
+      "Corrigido: adventistas agora ficam numa tabela própria no banco (bible_class_adventists), separada da tabela normal de alunos das classes -- qualquer consulta direta no banco (ex: BI externo) em 'alunos da classe' nunca inclui adventista, sem precisar filtrar nada na query.",
+      "Novo: cartões 'Alunos Pacientes' e 'Alunos Prestadores' em Relatórios, mostrando quantos alunos únicos de cada categoria -- eles já contam normalmente no Total de Alunos, esses cartões são só pra ver a composição."
+    ]
+  },
+  {
     "version": "2026-08-23af",
     "date": "2026-08-23",
     "changes": [

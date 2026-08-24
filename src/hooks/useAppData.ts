@@ -27,6 +27,7 @@ export const useAppData = () => {
   const [proHistoryRecords, setProHistoryRecords] = useState<ProHistoryRecord[]>([]);
   const [ambassadors, setAmbassadors] = useState<any[]>([]);
   const [bibleClassAttendees, setBibleClassAttendees] = useState<any[]>([]);
+  const [bibleClassAdventists, setBibleClassAdventists] = useState<any[]>([]);
 
   const [config, setConfig] = useState<Config>(() => {
     if (typeof window !== 'undefined') {
@@ -81,6 +82,7 @@ export const useAppData = () => {
     proHistoryRecords: setProHistoryRecords,
     ambassadors: setAmbassadors,
     bibleClassAttendees: setBibleClassAttendees,
+    bibleClassAdventists: setBibleClassAdventists,
     config: setConfig
   }), []);
 
@@ -215,14 +217,14 @@ export const useAppData = () => {
     };
   }, [refreshData]);
 
-  // Sincronização automática de estudantes (e do selo de Adventista) nas classes bíblicas
+  // Sincronização automática de alunos (bible_class_attendees) e adventistas (tabela própria
+  // bible_class_adventists) nas classes bíblicas.
   useEffect(() => {
     setBibleClasses(prevClasses => {
       let hasChanges = false;
       const nextClasses = prevClasses.map(cls => {
-        const attendeesOfClass = bibleClassAttendees.filter(a => a.classId === cls.id);
-        const students = attendeesOfClass.map(a => a.studentName);
-        const adventistStudents = attendeesOfClass.filter(a => a.isAdventist).map(a => a.studentName);
+        const students = bibleClassAttendees.filter(a => a.classId === cls.id).map(a => a.studentName);
+        const adventistStudents = bibleClassAdventists.filter(a => a.classId === cls.id).map(a => a.studentName);
 
         const currentStudents = cls.students || [];
         const currentAdventists = cls.adventistStudents || [];
@@ -236,12 +238,13 @@ export const useAppData = () => {
       });
       return hasChanges ? nextClasses : prevClasses;
     });
-  }, [bibleClassAttendees]);
+  }, [bibleClassAttendees, bibleClassAdventists]);
 
   return {
     users, setUsers, bibleStudies, setBibleStudies, bibleClasses, setBibleClasses, smallGroups, setSmallGroups, staffVisits, setStaffVisits, visitRequests, setVisitRequests,
     proStaff, setProStaff, proPatients, setProPatients, proProviders, setProProviders, proSectors, setProSectors, proGroups, setProGroups, proGroupLocations, setProGroupLocations, proGroupMembers, setProGroupMembers, proGroupProviderMembers, setProGroupProviderMembers, proMonthlyStats, setProMonthlyStats, proHistoryRecords, setProHistoryRecords, ambassadors, setAmbassadors,
     bibleClassAttendees, setBibleClassAttendees,
+    bibleClassAdventists, setBibleClassAdventists,
     config, setConfig, isSyncing, isConnected, isInitialized, isBackgroundSynced,
     loadFromCloud, saveToCloud, saveRecord, deleteRecord, deleteRecordsByFilter, refreshData, applySystemOverrides, syncMasterContact
   };

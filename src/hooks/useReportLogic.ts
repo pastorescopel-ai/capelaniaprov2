@@ -1,6 +1,6 @@
 
 import { useMemo } from 'react';
-import { BibleStudy, BibleClass, SmallGroup, StaffVisit, Unit, RecordStatus, ActivityFilter, User } from '../types';
+import { BibleStudy, BibleClass, SmallGroup, StaffVisit, Unit, RecordStatus, ActivityFilter, User, ParticipantType } from '../types';
 import { normalizeString, cleanID, countUniqueClasses, getStudentKey } from '../utils/formatters';
 
 interface ReportFilters {
@@ -75,10 +75,10 @@ export const useReportLogic = (
     // Estudos individuais têm staffId/participantId reais em colunas próprias — usa isso como
     // chave em vez do nome (que pode não ter "(ID)", ex: pacientes digitados só como "Socorro").
     filteredData.studies.forEach(s => addMonthlyName(s.date, s.name, (s as any).staffId || (s as any).participantId));
+    // c.students (bible_class_attendees) e c.adventistStudents (bible_class_adventists) são
+    // tabelas separadas -- adventista nunca aparece em c.students, não precisa filtrar aqui.
     filteredData.classes.forEach(c => {
-      if (!Array.isArray(c.students)) return;
-      const adventistSet = new Set(c.adventistStudents || []);
-      c.students.forEach(n => { if (!adventistSet.has(n)) addMonthlyName(c.date!, n); });
+      if (Array.isArray(c.students)) c.students.forEach(n => addMonthlyName(c.date!, n));
     });
 
     // Conta quantos meses (dentro do filtro) tiveram atividade (registros de alunos)
@@ -124,28 +124,40 @@ export const useReportLogic = (
       if (key) uniqueStudentsPeriod.add(key);
       return key;
     };
+    // Contagem separada de Pacientes e Prestadores -- só informativo (pra saber a composição do
+    // total de alunos), eles continuam somando normalmente em uniqueStudentsPeriod acima.
+    const uniquePatientStudents = new Set<string>();
+    const uniqueProviderStudents = new Set<string>();
+
     filteredData.studies.forEach(s => {
       if (!s.name) return;
       // Mesma razão do addMonthlyName acima: prioriza staffId/participantId reais.
       const key = addUniqueName(s.name, (s as any).staffId || (s as any).participantId);
-      if (key) uniqueIndividualStudents.add(key);
+      if (key) {
+        uniqueIndividualStudents.add(key);
+        if (s.participantType === ParticipantType.PATIENT) uniquePatientStudents.add(key);
+        else if (s.participantType === ParticipantType.PROVIDER) uniqueProviderStudents.add(key);
+      }
     });
-    // Alunos marcados como Adventista não entram no total de alunos (contam presença, mas não
-    // "vida alcançada" nesse sentido) -- ficam de fora daqui e são contados à parte logo abaixo,
-    // pro relatório de "Adventistas em Classes".
+    filteredData.classes.forEach(c => {
+      if (!Array.isArray(c.students)) return;
+      c.students.forEach(n => {
+        const key = addUniqueName(n);
+        if (!key) return;
+        if (c.participantType === ParticipantType.PATIENT) uniquePatientStudents.add(key);
+        else if (c.participantType === ParticipantType.PROVIDER) uniqueProviderStudents.add(key);
+      });
+    });
+
+    // Adventistas vivem em tabela própria (bible_class_adventists) -- nunca entram no total de
+    // alunos acima; contados aqui à parte, pro relatório separado "Adventistas em Classes".
     const uniqueAdventistStudents = new Set<string>();
     let adventistAttendances = 0;
     filteredData.classes.forEach(c => {
-      if (!Array.isArray(c.students)) return;
-      const adventistSet = new Set(c.adventistStudents || []);
-      c.students.forEach(n => {
-        if (adventistSet.has(n)) {
-          adventistAttendances++;
-          const key = getStudentKey(n);
-          if (key) uniqueAdventistStudents.add(key);
-        } else {
-          addUniqueName(n);
-        }
+      (c.adventistStudents || []).forEach(n => {
+        adventistAttendances++;
+        const key = getStudentKey(n);
+        if (key) uniqueAdventistStudents.add(key);
       });
     });
 
@@ -159,7 +171,9 @@ export const useReportLogic = (
       averageStudentsMonthly: averageStats.averageStudents,
       averageActiveMonths: averageStats.activeMonthsCount,
       adventistUniqueStudents: uniqueAdventistStudents.size,
-      adventistAttendances
+      adventistAttendances,
+      patientStudents: uniquePatientStudents.size,
+      providerStudents: uniqueProviderStudents.size
     };
   }, [filteredData, averageStats]);
 

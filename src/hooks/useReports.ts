@@ -15,7 +15,9 @@ import { toCamel } from '../utils/transformers';
 // sem mexer no cache global do app, para não perder alunos de classes mais antigas.
 const SYNC_WINDOW_DAYS = 45;
 
-const fetchClassAttendeesForRange = async (startDate: string, endDate: string): Promise<any[]> => {
+// Alunos de verdade (bible_class_attendees) e adventistas (bible_class_adventists) vivem em
+// tabelas separadas de propósito -- busca as duas pro mesmo período.
+const fetchRowsForRange = async (tableName: 'bible_class_attendees' | 'bible_class_adventists', startDate: string, endDate: string): Promise<any[]> => {
   if (!supabase) return [];
   const allRows: any[] = [];
   let from = 0;
@@ -24,14 +26,14 @@ const fetchClassAttendeesForRange = async (startDate: string, endDate: string): 
 
   while (hasMore) {
     const { data, error } = await supabase
-      .from('bible_class_attendees')
+      .from(tableName)
       .select('*')
       .gte('date', startDate)
       .lte('date', endDate)
       .range(from, from + step - 1);
 
     if (error) {
-      console.error('[useReports] Erro ao buscar presenças de classes sob demanda:', error);
+      console.error(`[useReports] Erro ao buscar ${tableName} sob demanda:`, error);
       break;
     }
     if (!data || data.length === 0) { hasMore = false; break; }
@@ -77,6 +79,7 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
   // Se o período do relatório começa antes da janela de sincronização (45 dias), as presenças
   // das classes bíblicas mais antigas não estão carregadas no app — busca direto do banco.
   const [extendedAttendeesByClass, setExtendedAttendeesByClass] = useState<Map<string, any[]> | null>(null);
+  const [extendedAdventistsByClass, setExtendedAdventistsByClass] = useState<Map<string, any[]> | null>(null);
   const [isLoadingHistoricalAttendees, setIsLoadingHistoricalAttendees] = useState(false);
   const fetchRequestIdRef = useRef(0);
 
@@ -92,21 +95,29 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
         // Período inteiro já dentro da janela sincronizada — usa os dados já carregados.
         if (requestId !== fetchRequestIdRef.current) return;
         setExtendedAttendeesByClass(null);
+        setExtendedAdventistsByClass(null);
         setIsLoadingHistoricalAttendees(false);
         return;
       }
 
       setIsLoadingHistoricalAttendees(true);
-      const rows = await fetchClassAttendeesForRange(filters.startDate, filters.endDate);
+      const [studentRows, adventistRows] = await Promise.all([
+        fetchRowsForRange('bible_class_attendees', filters.startDate, filters.endDate),
+        fetchRowsForRange('bible_class_adventists', filters.startDate, filters.endDate),
+      ]);
       if (requestId !== fetchRequestIdRef.current) return; // filtro mudou antes da resposta chegar
 
-      const byClass = new Map<string, any[]>();
-      rows.forEach(row => {
-        const list = byClass.get(row.classId) || [];
-        list.push(row);
-        byClass.set(row.classId, list);
-      });
-      setExtendedAttendeesByClass(byClass);
+      const groupByClass = (rows: any[]) => {
+        const byClass = new Map<string, any[]>();
+        rows.forEach(row => {
+          const list = byClass.get(row.classId) || [];
+          list.push(row);
+          byClass.set(row.classId, list);
+        });
+        return byClass;
+      };
+      setExtendedAttendeesByClass(groupByClass(studentRows));
+      setExtendedAdventistsByClass(groupByClass(adventistRows));
       setIsLoadingHistoricalAttendees(false);
     };
 
@@ -117,21 +128,19 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
   // quando disponíveis, em vez do students já sintetizado (que pode estar incompleto).
   const effectiveClasses = useMemo(() => {
     if (!extendedAttendeesByClass) return classes;
+    const nameFor = (a: any) => {
+      const id = a.staffId || a.participantId;
+      if (id && !String(a.studentName).includes(`(${id})`)) {
+        return `${a.studentName} (${id})`;
+      }
+      return a.studentName;
+    };
     return classes.map(cls => {
-      const attendees = extendedAttendeesByClass.get(cls.id);
-      if (!attendees) return { ...cls, students: [], adventistStudents: [] };
-      const nameFor = (a: any) => {
-        const id = a.staffId || a.participantId;
-        if (id && !String(a.studentName).includes(`(${id})`)) {
-          return `${a.studentName} (${id})`;
-        }
-        return a.studentName;
-      };
-      const students = attendees.map(nameFor);
-      const adventistStudents = attendees.filter(a => a.isAdventist).map(nameFor);
-      return { ...cls, students, adventistStudents };
+      const attendees = extendedAttendeesByClass.get(cls.id) || [];
+      const adventistRows = extendedAdventistsByClass?.get(cls.id) || [];
+      return { ...cls, students: attendees.map(nameFor), adventistStudents: adventistRows.map(nameFor) };
     });
-  }, [classes, extendedAttendeesByClass]);
+  }, [classes, extendedAttendeesByClass, extendedAdventistsByClass]);
 
   const { filteredData, auditList, totalStats: liveStats } = useReportLogic(studies, effectiveClasses, groups, visits, users, filters as any);
   const pColor = config.primaryColor || '#005a9c';

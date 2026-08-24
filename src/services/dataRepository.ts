@@ -8,7 +8,7 @@ const MEMORY_CACHE: Record<string, any> = {};
 
 function safeSetLocalStorage(key: string, value: any, tableName: string) {
   try {
-    const heavyTables = ['pro_history_records', 'pro_monthly_stats', 'staff_visits', 'bible_class_attendees'];
+    const heavyTables = ['pro_history_records', 'pro_monthly_stats', 'staff_visits', 'bible_class_attendees', 'bible_class_adventists'];
     
     // Não salvar tabelas pesadas no localStorage para evitar QuotaExceededError
     if (heavyTables.includes(tableName)) {
@@ -255,6 +255,10 @@ export const DataRepository = {
         DataRepository.fetchFullTable('pro_monthly_stats', 99999), 
         DataRepository.fetchFullTable('staff_visits', MAX_ROWS, q => q.gte('date', limitDate)),
         DataRepository.fetchFullTable('bible_class_attendees', MAX_ROWS, q => q.gte('date', limitDate)),
+        // Adventistas ficam numa tabela própria (não misturam com bible_class_attendees) --
+        // assim qualquer consulta direta no banco (ex: BI externo) em "alunos da classe" nunca
+        // inclui adventista, sem precisar filtrar nada na query.
+        DataRepository.fetchFullTable('bible_class_adventists', MAX_ROWS, q => q.gte('date', limitDate)),
         DataRepository.fetchFullTable('bible_study_sessions', MAX_ROWS),
         DataRepository.fetchFullTable('bible_classes', MAX_ROWS),
         DataRepository.fetchFullTable('pro_patients', MAX_ROWS),
@@ -263,22 +267,24 @@ export const DataRepository = {
         DataRepository.fetchFullTable('ambassadors', MAX_ROWS)
       ]);
 
-      const [phr, pgm, pst, pms, sv, bca, bs, bc, pp, pr, pgpm, amb] = results;
+      const [phr, pgm, pst, pms, sv, bca, bcad, bs, bc, pp, pr, pgpm, amb] = results;
 
       const classes = bc.data ? toCamel(bc.data) : null;
       const attendees = bca.data ? toCamel(bca.data) : null;
-      
+      const adventists = bcad.data ? toCamel(bcad.data) : null;
+
+      const buildName = (a: any) => {
+        const id = a.staffId || a.participantId;
+        if (id && !String(a.studentName).includes(`(${id})`)) {
+          return `${a.studentName} (${id})`;
+        }
+        return a.studentName;
+      };
+
       if (classes && attendees) {
         classes.forEach((cls) => {
-            cls.students = attendees
-              .filter((a) => a.classId === cls.id)
-              .map((a) => {
-                  const id = a.staffId || a.participantId;
-                  if (id && !String(a.studentName).includes(`(${id})`)) {
-                      return `${a.studentName} (${id})`;
-                  }
-                  return a.studentName;
-              });
+            cls.students = attendees.filter((a) => a.classId === cls.id).map(buildName);
+            cls.adventistStudents = (adventists || []).filter((a) => a.classId === cls.id).map(buildName);
         });
       }
 
@@ -289,6 +295,7 @@ export const DataRepository = {
         proMonthlyStats: pms.data ? toCamel(pms.data) : null,
         staffVisits: sv.data ? toCamel(sv.data) : null,
         bibleClassAttendees: attendees,
+        bibleClassAdventists: adventists,
         bibleStudies: bs.data ? toCamel(bs.data) : null,
         bibleClasses: classes,
         proPatients: pp.data ? toCamel(pp.data) : null,
@@ -403,7 +410,70 @@ async syncAll() {
 
     if (collection === 'bibleClasses') {
         // For bibleClasses, we need to ensure the students are attached to the returned objects
-        // since they are stored in a separate table.
+        // since they are stored in separate tables (bible_class_attendees pros alunos de
+        // verdade, bible_class_adventists pros adventistas -- tabelas separadas de propósito,
+        // pra qualquer consulta direta no banco em "alunos da classe" nunca incluir adventista).
+        const syncRosterTable = async (tableName: 'bible_class_attendees' | 'bible_class_adventists', classId: string, classDate: string, classUnit: string, participantType: string, desiredNames: string[]) => {
+            const { data: current, error: fetchError } = await supabase!
+                .from(tableName)
+                .select('id, student_name, date')
+                .eq('class_id', classId);
+
+            if (fetchError) {
+                console.error(`Erro ao buscar registros atuais de ${tableName}:`, fetchError);
+                return;
+            }
+
+            const currentNames = (current || []).map(a => a.student_name);
+            const namesToAdd = desiredNames.filter(name => !currentNames.includes(name));
+            const idsToRemove = (current || []).filter(a => !desiredNames.includes(a.student_name)).map(a => a.id);
+
+            if (idsToRemove.length > 0) {
+                const { error: delError } = await supabase!.from(tableName).delete().in('id', idsToRemove);
+                if (delError) console.error(`Erro ao remover registros de ${tableName}:`, delError);
+            }
+
+            // Realinhar a data/mês de quem PERMANECE: o diff acima só cobre quem entrou/saiu -- se
+            // a classe teve só a DATA editada (mesmos nomes), os registros existentes nunca eram
+            // tocados e ficavam com a data antiga pra sempre, quebrando consultas que filtram
+            // date diretamente (ex: Cobertura de meses fechados fora da janela de sync).
+            if (classDate) {
+                const d = new Date(classDate + (classDate.includes('T') ? '' : 'T12:00:00'));
+                if (!isNaN(d.getTime())) {
+                    const cycleMonth = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+                    const idsToRealign = (current || []).filter(a => desiredNames.includes(a.student_name) && a.date !== classDate).map(a => a.id);
+                    if (idsToRealign.length > 0) {
+                        const { error: realignError } = await supabase!.from(tableName).update({ date: classDate, cycle_month: cycleMonth }).in('id', idsToRealign);
+                        if (realignError) console.error(`Erro ao realinhar data de ${tableName}:`, realignError);
+                    }
+                }
+            }
+
+            if (namesToAdd.length > 0) {
+                const payload = namesToAdd.map((name: string) => {
+                    // Sem âncora de fim de string: nomes de colaboradores inativos têm um sufixo
+                    // " [INATIVO]" depois do "(ID)", então o "(...)" nunca é o último caractere.
+                    const match = name.match(/\(([^)]+)\)/);
+                    const extractedId = match ? match[1].trim() : null;
+                    const isStaff = (participantType || 'Colaborador') === 'Colaborador';
+                    const staffId = isStaff ? extractedId : null;
+                    const participantId = !isStaff ? extractedId : null;
+
+                    let cycleMonth = null;
+                    if (classDate) {
+                        const d = new Date(classDate + (classDate.includes('T') ? '' : 'T12:00:00'));
+                        if (!isNaN(d.getTime())) cycleMonth = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+                    }
+
+                    return { class_id: classId, student_name: name, staff_id: staffId, participant_id: participantId, date: classDate, cycle_month: cycleMonth, unit: classUnit };
+                });
+
+                const cleanPayload = payload.map(p => cleanAndConvertToSnake(p, TABLE_SCHEMAS[tableName], tableName));
+                const { error: insError } = await supabase!.from(tableName).insert(cleanPayload);
+                if (insError) console.error(`Erro ao inserir novos registros em ${tableName}:`, insError);
+            }
+        };
+
         for (const cls of allUpsertedData) {
             const originalItem = items.find(i => i.id === cls.id);
             if (originalItem && originalItem.students) {
@@ -414,116 +484,12 @@ async syncAll() {
             }
 
             if (cls.id && originalItem && originalItem.students && Array.isArray(originalItem.students)) {
-                // 1. Buscar participantes atuais no banco para fazer o "diff"
-                const { data: currentAttendees, error: fetchError } = await supabase
-                    .from('bible_class_attendees')
-                    .select('id, student_name, date, is_adventist')
-                    .eq('class_id', cls.id);
-
-                if (fetchError) {
-                    console.error("Erro ao buscar participantes atuais:", fetchError);
-                    continue;
-                }
-
-                const currentNames = (currentAttendees || []).map(a => a.student_name);
-                const newNames = originalItem.students;
-                // Quem tá marcado como "adventista" nesta gravação -- não conta no total de
-                // alunos dos relatórios, mas fica registrado pra alimentar o relatório separado
-                // de "Adventistas em Classes".
                 const adventistNames: string[] = originalItem.adventistStudents || [];
+                const realStudentNames = originalItem.students.filter((name: string) => !adventistNames.includes(name));
+                const pType = originalItem.participantType || cls.participantType || 'Colaborador';
 
-                // 2. Identificar o que adicionar e o que remover
-                const namesToAdd = newNames.filter(name => !currentNames.includes(name));
-                const idsToRemove = (currentAttendees || [])
-                    .filter(a => !newNames.includes(a.student_name))
-                    .map(a => a.id);
-
-                // 3. Remover os que saíram
-                if (idsToRemove.length > 0) {
-                    const { error: delError } = await supabase
-                        .from('bible_class_attendees')
-                        .delete()
-                        .in('id', idsToRemove);
-                    if (delError) console.error("Erro ao remover participantes:", delError);
-                }
-
-                // 3b. Realinhar a data/mês dos que PERMANECEM: o diff acima só cobre quem entrou
-                // ou saiu da lista — se a classe teve só a DATA editada (mesmos alunos), as
-                // presenças já existentes nunca eram tocadas e ficavam com a data antiga pra
-                // sempre, quebrando relatórios/consultas que filtram bible_class_attendees.date
-                // diretamente (ex: Cobertura de meses fechados fora da janela de sync de 45 dias).
-                if (cls.date) {
-                    const d = new Date(cls.date + (cls.date.includes('T') ? '' : 'T12:00:00'));
-                    if (!isNaN(d.getTime())) {
-                        const cycleMonth = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-                        const idsToRealign = (currentAttendees || [])
-                            .filter(a => newNames.includes(a.student_name) && a.date !== cls.date)
-                            .map(a => a.id);
-                        if (idsToRealign.length > 0) {
-                            const { error: realignError } = await supabase
-                                .from('bible_class_attendees')
-                                .update({ date: cls.date, cycle_month: cycleMonth })
-                                .in('id', idsToRealign);
-                            if (realignError) console.error("Erro ao realinhar data das presenças:", realignError);
-                        }
-                    }
-                }
-
-                // 3c. Realinhar o marcador de Adventista de quem PERMANECE na lista: o diff de
-                // nomes acima só cobre quem entrou/saiu -- se alguém que já estava presente teve
-                // só o selo de Adventista ligado/desligado, precisa de um UPDATE à parte.
-                const idsToMarkAdventist = (currentAttendees || [])
-                    .filter(a => newNames.includes(a.student_name) && adventistNames.includes(a.student_name) && !a.is_adventist)
-                    .map(a => a.id);
-                const idsToUnmarkAdventist = (currentAttendees || [])
-                    .filter(a => newNames.includes(a.student_name) && !adventistNames.includes(a.student_name) && a.is_adventist)
-                    .map(a => a.id);
-                if (idsToMarkAdventist.length > 0) {
-                    const { error } = await supabase.from('bible_class_attendees').update({ is_adventist: true }).in('id', idsToMarkAdventist);
-                    if (error) console.error("Erro ao marcar adventista:", error);
-                }
-                if (idsToUnmarkAdventist.length > 0) {
-                    const { error } = await supabase.from('bible_class_attendees').update({ is_adventist: false }).in('id', idsToUnmarkAdventist);
-                    if (error) console.error("Erro ao desmarcar adventista:", error);
-                }
-
-                // 4. Adicionar os novos
-                if (namesToAdd.length > 0) {
-                    const attendeesPayload = namesToAdd.map((name: string) => {
-                        // Sem âncora de fim de string: nomes de colaboradores inativos têm um sufixo
-                        // " [INATIVO]" depois do "(ID)", então o "(...)" nunca é o último caractere.
-                        const match = name.match(/\(([^)]+)\)/);
-                        const extractedId = match ? match[1].trim() : null;
-                        
-                        const pType = originalItem.participantType || cls.participantType || 'Colaborador';
-                        const isStaff = pType === 'Colaborador';
-                        const staffId = isStaff ? extractedId : null;
-                        const participantId = !isStaff ? extractedId : null;
-
-                        let cycleMonth = null;
-                        if (cls.date) {
-                            const d = new Date(cls.date + (cls.date.includes('T') ? '' : 'T12:00:00'));
-                            if (!isNaN(d.getTime())) {
-                                cycleMonth = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-                            }
-                        }
-
-                        return {
-                            class_id: cls.id,
-                            student_name: name,
-                            staff_id: staffId,
-                            participant_id: participantId,
-                            date: cls.date,
-                            cycle_month: cycleMonth,
-                            unit: cls.unit,
-                            is_adventist: adventistNames.includes(name)
-                        };
-                    });
-
-                    const cleanPayload = attendeesPayload.map(p => cleanAndConvertToSnake(p, TABLE_SCHEMAS['bible_class_attendees'], 'bible_class_attendees'));
-                    const { error: insError } = await supabase.from('bible_class_attendees').insert(cleanPayload);
-                    if (insError) console.error("Erro ao inserir novos participantes:", insError);
-                }
+                await syncRosterTable('bible_class_attendees', cls.id, cls.date, cls.unit, pType, realStudentNames);
+                await syncRosterTable('bible_class_adventists', cls.id, cls.date, cls.unit, pType, adventistNames);
             }
         }
     }

@@ -105,21 +105,15 @@ export const useDashboardStats = (
     const mGroups = userGroups.filter(g => isCurrentMonth(g.date));
     const mVisits = userVisits.filter(v => isCurrentMonth(v.date));
 
-    // Alunos marcados como Adventista não contam como "aluno" aqui (mesma regra já aplicada em
-    // Relatórios) -- ficam de fora do uStudents e são contados à parte pro card "Adventistas em
-    // Classes" do Dashboard.
+    // Adventistas vivem em tabela própria (bible_class_adventists) -- c.students nunca inclui
+    // eles, então não contam como "aluno" aqui automaticamente. Contados à parte (c.adventistStudents)
+    // pro card "Adventistas em Classes" do Dashboard.
     const uStudents = new Set<string>();
     const adventists = new Set<string>();
     mStudies.forEach(s => { const key = getStudentKey(s.name, (s as any).staffId || (s as any).participantId); if (key) uStudents.add(key); });
     mClasses.forEach(c => {
-      if (!Array.isArray(c.students)) return;
-      const adventistSet = new Set(c.adventistStudents || []);
-      c.students.forEach(name => {
-        const key = getStudentKey(name);
-        if (!key) return;
-        if (adventistSet.has(name)) adventists.add(key);
-        else uStudents.add(key);
-      });
+      if (Array.isArray(c.students)) c.students.forEach(name => { const key = getStudentKey(name); if (key) uStudents.add(key); });
+      (c.adventistStudents || []).forEach(name => { const key = getStudentKey(name); if (key) adventists.add(key); });
     });
 
     return {

@@ -48,12 +48,16 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     if (!supabase || !unit) return;
     (async () => {
       try {
-        const { data } = await supabase
-          .from('bible_class_attendees')
-          .select('student_name, class_id')
-          .eq('unit', unit);
-        if (cancelled || !data) return;
-        setHistoricalClassAttendance(data.map((r: any) => ({ studentName: r.student_name, classId: r.class_id })));
+        // Une as duas tabelas (alunos + adventistas) -- pra fins de "já está numa turma" na
+        // busca, ambos contam; a exclusão de adventista do total de alunos acontece só nos
+        // relatórios, não aqui.
+        const [{ data }, { data: adventistData }] = await Promise.all([
+          supabase.from('bible_class_attendees').select('student_name, class_id').eq('unit', unit),
+          supabase.from('bible_class_adventists').select('student_name, class_id').eq('unit', unit),
+        ]);
+        if (cancelled) return;
+        const combined = [...(data || []), ...(adventistData || [])];
+        setHistoricalClassAttendance(combined.map((r: any) => ({ studentName: r.student_name, classId: r.class_id })));
       } catch (err) {
         console.error('Erro ao buscar histórico completo de alunos de classes:', err);
       }
@@ -481,35 +485,32 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       if (!lastClassWithStudent && supabase) {
           setIsLinkingClass(true);
           try {
-              const { data: hitRows } = await supabase
-                  .from('bible_class_attendees')
-                  .select('class_id, student_name, date')
-                  .ilike('student_name', `${nameToAdd}%`)
-                  .eq('unit', unit)
-                  .order('date', { ascending: false })
-                  .limit(20);
+              const nameToClassRows = (rows: any[] | null) => (rows || []).map((row: any) => row.class_id as string);
+              // Adventista de uma turma que ele nunca frequentou como aluno "de verdade" só
+              // aparece em bible_class_adventists -- busca as duas tabelas.
+              const [{ data: hitRows }, { data: hitRowsAdventist }] = await Promise.all([
+                  supabase.from('bible_class_attendees').select('class_id, student_name, date').ilike('student_name', `${nameToAdd}%`).eq('unit', unit).order('date', { ascending: false }).limit(20),
+                  supabase.from('bible_class_adventists').select('class_id, student_name, date').ilike('student_name', `${nameToAdd}%`).eq('unit', unit).order('date', { ascending: false }).limit(20),
+              ]);
 
-              const foundClassId = (hitRows || [])
-                  .map((row: any) => row.class_id)
-                  .find((classId: string) => allHistory.find(c => c.id === classId)?.userId === formData.userId);
+              const candidateClassIds = [...nameToClassRows(hitRows), ...nameToClassRows(hitRowsAdventist)];
+              const foundClassId = candidateClassIds.find(classId => allHistory.find(c => c.id === classId)?.userId === formData.userId);
               if (foundClassId) {
                   const classRecord = allHistory.find(c => c.id === foundClassId);
-                  const { data: classmateRows } = await supabase
-                      .from('bible_class_attendees')
-                      .select('*')
-                      .eq('class_id', foundClassId);
+                  const [{ data: classmateRows }, { data: adventistRows }] = await Promise.all([
+                      supabase.from('bible_class_attendees').select('*').eq('class_id', foundClassId),
+                      supabase.from('bible_class_adventists').select('*').eq('class_id', foundClassId),
+                  ]);
 
-                  if (classRecord && classmateRows && classmateRows.length > 0) {
-                      const studentsList = classmateRows.map((a: any) => {
-                          const id = a.staff_id || a.participant_id;
-                          if (id && !String(a.student_name).includes(`(${id})`)) return `${a.student_name} (${id})`;
-                          return a.student_name;
-                      });
-                      const adventistList = classmateRows.filter((a: any) => a.is_adventist).map((a: any) => {
-                          const id = a.staff_id || a.participant_id;
-                          if (id && !String(a.student_name).includes(`(${id})`)) return `${a.student_name} (${id})`;
-                          return a.student_name;
-                      });
+                  const nameFor = (a: any) => {
+                      const id = a.staff_id || a.participant_id;
+                      if (id && !String(a.student_name).includes(`(${id})`)) return `${a.student_name} (${id})`;
+                      return a.student_name;
+                  };
+
+                  if (classRecord && ((classmateRows && classmateRows.length > 0) || (adventistRows && adventistRows.length > 0))) {
+                      const studentsList = (classmateRows || []).map(nameFor);
+                      const adventistList = (adventistRows || []).map(nameFor);
                       lastClassWithStudent = { ...classRecord, students: studentsList, adventistStudents: adventistList } as BibleClass;
                   }
               }

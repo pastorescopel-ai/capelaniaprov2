@@ -16,6 +16,8 @@ interface StatsProps {
     isLocked?: boolean;
     adventistUniqueStudents?: number;
     adventistAttendances?: number;
+    patientStudents?: number;
+    providerStudents?: number;
   };
 }
 
@@ -58,6 +60,18 @@ const ReportStats: React.FC<StatsProps> = ({ totalStats }) => {
       value: totalStats.adventistUniqueStudents || 0,
       color: 'bg-purple-600 shadow-purple-100',
       sub: `${totalStats.adventistAttendances || 0} Presenças no Período`
+    },
+    {
+      label: 'Alunos Pacientes',
+      value: totalStats.patientStudents || 0,
+      color: 'bg-amber-500',
+      sub: 'Já somam no Total de Alunos'
+    },
+    {
+      label: 'Alunos Prestadores',
+      value: totalStats.providerStudents || 0,
+      color: 'bg-teal-500',
+      sub: 'Já somam no Total de Alunos'
     },
   ];
 
