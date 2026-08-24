@@ -20,6 +20,8 @@ interface ChaplainCardProps {
   // true quando este card é um dos 2 abertos simultaneamente -- liga o destaque visual de
   // "modo comparação" (borda azul + selo) pra deixar claro que os dois estão emparelhados.
   isComparing: boolean;
+  // Abre o ranking com TODOS os capelães (ChaplainComparisonModal), destacando este.
+  onOpenComparison: () => void;
 }
 
 const SEGMENT_COLORS = {
@@ -68,7 +70,7 @@ const emptyUnitStats = () => ({ studies: 0, classes: 0, groups: 0, visits: 0, to
 
 const ChaplainCard: React.FC<ChaplainCardProps> = ({
   stat, avgTeamActions, studies, classes, groups, visits,
-  isOpen, onToggleOpen, selectedMonthKey, onSelectMonth, isComparing,
+  isOpen, onToggleOpen, selectedMonthKey, onSelectMonth, isComparing, onOpenComparison,
 }) => {
   const userId = stat.user.id;
 
@@ -225,6 +227,7 @@ const ChaplainCard: React.FC<ChaplainCardProps> = ({
             userClasses={userClasses}
             userGroups={userGroups}
             userVisits={userVisits}
+            onCompareClick={onOpenComparison}
           />
         </div>
       )}

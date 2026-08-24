@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-24f",
+    "date": "2026-08-24",
+    "changes": [
+      "Novo: no Panorama de cada capelão (Relatórios), tocar em 'Vs. Média Equipe' abre um ranking comparando o total de ações de todos os capelães no período filtrado, com o capelão clicado destacado -- antes o percentual não tinha como ser explorado."
+    ]
+  },
+  {
     "version": "2026-08-24e",
     "date": "2026-08-24",
     "changes": [

@@ -22,6 +22,7 @@ interface ChaplainPanoramaProps {
   userClasses: BibleClass[];
   userGroups: SmallGroup[];
   userVisits: StaffVisit[];
+  onCompareClick: () => void;
 }
 
 type ActivityType = 'study' | 'class' | 'group' | 'visit';
@@ -39,7 +40,7 @@ const ACTIVITY_META: Record<ActivityType, { icon: string; bg: string; label: str
 // KPIs e a atividade recente.
 const ChaplainPanorama: React.FC<ChaplainPanoramaProps> = ({
   userName, totalActions, avgTeamActions, monthBuckets, selectedMonthKey, onSelectMonth,
-  userStudies, userClasses, userGroups, userVisits
+  userStudies, userClasses, userGroups, userVisits, onCompareClick
 }) => {
   const selected = monthBuckets.find(m => m.key === selectedMonthKey) || monthBuckets[monthBuckets.length - 1];
   const maxTotal = Math.max(...monthBuckets.map(m => m.total), 1);
@@ -81,13 +82,20 @@ const ChaplainPanorama: React.FC<ChaplainPanoramaProps> = ({
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Meses Ativos</p>
             <p className="text-lg font-black text-slate-800 mt-0.5">{monthsActiveCount}<span className="text-[10px] text-slate-400 font-bold"> /6</span></p>
           </div>
-          <div className="bg-slate-50 rounded-2xl p-3">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Vs. Média Equipe</p>
+          <button
+            type="button"
+            onClick={onCompareClick}
+            className="bg-slate-50 rounded-2xl p-3 text-left hover:bg-slate-100 transition-colors group/compare"
+          >
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+              Vs. Média Equipe <i className="fas fa-chart-simple text-[7px] opacity-0 group-hover/compare:opacity-100 transition-opacity"></i>
+            </p>
             <p className={`text-lg font-black mt-0.5 ${vsTeamPct === null ? 'text-slate-400' : vsTeamPct >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {vsTeamPct === null ? '--' : `${vsTeamPct >= 0 ? '+' : ''}${vsTeamPct}%`}
             </p>
-          </div>
+          </button>
         </div>
+        <p className="text-[8px] font-bold text-slate-400 -mt-3">Toque em "Vs. Média Equipe" pra ver o ranking com todos os capelães</p>
 
         <div>
           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">Ações nos últimos 6 meses</p>

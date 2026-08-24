@@ -6,6 +6,7 @@ import { useReports } from '../hooks/useReports';
 import ReportStats from './Reports/ReportStats';
 import ReportActions from './Reports/ReportActions';
 import ChaplainCard from './Reports/ChaplainCard';
+import ChaplainComparisonModal from './Reports/ChaplainComparisonModal';
 
 interface ReportsProps {
   studies: BibleStudy[];
@@ -49,6 +50,8 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
   // qualquer um dos dois já atualiza os dois. Abrir um 3º fecha o mais antigo automaticamente.
   const [openChaplainIds, setOpenChaplainIds] = useState<string[]>([]);
   const [sharedMonthKey, setSharedMonthKey] = useState<string | null>(null);
+  // Ranking com todos os capelães, aberto ao clicar em "Vs. Média Equipe" dentro do Panorama.
+  const [comparisonUserId, setComparisonUserId] = useState<string | null>(null);
   const toggleChaplainOpen = (id: string) => {
     setOpenChaplainIds(prev => {
       if (prev.includes(id)) return prev.filter(x => x !== id);
@@ -117,11 +120,19 @@ const Reports: React.FC<ReportsProps> = ({ studies, classes, groups, visits, use
                 selectedMonthKey={sharedMonthKey}
                 onSelectMonth={setSharedMonthKey}
                 isComparing={isComparing}
+                onOpenComparison={() => setComparisonUserId(stat.user.id)}
               />
             </motion.div>
           );
         })}
       </div>
+
+      <ChaplainComparisonModal
+        chaplainStats={chaplainStats}
+        avgTeamActions={avgTeamActions}
+        highlightedUserId={comparisonUserId}
+        onClose={() => setComparisonUserId(null)}
+      />
     </div>
   );
 };
