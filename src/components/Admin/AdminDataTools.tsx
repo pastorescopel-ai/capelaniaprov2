@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { User, ProStaff, ProSector, ProGroup, ProGroupMember, ProGroupProviderMember, ProProvider, Ambassador, ProMonthlyStats, ProHistoryRecord } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import SyncModal, { SyncStatus } from '../Shared/SyncModal';
@@ -13,7 +13,6 @@ interface AdminDataToolsProps {
   currentUser: User;
   users: User[];
   onRefreshData: () => Promise<any>;
-  onRestoreFullDNA: (dna: any) => Promise<{ success: boolean; message: string }>;
   isRefreshing: boolean;
   proData: {
     staff: ProStaff[];
@@ -40,7 +39,7 @@ interface AdminDataToolsProps {
 }
 
 const AdminDataTools: React.FC<AdminDataToolsProps> = ({ 
-  currentUser, users, onRefreshData, onRestoreFullDNA, isRefreshing,
+  currentUser, users, onRefreshData, isRefreshing,
   proData, chaplaincyData, ambassadors, proGroupMembers, proGroupProviderMembers, saveRecord, deleteRecord, deleteRecordsByFilter
 }) => {
   const { showToast } = useToast();
@@ -51,14 +50,9 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
     variant?: 'danger' | 'primary' | 'warning';
     onConfirm: () => void;
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
-  const [showDNAConfirm, setShowDNAConfirm] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [pendingDNA, setPendingDNA] = useState<any>(null);
   const [syncState, setSyncState] = useState<{isOpen: boolean; status: SyncStatus; title: string; message: string; error?: string;}>({ isOpen: false, status: 'idle', title: '', message: '' });
   const [activeAuditUnit, setActiveAuditUnit] = useState<Unit>(Unit.HAB);
   const [isAuditing, setIsAuditing] = useState(false);
-  const [isRobustAuditing, setIsRobustAuditing] = useState(false);
-  const [robustReport, setRobustReport] = useState<any>(null);
 
   const [healthCheckState, setHealthCheckState] = useState<{
     isOpen: boolean;
@@ -66,212 +60,10 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
     report: any | null;
   }>({ isOpen: false, isChecking: false, report: null });
 
-  const getAuthHeaders = async (): Promise<Record<string, string>> => {
-    const { data: { session } } = (await supabase?.auth.getSession()) || { data: { session: null } };
-    return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
-  };
-
-  const runRobustDiagnostics = async () => {
-    setIsRobustAuditing(true);
-    try {
-      const response = await fetch('/api/diagnostics', { headers: await getAuthHeaders() });
-      const data = await response.json();
-      setRobustReport(data);
-    } catch (err) {
-      showToast("Erro ao rodar diagnóstico: " + (err as Error).message, "warning");
-    } finally {
-      setIsRobustAuditing(false);
-    }
-  };
-
-  const deleteFile = async (filePath: string) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Confirmar Exclusão',
-      message: `Tem certeza que deseja deletar o arquivo: ${filePath}?`,
-      variant: 'danger',
-      onConfirm: async () => {
-        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-        try {
-          const response = await fetch('/api/delete-file', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-            body: JSON.stringify({ filePath })
-          });
-          if (response.ok) {
-            showToast("Arquivo deletado com sucesso!", "success");
-            runRobustDiagnostics(); // Re-run diagnostics
-          } else {
-            showToast("Erro ao deletar arquivo.", "error");
-          }
-        } catch (err) {
-          showToast("Erro ao deletar arquivo: " + (err as Error).message, "warning");
-        }
-      }
-    });
-  };
-
-  const [isRepairing, setIsRepairing] = useState(false);
-
-  const inactiveStaffCount = useMemo(() => (proData.staff || []).filter(s => s.unit === activeAuditUnit && !s.active).length, [proData.staff, activeAuditUnit]);
-  const inactiveGroupsCount = useMemo(() => (proData.groups || []).filter(g => g.unit === activeAuditUnit && !g.active).length, [proData.groups, activeAuditUnit]);
-
-  const runIntegrityRepair = async () => {
-    // 1. Identificar qualquer Staff inativo nesta unidade
-    const inactiveStaff = (proData.staff || []).filter(s => 
-      s.unit === activeAuditUnit && 
-      !s.active
-    );
-
-    if (inactiveStaff.length === 0) {
-      showToast(`Nenhum colaborador inativo foi detectado na unidade ${activeAuditUnit}. Verifique se a unidade selecionada está correta.`, "info");
-      return;
-    }
-
-    const staffNames = inactiveStaff.slice(0, 5).map(s => s.name).join(', ') + (inactiveStaff.length > 5 ? '...' : '');
-
-    setConfirmModal({
-      isOpen: true,
-      title: 'Confirmar Reparo de Colaboradores',
-      message: `Detectados ${inactiveStaff.length} colaboradores inativos em ${activeAuditUnit} (Ex: ${staffNames}).\n\nDeseja reativá-los e restaurar suas matrículas de PG agora?`,
-      variant: 'warning',
-      onConfirm: async () => {
-        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-        setIsRepairing(true);
-        try {
-          const now = Date.now();
-          let restoredStaff = 0;
-          let restoredMemberships = 0;
-
-          for (const staff of inactiveStaff) {
-            await saveRecord('proStaff', { 
-              ...staff, 
-              active: true, 
-              leftAt: null, 
-              updatedAt: now,
-              notes: (staff.notes || '') + ' [REPARO DE EMERGÊNCIA: Reativado via AdminTools]'
-            });
-            restoredStaff++;
-
-            // Restaura só a matrícula MAIS RECENTE (a pessoa só pode ter um PG aberto por vez —
-            // reabrir todo o histórico de PGs antigos violaria essa regra e a trava do banco).
-            const closedMemberships = proGroupMembers.filter(m =>
-              cleanID(m.staffId) === cleanID(staff.id) &&
-              m.leftAt
-            );
-            if (closedMemberships.length > 0) {
-              const mostRecent = [...closedMemberships].sort((a, b) => (b.joinedAt || 0) - (a.joinedAt || 0))[0];
-              await saveRecord('proGroupMembers', {
-                ...mostRecent,
-                leftAt: null,
-                isError: false,
-                updatedAt: now
-              });
-              restoredMemberships++;
-            }
-          }
-
-          showToast(`SUCESSO: ${restoredStaff} colaboradores e ${restoredMemberships} matrículas restauradas em ${activeAuditUnit}!`, "success");
-          await onRefreshData();
-        } catch (err) {
-          showToast("Falha no reparo: " + (err as Error).message, "warning");
-        } finally {
-          setIsRepairing(false);
-        }
-      }
-    });
-  };
-
-  const runPGRepair = async () => {
-    const inactiveGroups = (proData.groups || []).filter(g => 
-      g.unit === activeAuditUnit && 
-      !g.active
-    );
-
-    if (inactiveGroups.length === 0) {
-      showToast(`Nenhum PG inativo encontrado em ${activeAuditUnit}.`, "info");
-      return;
-    }
-
-    setConfirmModal({
-      isOpen: true,
-      title: 'Confirmar Reparo de PGs',
-      message: `Deseja reativar ${inactiveGroups.length} PGs (Pequenos Grupos) inativos em ${activeAuditUnit}?`,
-      variant: 'warning',
-      onConfirm: async () => {
-        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-        setIsRepairing(true);
-        try {
-          const now = Date.now();
-          let restored = 0;
-          for (const group of inactiveGroups) {
-            await saveRecord('proGroups', { 
-              ...group, 
-              active: true, 
-              updatedAt: now 
-            });
-            restored++;
-          }
-
-          showToast(`SUCESSO: ${restored} PGs reativados em ${activeAuditUnit}!`, "success");
-          await onRefreshData();
-        } catch (err) {
-          showToast("Erro no reparo: " + (err as Error).message, "warning");
-        } finally {
-          setIsRepairing(false);
-        }
-      }
-    });
-  };
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const formatMonthLabel = (iso: string) => {
-    const d = new Date(iso + 'T12:00:00');
-    return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  };
-
-  const handleTriggerFileSelect = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-
-  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const dna = JSON.parse(event.target?.result as string);
-        setPendingDNA(dna.database || dna);
-        setShowDNAConfirm(true);
-      } catch (err) {
-        showToast("Erro ao ler JSON: " + (err as Error).message, "warning");
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = ""; 
-  };
-
-  const confirmDNARestore = async () => {
-    if (!pendingDNA) return;
-    setIsProcessing(true);
-    try {
-      const result = await onRestoreFullDNA(pendingDNA);
-      if (result.success) {
-        showToast(`SUCESSO: ${result.message}`, "success");
-        setShowDNAConfirm(false);
-        setPendingDNA(null);
-      } else {
-        showToast(`FALHA: ${result.message}`, "warning");
-      }
-    } catch (err) {
-      showToast("Falha crítica: " + (err as Error).message, "warning");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  // "Restaurar Backup (DNA)", "Reparo de Emergência (RH)" e "Diagnóstico Robusto" foram
+  // removidas daqui (ver AdminPanel > Ferramentas) a pedido do usuário -- eram capazes de
+  // reescrever/reverter dados em massa, ou (no caso do Diagnóstico Robusto) apagar arquivos
+  // do servidor direto pelo navegador, sem trava suficiente pro risco que representavam.
 
   // LÓGICA DE AUDITORIA SQL VIRTUAL
   const auditResults = useMemo(() => {
@@ -1052,60 +844,12 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
         </div>
       )}
 
-      {/* MODAL RESTAURAR DNA */}
-      {showDNAConfirm && (
-        <div className="fixed inset-0 z-[7000]">
-          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => !isProcessing && setShowDNAConfirm(false)} />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-10 text-center space-y-8 animate-in zoom-in duration-300 border-4 border-slate-100">
-            <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-[2rem] flex items-center justify-center text-3xl mx-auto shadow-inner">
-               <i className={`fas ${isProcessing ? 'fa-sync fa-spin' : 'fa-database'}`}></i>
-            </div>
-            <div className="space-y-3">
-              <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">
-                {isProcessing ? 'Restaurando...' : 'Confirmar Restauração?'}
-              </h3>
-              <p className="text-slate-500 font-bold text-xs leading-relaxed uppercase tracking-wider px-4">
-                {isProcessing 
-                  ? 'Processando arquivo de backup. Aguarde...' 
-                  : 'Isso irá substituir os dados atuais pelos do backup. Essa ação é irreversível.'}
-              </p>
-            </div>
-            {!isProcessing && (
-              <div className="grid grid-cols-2 gap-4">
-                <button onClick={() => { setShowDNAConfirm(false); setPendingDNA(null); }} className="py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-colors">Cancelar</button>
-                <button onClick={confirmDNARestore} className="py-4 bg-[#005a9c] text-white font-black rounded-2xl uppercase text-[10px] tracking-widest shadow-xl hover:brightness-110 transition-all">
-                  <i className="fas fa-cloud-upload-alt mr-2"></i> Iniciar
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* RESTAURAR BACKUP */}
-      <div className="grid md:grid-cols-3 gap-8">
-        <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col items-center text-center gap-6 shadow-sm hover:border-blue-300 transition-all group w-full">
-            <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center text-white text-2xl shadow-xl group-hover:scale-110 transition-transform">
-            <i className="fas fa-file-import text-blue-400"></i>
-            </div>
-            <div className="flex-1 space-y-2">
-            <h3 className="text-slate-800 font-black uppercase text-sm tracking-tight">Restaurar Backup (DNA)</h3>
-            <p className="text-slate-500 font-medium text-[10px] leading-relaxed">
-                Carregue um arquivo .JSON completo para restaurar o sistema.
-            </p>
-            </div>
-            <div className="relative w-full">
-            <button 
-                onClick={handleTriggerFileSelect}
-                disabled={isProcessing}
-                className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-xl uppercase text-[9px] tracking-widest shadow-sm hover:bg-slate-200 hover:text-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2"
-            >
-                <i className="fas fa-upload"></i> Selecionar Arquivo
-            </button>
-            <input ref={fileInputRef} type="file" onChange={handleFileSelected} accept=".json" className="hidden" />
-            </div>
-        </div>
-
+      {/* Só ficam duas ferramentas aqui: Auditoria de IDs e Diagnóstico do Sistema (só leitura
+          + correções pontuais e seguras). "Restaurar Backup (DNA)", "Reparo de Emergência (RH)"
+          e "Diagnóstico Robusto" foram removidas a pedido do usuário -- eram capazes de
+          reescrever/reverter dados em massa (ou, no caso do Diagnóstico Robusto, apagar
+          arquivos do servidor) sem trava suficiente pro risco que representavam. */}
+      <div className="grid md:grid-cols-2 gap-8">
         {/* AUDITORIA DE INTEGRIDADE */}
         <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col items-center text-center gap-6 shadow-sm hover:border-rose-300 transition-all group w-full">
             <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
@@ -1157,52 +901,6 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
             </div>
         </div>
 
-        <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col items-center text-center gap-6 shadow-sm hover:border-amber-400 transition-all group w-full">
-            <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
-              <i className="fas fa-undo-alt"></i>
-            </div>
-            <div className="flex-1 space-y-2">
-              <h3 className="text-slate-800 font-black uppercase text-sm tracking-tight">Reparo de Emergência (RH)</h3>
-              <p className="text-slate-500 font-medium text-[10px] leading-relaxed">
-                  Recupera colaboradores e matrículas de PGs desativados acidentalmente.
-              </p>
-              <div className="flex gap-2 justify-center mt-2">
-                <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[9px] font-bold uppercase">{inactiveStaffCount} Inativos</span>
-                <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-bold uppercase">{inactiveGroupsCount} PGs Off</span>
-              </div>
-            </div>
-
-            <div className="flex bg-slate-50 p-1 rounded-xl gap-1 w-full">
-              {['HAB', 'HABA'].map(u => (
-                <button 
-                  key={u} 
-                  onClick={() => setActiveAuditUnit(u as any)}
-                  className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeAuditUnit === u ? 'bg-white shadow text-amber-600' : 'text-slate-400'}`}
-                >
-                  Unidade {u}
-                </button>
-              ))}
-            </div>
-
-            <div className="w-full flex flex-col gap-3 mt-auto">
-              <button 
-                  onClick={runIntegrityRepair}
-                  disabled={isRepairing}
-                  className="w-full py-4 bg-amber-600 text-white font-black rounded-xl uppercase text-[9px] tracking-widest shadow-sm hover:bg-amber-700 transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                  <i className={`fas ${isRepairing ? 'fa-spinner fa-spin' : 'fa-user-plus'}`}></i> 
-                  {isRepairing ? 'Restaurando...' : 'Resgatar Colaboradores'}
-              </button>
-              <button 
-                  onClick={runPGRepair}
-                  disabled={isRepairing}
-                  className="w-full py-3 bg-white border border-amber-200 text-amber-600 font-black rounded-xl uppercase text-[8px] tracking-widest hover:bg-amber-50 transition-all flex items-center justify-center gap-2"
-              >
-                  <i className="fas fa-users-viewfinder"></i> Reativar PGs Órfãos
-              </button>
-            </div>
-        </div>
-
         {/* DIAGNÓSTICO DO SISTEMA */}
         <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col items-center text-center gap-6 shadow-sm hover:border-emerald-300 transition-all group w-full">
             <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
@@ -1226,28 +924,6 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
             </div>
         </div>
 
-        {/* DIAGNÓSTICO ROBUSTO */}
-        <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col items-center text-center gap-6 shadow-sm hover:border-indigo-300 transition-all group w-full">
-            <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
-              <i className="fas fa-microscope"></i>
-            </div>
-            <div className="flex-1 space-y-2">
-              <h3 className="text-slate-800 font-black uppercase text-sm tracking-tight">Diagnóstico Robusto</h3>
-              <p className="text-slate-500 font-medium text-[10px] leading-relaxed">
-                  Análise profunda de conexões, arquivos órfãos e integridade de banco.
-              </p>
-            </div>
-            <div className="relative w-full mt-auto">
-              <button 
-                  onClick={runRobustDiagnostics}
-                  disabled={isRobustAuditing}
-                  className="w-full py-4 bg-indigo-600 text-white font-black rounded-xl uppercase text-[9px] tracking-widest shadow-sm hover:bg-indigo-700 transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                  <i className={`fas ${isRobustAuditing ? 'fa-spinner fa-spin' : 'fa-microscope'}`}></i> 
-                  {isRobustAuditing ? 'Analisando...' : 'Iniciar Diagnóstico Robusto'}
-              </button>
-            </div>
-        </div>
       </div>
       {/* DETAILS MODAL */}
       {detailsModal.isOpen && (
@@ -1297,38 +973,6 @@ const AdminDataTools: React.FC<AdminDataToolsProps> = ({
         </div>
       )}
 
-      {/* MODAL DIAGNÓSTICO ROBUSTO */}
-      {robustReport && (
-        <div className="fixed inset-0 z-[7000] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setRobustReport(null)} />
-          <div className="relative bg-white w-full max-w-3xl max-h-[90vh] flex flex-col rounded-[2rem] shadow-2xl animate-in zoom-in duration-300 border border-slate-200 overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Relatório de Diagnóstico Robusto</h3>
-              <button onClick={() => setRobustReport(null)} className="w-10 h-10 bg-white border border-slate-200 text-slate-400 rounded-full hover:bg-slate-50 hover:text-slate-600 transition-colors flex items-center justify-center">
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto">
-              <div className="space-y-4">
-                <div className="bg-slate-100 p-4 rounded-xl">
-                  <p className="text-xs font-bold text-slate-600 uppercase">Status da Conexão Supabase: <span className={robustReport.connectionStatus.supabase ? 'text-emerald-600' : 'text-rose-600'}>{robustReport.connectionStatus.supabase ? 'OK' : 'FALHA'}</span></p>
-                </div>
-                <div className="bg-slate-100 p-4 rounded-xl">
-                  <p className="text-xs font-bold text-slate-600 uppercase">Arquivos órfãos potenciais ({robustReport.fileAnalysis.unusedFiles.length}):</p>
-                  <ul className="text-[10px] font-mono text-slate-500 mt-2 max-h-60 overflow-y-auto">
-                    {robustReport.fileAnalysis.unusedFiles.map((f: { path: string; lastModified: string }, i: number) => (
-                      <li key={i} className="flex items-center justify-between py-1 border-b border-slate-200 last:border-none">
-                        <span>{f.path} <span className="text-[9px] text-slate-400">({new Date(f.lastModified).toLocaleDateString()})</span></span>
-                        <button onClick={() => deleteFile(f.path)} className="text-rose-500 hover:text-rose-700 font-bold ml-2">Deletar</button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Envolvido num wrapper posicionado com z-index maior que os modais desta
           tela (z-[7000]), para a confirmação sempre aparecer por cima deles. */}
       <div className="relative" style={{ zIndex: 8000 }}>

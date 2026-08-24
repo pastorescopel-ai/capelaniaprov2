@@ -13,7 +13,7 @@ const AdminPanel: React.FC = () => {
     config, 
     bibleStudies, bibleClasses, smallGroups, staffVisits, visitRequests, bibleClassAttendees, users,
     proStaff, proSectors, proGroups, proGroupMembers, proGroupProviderMembers, proProviders, proMonthlyStats, proHistoryRecords, ambassadors,
-    saveToCloud, loadFromCloud, applySystemOverrides, importFromDNA, saveRecord, deleteRecord, deleteRecordsByFilter
+    saveToCloud, loadFromCloud, applySystemOverrides, saveRecord, deleteRecord, deleteRecordsByFilter
   } = useApp();
   
   const { currentUser } = useAuth();
@@ -178,9 +178,8 @@ const AdminPanel: React.FC = () => {
             <AdminDataTools 
               currentUser={currentUser} 
               users={users}
-              onRefreshData={() => loadFromCloud(true)} 
-              onRestoreFullDNA={importFromDNA} 
-              isRefreshing={isRefreshing} 
+              onRefreshData={() => loadFromCloud(true)}
+              isRefreshing={isRefreshing}
               proData={{ 
                 staff: proStaff, 
                 sectors: proSectors, 

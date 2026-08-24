@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-24e",
+    "date": "2026-08-24",
+    "changes": [
+      "Segurança: removidas da aba Ferramentas (Admin) as ferramentas 'Restaurar Backup (DNA)', 'Reparo de Emergência (RH)' e 'Diagnóstico Robusto' -- eram capazes de reescrever/reativar dados em massa (ou, no caso do Diagnóstico Robusto, apagar arquivos do servidor) sem trava proporcional ao risco. Ficam só 'Diagnóstico do Sistema', 'Auditoria de IDs (SQL Virtual)' e 'Backup Completo' (todas só leitura ou com correções pontuais e seguras)."
+    ]
+  },
+  {
     "version": "2026-08-24d",
     "date": "2026-08-24",
     "changes": [
