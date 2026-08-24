@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23al",
+    "date": "2026-08-23",
+    "changes": [
+      "Corrigido: a sugestão de visitas na Visita Pastoral calculava os setores já visitados usando o admin logado, não o capelão selecionado no dropdown 'Capelão Responsável' -- por isso não aparecia nada quando um admin lançava em nome de outro capelão."
+    ]
+  },
+  {
     "version": "2026-08-23ak",
     "date": "2026-08-23",
     "changes": [

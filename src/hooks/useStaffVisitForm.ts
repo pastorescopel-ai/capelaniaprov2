@@ -114,9 +114,12 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       return sector?.name || '';
     };
 
+    // Usa o capelão SELECIONADO no formulário (formData.userId) e não currentUser.id -- pro
+    // admin lançando em nome de outro capelão, as sugestões precisam ser dos setores do capelão
+    // escolhido no dropdown "Capelão Responsável", não do próprio admin logado.
     const visitedSectorNames = new Set(
       allHistory
-        .filter(v => v.userId === currentUser.id && v.unit === unit && ((v as any).participantType || ParticipantType.STAFF) === ParticipantType.STAFF && v.sector)
+        .filter(v => v.userId === formData.userId && v.unit === unit && ((v as any).participantType || ParticipantType.STAFF) === ParticipantType.STAFF && v.sector)
         .map(v => v.sector)
     );
     if (visitedSectorNames.size === 0) return [];
@@ -130,7 +133,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
       .map(s => ({ id: s.id, name: s.name, sector: sectorNameOf(s) }))
       .filter(s => s.sector && visitedSectorNames.has(s.sector) && !everVisitedNames.has(normalizeString(s.name)))
       .sort((a, b) => a.sector.localeCompare(b.sector) || a.name.localeCompare(b.name));
-  }, [allHistory, proStaff, proSectors, unit, currentUser.id, formData.participantType]);
+  }, [allHistory, proStaff, proSectors, unit, formData.userId, formData.participantType]);
 
   // Carrega `editingItem` no formulário só uma vez por registro selecionado. `proStaff`
   // muda de identidade a cada ~30s por causa do polling/realtime em segundo plano --
