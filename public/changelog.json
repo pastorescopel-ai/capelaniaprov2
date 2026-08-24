@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-24a",
+    "date": "2026-08-24",
+    "changes": [
+      "Corrigido: a Meta mensal de visitas da equipe (editada pelo lápis no mural) não salvava -- o campo existia no banco, mas faltava liberá-lo na lista de campos permitidos ao gravar as configurações."
+    ]
+  },
+  {
     "version": "2026-08-23al",
     "date": "2026-08-23",
     "changes": [
