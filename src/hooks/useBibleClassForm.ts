@@ -446,6 +446,55 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     }
   };
 
+  // Atalho pra chamada em continuidade: em vez de buscar aluno por aluno pra "reconhecer" a
+  // turma de novo, um clique só adiciona todo mundo que já está na lista de chamada (callList,
+  // que já reconhece a turma de qualquer setor -- ver linkedClassmates acima) de uma vez, e
+  // puxa guia/lição/status/telefone da classe mais recente ligada a esses alunos, igual o
+  // addStudent faz pra 1 aluno, só que aplicado pra lista inteira numa passada só.
+  const addAllFromLastClass = () => {
+    const toAdd = callList.filter(s => !formData.students.includes(s));
+    if (toAdd.length === 0) {
+      showToast('Não há mais alunos da turma anterior pra adicionar.', 'info');
+      return;
+    }
+
+    let nextGuide = formData.guide;
+    let nextLesson = formData.lesson;
+    let nextStatus = formData.status;
+    let nextPhone = formData.representativePhone;
+    let nextSector = formData.sector;
+
+    const relevant = allHistory.filter(c => c.unit === unit && (c.participantType || ParticipantType.STAFF) === formData.participantType && Array.isArray(c.students));
+    const refClass = [...relevant]
+      .filter(c => toAdd.some(name => c.students.includes(name)) || formData.students.some(name => c.students.includes(name)))
+      .sort((a, b) => {
+        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      })[0];
+
+    if (refClass) {
+      nextGuide = refClass.guide;
+      const lastNum = parseInt(refClass.lesson);
+      nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : refClass.lesson;
+      nextStatus = RecordStatus.CONTINUACAO;
+      if (!nextSector) nextSector = refClass.sector || nextSector;
+      const historyPhone = refClass.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1];
+      if (historyPhone && (!nextPhone || nextPhone.length < 10)) nextPhone = historyPhone;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      students: Array.from(new Set([...prev.students, ...toAdd])),
+      guide: nextGuide,
+      lesson: nextLesson,
+      status: nextStatus,
+      representativePhone: nextPhone,
+      sector: nextSector,
+    }));
+    showToast(`${toAdd.length} aluno(s) adicionado(s) de uma vez.`, 'success');
+  };
+
   const handleClear = () => {
     setFormData({ ...defaultState, date: formData.date });
     showToast("Campos limpos!", "info");
@@ -592,7 +641,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     lastClassStudents, callList,
     guideOptions, studentSearchOptions, sectorOptions,
     handleSelectSector,
-    addStudent, handleClear, handleFormSubmit,
+    addStudent, addAllFromLastClass, handleClear, handleFormSubmit,
     handleContinueClass: (item: BibleClass) => {
         // Busca a última classe DESTE SETOR e DESTE TIPO DE PARTICIPANTE para garantir que pegamos a mais recente
         const lastClass = [...allHistory]

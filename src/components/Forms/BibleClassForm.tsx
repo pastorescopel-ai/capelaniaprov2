@@ -37,7 +37,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     lastClassStudents, callList,
     guideOptions, studentSearchOptions, sectorOptions,
     handleSelectSector,
-    addStudent, handleClear, handleFormSubmit,
+    addStudent, addAllFromLastClass, handleClear, handleFormSubmit,
     handleContinueClass, defaultState
   } = useBibleClassForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
@@ -124,7 +124,20 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
               <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent || ''} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={`Digite o nome de um aluno da turma...`} isStrict={false} /></div>
               <button type="button" onClick={() => addStudent()} className="w-12 h-12 md:w-14 md:h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all"><i className="fas fa-plus"></i></button>
             </div>
-            
+
+            {/* Atalho de continuidade: some quando não há mais ninguém da turma reconhecida
+                pra adicionar de uma vez (turma nova, ou já todo mundo presente). */}
+            {callList.length > formData.students.length && (
+              <button
+                type="button"
+                onClick={addAllFromLastClass}
+                className="mt-2 w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-indigo-50 text-indigo-700 font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 active:scale-[0.99] transition-all"
+              >
+                <i className="fas fa-user-plus"></i>
+                Adicionar todos os {callList.length - formData.students.length} alunos da última turma
+              </button>
+            )}
+
             <div className="mt-4 md:mt-5 border border-slate-200 rounded-[1.5rem] overflow-hidden bg-white shadow-sm">
               <div className="bg-slate-50 p-3 md:p-3.5 border-b border-slate-100 flex justify-between items-center"><span className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-2 flex items-center gap-2"><i className="fas fa-clipboard-list text-indigo-400"></i> Lista de Alunos ({formData.students.length})</span></div>
               <div className="max-h-[15rem] md:max-h-[20rem] overflow-y-auto custom-scrollbar">

@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23ab",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: na Classe Bíblica, depois de reconhecer o primeiro aluno da turma, um botão 'Adicionar todos os N alunos da última turma' carrega o resto da chamada de uma vez, em vez de buscar aluno por aluno."
+    ]
+  },
+  {
     "version": "2026-08-23aa",
     "date": "2026-08-23",
     "changes": [
