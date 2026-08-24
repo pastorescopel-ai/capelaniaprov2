@@ -1,9 +1,29 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import { Config, StaffVisit, UserRole } from '../../types';
 import Button from '../Shared/Button';
 import { useToast } from '../../contexts/ToastContext';
 import { ensureISODate } from '../../utils/formatters';
+
+// Quebra as partes da mensagem (string | {shimmer}) em palavras individuais, preservando qual
+// trecho já era um destaque {shimmer} -- usado pra animar palavra por palavra (opção D aprovada
+// pelo usuário) e deixar TODA a frase brilhando (não só os números em destaque, opção E) depois
+// que ela termina de entrar.
+type MessagePart = string | { shimmer: string };
+const buildWordTokens = (parts: MessagePart[]): { text: string; isShimmerPhrase: boolean }[] => {
+  const tokens: { text: string; isShimmerPhrase: boolean }[] = [];
+  parts.forEach(part => {
+    if (typeof part === 'string') {
+      part.split(/(\s+)/).filter(chunk => chunk.length > 0).forEach(chunk => {
+        tokens.push({ text: chunk, isShimmerPhrase: false });
+      });
+    } else {
+      tokens.push({ text: part.shimmer, isShimmerPhrase: true });
+    }
+  });
+  return tokens;
+};
 
 interface MuralProps {
   config: Config;
@@ -265,11 +285,25 @@ const Mural: React.FC<MuralProps> = ({ config, userRole, onUpdateConfig, visits,
               {hasManualText ? (
                 config.muralText
               ) : activeMessage ? (
-                activeMessage.parts.map((part, i) =>
-                  typeof part === 'string'
-                    ? <React.Fragment key={i}>{part}</React.Fragment>
-                    : <span key={i} className="shimmer-text font-black">{part.shimmer}</span>
-                )
+                // key={messageIndex}: remonta do zero a cada troca de mensagem, senão as
+                // palavras não teriam como "entrar" de novo (React só atualizaria o texto).
+                <span key={messageIndex}>
+                  {buildWordTokens(activeMessage.parts).map((token, i) =>
+                    /^\s+$/.test(token.text) ? (
+                      <React.Fragment key={i}>{token.text}</React.Fragment>
+                    ) : (
+                      <motion.span
+                        key={i}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.035, duration: 0.35, ease: 'easeOut' }}
+                        className={`shimmer-text inline-block ${token.isShimmerPhrase ? 'font-black' : ''}`}
+                      >
+                        {token.text}
+                      </motion.span>
+                    )
+                  )}
+                </span>
               ) : (
                 "Nenhum aviso no momento."
               )}

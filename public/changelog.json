@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-24b",
+    "date": "2026-08-24",
+    "changes": [
+      "Novo: a mensagem do mural agora entra palavra por palavra (em vez de aparecer toda de uma vez) e a frase inteira fica brilhando continuamente, não só os números em destaque -- pra chamar mais atenção pra mensagem."
+    ]
+  },
+  {
     "version": "2026-08-24a",
     "date": "2026-08-24",
     "changes": [
