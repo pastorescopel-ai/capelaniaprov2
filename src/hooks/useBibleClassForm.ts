@@ -36,6 +36,30 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   const [newStudent, setNewStudent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // O app só mantém em memória as presenças (bible_class_attendees) dos últimos 45 dias, então
+  // "quem já está em alguma classe" calculado só com allHistory fica cego pra gente cuja última
+  // turma foi mais antiga que isso. Uma busca leve (só nome + unidade, sem filtro de data) traz
+  // o quadro completo pra destacar certo na busca de aluno -- roda uma vez por unidade, não a
+  // cada tecla digitada.
+  const [historicalClassStudentNames, setHistoricalClassStudentNames] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let cancelled = false;
+    if (!supabase || !unit) return;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('bible_class_attendees')
+          .select('student_name')
+          .eq('unit', unit);
+        if (cancelled || !data) return;
+        setHistoricalClassStudentNames(new Set(data.map((r: any) => normalizeString(r.student_name))));
+      } catch (err) {
+        console.error('Erro ao buscar histórico completo de alunos de classes:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [unit]);
+
   const lastClassStudents = useMemo(() => {
     if (!formData.sector || !unit) return [];
     
@@ -170,9 +194,13 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     // qualquer capelão, não só o selecionado) já na primeira passada, igual o Estudo Individual
     // já faz. A busca por aluno passa a ser o jeito principal de achar/continuar uma turma --
     // o setor continua existindo só como filtro secundário.
+    // "student_name" (banco) e c.students (memória) guardam "Nome (ID)" por completo -- pra
+    // comparar com o nome puro de RH/Pacientes/Prestadores (sem parênteses), o set precisa ser
+    // montado só com o nome, não a string inteira, senão a comparação nunca bate.
+    const nameOnlyKey = (raw: string) => normalizeString(raw.split(' (')[0].trim());
     const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit);
-    const namesInAnyClass = new Set<string>();
-    filteredHistory.forEach(c => (c.students || []).forEach(s => namesInAnyClass.add(normalizeString(s))));
+    const namesInAnyClass = new Set<string>(Array.from(historicalClassStudentNames).map(nameOnlyKey));
+    filteredHistory.forEach(c => (c.students || []).forEach(s => namesInAnyClass.add(nameOnlyKey(s))));
 
     // 1. Pool de Dados Categórico (Pool de Origem)
     if (formData.participantType === ParticipantType.STAFF) {
@@ -268,7 +296,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       if (a.category !== 'Meus Alunos' && b.category === 'Meus Alunos') return 1;
       return a.label.localeCompare(b.label);
     });
-  }, [proStaff, proPatients, proProviders, proSectors, unit, allHistory, formData.userId, formData.participantType, formData.sector]);
+  }, [proStaff, proPatients, proProviders, proSectors, unit, allHistory, formData.userId, formData.participantType, formData.sector, historicalClassStudentNames]);
 
   const handleSelectSector = useCallback((sectorName: string) => {
     if (!sectorName) return;

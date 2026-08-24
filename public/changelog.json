@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23ae",
+    "date": "2026-08-23",
+    "changes": [
+      "Corrigido: na busca de aluno da Classe Bíblica, quem já estava em alguma turma há mais de 45 dias não aparecia destacado (a comparação de nomes não batia por causa do '(ID)' no final do nome salvo) -- agora busca o histórico completo direto no banco e compara certo."
+    ]
+  },
+  {
     "version": "2026-08-23ad",
     "date": "2026-08-23",
     "changes": [
