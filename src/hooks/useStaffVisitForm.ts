@@ -21,7 +21,7 @@ interface UseStaffVisitFormProps {
 export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem, currentUser, onSubmit, isActive = true }: UseStaffVisitFormProps) => {
   const { proStaff, proProviders, proSectors, syncMasterContact } = useApp();
   const { showToast } = useToast();
-  const { checkIdentityConflict } = useIdentityGuard();
+  const { checkIdentityConflict, checkOwnershipConflict } = useIdentityGuard();
 
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
   const defaultState = useMemo(() => ({ 
@@ -99,6 +99,38 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     });
     return options;
   }, [proStaff, proProviders, proSectors, unit, history, formData.participantType]);
+
+  // Sugestão de visita: colaboradores ATIVOS dos setores onde ESTE capelão já visitou alguém,
+  // que ainda nunca receberam visita nenhuma (de qualquer capelão) -- ajuda a completar a
+  // cobertura de um setor já iniciado em vez de ter que lembrar/procurar quem falta. Só olha o
+  // histórico já carregado em memória (últimos ~45 dias de staff_visits, mesma janela do resto
+  // do app) -- visitas mais antigas que isso não entram nesse cálculo.
+  const suggestedStaff = useMemo(() => {
+    if (formData.participantType !== ParticipantType.STAFF) return [];
+
+    const sectorNameOf = (s: any) => {
+      const validSectorId = getValidSectorId(s.sectorId, unit, proSectors);
+      const sector = validSectorId ? proSectors.find(sec => sec.id === validSectorId) : null;
+      return sector?.name || '';
+    };
+
+    const visitedSectorNames = new Set(
+      allHistory
+        .filter(v => v.userId === currentUser.id && v.unit === unit && ((v as any).participantType || ParticipantType.STAFF) === ParticipantType.STAFF && v.sector)
+        .map(v => v.sector)
+    );
+    if (visitedSectorNames.size === 0) return [];
+
+    const everVisitedNames = new Set(
+      allHistory.filter(v => v.unit === unit).map(v => normalizeString((v.staffName || '').split(' (')[0].trim()))
+    );
+
+    return proStaff
+      .filter(s => s.unit === unit && s.active !== false)
+      .map(s => ({ id: s.id, name: s.name, sector: sectorNameOf(s) }))
+      .filter(s => s.sector && visitedSectorNames.has(s.sector) && !everVisitedNames.has(normalizeString(s.name)))
+      .sort((a, b) => a.sector.localeCompare(b.sector) || a.name.localeCompare(b.name));
+  }, [allHistory, proStaff, proSectors, unit, currentUser.id, formData.participantType]);
 
   // Carrega `editingItem` no formulário só uma vez por registro selecionado. `proStaff`
   // muda de identidade a cada ~30s por causa do polling/realtime em segundo plano --
@@ -217,17 +249,33 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
           lockSector = false;
       }
 
-      setFormData(prev => ({ 
-        ...prev, 
-        staffName: nameOnly, 
-        staffId: foundStaffId || '', 
-        providerId: foundProviderId || '', 
-        whatsapp: foundWhatsapp || '', 
+      setFormData(prev => ({
+        ...prev,
+        staffName: nameOnly,
+        staffId: foundStaffId || '',
+        providerId: foundProviderId || '',
+        whatsapp: foundWhatsapp || '',
         sector: foundSector || '',
         sectorId: foundSectorId || ''
       }));
       setIsSectorLocked(lockSector);
       if (lockSector) showToast("Setor e WhatsApp vinculados ao cadastro.", "info");
+
+      // Avisa (sem bloquear) se esta pessoa já recebeu visita antes -- e de quem.
+      const visitOwnership = checkOwnershipConflict(nameOnly, 'visit', unit, currentUser.id, currentUser.role);
+      if (visitOwnership.hasConflict) {
+          showToast(visitOwnership.message, "info", true);
+      }
+  };
+
+  // Preenche o formulário a partir de um clique na lista de sugestões (ver suggestedStaff) --
+  // reaproveita handleSelectName com o mesmo formato de label que a busca normal já usa.
+  const handleSelectSuggestion = (staffId: string) => {
+      const staff = proStaff.find(s => s.id === staffId);
+      if (!staff) return;
+      handleSelectName(`${staff.name} (${String(staff.id).split('-')[1] || staff.id})`);
+      const scrollContainer = document.getElementById('main-scroll-container');
+      if (scrollContainer) scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleClear = () => {
@@ -401,8 +449,8 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     formData, setFormData,
     isSectorLocked, setIsSectorLocked,
     isSubmitting,
-    sectorOptions, nameOptions,
-    handleSelectName, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
+    sectorOptions, nameOptions, suggestedStaff,
+    handleSelectName, handleSelectSuggestion, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
     sortedHistory, defaultState
   };
 };

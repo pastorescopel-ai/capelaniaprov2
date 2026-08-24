@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-23ak",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: ao buscar um colaborador na Visita Pastoral, se ele já foi visitado antes, aparece um aviso dizendo por qual capelão e em que data.",
+      "Novo: painel de sugestão na Visita Pastoral com colaboradores dos setores que você já visitou e que ainda não receberam nenhuma visita -- toque num nome pra preencher o formulário direto."
+    ]
+  },
+  {
     "version": "2026-08-23aj",
     "date": "2026-08-23",
     "changes": [

@@ -31,8 +31,8 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     formData, setFormData,
     isSectorLocked, setIsSectorLocked,
     isSubmitting,
-    sectorOptions, nameOptions,
-    handleSelectName, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
+    sectorOptions, nameOptions, suggestedStaff,
+    handleSelectName, handleSelectSuggestion, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
     sortedHistory, defaultState
   } = useStaffVisitForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
@@ -220,6 +220,30 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data da Visita *</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>
           
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{isStaff ? 'Colaborador Atendido *' : 'Nome do Prestador *'}</label><Autocomplete options={nameOptions} value={formData.staffName} onChange={handleChangeName} onSelectOption={handleSelectName} placeholder={isStaff ? "Busque por nome ou matrícula..." : "Busque ou digite o nome..."} isStrict={false} /></div>
+
+          {isStaff && suggestedStaff.length > 0 && (
+            <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className="text-[10px] font-black text-amber-600 ml-2 uppercase tracking-widest flex items-center gap-1.5">
+                <i className="fas fa-lightbulb"></i> Sugestão -- ainda não receberam visita no(s) setor(es) que você já visitou
+              </label>
+              <div className="flex flex-wrap gap-2 p-3 bg-amber-50/60 rounded-2xl border border-amber-100 max-h-40 overflow-y-auto custom-scrollbar">
+                {suggestedStaff.map(s => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => handleSelectSuggestion(s.id)}
+                    className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border border-amber-200 hover:border-rose-400 hover:shadow-sm transition-all text-left"
+                  >
+                    <i className="fas fa-user-plus text-amber-500 text-[10px]"></i>
+                    <span className="flex flex-col leading-tight">
+                      <span className="text-[11px] font-black text-slate-700">{s.name}</span>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{s.sector}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {!isStaff && (
               <div className="space-y-1 md:col-span-2 animate-in slide-in-from-top-2 duration-300"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Função / Especialidade</label><input placeholder="Ex: Médico Cardiologista, Técnico de TI..." value={formData.providerRole} onChange={e => setFormData({...formData, providerRole: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm text-slate-700 focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>

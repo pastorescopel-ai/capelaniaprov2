@@ -3,7 +3,7 @@ import { normalizeString } from '../utils/formatters';
 import { Unit, ParticipantType, RecordStatus, UserRole } from '../types';
 
 export const useIdentityGuard = () => {
-  const { proStaff, bibleStudies, bibleClasses, users } = useApp();
+  const { proStaff, bibleStudies, bibleClasses, staffVisits, users } = useApp();
 
   const checkIdentityConflict = (name: string, participantType: ParticipantType, unit: Unit): { hasConflict: boolean; message: string } => {
     // FLEXIBILIZAR: Desativado para permitir registros livres sem bloqueios de tipo
@@ -15,7 +15,7 @@ export const useIdentityGuard = () => {
   // já está acompanhando aquele aluno/turma.
   const checkOwnershipConflict = (
     nameOrStudents: string | string[],
-    type: 'study' | 'class',
+    type: 'study' | 'class' | 'visit',
     unit: Unit,
     currentUserId: string,
     currentUserRole: UserRole
@@ -24,6 +24,30 @@ export const useIdentityGuard = () => {
     // um aviso informativo (não bloqueia mais o lançamento), não há motivo pra pular ninguém.
     const isEmpty = Array.isArray(nameOrStudents) ? nameOrStudents.length === 0 : !nameOrStudents;
     if (isEmpty) {
+      return { hasConflict: false, message: '' };
+    }
+
+    if (type === 'visit') {
+      // Visita não é um "vínculo em andamento" como estudo/turma -- é só um heads-up: esse
+      // colaborador já recebeu visita antes? De quem, e quando? Não filtra por status nem por
+      // capelão, avisa sempre que existir alguma visita anterior (inclusive do próprio usuário).
+      const normName = normalizeString((nameOrStudents as string).split(' (')[0].trim());
+      const lastVisit = [...staffVisits]
+        .filter(v => normalizeString((v.staffName || '').split(' (')[0].trim()) === normName && v.unit === unit)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+      if (lastVisit) {
+        const owner = users.find(u => u.id === lastVisit.userId);
+        const dateLabel = new Date((lastVisit.date.split('T')[0]) + 'T12:00:00').toLocaleDateString('pt-BR');
+        const isSelf = lastVisit.userId === currentUserId;
+        return {
+          hasConflict: true,
+          message: isSelf
+            ? `Você já visitou este colaborador em ${dateLabel}.`
+            : `Este colaborador já foi visitado pelo capelão "${owner?.name || 'outro capelão'}" em ${dateLabel}.`,
+          ownerName: owner?.name
+        };
+      }
       return { hasConflict: false, message: '' };
     }
 
