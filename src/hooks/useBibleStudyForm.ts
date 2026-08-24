@@ -100,14 +100,13 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
           const isMyStudent = personalHistoryNames.has(norm);
           const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
           const sector = validSectorId ? proSectors.find(sec => sec.id === validSectorId) : null;
-          const isInactive = staff.active === false;
 
-          options.push({ 
-            value: staff.name, 
-            label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})${isInactive ? ' [INATIVO]' : ''}`, 
-            subLabel: sector ? sector.name : 'Setor não informado', 
+          options.push({
+            value: staff.name,
+            label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`,
+            subLabel: sector ? sector.name : 'Setor não informado',
             category: isMyStudent ? 'MyStudents' : 'RH',
-            highlight: isMyStudent && !isInactive // Destaque apenas se for MEU aluno e estiver ATIVO
+            highlight: isMyStudent // Destaque só se for MEU aluno (já filtrado só ativos acima)
           });
         });
     } else if (formData.participantType === ParticipantType.PATIENT) {

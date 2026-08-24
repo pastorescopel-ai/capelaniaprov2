@@ -38,10 +38,11 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
   // O app só mantém em memória as presenças (bible_class_attendees) dos últimos 45 dias, então
   // "quem já está em alguma classe" calculado só com allHistory fica cego pra gente cuja última
-  // turma foi mais antiga que isso. Uma busca leve (só nome + unidade, sem filtro de data) traz
-  // o quadro completo pra destacar certo na busca de aluno -- roda uma vez por unidade, não a
-  // cada tecla digitada.
-  const [historicalClassStudentNames, setHistoricalClassStudentNames] = useState<Set<string>>(new Set());
+  // turma foi mais antiga que isso. Uma busca leve (nome + turma, sem filtro de data) traz o
+  // quadro completo pra destacar certo na busca de aluno -- roda uma vez por unidade, não a
+  // cada tecla digitada. Guarda o class_id junto pra poder filtrar por capelão depois (só
+  // allHistory/bible_classes tem o userId de cada turma, sem limite de data).
+  const [historicalClassAttendance, setHistoricalClassAttendance] = useState<{ studentName: string; classId: string }[]>([]);
   useEffect(() => {
     let cancelled = false;
     if (!supabase || !unit) return;
@@ -49,10 +50,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       try {
         const { data } = await supabase
           .from('bible_class_attendees')
-          .select('student_name')
+          .select('student_name, class_id')
           .eq('unit', unit);
         if (cancelled || !data) return;
-        setHistoricalClassStudentNames(new Set(data.map((r: any) => normalizeString(r.student_name))));
+        setHistoricalClassAttendance(data.map((r: any) => ({ studentName: r.student_name, classId: r.class_id })));
       } catch (err) {
         console.error('Erro ao buscar histórico completo de alunos de classes:', err);
       }
@@ -87,9 +88,11 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   // A turma não é mais amarrada ao setor: assim que QUALQUER aluno já presente é reconhecido,
   // busca a última classe em que ele apareceu e traz os colegas dela pra lista de chamada — o
   // setor continua existindo só como atalho de busca (sectorStaff acima), não como obrigação.
+  // Só considera turmas do CAPELÃO SELECIONADO acima (formData.userId) -- um admin trocando de
+  // capelão não deve ver nem herdar alunos de turmas de outro capelão.
   const linkedClassmates = useMemo(() => {
     if (formData.students.length === 0 || !unit) return [];
-    const relevant = allHistory.filter(c => c.unit === unit && (c.participantType || ParticipantType.STAFF) === formData.participantType && Array.isArray(c.students));
+    const relevant = allHistory.filter(c => c.unit === unit && c.userId === formData.userId && (c.participantType || ParticipantType.STAFF) === formData.participantType && Array.isArray(c.students));
     const names = new Set<string>();
     formData.students.forEach(presentName => {
       const lastClassOfThis = [...relevant]
@@ -102,7 +105,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       if (lastClassOfThis) lastClassOfThis.students.forEach(s => names.add(s));
     });
     return Array.from(names);
-  }, [formData.students, allHistory, unit, formData.participantType]);
+  }, [formData.students, allHistory, unit, formData.participantType, formData.userId]);
 
   const callList = useMemo(() => {
     const present = formData.students;
@@ -190,33 +193,42 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     const currentSector = formData.sector;
 
     // Filtra histórico APENAS da categoria atual (Integridade Categórica) -- calculado ANTES do
-    // pool RH/Pacientes/Prestadores pra poder priorizar quem já está em alguma classe (de
-    // qualquer capelão, não só o selecionado) já na primeira passada, igual o Estudo Individual
-    // já faz. A busca por aluno passa a ser o jeito principal de achar/continuar uma turma --
-    // o setor continua existindo só como filtro secundário.
+    // pool RH/Pacientes/Prestadores pra poder priorizar quem já está em alguma classe DO
+    // CAPELÃO SELECIONADO acima (formData.userId), igual o Estudo Individual já faz -- um admin
+    // trocando de capelão só deve ver os alunos das turmas daquele capelão, não de todo mundo.
+    // A busca por aluno passa a ser o jeito principal de achar/continuar uma turma; o setor
+    // continua existindo só como filtro secundário.
     // "student_name" (banco) e c.students (memória) guardam "Nome (ID)" por completo -- pra
     // comparar com o nome puro de RH/Pacientes/Prestadores (sem parênteses), o set precisa ser
     // montado só com o nome, não a string inteira, senão a comparação nunca bate.
     const nameOnlyKey = (raw: string) => normalizeString(raw.split(' (')[0].trim());
     const filteredHistory = allHistory.filter(c => (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit);
-    const namesInAnyClass = new Set<string>(Array.from(historicalClassStudentNames).map(nameOnlyKey));
-    filteredHistory.forEach(c => (c.students || []).forEach(s => namesInAnyClass.add(nameOnlyKey(s))));
+    const myFilteredHistory = filteredHistory.filter(c => c.userId === formData.userId);
+    const namesInAnyClass = new Set<string>();
+    myFilteredHistory.forEach(c => (c.students || []).forEach(s => namesInAnyClass.add(nameOnlyKey(s))));
+    // Cruza o histórico completo do banco (sem limite de 45 dias) com as turmas do capelão
+    // selecionado -- só allHistory (bible_classes, sempre carregada por inteiro) sabe o userId.
+    const myClassIds = new Set(myFilteredHistory.map(c => c.id));
+    historicalClassAttendance.forEach(row => {
+      if (myClassIds.has(row.classId)) namesInAnyClass.add(nameOnlyKey(row.studentName));
+    });
 
-    // 1. Pool de Dados Categórico (Pool de Origem)
+    // 1. Pool de Dados Categórico (Pool de Origem) -- só colaboradores ATIVOS entram na busca
+    // pra registrar algo novo; o histórico de quem já se desligou continua intacto nos
+    // registros passados (Relatórios, histórico), só não aparece mais aqui pra evitar confusão.
     if (formData.participantType === ParticipantType.STAFF) {
-        proStaff.filter(s => s.unit === unit).forEach(staff => {
+        proStaff.filter(s => s.unit === unit && s.active !== false).forEach(staff => {
           const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
           const sector = validSectorId ? proSectors.find(sec => sec.id === validSectorId) : null;
           const isFromCurrentSector = sector?.name === currentSector;
-          const isInactive = staff.active === false;
           const isInSomeClass = namesInAnyClass.has(normalizeString(staff.name));
 
           options.push({
             value: staff.name,
-            label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})${isInactive ? ' [INATIVO]' : ''}`,
+            label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`,
             subLabel: sector ? sector.name : 'Setor não informado',
             category: isInSomeClass ? 'Meus Alunos' : isFromCurrentSector ? 'Setor Atual' : 'RH',
-            highlight: (isInSomeClass || isFromCurrentSector) && !isInactive
+            highlight: isInSomeClass || isFromCurrentSector
           });
           officialSet.add(normalizeString(staff.name));
         });
@@ -250,7 +262,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     const uniqueHistoryNames = new Set<string>();
 
     // 2. Alunos das classes do capelão selecionado (Destaque Amarelo)
-    filteredHistory.filter(c => c.userId === formData.userId).forEach(c => {
+    myFilteredHistory.forEach(c => {
        if (Array.isArray(c.students)) {
          c.students.forEach(s => {
            const norm = normalizeString(s);
@@ -269,8 +281,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
        }
     });
 
-    // 3. Resto do histórico geral da categoria
-    filteredHistory.forEach(c => {
+    // 3. Resto do histórico do PRÓPRIO capelão selecionado (nomes digitados livremente que não
+    // estão em nenhuma lista oficial, ex: paciente/prestador antigo) -- não entra o histórico de
+    // outros capelães aqui, mesma regra do resto da função.
+    myFilteredHistory.forEach(c => {
        if (Array.isArray(c.students)) {
          c.students.forEach(s => {
            const norm = normalizeString(s);
@@ -296,7 +310,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       if (a.category !== 'Meus Alunos' && b.category === 'Meus Alunos') return 1;
       return a.label.localeCompare(b.label);
     });
-  }, [proStaff, proPatients, proProviders, proSectors, unit, allHistory, formData.userId, formData.participantType, formData.sector, historicalClassStudentNames]);
+  }, [proStaff, proPatients, proProviders, proSectors, unit, allHistory, formData.userId, formData.participantType, formData.sector, historicalClassAttendance]);
 
   const handleSelectSector = useCallback((sectorName: string) => {
     if (!sectorName) return;
@@ -431,12 +445,14 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
           }
       }
 
-      // A turma é reconhecida pelo aluno, não pelo setor: buscamos a última classe em que esta
-      // pessoa apareceu (de qualquer setor) e trazemos o resto dela — vale pra Colaborador
-      // também agora, não só Paciente/Prestador. O setor do registro é inferido dessa classe
-      // encontrada em vez de precisar ser escolhido manualmente antes.
+      // A turma é reconhecida pelo aluno, não pelo setor: buscamos a última classe DO CAPELÃO
+      // SELECIONADO acima (formData.userId) em que esta pessoa apareceu (de qualquer setor) e
+      // trazemos o resto dela — vale pra Colaborador também agora, não só Paciente/Prestador. Um
+      // admin trocando de capelão só reconhece/herda alunos das turmas daquele capelão, nunca de
+      // outro. O setor do registro é inferido dessa classe encontrada em vez de precisar ser
+      // escolhido manualmente antes.
       let lastClassWithStudent = [...allHistory]
-          .filter(c => c.students && c.students.includes(finalString) && (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit)
+          .filter(c => c.students && c.students.includes(finalString) && c.userId === formData.userId && (c.participantType || ParticipantType.STAFF) === formData.participantType && c.unit === unit)
           .sort((a, b) => {
               const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
               if (dateDiff !== 0) return dateDiff;
@@ -444,9 +460,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
           })[0];
 
       if (!lastClassWithStudent) {
-          // Se não achou na aba atual, busca em qualquer aba (Migração)
+          // Se não achou na aba atual, busca em qualquer aba (Migração) -- ainda restrito ao
+          // mesmo capelão selecionado.
           lastClassWithStudent = [...allHistory]
-              .filter(c => c.students && c.students.includes(finalString) && c.unit === unit)
+              .filter(c => c.students && c.students.includes(finalString) && c.userId === formData.userId && c.unit === unit)
               .sort((a, b) => {
                   const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
                   if (dateDiff !== 0) return dateDiff;
@@ -458,7 +475,9 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       // últimos 45 dias (ver dataRepository.ts syncBackground) -- classes com a última reunião
       // mais antiga que isso ficam com `.students` vazio em memória, e a busca acima nunca
       // encontra a turma dele. Sem esse fallback, reconhecer um aluno de uma turma "antiga"
-      // silenciosamente não trazia os colegas -- bug relatado pelo usuário.
+      // silenciosamente não trazia os colegas -- bug relatado pelo usuário. Busca várias
+      // ocorrências (não só a mais recente) porque precisa achar a mais recente QUE SEJA do
+      // capelão selecionado -- turmas de outros capelães são ignoradas mesmo que mais recentes.
       if (!lastClassWithStudent && supabase) {
           setIsLinkingClass(true);
           try {
@@ -468,9 +487,11 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
                   .ilike('student_name', `${nameToAdd}%`)
                   .eq('unit', unit)
                   .order('date', { ascending: false })
-                  .limit(1);
+                  .limit(20);
 
-              const foundClassId = hitRows?.[0]?.class_id;
+              const foundClassId = (hitRows || [])
+                  .map((row: any) => row.class_id)
+                  .find((classId: string) => allHistory.find(c => c.id === classId)?.userId === formData.userId);
               if (foundClassId) {
                   const classRecord = allHistory.find(c => c.id === foundClassId);
                   const { data: classmateRows } = await supabase

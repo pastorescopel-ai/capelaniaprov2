@@ -68,7 +68,9 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
 
   const sectorOptions = useMemo(() => proSectors.filter(s => s.unit === unit).map(s => ({ value: s.name, label: s.name })), [proSectors, unit]);
   const pgOptions = useMemo(() => proGroups.filter(g => g.unit === unit).map(g => ({ value: g.name, label: g.name })), [proGroups, unit]);
-  const staffOptions = useMemo(() => proStaff.filter(s => s.unit === unit).map(staff => ({ value: staff.name, label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, category: 'RH' as const })), [proStaff, unit]);
+  // Colaboradores desligados/afastados não aparecem na busca de líder -- não faz sentido
+  // escolher alguém que já saiu como líder de um encontro novo.
+  const staffOptions = useMemo(() => proStaff.filter(s => s.unit === unit && s.active !== false).map(staff => ({ value: staff.name, label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, category: 'RH' as const })), [proStaff, unit]);
 
   // Carrega os dados de `editingItem` no formulário só uma vez por item selecionado.
   // `inferPGDetails` (e por tabela o `showToast`) muda de identidade a cada ~30s por

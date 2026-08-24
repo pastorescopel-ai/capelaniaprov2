@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-08-23af",
+    "date": "2026-08-23",
+    "changes": [
+      "Corrigido: na Classe Bíblica, o destaque de 'já está numa turma' e o reconhecimento automático de colegas agora respeitam o capelão selecionado no topo -- um admin trocando de capelão só vê/herda os alunos das turmas daquele capelão, não de todo mundo.",
+      "Melhorado: colaboradores desligados/afastados (inativos) não aparecem mais na busca pra registrar Classe Bíblica, Visita Pastoral ou líder de Pequeno Grupo -- o histórico de registros antigos com eles continua intacto em Relatórios, só somem da lista de quem pode ser escolhido de novo.",
+      "Confirmado: os cálculos de percentual (adesão aos PGs) já contavam só colaboradores ativos -- nenhuma mudança precisou ser feita ali."
+    ]
+  },
+  {
     "version": "2026-08-23ae",
     "date": "2026-08-23",
     "changes": [

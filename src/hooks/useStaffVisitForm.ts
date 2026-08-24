@@ -71,7 +71,9 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
     const officialSet = new Set<string>();
     
     if (formData.participantType === ParticipantType.STAFF) {
-        proStaff.filter(s => s.unit === unit).forEach(staff => {
+        // Colaboradores desligados/afastados não aparecem mais na busca pra registrar visita
+        // nova -- o histórico de visitas já feitas a eles continua intacto em Relatórios.
+        proStaff.filter(s => s.unit === unit && s.active !== false).forEach(staff => {
           const validSectorId = getValidSectorId(staff.sectorId, unit, proSectors);
           const sector = validSectorId ? proSectors.find(sec => sec.id === validSectorId) : null;
           options.push({ value: staff.name, label: `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`, subLabel: sector ? sector.name : 'Setor não informado', category: 'RH' });
