@@ -409,12 +409,15 @@ async syncAll() {
             if (originalItem && originalItem.students) {
                 cls.students = originalItem.students;
             }
-            
+            if (originalItem && originalItem.adventistStudents) {
+                cls.adventistStudents = originalItem.adventistStudents;
+            }
+
             if (cls.id && originalItem && originalItem.students && Array.isArray(originalItem.students)) {
                 // 1. Buscar participantes atuais no banco para fazer o "diff"
                 const { data: currentAttendees, error: fetchError } = await supabase
                     .from('bible_class_attendees')
-                    .select('id, student_name, date')
+                    .select('id, student_name, date, is_adventist')
                     .eq('class_id', cls.id);
 
                 if (fetchError) {
@@ -424,6 +427,10 @@ async syncAll() {
 
                 const currentNames = (currentAttendees || []).map(a => a.student_name);
                 const newNames = originalItem.students;
+                // Quem tá marcado como "adventista" nesta gravação -- não conta no total de
+                // alunos dos relatórios, mas fica registrado pra alimentar o relatório separado
+                // de "Adventistas em Classes".
+                const adventistNames: string[] = originalItem.adventistStudents || [];
 
                 // 2. Identificar o que adicionar e o que remover
                 const namesToAdd = newNames.filter(name => !currentNames.includes(name));
@@ -462,6 +469,24 @@ async syncAll() {
                     }
                 }
 
+                // 3c. Realinhar o marcador de Adventista de quem PERMANECE na lista: o diff de
+                // nomes acima só cobre quem entrou/saiu -- se alguém que já estava presente teve
+                // só o selo de Adventista ligado/desligado, precisa de um UPDATE à parte.
+                const idsToMarkAdventist = (currentAttendees || [])
+                    .filter(a => newNames.includes(a.student_name) && adventistNames.includes(a.student_name) && !a.is_adventist)
+                    .map(a => a.id);
+                const idsToUnmarkAdventist = (currentAttendees || [])
+                    .filter(a => newNames.includes(a.student_name) && !adventistNames.includes(a.student_name) && a.is_adventist)
+                    .map(a => a.id);
+                if (idsToMarkAdventist.length > 0) {
+                    const { error } = await supabase.from('bible_class_attendees').update({ is_adventist: true }).in('id', idsToMarkAdventist);
+                    if (error) console.error("Erro ao marcar adventista:", error);
+                }
+                if (idsToUnmarkAdventist.length > 0) {
+                    const { error } = await supabase.from('bible_class_attendees').update({ is_adventist: false }).in('id', idsToUnmarkAdventist);
+                    if (error) console.error("Erro ao desmarcar adventista:", error);
+                }
+
                 // 4. Adicionar os novos
                 if (namesToAdd.length > 0) {
                     const attendeesPayload = namesToAdd.map((name: string) => {
@@ -490,7 +515,8 @@ async syncAll() {
                             participant_id: participantId,
                             date: cls.date,
                             cycle_month: cycleMonth,
-                            unit: cls.unit
+                            unit: cls.unit,
+                            is_adventist: adventistNames.includes(name)
                         };
                     });
 

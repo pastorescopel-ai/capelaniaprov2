@@ -24,10 +24,11 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   const { checkOwnershipConflict } = useIdentityGuard();
   
   const getToday = useCallback(() => new Date().toLocaleDateString('en-CA'), []);
-  const defaultState = useMemo(() => ({ 
-    id: '', userId: currentUser.id, date: getToday(), sector: '', location: '', students: [] as string[], 
-    guide: '', lesson: '', status: RecordStatus.INICIO, 
-    participantType: ParticipantType.STAFF, observations: '', representativePhone: '' 
+  const defaultState = useMemo(() => ({
+    id: '', userId: currentUser.id, date: getToday(), sector: '', location: '', students: [] as string[],
+    adventistStudents: [] as string[],
+    guide: '', lesson: '', status: RecordStatus.INICIO,
+    participantType: ParticipantType.STAFF, observations: '', representativePhone: ''
   }), [getToday, currentUser.id]);
   
   const [formData, setFormData] = useState(defaultState);
@@ -306,6 +307,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         sector: editingItem.sector || '',
         location: editingItem.location || '',
         students: editingItem.students || [],
+        adventistStudents: editingItem.adventistStudents || [],
         guide: editingItem.guide || '',
         lesson: editingItem.lesson || '',
         status: editingItem.status || RecordStatus.INICIO,
@@ -495,6 +497,18 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     showToast(`${toAdd.length} aluno(s) adicionado(s) de uma vez.`, 'success');
   };
 
+  // Liga/desliga o selo de Adventista pra um aluno da chamada -- ele continua contando
+  // presença normalmente, só fica de fora do total de alunos dos relatórios (ver getUnitStats
+  // em useReports.ts / ChaplainCard.tsx / useReportLogic.ts, que agora excluem quem está aqui).
+  const toggleAdventist = (studentName: string) => {
+    setFormData(prev => ({
+      ...prev,
+      adventistStudents: prev.adventistStudents.includes(studentName)
+        ? prev.adventistStudents.filter(s => s !== studentName)
+        : [...prev.adventistStudents, studentName],
+    }));
+  };
+
   const handleClear = () => {
     setFormData({ ...defaultState, date: formData.date });
     showToast("Campos limpos!", "info");
@@ -641,7 +655,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     lastClassStudents, callList,
     guideOptions, studentSearchOptions, sectorOptions,
     handleSelectSector,
-    addStudent, addAllFromLastClass, handleClear, handleFormSubmit,
+    addStudent, addAllFromLastClass, toggleAdventist, handleClear, handleFormSubmit,
     handleContinueClass: (item: BibleClass) => {
         // Busca a última classe DESTE SETOR e DESTE TIPO DE PARTICIPANTE para garantir que pegamos a mais recente
         const lastClass = [...allHistory]
@@ -660,6 +674,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
             sector: baseItem.sector || '',
             participantType: baseItem.participantType || ParticipantType.STAFF,
             students: baseItem.students || [],
+            adventistStudents: baseItem.adventistStudents || [],
             guide: baseItem.guide || '',
             lesson: !isNaN(parseInt(baseItem.lesson)) ? (parseInt(baseItem.lesson) + 1).toString() : (baseItem.lesson || ''),
             status: RecordStatus.CONTINUACAO,

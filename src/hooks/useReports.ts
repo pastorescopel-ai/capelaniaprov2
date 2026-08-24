@@ -119,15 +119,17 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
     if (!extendedAttendeesByClass) return classes;
     return classes.map(cls => {
       const attendees = extendedAttendeesByClass.get(cls.id);
-      if (!attendees) return { ...cls, students: [] };
-      const students = attendees.map(a => {
+      if (!attendees) return { ...cls, students: [], adventistStudents: [] };
+      const nameFor = (a: any) => {
         const id = a.staffId || a.participantId;
         if (id && !String(a.studentName).includes(`(${id})`)) {
           return `${a.studentName} (${id})`;
         }
         return a.studentName;
-      });
-      return { ...cls, students };
+      };
+      const students = attendees.map(nameFor);
+      const adventistStudents = attendees.filter(a => a.isAdventist).map(nameFor);
+      return { ...cls, students, adventistStudents };
     });
   }, [classes, extendedAttendeesByClass]);
 
@@ -266,7 +268,10 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
         const uV = filterByUid(filteredData.visits).filter(i => (i.unit || Unit.HAB) === unit);
         const names = new Set<string>();
         uS.forEach(s => { const key = getStudentKey(s.name, (s as any).staffId || (s as any).participantId); if (key) names.add(key); });
-        uC.forEach(c => c.students?.forEach((n: any) => { const key = getStudentKey(n); if (key) names.add(key); }));
+        uC.forEach(c => {
+          const adventistSet = new Set(c.adventistStudents || []);
+          c.students?.forEach((n: any) => { if (adventistSet.has(n)) return; const key = getStudentKey(n); if (key) names.add(key); });
+        });
         const uniqueClasses = countUniqueClasses(uC);
         return { students: names.size, studies: uS.length, classes: uniqueClasses, groups: uG.length, visits: uV.length, total: uS.length + uniqueClasses + uG.length + uV.length };
       };

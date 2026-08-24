@@ -76,7 +76,9 @@ export const useReportLogic = (
     // chave em vez do nome (que pode não ter "(ID)", ex: pacientes digitados só como "Socorro").
     filteredData.studies.forEach(s => addMonthlyName(s.date, s.name, (s as any).staffId || (s as any).participantId));
     filteredData.classes.forEach(c => {
-      if (Array.isArray(c.students)) c.students.forEach(n => addMonthlyName(c.date!, n));
+      if (!Array.isArray(c.students)) return;
+      const adventistSet = new Set(c.adventistStudents || []);
+      c.students.forEach(n => { if (!adventistSet.has(n)) addMonthlyName(c.date!, n); });
     });
 
     // Conta quantos meses (dentro do filtro) tiveram atividade (registros de alunos)
@@ -128,8 +130,23 @@ export const useReportLogic = (
       const key = addUniqueName(s.name, (s as any).staffId || (s as any).participantId);
       if (key) uniqueIndividualStudents.add(key);
     });
+    // Alunos marcados como Adventista não entram no total de alunos (contam presença, mas não
+    // "vida alcançada" nesse sentido) -- ficam de fora daqui e são contados à parte logo abaixo,
+    // pro relatório de "Adventistas em Classes".
+    const uniqueAdventistStudents = new Set<string>();
+    let adventistAttendances = 0;
     filteredData.classes.forEach(c => {
-      if (Array.isArray(c.students)) c.students.forEach(n => addUniqueName(n));
+      if (!Array.isArray(c.students)) return;
+      const adventistSet = new Set(c.adventistStudents || []);
+      c.students.forEach(n => {
+        if (adventistSet.has(n)) {
+          adventistAttendances++;
+          const key = getStudentKey(n);
+          if (key) uniqueAdventistStudents.add(key);
+        } else {
+          addUniqueName(n);
+        }
+      });
     });
 
     return {
@@ -140,7 +157,9 @@ export const useReportLogic = (
       visits: filteredData.visits.length,
       totalStudentsPeriod: uniqueStudentsPeriod.size,
       averageStudentsMonthly: averageStats.averageStudents,
-      averageActiveMonths: averageStats.activeMonthsCount
+      averageActiveMonths: averageStats.activeMonthsCount,
+      adventistUniqueStudents: uniqueAdventistStudents.size,
+      adventistAttendances
     };
   }, [filteredData, averageStats]);
 

@@ -237,6 +237,10 @@ export interface BibleClass {
   sectorId?: string;
   location?: string;
   students: string[];
+  // Subconjunto de `students` marcado como adventista -- continua contando presença normalmente,
+  // mas fica de fora do total de alunos dos relatórios (só entra no relatório separado de
+  // "Adventistas em Classes"). Opcional pra não quebrar registros antigos sem essa marcação.
+  adventistStudents?: string[];
   status: RecordStatus;
   participantType?: ParticipantType;
   guide: string;

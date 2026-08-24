@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-08-23ac",
+    "date": "2026-08-23",
+    "changes": [
+      "Novo: na Classe Bíblica, dá pra marcar um aluno como 'Adventista' na chamada de presença -- ele continua contando presença normalmente, mas fica de fora do total de alunos dos relatórios.",
+      "Novo: cartão 'Adventistas em Classes' nos Relatórios, mostrando quantos adventistas únicos participaram e quantas presenças deles houve no período."
+    ]
+  },
+  {
     "version": "2026-08-23ab",
     "date": "2026-08-23",
     "changes": [

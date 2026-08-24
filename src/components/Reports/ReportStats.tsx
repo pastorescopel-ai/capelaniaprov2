@@ -14,6 +14,8 @@ interface StatsProps {
     visits: number;
     pgPercentage?: number;
     isLocked?: boolean;
+    adventistUniqueStudents?: number;
+    adventistAttendances?: number;
   };
 }
 
@@ -51,6 +53,12 @@ const ReportStats: React.FC<StatsProps> = ({ totalStats }) => {
     },
     { label: 'Classes Bíblicas', value: totalStats.classes, color: 'bg-indigo-500' },
     { label: 'Total de visitas ao colaborador', value: totalStats.visits, color: 'bg-rose-500 shadow-rose-100' },
+    {
+      label: 'Adventistas em Classes',
+      value: totalStats.adventistUniqueStudents || 0,
+      color: 'bg-purple-600 shadow-purple-100',
+      sub: `${totalStats.adventistAttendances || 0} Presenças no Período`
+    },
   ];
 
   return (

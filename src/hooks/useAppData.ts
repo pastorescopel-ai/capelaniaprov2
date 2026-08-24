@@ -215,19 +215,22 @@ export const useAppData = () => {
     };
   }, [refreshData]);
 
-  // Sincronização automática de estudantes nas classes bíblicas
+  // Sincronização automática de estudantes (e do selo de Adventista) nas classes bíblicas
   useEffect(() => {
     setBibleClasses(prevClasses => {
       let hasChanges = false;
       const nextClasses = prevClasses.map(cls => {
-        const students = bibleClassAttendees
-          .filter(a => a.classId === cls.id)
-          .map(a => a.studentName);
-        
+        const attendeesOfClass = bibleClassAttendees.filter(a => a.classId === cls.id);
+        const students = attendeesOfClass.map(a => a.studentName);
+        const adventistStudents = attendeesOfClass.filter(a => a.isAdventist).map(a => a.studentName);
+
         const currentStudents = cls.students || [];
-        if (students.length !== currentStudents.length || !students.every(s => currentStudents.includes(s))) {
+        const currentAdventists = cls.adventistStudents || [];
+        const studentsChanged = students.length !== currentStudents.length || !students.every(s => currentStudents.includes(s));
+        const adventistsChanged = adventistStudents.length !== currentAdventists.length || !adventistStudents.every(s => currentAdventists.includes(s));
+        if (studentsChanged || adventistsChanged) {
           hasChanges = true;
-          return { ...cls, students };
+          return { ...cls, students, adventistStudents };
         }
         return cls;
       });

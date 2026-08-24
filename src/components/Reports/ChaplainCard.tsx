@@ -103,7 +103,10 @@ const ChaplainCard: React.FC<ChaplainCardProps> = ({
       const uV = list.visits.filter(i => (i.unit || Unit.HAB) === unit);
       const names = new Set<string>();
       uS.forEach(s => { const key = getStudentKey(s.name, s.staffId || s.participantId); if (key) names.add(key); });
-      uC.forEach(c => (c.students || []).forEach((n: any) => { const key = getStudentKey(n); if (key) names.add(key); }));
+      uC.forEach(c => {
+        const adventistSet = new Set(c.adventistStudents || []);
+        (c.students || []).forEach((n: any) => { if (adventistSet.has(n)) return; const key = getStudentKey(n); if (key) names.add(key); });
+      });
       const uniqueClasses = countUniqueClasses(uC);
       return { students: names.size, studies: uS.length, classes: uniqueClasses, groups: uG.length, visits: uV.length, total: uS.length + uniqueClasses + uG.length + uV.length };
     };
