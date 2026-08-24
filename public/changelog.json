@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-23ai",
+    "date": "2026-08-23",
+    "changes": [
+      "Corrigido: a aba Relatórios abria travada com o modal de 'Adesão aos PGs' já aberto sozinho (e o X não fechava) -- bug no card clicáveis de ontem, o estado inicial e o card não-clicável usavam o mesmo valor 'vazio' e colidiam."
+    ]
+  },
+  {
     "version": "2026-08-23ah",
     "date": "2026-08-23",
     "changes": [

@@ -125,7 +125,11 @@ const ReportStats: React.FC<StatsProps> = ({ totalStats }) => {
     },
   ];
 
-  const activeCard = cards.find(c => c.key === openCard);
+  // openCard começa null, e o card "Adesão aos PGs" também tem key:null (de propósito, pra não
+  // ser clicável) -- sem o `openCard &&` aqui, os dois "null" batiam entre si e o modal já
+  // abria sozinho ao entrar em Relatórios, travado (fechar só voltava openCard pra null, que
+  // batia de novo com o mesmo card).
+  const activeCard = openCard ? cards.find(c => c.key === openCard) : undefined;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
