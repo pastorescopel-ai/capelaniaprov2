@@ -39,6 +39,8 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   } = useBibleStudyForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
   const monthComparison = useMonthComparison(allHistory, currentUser.id, unit);
+  const curStudyNames = monthComparison.curItems.map(s => s.name).filter(Boolean);
+  const prevStudyNames = monthComparison.prevItems.map(s => s.name).filter(Boolean);
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
   const isAdmin = currentUser.role === UserRole.ADMIN;
@@ -83,7 +85,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         title="Estudo Bíblico"
         headerActions={headerActions}
         history={historySection}
-        compareWidget={<MonthComparisonBars label="Estudos" color="#3b82f6" {...monthComparison} />}
+        compareWidget={<MonthComparisonBars label="Estudos" color="#3b82f6" {...monthComparison} curNames={curStudyNames} prevNames={prevStudyNames} itemLabel="alunos" />}
       >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">

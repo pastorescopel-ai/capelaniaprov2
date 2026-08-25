@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { animate, motion, useInView, useMotionValue } from 'motion/react';
 
 interface MonthComparisonBarsProps {
@@ -8,6 +8,12 @@ interface MonthComparisonBarsProps {
   prev: number;
   deltaPct: number;
   prevMonthLabel: string;
+  // Nomes dos registros de cada mês (aluno, PG, colaborador visitado, turma...) -- opcional pra
+  // não quebrar quem ainda não passa isso; sem eles o tooltip mostra só a quantidade.
+  curNames?: string[];
+  prevNames?: string[];
+  // Como chamar os itens no cabeçalho do tooltip (ex: "PGs", "alunos") -- usa `label` se omitido.
+  itemLabel?: string;
 }
 
 // Uma barrinha do par -- mesmo padrão "reliable growth" do Alcance Pessoal (useMotionValue +
@@ -28,13 +34,26 @@ const Bar: React.FC<{ heightPx: number; color: string; delay: number }> = ({ hei
   return <motion.div ref={ref} className="w-6 sm:w-7 rounded-t-md rounded-b-sm" style={{ height, backgroundColor: color }} />;
 };
 
-// Uma coluna de barra (mês passado ou este mês) com tooltip -- passa o mouse em cima pra ver o
-// nome do mês e a quantidade exata, sem precisar decorar o que cada barrinha representa.
-const BarColumn: React.FC<{ monthLabel: string; value: number; heightPx: number; color: string; delay: number; valueTextClass: string }> = ({ monthLabel, value, heightPx, color, delay, valueTextClass }) => (
-  <div className="group relative flex flex-col items-center gap-1 h-full justify-end cursor-default">
-    <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-800 text-white text-[9px] font-black px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10 capitalize">
-      {monthLabel}: {value}
-    </div>
+type BarKey = 'prev' | 'current';
+interface ActivePoint { key: BarKey; x: number; y: number; }
+
+// Uma coluna de barra (mês passado ou este mês) -- passa o mouse (ou toca, no celular) em cima
+// pra ver os nomes de quem entrou naquela contagem, numa caixa que acompanha o cursor/dedo.
+const BarColumn: React.FC<{
+  barKey: BarKey; value: number; heightPx: number; color: string; delay: number; valueTextClass: string;
+  onMouseActivate: (key: BarKey, x: number, y: number) => void;
+  onMouseDeactivate: () => void;
+  onTouchActivate: (key: BarKey, x: number, y: number) => void;
+}> = ({ barKey, value, heightPx, color, delay, valueTextClass, onMouseActivate, onMouseDeactivate, onTouchActivate }) => (
+  <div
+    className="relative flex flex-col items-center gap-1 h-full justify-end cursor-default touch-manipulation"
+    onMouseMove={(e) => onMouseActivate(barKey, e.clientX, e.clientY)}
+    onMouseLeave={onMouseDeactivate}
+    onTouchStart={(e) => {
+      const touch = e.touches[0];
+      onTouchActivate(barKey, touch.clientX, touch.clientY);
+    }}
+  >
     <span className={`text-[8px] ${valueTextClass}`}>{value}</span>
     <Bar heightPx={heightPx} color={color} delay={delay} />
   </div>
@@ -43,7 +62,7 @@ const BarColumn: React.FC<{ monthLabel: string; value: number; heightPx: number;
 // Mini gráfico de barras "este mês x mês passado" pro cabeçalho dos 4 formulários de registro
 // -- mesmo espírito visual do Alcance Pessoal do Dashboard, só que resumido a uma categoria só
 // (o formulário já é dessa categoria) pra caber ao lado do título sem brigar por espaço.
-const MonthComparisonBars: React.FC<MonthComparisonBarsProps> = ({ label, color, current, prev, deltaPct, prevMonthLabel }) => {
+const MonthComparisonBars: React.FC<MonthComparisonBarsProps> = ({ label, color, current, prev, deltaPct, prevMonthLabel, curNames, prevNames, itemLabel }) => {
   const barsMaxHeightPx = 40;
   const max = Math.max(current, prev, 1);
   const isDown = current < prev;
@@ -58,14 +77,64 @@ const MonthComparisonBars: React.FC<MonthComparisonBarsProps> = ({ label, color,
   const numberTone = isUp ? 'text-emerald-700' : isDown ? 'text-rose-600' : 'text-amber-700';
   const currentMonthLabel = new Date().toLocaleDateString('pt-BR', { month: 'long' });
 
+  // Tooltip com nomes -- segue o mouse enquanto o cursor está em cima da barra; no celular, um
+  // toque abre e prende a caixa perto do dedo até tocar fora dela.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState<ActivePoint | null>(null);
+  const [pinned, setPinned] = useState(false);
+
+  // clientX/clientY (coordenadas de tela) convertidas pra relativas ao card -- é onde o
+  // tooltip precisa ser posicionado, já que ele é absolute dentro do containerRef.
+  const toRelative = (clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: clientX, y: clientY };
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
+
+  const handleMouseActivate = (key: BarKey, clientX: number, clientY: number) => {
+    if (pinned) return;
+    const { x, y } = toRelative(clientX, clientY);
+    setActive({ key, x, y });
+  };
+  const handleMouseDeactivate = () => { if (!pinned) setActive(null); };
+
+  const handleTouchActivate = (key: BarKey, clientX: number, clientY: number) => {
+    const { x, y } = toRelative(clientX, clientY);
+    setActive(prevState => {
+      if (pinned && prevState?.key === key) {
+        setPinned(false);
+        return null;
+      }
+      setPinned(true);
+      return { key, x, y };
+    });
+  };
+
+  useEffect(() => {
+    if (!pinned) return;
+    const closeIfOutside = (e: TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setPinned(false);
+        setActive(null);
+      }
+    };
+    document.addEventListener('touchstart', closeIfOutside);
+    return () => document.removeEventListener('touchstart', closeIfOutside);
+  }, [pinned]);
+
+  const names = active ? (active.key === 'current' ? curNames : prevNames) : undefined;
+  const activeMonthLabel = active ? (active.key === 'current' ? currentMonthLabel : prevMonthLabel) : '';
+  const activeValue = active ? (active.key === 'current' ? current : prev) : 0;
+
   return (
     <div className="flex flex-wrap items-center gap-3">
       <motion.div
+        ref={containerRef}
         initial={{ opacity: 0, y: -4 }}
         whileHover={{ y: -3, boxShadow: '0 8px 20px -4px rgba(0,0,0,0.12)' }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className={`inline-flex items-center gap-4 px-4 py-2.5 rounded-2xl border ${tone}`}
+        className={`relative inline-flex items-center gap-4 px-4 py-2.5 rounded-2xl border ${tone}`}
       >
         <div className="flex flex-col">
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label} este mês</span>
@@ -73,8 +142,20 @@ const MonthComparisonBars: React.FC<MonthComparisonBarsProps> = ({ label, color,
         </div>
 
         <div className="flex items-end justify-center gap-2.5" style={{ height: barsMaxHeightPx }}>
-          <BarColumn monthLabel={prevMonthLabel} value={prev} heightPx={(prev / max) * barsMaxHeightPx} color="#cbd5e1" delay={0} valueTextClass="font-bold text-slate-400" />
-          <BarColumn monthLabel={currentMonthLabel} value={current} heightPx={(current / max) * barsMaxHeightPx} color={color} delay={0.1} valueTextClass="font-black text-slate-700" />
+          <BarColumn
+            barKey="prev" value={prev} heightPx={(prev / max) * barsMaxHeightPx} color="#cbd5e1" delay={0}
+            valueTextClass="font-bold text-slate-400"
+            onMouseActivate={handleMouseActivate}
+            onMouseDeactivate={handleMouseDeactivate}
+            onTouchActivate={handleTouchActivate}
+          />
+          <BarColumn
+            barKey="current" value={current} heightPx={(current / max) * barsMaxHeightPx} color={color} delay={0.1}
+            valueTextClass="font-black text-slate-700"
+            onMouseActivate={handleMouseActivate}
+            onMouseDeactivate={handleMouseDeactivate}
+            onTouchActivate={handleTouchActivate}
+          />
         </div>
 
         <div className="flex flex-col items-start gap-0.5">
@@ -85,6 +166,26 @@ const MonthComparisonBars: React.FC<MonthComparisonBarsProps> = ({ label, color,
           </span>
           <span className="text-[8px] font-bold text-slate-400 normal-case whitespace-nowrap">vs {prevMonthLabel}</span>
         </div>
+
+        {active && (
+          <div
+            className="absolute z-20 bg-slate-800 text-white rounded-xl px-3 py-2 shadow-xl pointer-events-none min-w-[140px] max-w-[220px]"
+            style={{ left: Math.min(active.x + 14, 260), top: active.y - 10 }}
+          >
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-300 capitalize mb-1">
+              {activeMonthLabel}: {activeValue} {itemLabel || label}
+            </p>
+            {names && names.length > 0 ? (
+              <div className="max-h-32 overflow-y-auto space-y-0.5">
+                {names.map((n, i) => (
+                  <p key={i} className="text-[10px] font-bold leading-tight">{n}</p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] font-bold text-slate-400">{activeValue === 0 ? 'Nenhum registro' : 'Sem detalhes'}</p>
+            )}
+          </div>
+        )}
       </motion.div>
 
       {/* Legenda das cores de fundo do cartão -- pra não precisar adivinhar o que verde,

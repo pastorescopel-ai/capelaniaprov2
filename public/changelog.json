@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-25a",
+    "date": "2026-08-25",
+    "changes": [
+      "Novo: nos 4 formulários de registro (Estudo, Classe, PG, Visita), passar o mouse (ou tocar, no celular) nas barrinhas 'este mês x mês passado' do cabeçalho agora mostra uma caixa com os nomes de quem entrou naquela contagem (alunos, PGs, turmas ou colaboradores visitados), seguindo o cursor/dedo -- antes só mostrava a quantidade."
+    ]
+  },
+  {
     "version": "2026-08-24f",
     "date": "2026-08-24",
     "changes": [

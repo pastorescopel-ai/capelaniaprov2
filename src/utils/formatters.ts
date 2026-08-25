@@ -228,3 +228,20 @@ export const countUniqueClasses = (classes: Array<{ students?: string[] | null }
   });
   return signatures.size;
 };
+
+// Um rótulo por turma única (mesma dedupe do countUniqueClasses, mas devolvendo texto legível
+// em vez do total) -- usado no tooltip do MonthComparisonBars da Classe Bíblica, já que ali uma
+// barra representa turmas inteiras, não alunos individuais.
+export const getUniqueClassLabels = (classes: Array<{ students?: string[] | null; sector?: string; guide?: string }>): string[] => {
+  const seen = new Set<string>();
+  const labels: string[] = [];
+  (classes || []).forEach(c => {
+    const sig = getClassSignature(c);
+    if (!sig || seen.has(sig)) return;
+    seen.add(sig);
+    const studentCount = (c.students || []).length;
+    const title = c.sector || c.guide || 'Turma';
+    labels.push(`${title} (${studentCount} aluno${studentCount === 1 ? '' : 's'})`);
+  });
+  return labels;
+};

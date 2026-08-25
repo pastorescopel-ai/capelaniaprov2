@@ -29,6 +29,8 @@ interface FormProps {
 
 const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, isActive }) => {
   const monthComparison = useMonthComparison(allHistory, currentUser.id, unit);
+  const curPGNames = monthComparison.curItems.map(g => g.groupName).filter(Boolean);
+  const prevPGNames = monthComparison.prevItems.map(g => g.groupName).filter(Boolean);
   const {
     formData, setFormData,
     isSectorLocked, setIsSectorLocked,
@@ -83,7 +85,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
       subtitle={`Unidade ${unit}`}
       headerActions={headerActions}
       history={historySection}
-      compareWidget={<MonthComparisonBars label="PGs" color="#10b981" {...monthComparison} />}
+      compareWidget={<MonthComparisonBars label="PGs" color="#10b981" {...monthComparison} curNames={curPGNames} prevNames={prevPGNames} />}
     >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">

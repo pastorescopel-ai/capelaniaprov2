@@ -34,6 +34,8 @@ export function useMonthComparison<T extends WithDateUserUnit>(
     const deltaPct = prev > 0 ? Math.round(((current - prev) / prev) * 100) : (current > 0 ? 100 : 0);
     const prevMonthLabel = prevDate.toLocaleDateString('pt-BR', { month: 'long' });
 
-    return { current, prev, deltaPct, prevMonthLabel };
+    // curItems/prevItems (os registros crus, não só a contagem) seguem junto pro chamador poder
+    // montar a lista de nomes que aparece no tooltip do MonthComparisonBars ao passar o mouse.
+    return { current, prev, deltaPct, prevMonthLabel, curItems, prevItems };
   }, [allHistory, userId, unit, countFn]);
 }

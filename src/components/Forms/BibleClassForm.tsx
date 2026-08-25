@@ -9,7 +9,7 @@ import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
 import MonthComparisonBars from '../Shared/MonthComparisonBars';
 import { isRecordLocked } from '../../utils/validators';
-import { formatWhatsApp, countUniqueClasses } from '../../utils/formatters';
+import { formatWhatsApp, countUniqueClasses, getUniqueClassLabels } from '../../utils/formatters';
 import { useBibleClassForm } from '../../hooks/useBibleClassForm';
 import { useMonthComparison } from '../../hooks/useMonthComparison';
 
@@ -45,6 +45,8 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
   // contar sessões de classe únicas (mesma lógica de countUniqueClasses usada em Relatórios),
   // não linhas cruas, senão uma classe de 10 alunos contaria como 10 aulas.
   const monthComparison = useMonthComparison(allHistory, currentUser.id, unit, countUniqueClasses);
+  const curClassNames = getUniqueClassLabels(monthComparison.curItems);
+  const prevClassNames = getUniqueClassLabels(monthComparison.prevItems);
 
   const isAdmin = currentUser.role === UserRole.ADMIN;
 
@@ -73,7 +75,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
         title="Classe Bíblica"
         headerActions={headerActions}
         history={historySection}
-        compareWidget={<MonthComparisonBars label="Classes" color="#6366f1" {...monthComparison} />}
+        compareWidget={<MonthComparisonBars label="Classes" color="#6366f1" {...monthComparison} curNames={curClassNames} prevNames={prevClassNames} itemLabel="turmas" />}
       >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">

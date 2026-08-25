@@ -37,6 +37,8 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   } = useStaffVisitForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
   const monthComparison = useMonthComparison(allHistory, currentUser.id, unit);
+  const curVisitNames = monthComparison.curItems.map(v => v.staffName).filter(Boolean);
+  const prevVisitNames = monthComparison.prevItems.map(v => v.staffName).filter(Boolean);
 
   const isAdmin = currentUser.role === UserRole.ADMIN;
 
@@ -201,7 +203,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       subtitle={`Unidade ${unit}`}
       headerActions={headerActions}
       history={historySection}
-      compareWidget={<MonthComparisonBars label="Visitas" color="#f43f5e" {...monthComparison} />}
+      compareWidget={<MonthComparisonBars label="Visitas" color="#f43f5e" {...monthComparison} curNames={curVisitNames} prevNames={prevVisitNames} />}
     >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
