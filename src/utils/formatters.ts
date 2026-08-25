@@ -212,6 +212,36 @@ export const getStudentKey = (raw: string, explicitId?: string | number | null):
   return normalizeString(raw.split(' (')[0].trim());
 };
 
+// Conta ALUNOS ÚNICOS de uma lista de Estudos Bíblicos -- a pedido do usuário, "quantidade de
+// estudos" em todo o app (Mural, Dashboard, Relatórios, cards de capelão) conta pessoas
+// diferentes estudadas, não sessões: dar 3 estudos pro mesmo aluno conta como 1, não 3. Cobre
+// pacientes/prestadores/colaboradores igual (getStudentKey já lida com os 3 via staffId/
+// participantId ou nome).
+export const countUniqueStudents = (studies: Array<{ name?: string; staffId?: string | number | null; participantId?: string | number | null }>): number => {
+  const keys = new Set<string>();
+  (studies || []).forEach(s => {
+    const key = getStudentKey(s.name || '', s.staffId ?? s.participantId);
+    if (key) keys.add(key);
+  });
+  return keys.size;
+};
+
+// Mesmo dedupe do countUniqueStudents, mas devolvendo os nomes prontos pra exibir (com "(Nx)"
+// quando o mesmo aluno teve mais de um estudo) -- usado no tooltip do MonthComparisonBars do
+// Estudo Bíblico, garantindo que a lista bate exatamente com countUniqueStudents (mesma chave).
+export const getUniqueStudentLabels = (studies: Array<{ name?: string; staffId?: string | number | null; participantId?: string | number | null }>): string[] => {
+  const seen = new Map<string, { label: string; count: number }>();
+  (studies || []).forEach(s => {
+    if (!s.name) return;
+    const key = getStudentKey(s.name, s.staffId ?? s.participantId);
+    if (!key) return;
+    const existing = seen.get(key);
+    if (existing) existing.count++;
+    else seen.set(key, { label: s.name, count: 1 });
+  });
+  return Array.from(seen.values()).map(({ label, count }) => (count > 1 ? `${label} (${count}x)` : label));
+};
+
 // A assinatura é só a lista de alunos (ordenada), sem a data: uma turma (ex: um pequeno
 // grupo fixo) que se reúne várias vezes ao longo do tempo com os mesmos membros deve contar
 // como UMA turma só, não uma por encontro — a contagem de encontros/sessões já existe à parte.

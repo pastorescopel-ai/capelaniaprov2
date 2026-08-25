@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-08-25c",
+    "date": "2026-08-25",
+    "changes": [
+      "Mudança: 'Estudos' agora conta alunos únicos, não sessões, em todo o app -- dar 3 estudos pro mesmo aluno no mês conta como 1, não 3 (Mural, Dashboard, caixinha dos formulários, Relatórios e o PDF Oficial). A pedido do usuário. Meses já fechados (Fechar Mês) mantêm o número antigo salvo na época; só os novos fechamentos e tudo que é calculado ao vivo usam a regra nova.",
+      "Novo: o card 'Média de Alunos (Mensal)' em Relatórios agora é sempre a média do ANO corrente (total de alunos únicos do ano ÷ meses já passados), sem depender do período escolhido no calendário -- antes ele mudava conforme o filtro de data.",
+      "Novo: o gráfico 'Alcance Pessoal' do Dashboard ganhou a mesma caixinha de nomes dos formulários -- passar o mouse (ou tocar, no celular) numa barra mostra quem entrou naquele número, sem atrapalhar o toque que abre o formulário."
+    ]
+  },
+  {
     "version": "2026-08-25b",
     "date": "2026-08-25",
     "changes": [

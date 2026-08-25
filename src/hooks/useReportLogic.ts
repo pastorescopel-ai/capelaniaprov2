@@ -54,46 +54,61 @@ export const useReportLogic = (
     return result;
   }, [studies, classes, groups, visits, filters]);
 
-  // 2. CÁLCULO DE MÉDIA MENSAL (dentro do período/filtros selecionados)
-  // Calcula a média de alunos únicos atendidos por mês, considerando apenas os meses
-  // que tiveram registros dentro do período e demais filtros já aplicados em filteredData.
+  // 2. CÁLCULO DE MÉDIA ANUAL (ano corrente inteiro, independente do período no calendário)
+  // A pedido do usuário: esse card não deve depender do filtro de data de Relatórios -- é
+  // sempre "total de alunos únicos do ano até agora" dividido pela quantidade de meses do ano
+  // já decorridos (ex: em agosto, divide por 8), não uma média dos totais mês a mês (que
+  // contaria o mesmo aluno de novo a cada mês em que ele aparecesse). Continua respeitando os
+  // filtros de Capelão e Unidade (faz sentido ver a média anual só de um capelão/unidade), só
+  // não o de período.
   const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
   const averageStats = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const elapsedMonths = now.getMonth() + 1; // Jan = 1 ... dependendo do mês atual
+
+    const isChaplainMatch = (userId: string) =>
+      filters.selectedChaplain === 'all' || userId === filters.selectedChaplain;
+    const isUnitMatch = (unit?: Unit) =>
+      filters.selectedUnit === 'all' || (unit || Unit.HAB) === filters.selectedUnit;
+
+    const yearStudents = new Set<string>();
     const monthlyUnique = new Map<string, Set<string>>();
 
-    const addMonthlyName = (dateStr: string, rawName: string, explicitId?: string | number | null) => {
+    const addYearName = (dateStr: string, rawName: string, explicitId?: string | number | null) => {
       if (!rawName || !dateStr) return;
       // Meio-dia evita que o fuso horário empurre datas no dia 1º para o mês anterior.
       const d = new Date(dateStr.split('T')[0] + 'T12:00:00');
-      if (isNaN(d.getTime())) return;
+      if (isNaN(d.getTime()) || d.getFullYear() !== currentYear) return;
+
+      const key = getStudentKey(rawName, explicitId);
+      if (!key) return;
+      yearStudents.add(key);
 
       const monthKey = `${d.getFullYear()}-${d.getMonth() + 1}`;
       if (!monthlyUnique.has(monthKey)) monthlyUnique.set(monthKey, new Set());
-      const key = getStudentKey(rawName, explicitId);
-      if (key) monthlyUnique.get(monthKey)!.add(key);
+      monthlyUnique.get(monthKey)!.add(key);
     };
 
+    // Usa (studies/classes) sem filtro de data/atividade -- só Capelão/Unidade -- pra não
+    // depender do período escolhido no calendário de Relatórios.
     // Estudos individuais têm staffId/participantId reais em colunas próprias — usa isso como
     // chave em vez do nome (que pode não ter "(ID)", ex: pacientes digitados só como "Socorro").
-    filteredData.studies.forEach(s => addMonthlyName(s.date, s.name, (s as any).staffId || (s as any).participantId));
+    (studies || [])
+      .filter(s => isChaplainMatch(s.userId) && isUnitMatch(s.unit))
+      .forEach(s => addYearName(s.date, s.name, (s as any).staffId || (s as any).participantId));
     // c.students (bible_class_attendees) e c.adventistStudents (bible_class_adventists) são
     // tabelas separadas -- adventista nunca aparece em c.students, não precisa filtrar aqui.
-    filteredData.classes.forEach(c => {
-      if (Array.isArray(c.students)) c.students.forEach(n => addMonthlyName(c.date!, n));
-    });
+    (classes || [])
+      .filter(c => isChaplainMatch(c.userId) && isUnitMatch(c.unit))
+      .forEach(c => {
+        if (Array.isArray(c.students)) c.students.forEach(n => addYearName(c.date!, n));
+      });
 
-    // Conta quantos meses (dentro do filtro) tiveram atividade (registros de alunos)
-    const activeMonthsCount = monthlyUnique.size;
-
-    // Soma os totais de cada mês ativo
-    let totalMonthlySum = 0;
-    monthlyUnique.forEach(set => {
-      totalMonthlySum += set.size;
-    });
-
-    // A média é a soma dos mensais dividida pelo número de meses ATIVOS
-    const average = activeMonthsCount > 0 ? totalMonthlySum / activeMonthsCount : 0;
+    // Total de alunos únicos no ano inteiro (não soma dos meses -- um aluno visto em 2 meses
+    // diferentes conta 1 vez aqui) dividido pelos meses do ano já decorridos até hoje.
+    const average = elapsedMonths > 0 ? yearStudents.size / elapsedMonths : 0;
 
     // Detalhe pro card clicável "Média de Alunos (Mensal)" -- não tem uma lista de nomes fixa
     // (é uma média entre vários meses), então mostra a composição mês a mês em vez de nomes.
@@ -106,10 +121,10 @@ export const useReportLogic = (
 
     return {
       averageStudents: Number(average.toFixed(1)),
-      activeMonthsCount,
+      activeMonthsCount: elapsedMonths,
       monthlyBreakdown
     };
-  }, [filteredData]);
+  }, [studies, classes, filters.selectedChaplain, filters.selectedUnit]);
 
   const auditList = useMemo(() => {
     const list: any[] = [];

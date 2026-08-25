@@ -138,7 +138,10 @@ const MonthComparisonBars: React.FC<MonthComparisonBarsProps> = ({ label, color,
         whileHover={{ y: -3, boxShadow: '0 8px 20px -4px rgba(0,0,0,0.12)' }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className={`relative inline-flex items-center gap-4 px-4 py-2.5 rounded-2xl border ${tone}`}
+        // z-30 quando o tooltip está aberto -- mesmo motivo do PersonalAchievement.tsx: sem
+        // isso, conteúdo vizinho (a legenda de cores, à direita) podia desenhar por cima da
+        // caixa de nomes quando ela vazasse pra fora dos limites deste cartão.
+        className={`relative inline-flex items-center gap-4 px-4 py-2.5 rounded-2xl border ${active ? 'z-30' : ''} ${tone}`}
       >
         <div className="flex flex-col">
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label} este mês</span>
@@ -178,6 +181,10 @@ const MonthComparisonBars: React.FC<MonthComparisonBarsProps> = ({ label, color,
           >
             <p className="text-[8px] font-black uppercase tracking-widest text-slate-300 capitalize mb-1">
               {activeMonthLabel}: {activeValue} {itemLabel || label}
+              {/* Quando a lista tem menos linhas que o total (por causa dos "(Nx)" agrupados),
+                  deixa explícito quantos nomes distintos são -- sem isso "7 estudos" com só 6
+                  linhas na lista parecia não bater as contas. */}
+              {names && names.length > 0 && names.length !== activeValue && ` (${names.length} nomes)`}
             </p>
             {names && names.length > 0 ? (
               // A caixa é pointer-events-none (pra não atrapalhar o hover na barra embaixo dela),

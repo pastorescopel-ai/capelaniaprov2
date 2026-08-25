@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Unit, RecordStatus, Config, ActivityFilter } from '../types';
 import { useReportLogic } from './useReportLogic';
-import { resolveDynamicName, normalizeString, countUniqueClasses, getStudentKey } from '../utils/formatters';
+import { resolveDynamicName, normalizeString, countUniqueClasses, countUniqueStudents, getStudentKey } from '../utils/formatters';
 import { generateExecutiveHTML } from '../utils/pdfTemplates';
 import { useDocumentGenerator } from './useDocumentGenerator';
 import { usePro } from '../contexts/ProContext';
@@ -282,7 +282,10 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
           c.students?.forEach((n: any) => { if (adventistSet.has(n)) return; const key = getStudentKey(n); if (key) names.add(key); });
         });
         const uniqueClasses = countUniqueClasses(uC);
-        return { students: names.size, studies: uS.length, classes: uniqueClasses, groups: uG.length, visits: uV.length, total: uS.length + uniqueClasses + uG.length + uV.length };
+        // "studies" mostra alunos únicos (não sessões) -- "total" continua somando as sessões
+        // brutas porque é usado como indicador de volume de trabalho (Vs. Média Equipe), não de
+        // alcance de pessoas.
+        return { students: names.size, studies: countUniqueStudents(uS), classes: uniqueClasses, groups: uG.length, visits: uV.length, total: uS.length + uniqueClasses + uG.length + uV.length };
       };
       const hab = getUnitStats(Unit.HAB);
       const haba = getUnitStats(Unit.HABA);

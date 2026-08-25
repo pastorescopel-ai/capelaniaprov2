@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User } from '../types';
 import { useVisitGoals } from './useVisitGoals';
-import { countUniqueClasses, getStudentKey } from '../utils/formatters';
+import { countUniqueClasses, countUniqueStudents, getStudentKey } from '../utils/formatters';
 
 export type GlobalImpactComparisonMode = 'previousMonth' | 'sameMonthLastYear' | 'average';
 
@@ -65,7 +65,7 @@ export const useDashboardStats = (
   }, [userVisits, visits]);
 
   // 3. Filtros e Cálculos Mensais
-  const { monthlyStudies, monthlyClasses, monthlyGroups, monthlyVisits, uniqueStudentsMonth, adventistStudentsMonth, monthName } = useMemo(() => {
+  const { monthlyStudies, monthlyClasses, monthlyGroups, monthlyVisits, uniqueStudentsMonth, monthlyStudiesUniqueCount, adventistStudentsMonth, monthName } = useMemo(() => {
     const now = selectedMonth ? new Date(selectedMonth + 'T12:00:00') : new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -88,6 +88,10 @@ export const useDashboardStats = (
         monthlyGroups: Array(metrics.totalSmallGroups || 0).fill({}),
         monthlyVisits: Array(metrics.totalStaffVisits || 0).fill({}),
         uniqueStudentsMonth: new Set(Array(metrics.totalUniqueStudents || 0).fill(0).map((_, i) => i.toString())),
+        // Meses já fechados não guardam "alunos únicos SÓ de Estudo Bíblico" separado de Classe
+        // -- só o combinado (totalUniqueStudents). Usa esse combinado como aproximação aqui (é
+        // sempre <= totalBibleStudies, então pelo menos nunca fica pior que a contagem de sessões).
+        monthlyStudiesUniqueCount: metrics.totalUniqueStudents || 0,
         adventistStudentsMonth: new Set<string>(),
         monthName: mName
       };
@@ -122,6 +126,9 @@ export const useDashboardStats = (
       monthlyGroups: mGroups,
       monthlyVisits: mVisits,
       uniqueStudentsMonth: uStudents,
+      // "Estudos Bíblicos" no Mural conta alunos únicos, não sessões -- dar 3 estudos pro mesmo
+      // aluno no mês conta como 1 (mesma regra usada no formulário de Estudo Bíblico).
+      monthlyStudiesUniqueCount: countUniqueStudents(mStudies),
       adventistStudentsMonth: adventists,
       monthName: mName
     };
@@ -176,7 +183,7 @@ export const useDashboardStats = (
 
       return {
         students: uS.size,
-        studies: mS.length,
+        studies: countUniqueStudents(mS),
         classes: uniqueClasses,
         groups: mG.length,
         visits: mV.length,
@@ -255,6 +262,7 @@ export const useDashboardStats = (
      monthlyGroups,
      monthlyVisits,
      uniqueStudentsMonth,
+     monthlyStudiesUniqueCount,
      adventistStudentsMonth,
      totalActionsMonth,
      globalImpact,

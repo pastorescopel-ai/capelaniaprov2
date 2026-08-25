@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, User, Config, Unit } from '../../types';
 import { useApp } from '../../hooks/useApp';
 import { useDashboardStats, GlobalImpactComparisonMode } from '../../hooks/useDashboardStats';
-import { ensureISODate } from '../../utils/formatters';
+import { ensureISODate, countUniqueStudents, getUniqueStudentLabels, formatNameCounts } from '../../utils/formatters';
 import Mural from './Mural';
 import StatCards from './StatCards';
 import ImpactCharts from './ImpactCharts';
@@ -72,6 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     monthlyGroups,
     monthlyVisits,
     uniqueStudentsMonth,
+    monthlyStudiesUniqueCount,
     adventistStudentsMonth,
     totalActionsMonth,
     globalImpact,
@@ -88,12 +89,31 @@ const Dashboard: React.FC<DashboardProps> = ({
     prevDate.setMonth(prevDate.getMonth() - 1);
     const prevISO = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
     const prevMonthLabel = prevDate.toLocaleDateString('pt-BR', { month: 'long' });
-    const studiesCount = (studies || []).filter(s => s.userId === currentUser?.id && ensureISODate(s.date)?.startsWith(prevISO)).length;
-    const classesCount = (classes || []).filter(c => c.userId === currentUser?.id && ensureISODate(c.date)?.startsWith(prevISO)).length;
-    const groupsCount = (groups || []).filter(g => g.userId === currentUser?.id && ensureISODate(g.date)?.startsWith(prevISO)).length;
-    const visitsCount = (visits || []).filter(v => v.userId === currentUser?.id && ensureISODate(v.date)?.startsWith(prevISO)).length;
-    return { studiesCount, classesCount, groupsCount, visitsCount, prevMonthLabel: prevMonthLabel.charAt(0).toUpperCase() + prevMonthLabel.slice(1) };
+    const prevStudies = (studies || []).filter(s => s.userId === currentUser?.id && ensureISODate(s.date)?.startsWith(prevISO));
+    const prevClasses = (classes || []).filter(c => c.userId === currentUser?.id && ensureISODate(c.date)?.startsWith(prevISO));
+    const prevGroups = (groups || []).filter(g => g.userId === currentUser?.id && ensureISODate(g.date)?.startsWith(prevISO));
+    const prevVisits = (visits || []).filter(v => v.userId === currentUser?.id && ensureISODate(v.date)?.startsWith(prevISO));
+    return {
+      studiesCount: countUniqueStudents(prevStudies),
+      classesCount: prevClasses.length,
+      groupsCount: prevGroups.length,
+      visitsCount: prevVisits.length,
+      prevStudies, prevClasses, prevGroups, prevVisits,
+      prevMonthLabel: prevMonthLabel.charAt(0).toUpperCase() + prevMonthLabel.slice(1)
+    };
   }, [studies, classes, groups, visits, currentUser?.id]);
+
+  // Nomes por trás de cada barra do "Alcance Pessoal" -- mesma ideia da caixinha que já existe
+  // nos formulários (MonthComparisonBars), só que aqui cobrindo as 4 categorias de uma vez.
+  const achievementNames = React.useMemo(() => ({
+    Estudos: { cur: getUniqueStudentLabels(monthlyStudies), prev: getUniqueStudentLabels(prevMonthPersonal.prevStudies) },
+    Classes: {
+      cur: formatNameCounts(monthlyClasses.map(c => `${c.sector || c.guide || 'Turma'} (${(c.students || []).length} alunos)`)),
+      prev: formatNameCounts(prevMonthPersonal.prevClasses.map(c => `${c.sector || c.guide || 'Turma'} (${(c.students || []).length} alunos)`))
+    },
+    PGs: { cur: formatNameCounts(monthlyGroups.map(g => g.groupName).filter(Boolean)), prev: formatNameCounts(prevMonthPersonal.prevGroups.map(g => g.groupName).filter(Boolean)) },
+    Visitas: { cur: formatNameCounts(monthlyVisits.map(v => v.staffName).filter(Boolean)), prev: formatNameCounts(prevMonthPersonal.prevVisits.map(v => v.staffName).filter(Boolean)) },
+  }), [monthlyStudies, monthlyClasses, monthlyGroups, monthlyVisits, prevMonthPersonal]);
 
   // Fecha o card expandido de Visitas assim que a pessoa sai da aba do Dashboard -- sem isso,
   // clicar no card pra ir registrar uma visita e depois voltar pro Dashboard deixava o card
@@ -127,7 +147,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           visits={visits}
           pendingReturnsCount={pendingReturns.length}
           currentUserFirstName={currentUser.name?.split(' ')[0] || ''}
-          monthlyStudiesCount={monthlyStudies.length}
+          monthlyStudiesCount={monthlyStudiesUniqueCount}
           monthlyClassesCount={monthlyClasses.length}
           monthlyGroupsCount={monthlyGroups.length}
           prevMonthStudiesCount={prevMonthPersonal.studiesCount}
@@ -237,7 +257,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           componente), pra quem já está com o Dashboard aberto não ver tudo disparando de uma
           vez fora da vista */}
       <ImpactCharts individualData={[
-        { name: 'Estudos', val: monthlyStudies.length },
+        { name: 'Estudos', val: monthlyStudiesUniqueCount },
         { name: 'Classes', val: monthlyClasses.length },
         { name: 'PGs', val: monthlyGroups.length },
         { name: 'Visitas', val: monthlyVisits.length },
@@ -249,6 +269,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           { name: 'Visitas', val: prevMonthPersonal.visitsCount },
         ]}
         prevMonthLabel={prevMonthPersonal.prevMonthLabel}
+        individualNames={achievementNames}
         globalData={globalImpact}
         onGoToTab={onGoToTab}
         comparisonMode={comparisonMode}

@@ -6,7 +6,7 @@ import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePro } from '../../contexts/ProContext';
 import { useBible } from '../../contexts/BibleContext';
-import { getTimestamp, cleanID, getStudentKey, countUniqueClasses } from '../../utils/formatters';
+import { getTimestamp, cleanID, getStudentKey, countUniqueClasses, countUniqueStudents } from '../../utils/formatters';
 import { getValidSectorId } from '../../utils/sectorValidation';
 import { toCamel } from '../../utils/transformers';
 import { DataRepository } from '../../services/dataRepository';
@@ -328,7 +328,10 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                 return {
                     userId: user.id,
                     userName: user.name,
-                    studies: uS.length,
+                    // "studies" nesse breakdown por capelão conta alunos únicos, não sessões --
+                    // mesma regra usada em todo o app agora (dar 3 estudos pro mesmo aluno conta
+                    // como 1). "total" continua somando sessões brutas (volume de trabalho).
+                    studies: countUniqueStudents(uS),
                     classes: uC.length,
                     groups: uG.length,
                     visits: uV.length,

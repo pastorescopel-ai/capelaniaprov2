@@ -11,6 +11,9 @@ interface ImpactChartsProps {
   // Mesmas 4 categorias, mês anterior -- alimenta o comparativo do "Alcance Pessoal".
   prevMonthIndividualData: { name: string; val: number }[];
   prevMonthLabel: string;
+  // Nomes por trás de cada categoria (este mês / mês passado) -- alimenta o tooltip que segue
+  // o mouse/dedo ao passar nas barrinhas do "Alcance Pessoal".
+  individualNames?: Record<string, { cur: string[]; prev: string[] }>;
   globalData: any;
   comparisonMode: GlobalImpactComparisonMode;
   onComparisonModeChange: (mode: GlobalImpactComparisonMode) => void;
@@ -43,7 +46,7 @@ const CATEGORY_COLOR: Record<string, string> = {
 };
 
 const ImpactCharts: React.FC<ImpactChartsProps> = ({
-  individualData, prevMonthIndividualData, prevMonthLabel, globalData,
+  individualData, prevMonthIndividualData, prevMonthLabel, individualNames, globalData,
   comparisonMode, onComparisonModeChange,
   availableMonths, selectedAverageMonths, onToggleAverageMonth,
   onGoToTab
@@ -64,6 +67,8 @@ const ImpactCharts: React.FC<ImpactChartsProps> = ({
     current: d.val,
     prev: prevByName[d.name] || 0,
     color: CATEGORY_COLOR[d.name] || '#64748b',
+    curNames: individualNames?.[d.name]?.cur,
+    prevNames: individualNames?.[d.name]?.prev,
     onClick: onGoToTab && CATEGORY_TAB[d.name] ? () => onGoToTab(CATEGORY_TAB[d.name]) : undefined,
   }));
 

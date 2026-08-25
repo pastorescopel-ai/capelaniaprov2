@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { BibleStudy, BibleClass, SmallGroup, StaffVisit, Unit } from '../../types';
-import { ensureISODate, getStudentKey, countUniqueClasses } from '../../utils/formatters';
+import { ensureISODate, getStudentKey, countUniqueClasses, countUniqueStudents } from '../../utils/formatters';
 import ChaplainPanorama from './ChaplainPanorama';
 
 interface ChaplainCardProps {
@@ -110,7 +110,9 @@ const ChaplainCard: React.FC<ChaplainCardProps> = ({
         (c.students || []).forEach((n: any) => { if (adventistSet.has(n)) return; const key = getStudentKey(n); if (key) names.add(key); });
       });
       const uniqueClasses = countUniqueClasses(uC);
-      return { students: names.size, studies: uS.length, classes: uniqueClasses, groups: uG.length, visits: uV.length, total: uS.length + uniqueClasses + uG.length + uV.length };
+      // "studies" mostra alunos únicos (não sessões) -- "total" continua somando as sessões
+      // brutas porque é usado como indicador de volume de trabalho, não de alcance de pessoas.
+      return { students: names.size, studies: countUniqueStudents(uS), classes: uniqueClasses, groups: uG.length, visits: uV.length, total: uS.length + uniqueClasses + uG.length + uV.length };
     };
 
     return months.map(m => {

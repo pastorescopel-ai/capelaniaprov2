@@ -76,7 +76,9 @@ const ReportStats: React.FC<StatsProps> = ({ totalStats }) => {
         label: 'Média de Alunos (Mensal)',
         value: totalStats.averageStudentsMonthly,
         color: 'bg-slate-800 shadow-slate-200',
-        sub: `${totalStats.averageActiveMonths ?? 0} Meses Ativos no Período`
+        // Sempre o ano corrente inteiro, não o período selecionado no calendário (ver
+        // useReportLogic.ts) -- por isso "do Ano" e não "no Período".
+        sub: `${totalStats.averageActiveMonths ?? 0} Meses do Ano`
     },
     {
         key: 'total',
