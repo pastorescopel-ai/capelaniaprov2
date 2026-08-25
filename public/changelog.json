@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-08-25b",
+    "date": "2026-08-25",
+    "changes": [
+      "Corrigido: na caixa de nomes do 'este mês x mês passado' (Estudo, PG, Visita), quem apareceu mais de uma vez no mesmo mês (ex: aluna estudada 2x) agora mostra numa linha só com '(2x)' em vez de duas linhas idênticas -- o número ali sempre contou os REGISTROS (estudos/reuniões/visitas), não pessoas únicas, e isso confundia como se estivesse duplicado. A lista também não corta mais em silêncio quando é longa: mostra até 10 nomes e avisa quantos ficaram de fora."
+    ]
+  },
+  {
     "version": "2026-08-25a",
     "date": "2026-08-25",
     "changes": [

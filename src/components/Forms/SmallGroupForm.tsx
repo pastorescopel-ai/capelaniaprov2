@@ -8,7 +8,7 @@ import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
 import MonthComparisonBars from '../Shared/MonthComparisonBars';
 import { isRecordLocked } from '../../utils/validators';
-import { formatWhatsApp } from '../../utils/formatters';
+import { formatWhatsApp, formatNameCounts } from '../../utils/formatters';
 import { useSmallGroupForm } from '../../hooks/useSmallGroupForm';
 import { useMonthComparison } from '../../hooks/useMonthComparison';
 
@@ -29,8 +29,9 @@ interface FormProps {
 
 const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, currentUser, history, allHistory = [], editingItem, isLoading, onSubmit, onDelete, onEdit, isActive }) => {
   const monthComparison = useMonthComparison(allHistory, currentUser.id, unit);
-  const curPGNames = monthComparison.curItems.map(g => g.groupName).filter(Boolean);
-  const prevPGNames = monthComparison.prevItems.map(g => g.groupName).filter(Boolean);
+  // formatNameCounts junta o mesmo PG reunido 2x no mês numa linha só ("Nome (2x)").
+  const curPGNames = formatNameCounts(monthComparison.curItems.map(g => g.groupName).filter(Boolean));
+  const prevPGNames = formatNameCounts(monthComparison.prevItems.map(g => g.groupName).filter(Boolean));
   const {
     formData, setFormData,
     isSectorLocked, setIsSectorLocked,

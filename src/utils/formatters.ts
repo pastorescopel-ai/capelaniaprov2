@@ -245,3 +245,18 @@ export const getUniqueClassLabels = (classes: Array<{ students?: string[] | null
   });
   return labels;
 };
+
+// Junta nomes repetidos numa linha só com "(Nx)" em vez de uma linha por ocorrência -- usado no
+// tooltip do MonthComparisonBars (Estudo, PG, Visita) porque o número ali é a contagem de
+// REGISTROS (estudos/reuniões/visitas), não de pessoas únicas: uma aluna estudada 2x no mês
+// entra 2x na lista de registros do mês, e sem isso aparecia como duas linhas idênticas --
+// dando a impressão (errada) de contagem duplicada em vez de "estudada duas vezes". Preserva a
+// ordem da primeira ocorrência de cada nome.
+export const formatNameCounts = (names: string[]): string[] => {
+  const counts = new Map<string, number>();
+  (names || []).forEach(n => {
+    if (!n) return;
+    counts.set(n, (counts.get(n) || 0) + 1);
+  });
+  return Array.from(counts.entries()).map(([name, count]) => (count > 1 ? `${name} (${count}x)` : name));
+};

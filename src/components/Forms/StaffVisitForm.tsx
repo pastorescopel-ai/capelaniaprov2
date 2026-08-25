@@ -8,7 +8,7 @@ import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
 import MonthComparisonBars from '../Shared/MonthComparisonBars';
 import { isRecordLocked } from '../../utils/validators';
-import { formatWhatsApp } from '../../utils/formatters';
+import { formatWhatsApp, formatNameCounts } from '../../utils/formatters';
 import { useStaffVisitForm } from '../../hooks/useStaffVisitForm';
 import { useMonthComparison } from '../../hooks/useMonthComparison';
 
@@ -37,8 +37,11 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   } = useStaffVisitForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
   const monthComparison = useMonthComparison(allHistory, currentUser.id, unit);
-  const curVisitNames = monthComparison.curItems.map(v => v.staffName).filter(Boolean);
-  const prevVisitNames = monthComparison.prevItems.map(v => v.staffName).filter(Boolean);
+  // formatNameCounts junta o mesmo colaborador visitado 2x no mês numa linha só ("Nome (2x)")
+  // -- mesmo motivo do Estudo Bíblico: o número do card conta visitas (registros), não pessoas
+  // únicas.
+  const curVisitNames = formatNameCounts(monthComparison.curItems.map(v => v.staffName).filter(Boolean));
+  const prevVisitNames = formatNameCounts(monthComparison.prevItems.map(v => v.staffName).filter(Boolean));
 
   const isAdmin = currentUser.role === UserRole.ADMIN;
 

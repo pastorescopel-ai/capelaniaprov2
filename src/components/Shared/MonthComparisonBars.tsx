@@ -34,6 +34,10 @@ const Bar: React.FC<{ heightPx: number; color: string; delay: number }> = ({ hei
   return <motion.div ref={ref} className="w-6 sm:w-7 rounded-t-md rounded-b-sm" style={{ height, backgroundColor: color }} />;
 };
 
+// Quantos nomes mostrar antes de resumir em "+N mais" -- a caixa não é rolável (ver comentário
+// no ponto de uso), então precisa de um teto fixo em vez de deixar o overflow cortar em silêncio.
+const MAX_VISIBLE_NAMES = 10;
+
 type BarKey = 'prev' | 'current';
 interface ActivePoint { key: BarKey; x: number; y: number; }
 
@@ -176,10 +180,16 @@ const MonthComparisonBars: React.FC<MonthComparisonBarsProps> = ({ label, color,
               {activeMonthLabel}: {activeValue} {itemLabel || label}
             </p>
             {names && names.length > 0 ? (
-              <div className="max-h-32 overflow-y-auto space-y-0.5">
-                {names.map((n, i) => (
+              // A caixa é pointer-events-none (pra não atrapalhar o hover na barra embaixo dela),
+              // então não dá pra rolar com o mouse -- em vez de cortar a lista em silêncio com
+              // overflow escondido, mostra só o que cabe e avisa quantos ficaram de fora.
+              <div className="space-y-0.5">
+                {names.slice(0, MAX_VISIBLE_NAMES).map((n, i) => (
                   <p key={i} className="text-[10px] font-bold leading-tight">{n}</p>
                 ))}
+                {names.length > MAX_VISIBLE_NAMES && (
+                  <p className="text-[9px] font-bold text-slate-400 pt-0.5">+{names.length - MAX_VISIBLE_NAMES} mais</p>
+                )}
               </div>
             ) : (
               <p className="text-[10px] font-bold text-slate-400">{activeValue === 0 ? 'Nenhum registro' : 'Sem detalhes'}</p>

@@ -8,7 +8,7 @@ import HistorySection from '../Shared/HistorySection';
 import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
 import MonthComparisonBars from '../Shared/MonthComparisonBars';
-import { formatWhatsApp } from '../../utils/formatters';
+import { formatWhatsApp, formatNameCounts } from '../../utils/formatters';
 import { isRecordLocked } from '../../utils/validators';
 import { useBibleStudyForm } from '../../hooks/useBibleStudyForm';
 import { useMonthComparison } from '../../hooks/useMonthComparison';
@@ -39,8 +39,11 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
   } = useBibleStudyForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
   const monthComparison = useMonthComparison(allHistory, currentUser.id, unit);
-  const curStudyNames = monthComparison.curItems.map(s => s.name).filter(Boolean);
-  const prevStudyNames = monthComparison.prevItems.map(s => s.name).filter(Boolean);
+  // formatNameCounts junta reencontros com a mesma aluna numa linha só ("Nome (2x)") -- o
+  // número do card conta ESTUDOS (sessões), não alunas únicas, então sem isso uma aluna
+  // estudada 2x no mês aparecia como duas linhas idênticas na lista.
+  const curStudyNames = formatNameCounts(monthComparison.curItems.map(s => s.name).filter(Boolean));
+  const prevStudyNames = formatNameCounts(monthComparison.prevItems.map(s => s.name).filter(Boolean));
 
   const isStaff = formData.participantType === ParticipantType.STAFF;
   const isAdmin = currentUser.role === UserRole.ADMIN;
@@ -85,7 +88,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         title="Estudo Bíblico"
         headerActions={headerActions}
         history={historySection}
-        compareWidget={<MonthComparisonBars label="Estudos" color="#3b82f6" {...monthComparison} curNames={curStudyNames} prevNames={prevStudyNames} itemLabel="alunos" />}
+        compareWidget={<MonthComparisonBars label="Estudos" color="#3b82f6" {...monthComparison} curNames={curStudyNames} prevNames={prevStudyNames} itemLabel="estudos" />}
       >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
