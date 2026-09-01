@@ -146,3 +146,17 @@ button:not(:disabled):not([class*="active:scale"]):active,
 @media (prefers-reduced-motion: reduce) {
   .shimmer-text { animation: none; }
 }
+
+/* Brilho pulsante em volta do cartão de PG agendado pra HOJE (VisitRequestsWidget.tsx) --
+   box-shadow crescendo/encolhendo em loop, pra chamar atenção pro compromisso do dia sem
+   precisar de um badge separado. Cor âmbar pra combinar com o selo "Hoje" que já existe ali. */
+@keyframes today-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+}
+.animate-today-glow {
+  animation: today-glow 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-today-glow { animation: none; }
+}

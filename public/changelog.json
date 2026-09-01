@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-09-01a",
+    "date": "2026-09-01",
+    "changes": [
+      "Novo: o cartão do PG agendado para HOJE (Minha Escala de Visitas, no Dashboard) agora tem um brilho pulsante ao redor, além do destaque em âmbar -- pra saltar aos olhos entre os outros compromissos da escala.",
+      "Novo: notificação push 30 minutos antes de cada visita de PG agendada com horário definido, avisando o capelão designado (mesmo aviso dos lembretes diários de 12h/18h -- precisa ter ativado notificações em Configurações)."
+    ]
+  },
+  {
     "version": "2026-08-25c",
     "date": "2026-08-25",
     "changes": [

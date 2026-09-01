@@ -51,7 +51,10 @@ const VisitRequestsWidget: React.FC<VisitRequestsWidgetProps> = ({ requests, cur
           
           return (
             <div key={req.id} className={`min-w-[260px] max-w-[280px] p-4 rounded-2xl border flex flex-col justify-between relative group transition-all ${
-              isToday ? 'bg-blue-50/50 border-blue-200 ring-1 ring-blue-100' : 'bg-slate-50 border-slate-100 hover:border-blue-200'
+              // O PG de hoje ganha um brilho pulsante (animate-today-glow, ver index.css) além
+              // do destaque visual que já existia -- a pedido do usuário, pra saltar aos olhos
+              // entre os outros cartões da escala.
+              isToday ? 'bg-amber-50/60 border-amber-300 ring-2 ring-amber-200 animate-today-glow' : 'bg-slate-50 border-slate-100 hover:border-blue-200'
             }`}>
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between items-center">
