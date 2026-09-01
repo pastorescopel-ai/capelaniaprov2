@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-09-01c",
+    "date": "2026-09-01",
+    "changes": [
+      "Corrigido: o card 'Média de Alunos (Mensal)' só contava direito os Estudos Individuais do ano inteiro -- os alunos de Classe Bíblica de meses fora dos últimos ~45 dias não estavam carregados na memória do app, então saíam da conta. Agora busca a lista de presença de Classe Bíblica do ano corrente inteiro (desde 1º de janeiro) direto do banco quando necessário, garantindo que a média soma Estudos + Classes o ano todo."
+    ]
+  },
+  {
     "version": "2026-09-01b",
     "date": "2026-09-01",
     "changes": [

@@ -18,7 +18,13 @@ export const useReportLogic = (
   groups: SmallGroup[],
   visits: StaffVisit[],
   users: User[],
-  filters: ReportFilters
+  filters: ReportFilters,
+  // Classes com o roster (students) já hidratado pro ANO CORRENTE inteiro -- usado só pela
+  // "Média de Alunos" (averageStats), que ignora o filtro de período. `classes` (acima) só tem
+  // o roster completo dentro da janela de sincronização/período filtrado; sem esse parâmetro
+  // separado, meses fora dessa janela perderiam os alunos de Classe Bíblica na média. Opcional
+  // e cai em `classes` se o chamador não passar (ex: outros usos deste hook).
+  yearClasses?: BibleClass[]
 ) => {
   // 1. DADOS FILTRADOS (Respeita as datas selecionadas na UI)
   const filteredData = useMemo(() => {
@@ -100,7 +106,9 @@ export const useReportLogic = (
       .forEach(s => addYearName(s.date, s.name, (s as any).staffId || (s as any).participantId));
     // c.students (bible_class_attendees) e c.adventistStudents (bible_class_adventists) são
     // tabelas separadas -- adventista nunca aparece em c.students, não precisa filtrar aqui.
-    (classes || [])
+    // Usa `yearClasses` (roster hidratado pro ano inteiro) em vez de `classes` -- ver comentário
+    // no parâmetro da função.
+    (yearClasses || classes || [])
       .filter(c => isChaplainMatch(c.userId) && isUnitMatch(c.unit))
       .forEach(c => {
         if (Array.isArray(c.students)) c.students.forEach(n => addYearName(c.date!, n));
@@ -124,7 +132,7 @@ export const useReportLogic = (
       activeMonthsCount: elapsedMonths,
       monthlyBreakdown
     };
-  }, [studies, classes, filters.selectedChaplain, filters.selectedUnit]);
+  }, [studies, classes, yearClasses, filters.selectedChaplain, filters.selectedUnit]);
 
   const auditList = useMemo(() => {
     const list: any[] = [];

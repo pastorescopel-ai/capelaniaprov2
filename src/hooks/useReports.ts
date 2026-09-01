@@ -142,7 +142,73 @@ export const useReports = ({ studies, classes, groups, visits, users, config }: 
     });
   }, [classes, extendedAttendeesByClass, extendedAdventistsByClass]);
 
-  const { filteredData, auditList, totalStats: liveStats } = useReportLogic(studies, effectiveClasses, groups, visits, users, filters as any);
+  // --- BUSCA SOB DEMANDA DE PRESENÇAS DO ANO CORRENTE (pro card "Média de Alunos") ---
+  // Esse card (averageStats, em useReportLogic.ts) sempre olha o ano inteiro desde 1º de
+  // janeiro, independente do filtro de período de Relatórios -- então não pode depender do
+  // efeito acima (que só busca o que o filtro.startDate/endDate pedir). Sem isso, qualquer mês
+  // fora da janela de sincronização (~45 dias) contava só os Estudos Individuais na média,
+  // porque o roster de Classe Bíblica daqueles meses não estava carregado.
+  const [yearAttendeesByClass, setYearAttendeesByClass] = useState<Map<string, any[]> | null>(null);
+  const [yearAdventistsByClass, setYearAdventistsByClass] = useState<Map<string, any[]> | null>(null);
+
+  useEffect(() => {
+    const run = async () => {
+      const now = new Date();
+      const yearStartISO = `${now.getFullYear()}-01-01`;
+      const todayISO = now.toISOString().split('T')[0];
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - SYNC_WINDOW_DAYS);
+      const cutoffISO = cutoff.toISOString().split('T')[0];
+
+      if (yearStartISO >= cutoffISO) {
+        // O ano inteiro já cabe dentro da janela sincronizada (ex: em janeiro/fevereiro) -- os
+        // dados já carregados bastam, não precisa buscar nada extra.
+        setYearAttendeesByClass(null);
+        setYearAdventistsByClass(null);
+        return;
+      }
+
+      const [studentRows, adventistRows] = await Promise.all([
+        fetchRowsForRange('bible_class_attendees', yearStartISO, todayISO),
+        fetchRowsForRange('bible_class_adventists', yearStartISO, todayISO),
+      ]);
+
+      const groupByClass = (rows: any[]) => {
+        const byClass = new Map<string, any[]>();
+        rows.forEach(row => {
+          const list = byClass.get(row.classId) || [];
+          list.push(row);
+          byClass.set(row.classId, list);
+        });
+        return byClass;
+      };
+      setYearAttendeesByClass(groupByClass(studentRows));
+      setYearAdventistsByClass(groupByClass(adventistRows));
+    };
+    run();
+    // Roda 1x -- o ano corrente não muda durante a sessão, e não depende dos filtros de
+    // Relatórios de propósito (ver comentário acima).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const yearEffectiveClasses = useMemo(() => {
+    if (!yearAttendeesByClass) return classes;
+    const nameFor = (a: any) => {
+      const id = a.staffId || a.participantId;
+      if (id && !String(a.studentName).includes(`(${id})`)) {
+        return `${a.studentName} (${id})`;
+      }
+      return a.studentName;
+    };
+    return classes.map(cls => {
+      const attendees = yearAttendeesByClass.get(cls.id);
+      if (!attendees) return cls; // fora do ano corrente, ou já coberto pela janela sincronizada
+      const adventistRows = yearAdventistsByClass?.get(cls.id) || [];
+      return { ...cls, students: attendees.map(nameFor), adventistStudents: adventistRows.map(nameFor) };
+    });
+  }, [classes, yearAttendeesByClass, yearAdventistsByClass]);
+
+  const { filteredData, auditList, totalStats: liveStats } = useReportLogic(studies, effectiveClasses, groups, visits, users, filters as any, yearEffectiveClasses);
   const pColor = config.primaryColor || '#005a9c';
 
   // --- LÓGICA DE TRAVAMENTO DE DADOS (SNAPSHOTS) ---
