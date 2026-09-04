@@ -352,11 +352,23 @@ export const useSmallGroupForm = ({ unit, history, editingItem, currentUser, onS
         }
       }
 
-      await onSubmit(dataToSubmit);
+      const result = await onSubmit(dataToSubmit);
+
+      // Se o onSubmit retornar um objeto com success (como o usePGHook faz) -- antes esse
+      // retorno era ignorado por completo aqui: um erro de verdade não mostrava NADA na tela,
+      // só sumia no console. persistent:true pra ficar visível até alguém ler/fechar.
+      if (result && typeof result === 'object' && 'success' in result && !(result as any).success) {
+          showToast(`Erro ao salvar registro: ${(result as any).error?.message || 'motivo desconhecido'}`, "error", true);
+          return;
+      }
+
       setFormData({ ...defaultState, date: getToday() });
       setIsSectorLocked(false);
+      showToast("Registro salvo com sucesso!", "success");
     } catch (error) {
       console.error("Erro ao salvar:", error);
+      const detail = error instanceof Error ? error.message : String(error);
+      showToast(`Erro inesperado ao salvar o registro: ${detail}`, "error", true);
     } finally {
       setIsSubmitting(false);
     }

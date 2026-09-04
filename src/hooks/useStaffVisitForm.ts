@@ -359,11 +359,23 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
           if (syncedId) dataToSubmit.providerId = syncedId;
       }
 
-      await onSubmit({...dataToSubmit, unit});
+      const result = await onSubmit({...dataToSubmit, unit});
+
+      // Se o onSubmit retornar um objeto com success (como o useStaffHook faz) -- antes esse
+      // retorno era ignorado por completo aqui: um erro de verdade não mostrava NADA na tela,
+      // só sumia no console. persistent:true pra ficar visível até alguém ler/fechar.
+      if (result && typeof result === 'object' && 'success' in result && !(result as any).success) {
+          showToast(`Erro ao salvar registro: ${(result as any).error?.message || 'motivo desconhecido'}`, "error", true);
+          return;
+      }
+
       setFormData({ ...defaultState, date: getToday(), returnDate: getToday(), participantType: dataToSubmit.participantType });
       setIsSectorLocked(false);
+      showToast("Registro salvo com sucesso!", "success");
     } catch (error) {
       console.error("Erro ao salvar:", error);
+      const detail = error instanceof Error ? error.message : String(error);
+      showToast(`Erro inesperado ao salvar o registro: ${detail}`, "error", true);
     } finally {
       setIsSubmitting(false);
     }

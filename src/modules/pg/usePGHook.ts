@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { User } from '../../types';
 import { useApp } from '../../hooks/useApp';
+import { DataRepository } from '../../services/dataRepository';
 
 export const usePG = (currentUser: User) => {
   const { saveRecord } = useApp();
@@ -19,8 +20,10 @@ export const usePG = (currentUser: User) => {
         updatedAt: now
       });
       if (!success) {
-        setError('Erro ao salvar pequeno grupo');
-        return { success: false };
+        const detail = DataRepository.getLastError();
+        const message = detail?.message || 'Erro ao salvar pequeno grupo';
+        setError(message);
+        return { success: false, error: { message } };
       }
       return { success: true };
     } catch (err) {

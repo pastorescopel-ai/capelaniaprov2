@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-09-01d",
+    "date": "2026-09-01",
+    "changes": [
+      "Corrigido: erro ao registrar Estudo, Classe, PG ou Visita agora mostra o motivo real (ex: 'coluna obrigatória ausente', 'já existe um registro igual', 'sem permissão') em vez do genérico 'Erro ao salvar registro.' -- o erro de verdade do banco ficava só no console, invisível pra quem está no celular. Em PG e Visita, um erro nem chegava a aparecer na tela antes (ficava só no console). O aviso agora também fica na tela até ser fechado manualmente, em vez de sumir sozinho em 4 segundos.",
+      "Corrigido: se os alunos de uma Classe Bíblica falhassem ao sincronizar (ex: conflito ao salvar presença), a classe em si salvava normal e nenhum erro aparecia -- os alunos simplesmente sumiam em silêncio. Agora isso conta como falha e mostra o erro."
+    ]
+  },
+  {
     "version": "2026-09-01c",
     "date": "2026-09-01",
     "changes": [

@@ -776,7 +776,9 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       
       // Se o onSubmit retornar um objeto com success (como o useBibleModule faz)
       if (result && typeof result === 'object' && 'success' in result && !result.success) {
-          showToast(result.error?.message || "Erro ao salvar registro.", "error");
+          // persistent:true -- erro precisa ficar na tela até alguém ler/fechar, não sumir em
+          // 4s sozinho, pra dar tempo do usuário mostrar pro master ou anotar o que apareceu.
+          showToast(`Erro ao salvar registro: ${result.error?.message || 'motivo desconhecido'}`, "error", true);
           return;
       }
 
@@ -784,7 +786,8 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       showToast("Registro salvo com sucesso!", "success");
     } catch (error) {
       console.error("Erro ao salvar:", error);
-      showToast("Erro inesperado ao salvar o registro. Verifique sua conexão.", "error");
+      const detail = error instanceof Error ? error.message : String(error);
+      showToast(`Erro inesperado ao salvar o registro: ${detail}`, "error", true);
     } finally {
       setIsSubmitting(false);
     }

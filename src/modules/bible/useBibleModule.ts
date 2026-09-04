@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { User } from '../../types';
 import { useApp } from '../../hooks/useApp';
+import { DataRepository } from '../../services/dataRepository';
 
 export const useBibleModule = (currentUser: User) => {
   const { saveRecord } = useApp();
@@ -18,7 +19,10 @@ export const useBibleModule = (currentUser: User) => {
         updatedAt: now
       });
       if (!success) {
-        setError('Erro ao salvar estudo bíblico');
+        const detail = DataRepository.getLastError();
+        const message = detail?.message || 'Erro ao salvar estudo bíblico';
+        setError(message);
+        return { success, error: { message } };
       }
       return { success };
     } catch (err) {
@@ -41,7 +45,10 @@ export const useBibleModule = (currentUser: User) => {
         updatedAt: now
       });
       if (!success) {
-        setError('Erro ao salvar classe bíblica');
+        const detail = DataRepository.getLastError();
+        const message = detail?.message || 'Erro ao salvar classe bíblica';
+        setError(message);
+        return { success, error: { message } };
       }
       return { success };
     } catch (err) {

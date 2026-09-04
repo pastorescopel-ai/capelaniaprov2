@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { User } from '../../types';
 import { useApp } from '../../hooks/useApp';
+import { DataRepository } from '../../services/dataRepository';
 
 export const useStaff = (currentUser: User) => {
   const { saveRecord, deleteRecord } = useApp();
@@ -18,8 +19,10 @@ export const useStaff = (currentUser: User) => {
         updatedAt: now
       });
       if (!success) {
-        setError('Erro ao salvar visita');
-        return { success: false };
+        const detail = DataRepository.getLastError();
+        const message = detail?.message || 'Erro ao salvar visita';
+        setError(message);
+        return { success: false, error: { message } };
       }
       return { success: true };
     } catch (err) {

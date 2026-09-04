@@ -6,6 +6,19 @@ const DATA_CACHE_KEY = 'capelania_pro_config_data';
 
 const MEMORY_CACHE: Record<string, any> = {};
 
+// Guarda o último erro real do Supabase (mensagem/detalhe/hint/code) que upsertRecord recebeu --
+// antes disso, o erro só ia pro console (invisível pra quem está no celular) e quem chamava
+// saveRecord só via um `false`/`{success:false}` genérico. Lido logo após uma falha (não é
+// pensado pra durar além disso -- ver DataRepository.getLastError()).
+export interface SaveErrorDetail {
+  message: string;
+  details?: string | null;
+  hint?: string | null;
+  code?: string | null;
+  tableName?: string;
+}
+let lastSaveError: SaveErrorDetail | null = null;
+
 function safeSetLocalStorage(key: string, value: any, tableName: string) {
   try {
     const heavyTables = ['pro_history_records', 'pro_monthly_stats', 'staff_visits', 'bible_class_attendees', 'bible_class_adventists'];
@@ -320,13 +333,26 @@ async syncAll() {
     }
   },
 
+  // Devolve o último erro real capturado por upsertRecord (mensagem do Postgres/Supabase,
+  // não a genérica) -- ler logo depois de um saveRecord que voltou false/{success:false}.
+  getLastError(): SaveErrorDetail | null {
+    return lastSaveError;
+  },
+
   async upsertRecord(collection: string, item: any): Promise<{ success: boolean; data?: any[] }> {
-    if (!supabase) return { success: false };
+    lastSaveError = null;
+    if (!supabase) {
+      lastSaveError = { message: 'Sem conexão com o banco de dados (Supabase não inicializado).' };
+      return { success: false };
+    }
     const items = Array.isArray(item) ? item : [item];
     if (items.length === 0) return { success: true, data: [] };
 
     const tableName = COLLECTION_TO_TABLE[collection];
-    if (!tableName) return { success: false };
+    if (!tableName) {
+      lastSaveError = { message: `Coleção "${collection}" não mapeada para nenhuma tabela.` };
+      return { success: false };
+    }
 
     // Garantir que temos IDs para todos os itens antes de converter para snake_case
     // Isso é vital para coleções que dependem do ID para salvar dados em tabelas relacionadas (ex: bibleClasses)
@@ -384,15 +410,31 @@ async syncAll() {
             payloadSent: chunk
           };
           console.error(`ERRO CRÍTICO no Supabase (${tableName}):`, errorDetails);
-          
-          // Tentar extrair mais informações se for erro de tipo ou constraint
+
+          // Traduz os códigos mais comuns pra uma dica acionável -- pro usuário e pra quem for
+          // debugar depois; cai pra error.message puro quando não reconhece o código.
+          let hintPt: string | null = null;
           if (error.code === '23502') { // NOT NULL violation
-             console.error(`DICA: Coluna obrigatória ausente em ${tableName}. Verifique o payload.`);
+             hintPt = `Coluna obrigatória ausente ao salvar em "${tableName}".`;
+          } else if (error.code === '23505' && (tableName === 'pro_group_members' || tableName === 'pro_group_provider_members')) { // unique violation
+             hintPt = 'Essa pessoa já tem outra matrícula de PG aberta -- feche/transfira a antiga antes de criar uma nova.';
+          } else if (error.code === '23505') { // unique violation genérico
+             hintPt = 'Já existe um registro igual a esse (violação de unicidade).';
+          } else if (error.code === '23503') { // foreign key violation
+             hintPt = 'Referência a um registro que não existe mais (ex: setor/PG apagado).';
+          } else if (error.code === '42501' || error.code === 'PGRST301') { // RLS/permission
+             hintPt = 'Sem permissão pra salvar esse registro (política de segurança do banco).';
           }
-          if (error.code === '23505' && (tableName === 'pro_group_members' || tableName === 'pro_group_provider_members')) { // unique violation
-             console.error(`DICA: essa pessoa já tem outra matrícula de PG aberta (regra: só uma matrícula ativa por vez — feche/transfira a antiga antes de criar uma nova).`);
-          }
-          
+          if (hintPt) console.error(`DICA: ${hintPt}`);
+
+          lastSaveError = {
+            message: hintPt || error.message || 'Erro desconhecido ao salvar.',
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+            tableName
+          };
+
           return false;
         }
         if (data) {
@@ -408,19 +450,39 @@ async syncAll() {
     const successWithoutId = await processBatch(withoutId, false);
     if (!successWithoutId) return { success: false };
 
+    let rosterSyncFailed = false;
+
     if (collection === 'bibleClasses') {
         // For bibleClasses, we need to ensure the students are attached to the returned objects
         // since they are stored in separate tables (bible_class_attendees pros alunos de
         // verdade, bible_class_adventists pros adventistas -- tabelas separadas de propósito,
         // pra qualquer consulta direta no banco em "alunos da classe" nunca incluir adventista).
+        // Antes, erros aqui (fetch/delete/insert falhando) só iam pro console e a função seguia
+        // como se tivesse dado tudo certo -- a classe salvava mas os alunos sumiam em silêncio,
+        // sem NENHUM aviso pra quem registrou. Agora qualquer falha marca rosterSyncFailed e
+        // captura o erro real em lastSaveError, pra virar um toast de verdade no formulário.
         const syncRosterTable = async (tableName: 'bible_class_attendees' | 'bible_class_adventists', classId: string, classDate: string, classUnit: string, participantType: string, desiredNames: string[]) => {
+            const captureError = (label: string, error: any) => {
+                console.error(`${label} (${tableName}):`, error);
+                rosterSyncFailed = true;
+                if (!lastSaveError) {
+                    lastSaveError = {
+                        message: `${label}: ${error?.message || 'erro desconhecido'}`,
+                        details: error?.details,
+                        hint: error?.hint,
+                        code: error?.code,
+                        tableName
+                    };
+                }
+            };
+
             const { data: current, error: fetchError } = await supabase!
                 .from(tableName)
                 .select('id, student_name, date')
                 .eq('class_id', classId);
 
             if (fetchError) {
-                console.error(`Erro ao buscar registros atuais de ${tableName}:`, fetchError);
+                captureError('Erro ao buscar alunos atuais da turma', fetchError);
                 return;
             }
 
@@ -430,7 +492,7 @@ async syncAll() {
 
             if (idsToRemove.length > 0) {
                 const { error: delError } = await supabase!.from(tableName).delete().in('id', idsToRemove);
-                if (delError) console.error(`Erro ao remover registros de ${tableName}:`, delError);
+                if (delError) captureError('Erro ao remover aluno(s) da turma', delError);
             }
 
             // Realinhar a data/mês de quem PERMANECE: o diff acima só cobre quem entrou/saiu -- se
@@ -444,7 +506,7 @@ async syncAll() {
                     const idsToRealign = (current || []).filter(a => desiredNames.includes(a.student_name) && a.date !== classDate).map(a => a.id);
                     if (idsToRealign.length > 0) {
                         const { error: realignError } = await supabase!.from(tableName).update({ date: classDate, cycle_month: cycleMonth }).in('id', idsToRealign);
-                        if (realignError) console.error(`Erro ao realinhar data de ${tableName}:`, realignError);
+                        if (realignError) captureError('Erro ao atualizar a data dos alunos da turma', realignError);
                     }
                 }
             }
@@ -470,7 +532,7 @@ async syncAll() {
 
                 const cleanPayload = payload.map(p => cleanAndConvertToSnake(p, TABLE_SCHEMAS[tableName], tableName));
                 const { error: insError } = await supabase!.from(tableName).insert(cleanPayload);
-                if (insError) console.error(`Erro ao inserir novos registros em ${tableName}:`, insError);
+                if (insError) captureError('Erro ao adicionar aluno(s) na turma', insError);
             }
         };
 
@@ -503,6 +565,11 @@ async syncAll() {
             }
         }
     }
+
+    // A classe em si pode ter salvo (allUpsertedData não está vazio), mas se o roster de alunos
+    // falhou em sincronizar, isso PRECISA aparecer como erro -- salvar a classe sem os alunos
+    // corretos é pior que não salvar nada, porque passa a impressão de que deu tudo certo.
+    if (rosterSyncFailed) return { success: false, data: allUpsertedData };
 
     return { success: true, data: allUpsertedData };
   },
