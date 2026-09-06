@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Unit, RecordStatus, BibleClass, ParticipantType, User } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
-import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
+import { normalizeString, formatWhatsApp, ensureISODate, getClassSignature, getClassFallbackLabel } from '../utils/formatters';
 import { isRecordLocked, isValidWhatsApp } from '../utils/validators';
 import { getValidSectorId } from '../utils/sectorValidation';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
@@ -126,6 +126,106 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
     return [...present, ...absent];
   }, [formData.students, lastClassStudents, sectorStaff, linkedClassmates]);
+
+  // Seletor "Escolha a turma" -- em vez de precisar buscar UM aluno pra "adivinhar" a turma,
+  // lista as turmas já reconhecidas (deduplicadas pela mesma assinatura de countUniqueClasses:
+  // o conjunto exato de alunos, não o setor nem o rótulo) do capelão selecionado, mais recente
+  // primeiro. Tocar numa já carrega todo mundo como presente, igual o addStudent já faz quando
+  // reconhece a turma por um aluno digitado -- só que sem precisar digitar nada primeiro.
+  const recognizedTurmas = useMemo(() => {
+    if (!unit) return [];
+    const relevant = allHistory.filter(c =>
+      c.unit === unit &&
+      c.userId === formData.userId &&
+      (c.participantType || ParticipantType.STAFF) === formData.participantType &&
+      Array.isArray(c.students) && c.students.length > 0
+    );
+    const bySignature = new Map<string, BibleClass>();
+    relevant.forEach(c => {
+      const sig = getClassSignature(c);
+      if (!sig) return;
+      const existing = bySignature.get(sig);
+      if (!existing || new Date(c.date).getTime() > new Date(existing.date).getTime()) {
+        bySignature.set(sig, c);
+      }
+    });
+    return Array.from(bySignature.values())
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .map(c => ({
+        signature: getClassSignature(c),
+        sector: c.sector || '',
+        sectorId: (c as any).sectorId || '',
+        students: c.students,
+        adventistStudents: c.adventistStudents || [],
+        guide: c.guide,
+        lesson: c.lesson,
+        lastDate: c.date,
+        label: c.sector || getClassFallbackLabel(c.students),
+      }));
+  }, [allHistory, unit, formData.userId, formData.participantType]);
+
+  const selectTurma = useCallback((turma: (typeof recognizedTurmas)[number]) => {
+    const lastNum = parseInt(turma.lesson);
+    setFormData(prev => ({
+      ...prev,
+      sector: turma.sector,
+      sectorId: turma.sectorId || (proSectors.find(s => s.name === turma.sector && s.unit === unit)?.id || ''),
+      students: turma.students,
+      adventistStudents: turma.adventistStudents,
+      guide: turma.guide || prev.guide,
+      lesson: !isNaN(lastNum) ? (lastNum + 1).toString() : (turma.lesson || prev.lesson),
+      status: RecordStatus.CONTINUACAO,
+    }));
+    showToast(`Turma carregada: ${turma.label} -- ${turma.students.length} aluno(s) já presentes.`, 'success');
+  }, [proSectors, unit, showToast]);
+
+  // Colar lista -- pra turma NOVA (sem histórico), cola-se um nome por linha em vez de buscar e
+  // adicionar um por um. Cada linha tenta casar (nome exato, sem acento/maiúscula) com o
+  // cadastro oficial da categoria atual (Colaborador/Paciente/Prestador); quem não casa entra
+  // como texto livre mesmo (igual já acontece hoje ao digitar manualmente um nome que não está
+  // em nenhuma lista oficial), só fica marcado como "não encontrado" no aviso.
+  const [pasteText, setPasteText] = useState('');
+  const [showPasteList, setShowPasteList] = useState(false);
+
+  const applyPastedList = useCallback(() => {
+    const lines = Array.from(new Set(pasteText.split('\n').map(l => l.trim()).filter(Boolean)));
+    if (lines.length === 0) return;
+
+    let unmatchedCount = 0;
+    const resolved = lines.map(line => {
+      const nameOnly = line.split(' (')[0].trim();
+      const normName = normalizeString(nameOnly);
+      let fullLabel: string | undefined;
+
+      if (formData.participantType === ParticipantType.STAFF) {
+        const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
+        if (staff) fullLabel = `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`;
+      } else if (formData.participantType === ParticipantType.PATIENT) {
+        const patient = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
+        if (patient) fullLabel = `${patient.name} (${patient.id})`;
+      } else if (formData.participantType === ParticipantType.PROVIDER) {
+        const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
+        if (provider) fullLabel = `${provider.name} (${provider.id})`;
+      }
+
+      if (!fullLabel) unmatchedCount++;
+      return fullLabel || nameOnly;
+    });
+
+    setFormData(prev => ({
+      ...prev,
+      students: Array.from(new Set([...prev.students, ...resolved])),
+    }));
+    setPasteText('');
+    setShowPasteList(false);
+    showToast(
+      unmatchedCount > 0
+        ? `${resolved.length} nome(s) processado(s) -- ${unmatchedCount} não encontrado(s) no cadastro, confira a lista antes de salvar.`
+        : `${resolved.length} nome(s) adicionado(s), todos casados com o cadastro.`,
+      unmatchedCount > 0 ? 'warning' : 'success',
+      unmatchedCount > 0
+    );
+  }, [pasteText, formData.participantType, proStaff, proPatients, proProviders, unit, showToast]);
 
   useEffect(() => {
     if (!editingItem) {
@@ -798,6 +898,8 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     newStudent, setNewStudent,
     isSubmitting, isLinkingClass,
     lastClassStudents, callList,
+    recognizedTurmas, selectTurma,
+    pasteText, setPasteText, showPasteList, setShowPasteList, applyPastedList,
     guideOptions, studentSearchOptions, sectorOptions,
     handleSelectSector,
     addStudent, addAllFromLastClass, toggleAdventist, handleClear, handleFormSubmit,

@@ -276,6 +276,18 @@ export const getUniqueClassLabels = (classes: Array<{ students?: string[] | null
   return labels;
 };
 
+// Rótulo de exibição pra uma turma SEM setor (Paciente/Prestador, ex: "Dra. Patrícia e Dra.
+// Daniele") -- usado no seletor "Escolha a turma" da Classe Bíblica. Grupos pequenos (2-3
+// pessoas) mostram todos os nomes por extenso; só grupos maiores resumem em "Fulano e outros
+// N", porque duas turmas sem setor que compartilham 1 pessoa em comum (a mesma prestadora em 2
+// duplas diferentes, por exemplo) ficariam com etiquetas idênticas/ambíguas se sempre abreviasse.
+export const getClassFallbackLabel = (students: string[]): string => {
+  const names = (students || []).map(s => s.split(' (')[0].trim()).filter(Boolean);
+  if (names.length === 0) return 'Turma';
+  if (names.length <= 3) return names.join(' e ');
+  return `${names[0]} e outros ${names.length - 1}`;
+};
+
 // Junta nomes repetidos numa linha só com "(Nx)" em vez de uma linha por ocorrência -- usado no
 // tooltip do MonthComparisonBars (Estudo, PG, Visita) porque o número ali é a contagem de
 // REGISTROS (estudos/reuniões/visitas), não de pessoas únicas: uma aluna estudada 2x no mês

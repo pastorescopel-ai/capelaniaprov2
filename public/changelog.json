@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-09-01e",
+    "date": "2026-09-01",
+    "changes": [
+      "Novo: Classe Bíblica ganhou a tela 'Escolha a turma' -- em vez de buscar um aluno pra reconhecer a turma, agora aparece direto a lista das turmas já registradas (por setor, ou pelos nomes quando não há setor), com quantos alunos e a última data. Tocar numa já carrega todo mundo como presente, pronto pra desmarcar quem faltou.",
+      "Novo: a lista de presença da Classe Bíblica virou uma grade de chips (mais compacta, cabe mais gente na tela) -- tocar no nome liga/desliga presença, tocar na estrelinha no canto marca Adventista sem mexer na presença.",
+      "Novo: 'Colar lista' pra turma nova -- cole um nome por linha (de um grupo do WhatsApp, por exemplo) que o app tenta casar cada um com o cadastro oficial e já monta a chamada, sem precisar adicionar aluno por aluno na busca."
+    ]
+  },
+  {
     "version": "2026-09-01d",
     "date": "2026-09-01",
     "changes": [

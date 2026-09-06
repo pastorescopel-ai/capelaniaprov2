@@ -34,7 +34,9 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     formData, setFormData,
     newStudent, setNewStudent,
     isSubmitting, isLinkingClass,
-    lastClassStudents, callList,
+    callList,
+    recognizedTurmas, selectTurma,
+    pasteText, setPasteText, showPasteList, setShowPasteList, applyPastedList,
     guideOptions, studentSearchOptions, sectorOptions,
     handleSelectSector,
     addStudent, addAllFromLastClass, toggleAdventist, handleClear, handleFormSubmit,
@@ -121,7 +123,59 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           </div>
           
           <div className="space-y-1 md:col-span-2">
-            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Chamada de Presença — busque um aluno da turma</label>
+            {/* Escolha a turma -- só aparece antes de a chamada começar (nenhum aluno ainda);
+                toca numa turma já reconhecida (mesma turma/setor/conjunto de alunos de sempre)
+                e ela entra pronta, todo mundo já presente. Some assim que a lista de alunos
+                começa a ser montada (por aqui, pela busca abaixo, ou por "Continuar" no
+                histórico), dando lugar à chamada em si. */}
+            {!editingItem && formData.students.length === 0 && (
+              <div className="space-y-2 mb-4">
+                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Escolha a turma</label>
+                {recognizedTurmas.length > 0 && (
+                  <div className="space-y-2">
+                    {recognizedTurmas.map(t => (
+                      <button
+                        key={t.signature}
+                        type="button"
+                        onClick={() => selectTurma(t)}
+                        className="w-full flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 transition-all text-left"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-black uppercase text-slate-800 truncate">{t.label}</p>
+                          <p className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${t.sector ? 'text-indigo-400' : 'text-amber-500'}`}>{t.sector ? 'Por setor' : 'Sem setor · por nome de aluno'}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0 ml-3">
+                          <p className="text-[11px] font-black text-slate-500">{t.students.length} aluno{t.students.length === 1 ? '' : 's'}</p>
+                          <p className="text-[8px] font-bold text-slate-300 uppercase">Última vez {new Date((t.lastDate || '').split('T')[0] + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowPasteList(v => !v)}
+                  className="w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-300 text-indigo-500 transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center font-black">+</div>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Nova turma (colar lista)</span>
+                </button>
+                {showPasteList && (
+                  <div className="p-4 rounded-2xl bg-slate-50 space-y-2">
+                    <textarea
+                      value={pasteText}
+                      onChange={e => setPasteText(e.target.value)}
+                      placeholder={'Um nome por linha...\nEx:\nAna Cristina Viana\nCarlos Eduardo Melo'}
+                      className="w-full h-24 p-3 rounded-xl bg-white border border-slate-200 font-bold text-xs resize-none focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                    <Button type="button" onClick={applyPastedList} className="w-full py-3 text-[10px]">Processar lista</Button>
+                  </div>
+                )}
+                <p className="text-[9px] font-bold text-slate-400 ml-1">Ou busque um aluno específico abaixo pra encontrar a turma dele.</p>
+              </div>
+            )}
+
+            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Adicionar aluno de fora da turma</label>
             <div className="flex gap-2">
               <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent || ''} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={`Digite o nome de um aluno da turma...`} isStrict={false} /></div>
               <button type="button" onClick={() => addStudent()} disabled={isLinkingClass} className="w-12 h-12 md:w-14 md:h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all disabled:opacity-60 disabled:hover:translate-y-0">
@@ -147,6 +201,10 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
               </button>
             )}
 
+            {/* Chamada -- cada aluno é um chip com 2 zonas de toque: o NOME alterna
+                presença/ausência (verde/cinza), a ESTRELA no canto marca Adventista sem mexer
+                na presença. Todo mundo carregado por uma turma reconhecida já entra presente
+                (verde) -- só marca quem faltou, em vez de marcar um a um quem veio. */}
             <div className="mt-4 md:mt-5 border border-slate-200 rounded-[1.5rem] overflow-hidden bg-white shadow-sm">
               <div className="bg-slate-50 p-3 md:p-3.5 border-b border-slate-100 flex justify-between items-center flex-wrap gap-1">
                 <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-2 flex items-center gap-2"><i className="fas fa-clipboard-list text-indigo-400"></i> Lista de Alunos ({formData.students.length})</span>
@@ -154,55 +212,38 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                   <span className="text-[9px] font-black uppercase text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md flex items-center gap-1"><i className="fas fa-star"></i> {formData.adventistStudents.filter(a => formData.students.includes(a)).length} adventista(s)</span>
                 )}
               </div>
-              <div className="max-h-[15rem] md:max-h-[20rem] overflow-y-auto custom-scrollbar">
+              <div className="max-h-[15rem] md:max-h-[20rem] overflow-y-auto custom-scrollbar p-3 md:p-4 flex flex-wrap gap-2">
                  {callList.map((s, i) => {
                     const isPresent = formData.students.includes(s);
-                    const isFromLastClass = lastClassStudents.includes(s);
                     const isAdventist = formData.adventistStudents.includes(s);
 
                     return (
-                      <div key={`${s}-${i}`} className={`flex items-center justify-between p-3 md:p-3.5 border-b border-slate-100 last:border-none transition-colors group ${isPresent ? 'bg-emerald-50/50' : isFromLastClass ? 'bg-amber-50/80 border-l-4 border-l-amber-400' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
-                          <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                              <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors flex-shrink-0 ${isPresent ? 'bg-emerald-500 text-white' : isFromLastClass ? 'bg-amber-200 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>
-                                {isPresent ? <i className="fas fa-check"></i> : i + 1}
-                              </div>
-                              <div className="flex flex-col min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={`text-[11px] md:text-xs font-black uppercase leading-tight ${isPresent ? 'text-emerald-700' : isFromLastClass ? 'text-amber-900' : 'text-slate-700'}`}>{s.split(' (')[0]}</span>
-                                  {!isPresent && isFromLastClass && <span className="text-[8px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter"><i className="fas fa-star mr-1"></i>Frequente</span>}
-                                  {isAdventist && <span className="text-[8px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter"><i className="fas fa-star mr-1"></i>Adventista</span>}
-                                </div>
-                                {s.includes('(') && <span className={`text-[8px] md:text-[9px] font-bold ${isPresent ? 'text-emerald-400' : isFromLastClass ? 'text-amber-600' : 'text-slate-400'}`}>{s.match(/\((.*?)\)/)?.[0]}</span>}
-                              </div>
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => toggleAdventist(s)}
-                              title={isAdventist ? 'Remover marcação de Adventista' : 'Marcar como Adventista (não conta no total de alunos)'}
-                              className={`w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center transition-all border ${isAdventist ? 'bg-purple-100 border-purple-200 text-purple-600' : 'bg-white border-slate-200 text-slate-300 hover:border-purple-300 hover:text-purple-400'}`}
-                            >
-                              <i className="fas fa-star text-xs"></i>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (isPresent) {
-                                  setFormData({...formData, students: formData.students.filter(student => student !== s)});
-                                } else {
-                                  setFormData({...formData, students: [...formData.students, s]});
-                                }
-                              }}
-                              className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl transition-all shadow-sm flex items-center gap-2 border ${isPresent ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-rose-500 hover:border-rose-500' : isFromLastClass ? 'bg-amber-500 border-amber-500 text-white hover:bg-amber-600' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600'}`}
-                            >
-                              <span className="text-[9px] font-black uppercase hidden sm:inline">{isPresent ? 'Presente' : 'Ausente'}</span>
-                              <i className={`fas ${isPresent ? 'fa-user-check' : 'fa-user-plus'} text-xs`}></i>
-                            </button>
-                          </div>
-                      </div>
+                      <span key={`${s}-${i}`} className={`inline-flex items-stretch rounded-full border overflow-hidden ${isPresent ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-emerald-300'} ${isAdventist ? 'ring-2 ring-purple-300' : ''}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isPresent) {
+                              setFormData({...formData, students: formData.students.filter(student => student !== s)});
+                            } else {
+                              setFormData({...formData, students: [...formData.students, s]});
+                            }
+                          }}
+                          className="px-3 py-2 text-[10px] font-black uppercase"
+                        >
+                          {s.split(' (')[0]}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleAdventist(s)}
+                          title={isAdventist ? 'Remover marcação de Adventista' : 'Marcar como Adventista (não conta no total de alunos)'}
+                          className={`px-2.5 flex items-center justify-center border-l ${isPresent ? 'border-white/30' : 'border-slate-200'} ${isAdventist ? 'text-purple-600 bg-white' : isPresent ? 'text-white/70 hover:text-white' : 'text-slate-300 hover:text-purple-500'}`}
+                        >
+                          <i className="fas fa-star text-[10px]"></i>
+                        </button>
+                      </span>
                     );
                  })}
-                 {callList.length === 0 && (<div className="p-6 md:p-10 text-center flex flex-col items-center gap-3"><div className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 text-xl"><i className="fas fa-user-slash"></i></div><p className="text-[10px] md:text-xs text-slate-400 font-bold uppercase italic">Adicione um aluno da turma — o resto da turma da última vez é carregado automaticamente.</p></div>)}
+                 {callList.length === 0 && (<div className="w-full p-6 md:p-10 text-center flex flex-col items-center gap-3"><div className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 text-xl"><i className="fas fa-user-slash"></i></div><p className="text-[10px] md:text-xs text-slate-400 font-bold uppercase italic">Escolha uma turma acima ou adicione um aluno.</p></div>)}
               </div>
             </div>
             {formData.adventistStudents.some(a => formData.students.includes(a)) && (
