@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Unit, RecordStatus, BibleClass, ParticipantType, User } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
-import { normalizeString, formatWhatsApp, ensureISODate, getClassSignature, getClassFallbackLabel, matchNameToDirectory } from '../utils/formatters';
+import { normalizeString, formatWhatsApp, ensureISODate, getClassFallbackLabel, getClassGroupKey, getStudentKey, matchNameToDirectory } from '../utils/formatters';
 import { isRecordLocked, isValidWhatsApp } from '../utils/validators';
 import { getValidSectorId } from '../utils/sectorValidation';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
@@ -162,10 +162,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   }, [formData.students, lastClassStudents, sectorStaff, linkedClassmates]);
 
   // Seletor "Escolha a turma" -- em vez de precisar buscar UM aluno pra "adivinhar" a turma,
-  // lista as turmas já reconhecidas (deduplicadas pela mesma assinatura de countUniqueClasses:
-  // o conjunto exato de alunos, não o setor nem o rótulo) do capelão selecionado, mais recente
-  // primeiro. Tocar numa já carrega todo mundo como presente, igual o addStudent já faz quando
-  // reconhece a turma por um aluno digitado -- só que sem precisar digitar nada primeiro.
+  // lista as turmas já reconhecidas (mesma regra de agrupamento de countUniqueClasses: com
+  // setor = o setor inteiro; sem setor = o conjunto exato de alunos) do capelão selecionado,
+  // mais recente primeiro. Tocar numa já carrega todo o roster acumulado como presente pra o
+  // capelão desmarcar quem faltou.
   const recognizedTurmas = useMemo(() => {
     if (!unit) return [];
     // Roster efetivo: usa o `.students` da memória quando tem; senão reconstrói do banco
@@ -190,27 +190,56 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       })
       .filter(x => x.students.length > 0);
 
-    const bySignature = new Map<string, (typeof withRoster)[number]>();
+    // Agrupa por getClassGroupKey (mesma regra de countUniqueClasses): turma COM setor = o
+    // setor inteiro (todos os encontros são a mesma turma, a presença varia); SEM setor = o
+    // conjunto exato de alunos. O roster do card é a UNIÃO de todo mundo que já participou
+    // daquela turma -- o capelão marca quem veio hoje.
+    interface TurmaAgg {
+      key: string;
+      latest: (typeof withRoster)[number];
+      students: string[];
+      studentKeys: Set<string>;
+      adventistStudents: string[];
+      adventistKeys: Set<string>;
+    }
+    const byKey = new Map<string, TurmaAgg>();
     withRoster.forEach(x => {
-      const sig = getClassSignature({ students: x.students });
-      if (!sig) return;
-      const existing = bySignature.get(sig);
-      if (!existing || new Date(x.record.date).getTime() > new Date(existing.record.date).getTime()) {
-        bySignature.set(sig, x);
-      }
-    });
-    return Array.from(bySignature.entries())
-      .sort((a, b) => new Date(b[1].record.date).getTime() - new Date(a[1].record.date).getTime())
-      .map(([sig, x]) => ({
-        signature: sig,
-        sector: x.record.sector || '',
-        sectorId: (x.record as any).sectorId || '',
+      const key = getClassGroupKey({
         students: x.students,
-        adventistStudents: x.adventistStudents,
-        guide: x.record.guide,
-        lesson: x.record.lesson,
-        lastDate: x.record.date,
-        label: x.record.sector || getClassFallbackLabel(x.students),
+        sector: x.record.sector,
+        userId: x.record.userId,
+        unit: x.record.unit,
+        participantType: x.record.participantType || ParticipantType.STAFF,
+      });
+      if (!key) return;
+      let agg = byKey.get(key);
+      if (!agg) {
+        agg = { key, latest: x, students: [], studentKeys: new Set(), adventistStudents: [], adventistKeys: new Set() };
+        byKey.set(key, agg);
+      }
+      if (new Date(x.record.date).getTime() > new Date(agg.latest.record.date).getTime()) agg.latest = x;
+      x.students.forEach(s => {
+        const k = getStudentKey(s);
+        if (k && !agg!.studentKeys.has(k)) { agg!.studentKeys.add(k); agg!.students.push(s); }
+      });
+      x.adventistStudents.forEach(s => {
+        const k = getStudentKey(s);
+        if (k && !agg!.adventistKeys.has(k)) { agg!.adventistKeys.add(k); agg!.adventistStudents.push(s); }
+      });
+    });
+
+    return Array.from(byKey.values())
+      .sort((a, b) => new Date(b.latest.record.date).getTime() - new Date(a.latest.record.date).getTime())
+      .map(agg => ({
+        signature: agg.key,
+        sector: agg.latest.record.sector || '',
+        sectorId: (agg.latest.record as any).sectorId || '',
+        students: agg.students,
+        adventistStudents: agg.adventistStudents.filter(a => agg.students.includes(a)),
+        guide: agg.latest.record.guide,
+        lesson: agg.latest.record.lesson,
+        lastDate: agg.latest.record.date,
+        label: agg.latest.record.sector || getClassFallbackLabel(agg.students),
       }));
   }, [allHistory, unit, formData.userId, formData.participantType, rosterByClassId]);
 

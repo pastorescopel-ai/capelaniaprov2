@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-09-10b",
+    "date": "2026-09-10",
+    "changes": [
+      "Corrigido (importante): uma turma de Classe Bíblica com setor agora conta como UMA só, não importa quem faltou ou entrou em cada encontro. Antes, o setor 'Obras e Reformas' contava como 10 classes só porque a presença mudava a cada reunião. Isso derruba bastante o número 'Classes' nos Relatórios e no PDF Oficial (de ~51 pra ~14) -- é uma correção, o número estava inflado. 'Total de Alunos' e 'Estudos' não mudam. Meses já fechados mantêm o número salvo na época.",
+      "Novo: no seletor 'Escolha a turma', cada card tem uma cor diferente pra diferenciar de relance, e o card de um setor mostra TODOS os alunos que já participaram dele -- toque na turma e desmarque quem faltou hoje, em vez de aparecerem duas turmas do mesmo setor (uma com 2 alunos, outra com 3, sendo os mesmos)."
+    ]
+  },
+  {
     "version": "2026-09-10a",
     "date": "2026-09-10",
     "changes": [

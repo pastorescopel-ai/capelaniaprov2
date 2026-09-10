@@ -242,38 +242,62 @@ export const getUniqueStudentLabels = (studies: Array<{ name?: string; staffId?:
   return Array.from(seen.values()).map(({ label, count }) => (count > 1 ? `${label} (${count}x)` : label));
 };
 
-// A assinatura é só a lista de alunos (ordenada), sem a data: uma turma (ex: um pequeno
-// grupo fixo) que se reúne várias vezes ao longo do tempo com os mesmos membros deve contar
-// como UMA turma só, não uma por encontro — a contagem de encontros/sessões já existe à parte.
+// A assinatura é só a lista de alunos (ordenada), sem a data -- usada como identidade de turma
+// SÓ quando não há setor (Prestador/Paciente). Pra turma com setor, ver getClassGroupKey.
 export const getClassSignature = (cls: { students?: string[] | null } | null | undefined): string => {
   if (!cls || !Array.isArray(cls.students) || cls.students.length === 0) return '';
   return cls.students.map(getStudentKey).filter(Boolean).sort().join('|');
 };
 
-export const countUniqueClasses = (classes: Array<{ students?: string[] | null }>): number => {
-  const signatures = new Set<string>();
+interface ClassGroupInput {
+  students?: string[] | null;
+  sector?: string | null;
+  userId?: string;
+  unit?: string;
+  participantType?: string;
+}
+
+// Identidade de uma turma pra fins de contagem/dedupe. Regra:
+//   - TEM setor  -> a turma É o setor (por capelão + unidade + tipo). Todos os encontros
+//     daquele setor são a MESMA turma, não importa quem faltou/entrou em cada dia. Isso
+//     conserta o setor "Obras e Reformas" contando como 10 classes só porque a presença
+//     variava a cada encontro.
+//   - SEM setor  -> identidade é o conjunto exato de alunos (getClassSignature), como antes
+//     -- resolve certo os casos reais de Prestador/Paciente (ex: "Dra. Daniele + Patrícia").
+export const getClassGroupKey = (cls: ClassGroupInput | null | undefined): string => {
+  if (!cls) return '';
+  const sector = (cls.sector || '').trim();
+  if (sector) {
+    return `SETOR|${cls.userId || ''}|${cls.unit || ''}|${cls.participantType || 'Colaborador'}|${normalizeString(sector)}`;
+  }
+  return getClassSignature(cls);
+};
+
+export const countUniqueClasses = (classes: ClassGroupInput[]): number => {
+  const keys = new Set<string>();
   (classes || []).forEach(c => {
-    const sig = getClassSignature(c);
-    if (sig) signatures.add(sig);
+    const k = getClassGroupKey(c);
+    if (k) keys.add(k);
   });
-  return signatures.size;
+  return keys.size;
 };
 
 // Um rótulo por turma única (mesma dedupe do countUniqueClasses, mas devolvendo texto legível
-// em vez do total) -- usado no tooltip do MonthComparisonBars da Classe Bíblica, já que ali uma
-// barra representa turmas inteiras, não alunos individuais.
-export const getUniqueClassLabels = (classes: Array<{ students?: string[] | null; sector?: string; guide?: string }>): string[] => {
-  const seen = new Set<string>();
-  const labels: string[] = [];
+// com a contagem de alunos ÚNICOS da turma inteira -- a união de todos os encontros, não o de
+// um encontro só). Usado no tooltip do MonthComparisonBars da Classe Bíblica.
+export const getUniqueClassLabels = (classes: Array<ClassGroupInput & { guide?: string }>): string[] => {
+  const groups = new Map<string, { title: string; studentKeys: Set<string> }>();
   (classes || []).forEach(c => {
-    const sig = getClassSignature(c);
-    if (!sig || seen.has(sig)) return;
-    seen.add(sig);
-    const studentCount = (c.students || []).length;
-    const title = c.sector || c.guide || 'Turma';
-    labels.push(`${title} (${studentCount} aluno${studentCount === 1 ? '' : 's'})`);
+    const k = getClassGroupKey(c);
+    if (!k) return;
+    const g = groups.get(k) || { title: c.sector || c.guide || 'Turma', studentKeys: new Set<string>() };
+    (c.students || []).forEach(s => { const sk = getStudentKey(s); if (sk) g.studentKeys.add(sk); });
+    groups.set(k, g);
   });
-  return labels;
+  return Array.from(groups.values()).map(g => {
+    const n = g.studentKeys.size;
+    return `${g.title} (${n} aluno${n === 1 ? '' : 's'})`;
+  });
 };
 
 // Rótulo de exibição pra uma turma SEM setor (Paciente/Prestador, ex: "Dra. Patrícia e Dra.

@@ -13,6 +13,19 @@ import { formatWhatsApp, countUniqueClasses, getUniqueClassLabels } from '../../
 import { useBibleClassForm } from '../../hooks/useBibleClassForm';
 import { useMonthComparison } from '../../hooks/useMonthComparison';
 
+// Paleta pros cards do seletor "Escolha a turma" -- cada turma num tom diferente pra
+// diferenciar de relance. Classes completas (não concatenadas) pro Tailwind não purgar.
+const TURMA_CARD_COLORS = [
+  { bg: 'bg-indigo-50', border: 'border-indigo-200 hover:border-indigo-400', title: 'text-indigo-900', count: 'text-indigo-600' },
+  { bg: 'bg-emerald-50', border: 'border-emerald-200 hover:border-emerald-400', title: 'text-emerald-900', count: 'text-emerald-600' },
+  { bg: 'bg-amber-50', border: 'border-amber-200 hover:border-amber-400', title: 'text-amber-900', count: 'text-amber-700' },
+  { bg: 'bg-rose-50', border: 'border-rose-200 hover:border-rose-400', title: 'text-rose-900', count: 'text-rose-600' },
+  { bg: 'bg-purple-50', border: 'border-purple-200 hover:border-purple-400', title: 'text-purple-900', count: 'text-purple-600' },
+  { bg: 'bg-cyan-50', border: 'border-cyan-200 hover:border-cyan-400', title: 'text-cyan-900', count: 'text-cyan-600' },
+  { bg: 'bg-teal-50', border: 'border-teal-200 hover:border-teal-400', title: 'text-teal-900', count: 'text-teal-600' },
+  { bg: 'bg-fuchsia-50', border: 'border-fuchsia-200 hover:border-fuchsia-400', title: 'text-fuchsia-900', count: 'text-fuchsia-600' },
+];
+
 interface FormProps {
   unit: Unit;
   sectors: string[];
@@ -134,23 +147,26 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                 <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Escolha a turma</label>
                 {recognizedTurmas.length > 0 && (
                   <div className="space-y-2">
-                    {recognizedTurmas.map(t => (
-                      <button
-                        key={t.signature}
-                        type="button"
-                        onClick={() => selectTurma(t)}
-                        className="w-full flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 transition-all text-left"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-black uppercase text-slate-800 truncate">{t.label}</p>
-                          <p className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${t.sector ? 'text-indigo-400' : 'text-amber-500'}`}>{t.sector ? 'Por setor' : 'Sem setor · por nome de aluno'}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0 ml-3">
-                          <p className="text-[11px] font-black text-slate-500">{t.students.length} aluno{t.students.length === 1 ? '' : 's'}</p>
-                          <p className="text-[8px] font-bold text-slate-300 uppercase">Última vez {new Date((t.lastDate || '').split('T')[0] + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
-                        </div>
-                      </button>
-                    ))}
+                    {recognizedTurmas.map((t, ti) => {
+                      const c = TURMA_CARD_COLORS[ti % TURMA_CARD_COLORS.length];
+                      return (
+                        <button
+                          key={t.signature}
+                          type="button"
+                          onClick={() => selectTurma(t)}
+                          className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all text-left ${c.bg} ${c.border}`}
+                        >
+                          <div className="min-w-0">
+                            <p className={`text-[11px] font-black uppercase truncate ${c.title}`}>{t.label}</p>
+                            <p className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${t.sector ? 'text-slate-400' : 'text-amber-500'}`}>{t.sector ? 'Por setor' : 'Sem setor · por nome de aluno'}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0 ml-3">
+                            <p className={`text-[11px] font-black ${c.count}`}>{t.students.length} aluno{t.students.length === 1 ? '' : 's'}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase">Última vez {new Date((t.lastDate || '').split('T')[0] + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
                 <button
