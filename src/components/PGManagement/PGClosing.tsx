@@ -330,9 +330,11 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
                     userName: user.name,
                     // "studies" nesse breakdown por capelão conta alunos únicos, não sessões --
                     // mesma regra usada em todo o app agora (dar 3 estudos pro mesmo aluno conta
-                    // como 1). "total" continua somando sessões brutas (volume de trabalho).
+                    // como 1). "classes" conta turmas únicas (mesma regra do relatório ao vivo em
+                    // useReports.ts -- antes era uC.length cru, divergindo do card do capelão).
+                    // "total" continua somando sessões brutas (volume de trabalho).
                     studies: countUniqueStudents(uS),
-                    classes: uC.length,
+                    classes: countUniqueClasses(uC),
                     groups: uG.length,
                     visits: uV.length,
                     students: names.size,
