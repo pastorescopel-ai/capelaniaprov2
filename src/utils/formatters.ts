@@ -288,6 +288,54 @@ export const getClassFallbackLabel = (students: string[]): string => {
   return `${names[0]} e outros ${names.length - 1}`;
 };
 
+// Casamento de um nome colado (lista de WhatsApp, bagunçada) com o cadastro oficial. Usado no
+// "Colar lista" da Classe Bíblica pra não exigir que o nome digitado bata exatamente. Ignora
+// acento/maiúscula e as preposições ("de", "da", "do"...). Devolve:
+//   - 'exact'    : o nome bate letra a letra (normalizado) com uma pessoa
+//   - 'likely'   : uma única pessoa em que TODAS as palavras do que foi colado aparecem, OU
+//                  um vencedor claro por sobreposição de palavras
+//   - 'multiple' : várias pessoas plausíveis -- precisa escolher
+//   - 'none'     : ninguém razoável
+const NAME_STOPWORDS = new Set(['de', 'da', 'do', 'dos', 'das', 'e']);
+const nameTokens = (s: string): string[] =>
+  normalizeString(s).split(/\s+/).filter(w => w && !NAME_STOPWORDS.has(w));
+
+export interface NameMatchDirectoryEntry { name: string; id: string | number; }
+export interface NameMatchResult {
+  status: 'exact' | 'likely' | 'multiple' | 'none';
+  match?: NameMatchDirectoryEntry;
+  candidates?: NameMatchDirectoryEntry[];
+}
+
+export const matchNameToDirectory = (raw: string, directory: NameMatchDirectoryEntry[]): NameMatchResult => {
+  const q = nameTokens(raw);
+  if (q.length === 0 || directory.length === 0) return { status: 'none' };
+  const rawNorm = normalizeString(raw).replace(/\s+/g, ' ');
+
+  const scored = directory.map(d => {
+    const dtSet = new Set(nameTokens(d.name));
+    return {
+      d,
+      exact: normalizeString(d.name).replace(/\s+/g, ' ') === rawNorm,
+      allPresent: q.every(w => dtSet.has(w)),
+      overlap: q.filter(w => dtSet.has(w)).length,
+    };
+  });
+
+  const exact = scored.find(s => s.exact);
+  if (exact) return { status: 'exact', match: exact.d };
+
+  const strong = scored.filter(s => s.allPresent);
+  if (strong.length === 1) return { status: 'likely', match: strong[0].d };
+  if (strong.length > 1) return { status: 'multiple', candidates: strong.map(s => s.d) };
+
+  const partial = scored.filter(s => s.overlap > 0).sort((a, b) => b.overlap - a.overlap);
+  if (partial.length === 0) return { status: 'none' };
+  if (partial.length === 1) return { status: 'likely', match: partial[0].d };
+  if (partial[0].overlap > partial[1].overlap) return { status: 'likely', match: partial[0].d };
+  return { status: 'multiple', candidates: partial.slice(0, 5).map(s => s.d) };
+};
+
 // Junta nomes repetidos numa linha só com "(Nx)" em vez de uma linha por ocorrência -- usado no
 // tooltip do MonthComparisonBars (Estudo, PG, Visita) porque o número ali é a contagem de
 // REGISTROS (estudos/reuniões/visitas), não de pessoas únicas: uma aluna estudada 2x no mês

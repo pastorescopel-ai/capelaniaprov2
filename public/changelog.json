@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-09-10a",
+    "date": "2026-09-10",
+    "changes": [
+      "Melhor: o 'Colar lista' da Classe Bíblica agora casa nomes bagunçados com o cadastro -- 'Maria Souza' encontra 'Maria José de Souza', primeiro nome só, ordem trocada, tudo tolerado. Você revisa: confirma os prováveis num toque, escolhe entre os ambíguos num menu, e decide o que fazer com os não encontrados. A chamada só é montada quando não sobra nada pendente.",
+      "Corrigido: a tela 'Escolha a turma' (Classe Bíblica) não mostrava turmas cuja última aula foi há mais de ~45 dias -- os alunos delas não ficam carregados na memória do app. Agora a lista de presença dessas turmas é reconstruída direto do banco, então todas as turmas do capelão aparecem no seletor."
+    ]
+  },
+  {
     "version": "2026-09-01e",
     "date": "2026-09-01",
     "changes": [

@@ -2,12 +2,20 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Unit, RecordStatus, BibleClass, ParticipantType, User } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
-import { normalizeString, formatWhatsApp, ensureISODate, getClassSignature, getClassFallbackLabel } from '../utils/formatters';
+import { normalizeString, formatWhatsApp, ensureISODate, getClassSignature, getClassFallbackLabel, matchNameToDirectory } from '../utils/formatters';
 import { isRecordLocked, isValidWhatsApp } from '../utils/validators';
 import { getValidSectorId } from '../utils/sectorValidation';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
 import { supabase } from '../services/supabaseClient';
+
+interface PasteMatch {
+  raw: string;
+  status: 'exact' | 'likely' | 'multiple' | 'none' | 'raw';
+  match?: { name: string; id: string | number };
+  candidates?: { name: string; id: string | number }[];
+  confirmed?: boolean;
+}
 
 interface UseBibleClassFormProps {
   unit: Unit;
@@ -42,7 +50,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   // quadro completo pra destacar certo na busca de aluno -- roda uma vez por unidade, não a
   // cada tecla digitada. Guarda o class_id junto pra poder filtrar por capelão depois (só
   // allHistory/bible_classes tem o userId de cada turma, sem limite de data).
-  const [historicalClassAttendance, setHistoricalClassAttendance] = useState<{ studentName: string; classId: string }[]>([]);
+  const [historicalClassAttendance, setHistoricalClassAttendance] = useState<{ studentName: string; classId: string; staffId?: string | number | null; participantId?: string | number | null; isAdventist: boolean }[]>([]);
   useEffect(() => {
     let cancelled = false;
     if (!supabase || !unit) return;
@@ -50,20 +58,46 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       try {
         // Une as duas tabelas (alunos + adventistas) -- pra fins de "já está numa turma" na
         // busca, ambos contam; a exclusão de adventista do total de alunos acontece só nos
-        // relatórios, não aqui.
+        // relatórios, não aqui. Traz staff_id/participant_id também pra poder reconstruir o
+        // roster "Nome (ID)" das turmas antigas (fora da janela de 45 dias) no seletor de turma.
         const [{ data }, { data: adventistData }] = await Promise.all([
-          supabase.from('bible_class_attendees').select('student_name, class_id').eq('unit', unit),
-          supabase.from('bible_class_adventists').select('student_name, class_id').eq('unit', unit),
+          supabase.from('bible_class_attendees').select('student_name, class_id, staff_id, participant_id').eq('unit', unit),
+          supabase.from('bible_class_adventists').select('student_name, class_id, staff_id, participant_id').eq('unit', unit),
         ]);
         if (cancelled) return;
-        const combined = [...(data || []), ...(adventistData || [])];
-        setHistoricalClassAttendance(combined.map((r: any) => ({ studentName: r.student_name, classId: r.class_id })));
+        const combined = [
+          ...(data || []).map((r: any) => ({ studentName: r.student_name, classId: r.class_id, staffId: r.staff_id, participantId: r.participant_id, isAdventist: false })),
+          ...(adventistData || []).map((r: any) => ({ studentName: r.student_name, classId: r.class_id, staffId: r.staff_id, participantId: r.participant_id, isAdventist: true })),
+        ];
+        setHistoricalClassAttendance(combined);
       } catch (err) {
         console.error('Erro ao buscar histórico completo de alunos de classes:', err);
       }
     })();
     return () => { cancelled = true; };
   }, [unit]);
+
+  // Roster completo (alunos + adventistas, com "Nome (ID)") por class_id, reconstruído do banco
+  // -- alimenta o seletor de turmas com turmas cuja última aula é mais antiga que a janela de
+  // sincronização de 45 dias (nessas, allHistory tem o registro da classe mas `.students` vem
+  // vazio da memória).
+  const rosterByClassId = useMemo(() => {
+    const nameWithId = (r: { studentName: string; staffId?: string | number | null; participantId?: string | number | null }) => {
+      const id = r.staffId ?? r.participantId;
+      if (id && !String(r.studentName).includes(`(${id})`)) return `${r.studentName} (${id})`;
+      return r.studentName;
+    };
+    const m = new Map<string, { students: string[]; adventists: string[] }>();
+    historicalClassAttendance.forEach(r => {
+      if (!r.classId) return;
+      const entry = m.get(r.classId) || { students: [], adventists: [] };
+      const full = nameWithId(r);
+      if (r.isAdventist) entry.adventists.push(full);
+      else entry.students.push(full);
+      m.set(r.classId, entry);
+    });
+    return m;
+  }, [historicalClassAttendance]);
 
   const lastClassStudents = useMemo(() => {
     if (!formData.sector || !unit) return [];
@@ -134,35 +168,51 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   // reconhece a turma por um aluno digitado -- só que sem precisar digitar nada primeiro.
   const recognizedTurmas = useMemo(() => {
     if (!unit) return [];
-    const relevant = allHistory.filter(c =>
-      c.unit === unit &&
-      c.userId === formData.userId &&
-      (c.participantType || ParticipantType.STAFF) === formData.participantType &&
-      Array.isArray(c.students) && c.students.length > 0
-    );
-    const bySignature = new Map<string, BibleClass>();
-    relevant.forEach(c => {
-      const sig = getClassSignature(c);
+    // Roster efetivo: usa o `.students` da memória quando tem; senão reconstrói do banco
+    // (rosterByClassId) -- é o que faz turmas antigas (última aula > 45 dias) aparecerem no
+    // seletor em vez de sumirem só porque as presenças não estão carregadas.
+    const withRoster = allHistory
+      .filter(c =>
+        c.unit === unit &&
+        c.userId === formData.userId &&
+        (c.participantType || ParticipantType.STAFF) === formData.participantType
+      )
+      .map(c => {
+        const inMem = Array.isArray(c.students) && c.students.length > 0;
+        const recon = rosterByClassId.get(c.id);
+        return {
+          record: c,
+          students: inMem ? c.students : (recon?.students || []),
+          adventistStudents: (c.adventistStudents && c.adventistStudents.length > 0)
+            ? c.adventistStudents
+            : (recon?.adventists || []),
+        };
+      })
+      .filter(x => x.students.length > 0);
+
+    const bySignature = new Map<string, (typeof withRoster)[number]>();
+    withRoster.forEach(x => {
+      const sig = getClassSignature({ students: x.students });
       if (!sig) return;
       const existing = bySignature.get(sig);
-      if (!existing || new Date(c.date).getTime() > new Date(existing.date).getTime()) {
-        bySignature.set(sig, c);
+      if (!existing || new Date(x.record.date).getTime() > new Date(existing.record.date).getTime()) {
+        bySignature.set(sig, x);
       }
     });
-    return Array.from(bySignature.values())
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .map(c => ({
-        signature: getClassSignature(c),
-        sector: c.sector || '',
-        sectorId: (c as any).sectorId || '',
-        students: c.students,
-        adventistStudents: c.adventistStudents || [],
-        guide: c.guide,
-        lesson: c.lesson,
-        lastDate: c.date,
-        label: c.sector || getClassFallbackLabel(c.students),
+    return Array.from(bySignature.entries())
+      .sort((a, b) => new Date(b[1].record.date).getTime() - new Date(a[1].record.date).getTime())
+      .map(([sig, x]) => ({
+        signature: sig,
+        sector: x.record.sector || '',
+        sectorId: (x.record as any).sectorId || '',
+        students: x.students,
+        adventistStudents: x.adventistStudents,
+        guide: x.record.guide,
+        lesson: x.record.lesson,
+        lastDate: x.record.date,
+        label: x.record.sector || getClassFallbackLabel(x.students),
       }));
-  }, [allHistory, unit, formData.userId, formData.participantType]);
+  }, [allHistory, unit, formData.userId, formData.participantType, rosterByClassId]);
 
   const selectTurma = useCallback((turma: (typeof recognizedTurmas)[number]) => {
     const lastNum = parseInt(turma.lesson);
@@ -180,52 +230,70 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   }, [proSectors, unit, showToast]);
 
   // Colar lista -- pra turma NOVA (sem histórico), cola-se um nome por linha em vez de buscar e
-  // adicionar um por um. Cada linha tenta casar (nome exato, sem acento/maiúscula) com o
-  // cadastro oficial da categoria atual (Colaborador/Paciente/Prestador); quem não casa entra
-  // como texto livre mesmo (igual já acontece hoje ao digitar manualmente um nome que não está
-  // em nenhuma lista oficial), só fica marcado como "não encontrado" no aviso.
+  // adicionar um por um. Cada linha é casada com o cadastro oficial da categoria atual
+  // (Colaborador/Paciente/Prestador) por matchNameToDirectory (tolera nome parcial / ordem
+  // trocada / acento). O usuário revisa: confirma os prováveis num toque, escolhe entre os
+  // ambíguos, e decide o que fazer com os não encontrados -- só então a lista vira chamada.
   const [pasteText, setPasteText] = useState('');
   const [showPasteList, setShowPasteList] = useState(false);
+  const [pasteMatches, setPasteMatches] = useState<PasteMatch[]>([]);
 
-  const applyPastedList = useCallback(() => {
+  // Cadastro da categoria atual como {name, id} -- fonte do casamento por nome. `label` já é o
+  // "Nome (ID)" final que entra em formData.students.
+  const pasteDirectory = useMemo(() => {
+    if (formData.participantType === ParticipantType.STAFF) {
+      return proStaff.filter(s => s.unit === unit && s.active !== false)
+        .map(s => ({ name: s.name, id: String(s.id).split('-')[1] || s.id, label: `${s.name} (${String(s.id).split('-')[1] || s.id})` }));
+    }
+    if (formData.participantType === ParticipantType.PATIENT) {
+      return proPatients.filter(p => p.unit === unit)
+        .map(p => ({ name: p.name, id: p.id, label: `${p.name} (${p.id})` }));
+    }
+    return proProviders.filter(p => p.unit === unit)
+      .map(p => ({ name: p.name, id: p.id, label: `${p.name} (${p.id})` }));
+  }, [formData.participantType, proStaff, proPatients, proProviders, unit]);
+
+  const processPasteList = useCallback(() => {
     const lines = Array.from(new Set(pasteText.split('\n').map(l => l.trim()).filter(Boolean)));
-    if (lines.length === 0) return;
-
-    let unmatchedCount = 0;
-    const resolved = lines.map(line => {
+    if (lines.length === 0) { showToast('Cole ao menos um nome (um por linha).', 'warning'); return; }
+    const dir = pasteDirectory.map(d => ({ name: d.name, id: d.id }));
+    setPasteMatches(lines.map(line => {
       const nameOnly = line.split(' (')[0].trim();
-      const normName = normalizeString(nameOnly);
-      let fullLabel: string | undefined;
-
-      if (formData.participantType === ParticipantType.STAFF) {
-        const staff = proStaff.find(s => normalizeString(s.name) === normName && s.unit === unit);
-        if (staff) fullLabel = `${staff.name} (${String(staff.id).split('-')[1] || staff.id})`;
-      } else if (formData.participantType === ParticipantType.PATIENT) {
-        const patient = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
-        if (patient) fullLabel = `${patient.name} (${patient.id})`;
-      } else if (formData.participantType === ParticipantType.PROVIDER) {
-        const provider = proProviders.find(p => normalizeString(p.name) === normName && p.unit === unit);
-        if (provider) fullLabel = `${provider.name} (${provider.id})`;
-      }
-
-      if (!fullLabel) unmatchedCount++;
-      return fullLabel || nameOnly;
-    });
-
-    setFormData(prev => ({
-      ...prev,
-      students: Array.from(new Set([...prev.students, ...resolved])),
+      const r = matchNameToDirectory(nameOnly, dir);
+      return { raw: line, status: r.status, match: r.match, candidates: r.candidates };
     }));
+  }, [pasteText, pasteDirectory, showToast]);
+
+  const updatePasteMatch = useCallback((index: number, patch: Partial<PasteMatch>) => {
+    setPasteMatches(prev => prev.map((m, i) => (i === index ? { ...m, ...patch } : m)));
+  }, []);
+
+  const pastePendingCount = useMemo(
+    () => pasteMatches.filter(m => (m.status === 'likely' && !m.confirmed) || m.status === 'multiple').length,
+    [pasteMatches]
+  );
+
+  const labelFor = useCallback((entry: { name: string; id: string | number }) => {
+    const found = pasteDirectory.find(d => String(d.id) === String(entry.id) && d.name === entry.name);
+    return found ? found.label : `${entry.name} (${entry.id})`;
+  }, [pasteDirectory]);
+
+  const commitPasteMatches = useCallback(() => {
+    if (pastePendingCount > 0) { showToast(`Ainda faltam ${pastePendingCount} nome(s) pra resolver.`, 'warning'); return; }
+    const resolved: string[] = [];
+    pasteMatches.forEach(m => {
+      if (m.status === 'exact' && m.match) resolved.push(labelFor(m.match));
+      else if (m.status === 'likely' && m.confirmed && m.match) resolved.push(labelFor(m.match));
+      else if (m.status === 'raw') resolved.push(m.raw.split(' (')[0].trim());
+      // 'none' sem virar 'raw' = o usuário decidiu deixar de fora
+    });
+    if (resolved.length === 0) { showToast('Nenhum nome pra adicionar.', 'warning'); return; }
+    setFormData(prev => ({ ...prev, students: Array.from(new Set([...prev.students, ...resolved])) }));
     setPasteText('');
+    setPasteMatches([]);
     setShowPasteList(false);
-    showToast(
-      unmatchedCount > 0
-        ? `${resolved.length} nome(s) processado(s) -- ${unmatchedCount} não encontrado(s) no cadastro, confira a lista antes de salvar.`
-        : `${resolved.length} nome(s) adicionado(s), todos casados com o cadastro.`,
-      unmatchedCount > 0 ? 'warning' : 'success',
-      unmatchedCount > 0
-    );
-  }, [pasteText, formData.participantType, proStaff, proPatients, proProviders, unit, showToast]);
+    showToast(`${resolved.length} aluno(s) adicionado(s) à chamada.`, 'success');
+  }, [pasteMatches, pastePendingCount, labelFor, showToast]);
 
   useEffect(() => {
     if (!editingItem) {
@@ -899,7 +967,9 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     isSubmitting, isLinkingClass,
     lastClassStudents, callList,
     recognizedTurmas, selectTurma,
-    pasteText, setPasteText, showPasteList, setShowPasteList, applyPastedList,
+    pasteText, setPasteText, showPasteList, setShowPasteList,
+    pasteMatches, processPasteList, updatePasteMatch, commitPasteMatches, pastePendingCount,
+    pasteDirectory,
     guideOptions, studentSearchOptions, sectorOptions,
     handleSelectSector,
     addStudent, addAllFromLastClass, toggleAdventist, handleClear, handleFormSubmit,

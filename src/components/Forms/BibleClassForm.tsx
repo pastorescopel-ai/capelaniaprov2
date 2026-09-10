@@ -36,7 +36,8 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     isSubmitting, isLinkingClass,
     callList,
     recognizedTurmas, selectTurma,
-    pasteText, setPasteText, showPasteList, setShowPasteList, applyPastedList,
+    pasteText, setPasteText, showPasteList, setShowPasteList,
+    pasteMatches, processPasteList, updatePasteMatch, commitPasteMatches, pastePendingCount, pasteDirectory,
     guideOptions, studentSearchOptions, sectorOptions,
     handleSelectSector,
     addStudent, addAllFromLastClass, toggleAdventist, handleClear, handleFormSubmit,
@@ -161,14 +162,95 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                   <span className="text-[10px] font-black uppercase tracking-widest">Nova turma (colar lista)</span>
                 </button>
                 {showPasteList && (
-                  <div className="p-4 rounded-2xl bg-slate-50 space-y-2">
+                  <div className="p-4 rounded-2xl bg-slate-50 space-y-3">
                     <textarea
                       value={pasteText}
                       onChange={e => setPasteText(e.target.value)}
                       placeholder={'Um nome por linha...\nEx:\nAna Cristina Viana\nCarlos Eduardo Melo'}
                       className="w-full h-24 p-3 rounded-xl bg-white border border-slate-200 font-bold text-xs resize-none focus:ring-2 focus:ring-indigo-500/20"
                     />
-                    <Button type="button" onClick={applyPastedList} className="w-full py-3 text-[10px]">Processar lista</Button>
+                    <Button type="button" onClick={processPasteList} className="w-full py-3 text-[10px]">Casar com o cadastro</Button>
+
+                    {pasteMatches.length > 0 && (
+                      <div className="space-y-1.5">
+                        {pasteMatches.map((m, i) => {
+                          if (m.status === 'exact' || (m.status === 'likely' && m.confirmed)) {
+                            return (
+                              <div key={i} className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-emerald-50">
+                                <span className="text-[10px] font-black uppercase text-emerald-700 truncate">
+                                  <i className="fas fa-check mr-1.5"></i>{m.match?.name} <span className="text-[8px] font-bold text-emerald-500">#{m.match?.id}</span>
+                                </span>
+                                <span className="text-[8px] font-black uppercase text-emerald-500 flex-shrink-0">{m.status === 'exact' ? 'Exato' : 'Confirmado'}</span>
+                              </div>
+                            );
+                          }
+                          if (m.status === 'likely') {
+                            return (
+                              <div key={i} className="p-2.5 rounded-xl bg-amber-50 space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[9px] font-bold text-slate-500 truncate">Colado: "<b className="text-slate-700">{m.raw}</b>"</span>
+                                  <span className="text-[8px] font-black uppercase text-amber-600 flex-shrink-0">Match provável</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-black uppercase text-amber-800 truncate">&rarr; {m.match?.name} <span className="text-[8px] font-bold text-amber-500">#{m.match?.id}</span></span>
+                                  <div className="flex gap-1.5 flex-shrink-0">
+                                    <button type="button" onClick={() => updatePasteMatch(i, { confirmed: true })} className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[8px] font-black uppercase">Confirmar</button>
+                                    <button type="button" onClick={() => updatePasteMatch(i, { status: 'multiple', candidates: pasteDirectory.map(d => ({ name: d.name, id: d.id })) })} className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-400 text-[8px] font-black uppercase">Outro</button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (m.status === 'multiple') {
+                            return (
+                              <div key={i} className="p-2.5 rounded-xl bg-amber-50 space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[9px] font-bold text-slate-500 truncate">Colado: "<b className="text-slate-700">{m.raw}</b>"</span>
+                                  <span className="text-[8px] font-black uppercase text-amber-600 flex-shrink-0">{(m.candidates?.length ?? 0) > 0 ? `${m.candidates!.length} possíveis` : 'Escolher'}</span>
+                                </div>
+                                <select
+                                  value=""
+                                  onChange={e => {
+                                    if (!e.target.value) return;
+                                    const chosen = (m.candidates || [])[Number(e.target.value)];
+                                    if (chosen) updatePasteMatch(i, { status: 'likely', match: chosen, confirmed: true });
+                                  }}
+                                  className="w-full p-2 rounded-lg bg-white border border-slate-200 text-[10px] font-bold text-slate-600"
+                                >
+                                  <option value="">Escolha a pessoa certa...</option>
+                                  {(m.candidates || []).map((c, ci) => (
+                                    <option key={ci} value={ci}>{c.name} (#{c.id})</option>
+                                  ))}
+                                </select>
+                              </div>
+                            );
+                          }
+                          if (m.status === 'raw') {
+                            return (
+                              <div key={i} className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-100">
+                                <span className="text-[10px] font-black uppercase text-slate-600 truncate"><i className="fas fa-user-plus mr-1.5"></i>{m.raw.split(' (')[0]}</span>
+                                <span className="text-[8px] font-black uppercase text-slate-400 flex-shrink-0">Como digitado</span>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={i} className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50">
+                              <span className="text-[9px] font-bold text-slate-500 truncate">Colado: "<b className="text-slate-700">{m.raw}</b>"</span>
+                              <button type="button" onClick={() => updatePasteMatch(i, { status: 'raw' })} className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-500 text-[8px] font-black uppercase flex-shrink-0">Adicionar como digitado</button>
+                            </div>
+                          );
+                        })}
+                        <Button
+                          type="button"
+                          onClick={commitPasteMatches}
+                          disabled={pastePendingCount > 0}
+                          variant="dark"
+                          className="w-full py-3 text-[10px]"
+                        >
+                          {pastePendingCount > 0 ? `Faltam ${pastePendingCount} pra resolver` : 'Confirmar e montar a chamada'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
                 <p className="text-[9px] font-bold text-slate-400 ml-1">Ou busque um aluno específico abaixo pra encontrar a turma dele.</p>
