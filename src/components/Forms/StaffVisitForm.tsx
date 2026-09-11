@@ -88,6 +88,20 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         });
         return !isFulfilled;
       }}
+      isPriorityItem={(item) => {
+        if (!item.requiresReturn) return false;
+        const isAdminUser = currentUser.role === 'ADMIN';
+        const normalize = (s: string) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
+        const vDate = new Date(item.date).getTime();
+        const isFulfilled = (allHistory.length > 0 ? allHistory : history).some(v => {
+          if (v.id === item.id) return false;
+          if (item.staffId && v.staffId) return v.staffId === item.staffId && new Date(v.date).getTime() >= vDate;
+          if (item.providerId && v.providerId) return v.providerId === item.providerId && new Date(v.date).getTime() >= vDate;
+          return normalize(v.staffName) === normalize(item.staffName) && new Date(v.date).getTime() >= vDate;
+        });
+        const isPending = !isFulfilled;
+        return isPending && (isAdminUser || item.userId === currentUser.id);
+      }}
       renderItem={(item, index, allItems) => {
         const isAdmin = currentUser.role === 'ADMIN';
         const normalize = (s: string) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
@@ -182,21 +196,25 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         return (
           <React.Fragment key={item.id}>
             {sectionHeader}
-            <HistoryCard 
-              icon="🤝" 
-              color="text-rose-600" 
-              title={item.staffName} 
-              subtitle={`${item.sector} • ${item.reason}`} 
-              chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'} 
+            {/* id único por registro -- permite o Dashboard/sino levar direto pro colaborador
+                específico que precisa de retorno, em vez de só rolar até o topo da seção. */}
+            <div id={item.requiresReturn ? `return-visit-${item.id}` : undefined}>
+            <HistoryCard
+              icon="🤝"
+              color="text-rose-600"
+              title={item.staffName}
+              subtitle={`${item.sector} • ${item.reason}`}
+              chaplainName={users.find(u => u.id === item.userId)?.name || 'Sistema'}
               isLocked={isRecordLocked(item.date, currentUser.role)}
-              onEdit={() => onEdit?.(item)} 
-              onDelete={() => onDelete(item.id)} 
+              onEdit={() => onEdit?.(item)}
+              onDelete={() => onDelete(item.id)}
               middle={returnBadge || ((item as any).participantType === ParticipantType.PROVIDER && (<span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">Prestador</span>))}
               extra={returnFlag}
             />
+            </div>
           </React.Fragment>
         );
-      }} 
+      }}
     />
   ), [sortedHistory, users, currentUser, isLoading, allHistory, history, handlePerformReturn, onDelete, onEdit]);
 

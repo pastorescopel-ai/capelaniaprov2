@@ -106,20 +106,25 @@ const App: React.FC = () => {
     if (visit && visit.unit && visit.unit !== currentUnit) {
       setCurrentUnit(visit.unit);
     }
-    
+
     handleTabChange('staffVisit');
-    
+
     setTimeout(() => {
-      const historyHeader = document.getElementById('return-history-header');
-      if (historyHeader) {
-        historyHeader.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else {
-        const historySection = document.getElementById('history-section');
-        if (historySection) {
-            historySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Vai direto pro card do colaborador específico (id único por registro) quando um
+      // retorno específico foi escolhido na lista do Dashboard/sino -- antes só rolava até
+      // o cabeçalho genérico da seção, sem abrir/destacar quem estava sendo visitado.
+      const specificCard = visit?.id ? document.getElementById(`return-visit-${visit.id}`) : null;
+      const target = specificCard || document.getElementById('return-history-header') || document.getElementById('history-section');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (specificCard) {
+          specificCard.classList.add('ring-4', 'ring-rose-300', 'ring-offset-2', 'rounded-[2.5rem]');
+          setTimeout(() => {
+            specificCard.classList.remove('ring-4', 'ring-rose-300', 'ring-offset-2', 'rounded-[2.5rem]');
+          }, 2500);
         }
       }
-    }, 300);
+    }, 350);
   };
 
   useEffect(() => {

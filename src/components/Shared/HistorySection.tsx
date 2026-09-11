@@ -18,6 +18,11 @@ interface HistorySectionProps<T> {
   disableSort?: boolean;
   bypassFilter?: (item: T) => boolean;
   onContinue?: (item: T) => void;
+  // Itens marcados como prioritários (ex: retorno pendente) nunca entram na gaveta "Mapeamento
+  // Pessoal" do admin -- ficam sempre visíveis numa seção própria no topo, mesmo quando são
+  // registros do próprio admin. Sem isso, um retorno pendente do próprio admin ficava oculto
+  // atrás da gaveta recolhida por padrão.
+  isPriorityItem?: (item: T) => boolean;
 }
 
 const PAGE_SIZE = 10;
@@ -32,7 +37,8 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
   renderItem,
   disableSort = false,
   bypassFilter,
-  onContinue
+  onContinue,
+  isPriorityItem
 }: HistorySectionProps<T>) => {
   const [filterChaplain, setFilterChaplain] = useState('all');
   const [isAdminSectionOpen, setIsAdminSectionOpen] = useState(false);
@@ -130,17 +136,27 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
 
   const isDividedView = currentUser.role === UserRole.ADMIN && filterChaplain === 'all';
 
+  // Itens prioritários (ex: retorno pendente) saem do fluxo normal de divisão admin/outros --
+  // renderizados sempre visíveis, nunca dentro da gaveta recolhida do admin.
+  const priorityHistory = useMemo(() => (
+    isPriorityItem ? filteredHistory.filter(isPriorityItem) : []
+  ), [filteredHistory, isPriorityItem]);
+
+  const nonPriorityHistory = useMemo(() => (
+    isPriorityItem ? filteredHistory.filter(item => !isPriorityItem(item)) : filteredHistory
+  ), [filteredHistory, isPriorityItem]);
+
   const { adminHistory, othersHistory } = useMemo(() => {
     if (!isDividedView) {
-      return { adminHistory: [], othersHistory: filteredHistory };
+      return { adminHistory: [], othersHistory: nonPriorityHistory };
     }
-    const admin = filteredHistory.filter(item => item.userId === currentUser.id);
-    const others = filteredHistory.filter(item => item.userId !== currentUser.id);
+    const admin = nonPriorityHistory.filter(item => item.userId === currentUser.id);
+    const others = nonPriorityHistory.filter(item => item.userId !== currentUser.id);
     return { adminHistory: admin, othersHistory: others };
-  }, [filteredHistory, isDividedView, currentUser.id]);
+  }, [nonPriorityHistory, isDividedView, currentUser.id]);
 
-  const visibleHistory = filteredHistory.slice(0, visibleCount);
-  const hasMore = visibleCount < filteredHistory.length;
+  const visibleHistory = nonPriorityHistory.slice(0, visibleCount);
+  const hasMore = visibleCount < nonPriorityHistory.length;
 
   const visibleOthers = othersHistory.slice(0, visibleCount);
   const visibleAdmin = adminHistory.slice(0, visibleCount);
@@ -180,6 +196,11 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
       />
 
       <div className="grid gap-3 md:gap-4">
+        {priorityHistory.length > 0 && (
+          <div className="space-y-3">
+            {priorityHistory.map((item, index) => renderItem(item, index, priorityHistory))}
+          </div>
+        )}
         {isLoading && filteredHistory.length === 0 ? (
           <SkeletonCard />
         ) : isDividedView ? (
@@ -286,11 +307,11 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
 
               <div ref={loaderRef} className="h-4"></div>
             </div>
-          ) : (
+          ) : priorityHistory.length > 0 ? null : (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-              <EmptyState 
-                icon="fa-folder-open" 
-                title="Nenhum registro encontrado" 
+              <EmptyState
+                icon="fa-folder-open"
+                title="Nenhum registro encontrado"
                 description="Não encontramos nenhum dado para os filtros selecionados neste período."
                 colorClass="text-slate-400 bg-slate-50 border-slate-100"
               />
@@ -330,11 +351,11 @@ const HistorySection = <T extends { id: string; userId: string; date: string }>(
               
               <div ref={loaderRef} className="h-4"></div>
             </>
-          ) : (
+          ) : priorityHistory.length > 0 ? null : (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-              <EmptyState 
-                icon="fa-folder-open" 
-                title="Nenhum registro encontrado" 
+              <EmptyState
+                icon="fa-folder-open"
+                title="Nenhum registro encontrado"
                 description="Não encontramos nenhum dado para os filtros selecionados neste período."
                 colorClass="text-slate-400 bg-slate-50 border-slate-100"
               />

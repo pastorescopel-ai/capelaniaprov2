@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-09-11b",
+    "date": "2026-09-11",
+    "changes": [
+      "Corrigido: lançar um retorno de Visita Pastoral (botão da bandeirinha) dava erro 'Coluna obrigatória ausente ao salvar em staff_visits' -- o formulário esquecia de levar o capelão responsável ao preencher o novo retorno.",
+      "Melhor: o card de 'Retornos' do Dashboard e o sino de notificações agora abrem uma lista com TODOS os colaboradores pendentes (antes só levavam pro primeiro da lista) -- toque num nome e vai direto pro registro dele no histórico, com destaque visual.",
+      "Corrigido: um retorno pendente que era do próprio administrador ficava escondido dentro da gaveta 'Mapeamento Pessoal' (fechada por padrão). Agora retornos pendentes nunca ficam escondidos nessa gaveta, mesmo sendo do próprio admin."
+    ]
+  },
+  {
     "version": "2026-09-11a",
     "date": "2026-09-11",
     "changes": [

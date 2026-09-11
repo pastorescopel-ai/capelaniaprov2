@@ -45,6 +45,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   // tocar nela expande os detalhes completos (meta HABA, histórico) que antes ficavam sempre
   // visíveis num card à parte.
   const [showVisitDetail, setShowVisitDetail] = useState(false);
+  // Lista expansível de retornos pendentes -- antes o card levava direto pro primeiro
+  // retorno da lista sem dar chance de escolher qual colaborador; agora clicar no card
+  // abre a lista de todos e cada linha vai direto pro registro daquela pessoa.
+  const [showReturnsList, setShowReturnsList] = useState(false);
 
   // Últimos 12 meses (fechados), do mais recente pro mais antigo, para o seletor de média.
   const availableMonths = React.useMemo(() => {
@@ -119,7 +123,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   // clicar no card pra ir registrar uma visita e depois voltar pro Dashboard deixava o card
   // grande aberto do jeito que ficou, em vez de voltar fechado.
   React.useEffect(() => {
-    if (!isVisible) setShowVisitDetail(false);
+    if (!isVisible) { setShowVisitDetail(false); setShowReturnsList(false); }
   }, [isVisible]);
 
   if (!isInitialized) {
@@ -185,57 +189,96 @@ const Dashboard: React.FC<DashboardProps> = ({
         </AnimatePresence>
       </motion.div>
 
-      {/* Notificações de Retorno */}
-      {todaysReturns.length > 0 ? (
-        <motion.div
-          onClick={() => onGoToReturnHistory(todaysReturns[0])}
-          initial={{ opacity: 0, y: -10 }}
-          animate={isVisible ? { opacity: 1, y: 0, scale: [0.96, 1.02, 1] } : { opacity: 0, y: -10 }}
-          transition={{ duration: 0.6, ease: 'easeOut', times: [0, 0.6, 1] }}
-          whileHover={{ y: -2 }}
-          className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-amber-100 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-amber-200"><i className="fas fa-calendar-check"></i></div>
-            <div>
-              <h4 className="font-black text-amber-900 text-sm uppercase tracking-tight">Retornos para Hoje!</h4>
-              <p className="text-amber-700 font-bold text-[10px] uppercase">Você tem {todaysReturns.length} retorno(s) agendado(s) para hoje.</p>
-            </div>
-          </div>
-          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-amber-500 shadow-sm group-hover:translate-x-1 transition-transform border border-amber-100"><i className="fas fa-chevron-right"></i></div>
-        </motion.div>
-      ) : pendingReturns.length > 0 ? (
-        <motion.div
-          onClick={() => onGoToReturnHistory(pendingReturns[0])}
-          initial={{ opacity: 0, y: -10 }}
-          animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          whileHover={{ y: -2 }}
-          className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-slate-100 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-slate-500 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-slate-200"><i className="fas fa-calendar-alt"></i></div>
-            <div>
-              <h4 className="font-black text-slate-900 text-sm uppercase tracking-tight">Retornos Agendados</h4>
-              <p className="text-slate-600 font-bold text-[10px] uppercase">
-                Você tem {pendingReturns.length} retorno(s) pendente(s). Próximo: {
-                  (() => {
-                    const timestamps = pendingReturns.map(v => {
-                      if (typeof v.returnDate === 'number') return v.returnDate;
-                      const d = new Date(String(v.returnDate).split('T')[0] + 'T12:00:00');
-                      return isNaN(d.getTime()) ? Infinity : d.getTime();
-                    }).filter(t => t !== Infinity);
+      {/* Notificações de Retorno -- clicar no card abre a lista de todos os colaboradores
+          pendentes (antes ia direto pro primeiro da lista, sem deixar escolher). Cada linha
+          da lista leva direto pro registro daquele colaborador específico no histórico. */}
+      {(todaysReturns.length > 0 || pendingReturns.length > 0) && (
+        <div>
+          {todaysReturns.length > 0 ? (
+            <motion.div
+              onClick={() => setShowReturnsList(v => !v)}
+              initial={{ opacity: 0, y: -10 }}
+              animate={isVisible ? { opacity: 1, y: 0, scale: [0.96, 1.02, 1] } : { opacity: 0, y: -10 }}
+              transition={{ duration: 0.6, ease: 'easeOut', times: [0, 0.6, 1] }}
+              whileHover={{ y: -2 }}
+              className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-amber-100 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-amber-200"><i className="fas fa-calendar-check"></i></div>
+                <div>
+                  <h4 className="font-black text-amber-900 text-sm uppercase tracking-tight">Retornos para Hoje!</h4>
+                  <p className="text-amber-700 font-bold text-[10px] uppercase">Você tem {todaysReturns.length} retorno(s) agendado(s) para hoje. Toque para ver quem.</p>
+                </div>
+              </div>
+              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-amber-500 shadow-sm group-hover:translate-x-1 transition-transform border border-amber-100">
+                <i className={`fas fa-chevron-${showReturnsList ? 'up' : 'down'}`}></i>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              onClick={() => setShowReturnsList(v => !v)}
+              initial={{ opacity: 0, y: -10 }}
+              animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              whileHover={{ y: -2 }}
+              className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between shadow-sm group cursor-pointer hover:bg-slate-100 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-slate-500 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-slate-200"><i className="fas fa-calendar-alt"></i></div>
+                <div>
+                  <h4 className="font-black text-slate-900 text-sm uppercase tracking-tight">Retornos Agendados</h4>
+                  <p className="text-slate-600 font-bold text-[10px] uppercase">
+                    Você tem {pendingReturns.length} retorno(s) pendente(s). Toque para ver quem.
+                  </p>
+                </div>
+              </div>
+              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-slate-500 shadow-sm group-hover:translate-x-1 transition-transform border border-slate-100">
+                <i className={`fas fa-chevron-${showReturnsList ? 'up' : 'down'}`}></i>
+              </div>
+            </motion.div>
+          )}
 
-                    if (timestamps.length === 0) return '---';
-                    return new Date(Math.min(...timestamps)).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
-                  })()
-                }
-              </p>
-            </div>
-          </div>
-          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-slate-500 shadow-sm group-hover:translate-x-1 transition-transform border border-slate-100"><i className="fas fa-chevron-right"></i></div>
-        </motion.div>
-      ) : null}
+          <AnimatePresence initial={false}>
+            {showReturnsList && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className="overflow-hidden"
+              >
+                <div className="mt-2 bg-white border border-slate-100 rounded-2xl divide-y divide-slate-100 shadow-sm">
+                  {[...todaysReturns, ...pendingReturns.filter(p => !todaysReturns.some(t => t.id === p.id))].map(visit => {
+                    const d = typeof visit.returnDate === 'number' ? new Date(visit.returnDate) : new Date(String(visit.returnDate).split('T')[0] + 'T12:00:00');
+                    const dateLabel = isNaN(d.getTime()) ? '---' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                    const isToday = todaysReturns.some(t => t.id === visit.id);
+                    return (
+                      <button
+                        key={visit.id}
+                        type="button"
+                        onClick={() => { setShowReturnsList(false); onGoToReturnHistory(visit); }}
+                        className="w-full flex items-center justify-between gap-3 p-3.5 text-left hover:bg-slate-50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isToday ? 'bg-amber-500' : 'bg-slate-300'}`}></div>
+                          <div className="min-w-0">
+                            <p className="font-black text-slate-800 text-xs truncate">{visit.staffName}</p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate">{visit.sector || 'Sem setor'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${isToday ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{dateLabel}</span>
+                          <i className="fas fa-chevron-right text-[10px] text-slate-300"></i>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* Escala de Visitas PG (VisitRequestsWidget) -- mostra as duas unidades juntas: o
           capelão não deveria precisar trocar de unidade só pra ver a própria escala, e o card

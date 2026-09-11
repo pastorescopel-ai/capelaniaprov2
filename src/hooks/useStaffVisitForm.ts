@@ -384,6 +384,7 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
   const handlePerformReturn = (item: StaffVisit) => {
     setFormData({
       id: '',
+      userId: currentUser.id,
       date: getToday(),
       staffName: item.staffName || '',
       staffId: item.staffId || '',

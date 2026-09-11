@@ -156,23 +156,31 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onGoToReturnHis
           </div>
 
           <div className="max-h-[400px] overflow-y-auto no-scrollbar py-2">
-            {/* RETORNOS PENDENTES */}
+            {/* RETORNOS PENDENTES -- uma linha por colaborador, cada uma leva direto ao
+                registro específico (antes ia sempre pro primeiro da lista, sem escolha). */}
             {returnCount > 0 && (
-              <div onClick={() => { setIsOpen(false); onGoToReturnHistory?.(pendingReturns[0]); }} className={`p-5 border-b border-slate-50 flex gap-4 cursor-pointer transition-all ${todaysReturns.length > 0 ? 'bg-amber-50/50 hover:bg-amber-100' : 'bg-slate-50/50 hover:bg-slate-100'}`}>
-                <div className={`w-10 h-10 rounded-xl text-white flex items-center justify-center flex-shrink-0 shadow-md ${todaysReturns.length > 0 ? 'bg-amber-500 shadow-amber-200 animate-pulse' : 'bg-slate-500 shadow-slate-200'}`}>
-                  <i className={todaysReturns.length > 0 ? "fas fa-calendar-check" : "fas fa-calendar-alt"}></i>
-                </div>
-                <div className="flex-1">
-                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${todaysReturns.length > 0 ? 'text-amber-600' : 'text-slate-600'}`}>
+              <div className={`border-b border-slate-50 ${todaysReturns.length > 0 ? 'bg-amber-50/30' : 'bg-slate-50/30'}`}>
+                <div className="px-5 pt-4 pb-1 flex items-center gap-2">
+                  <i className={`fas ${todaysReturns.length > 0 ? 'fa-calendar-check text-amber-500' : 'fa-calendar-alt text-slate-500'} text-xs`}></i>
+                  <p className={`text-[10px] font-black uppercase tracking-widest ${todaysReturns.length > 0 ? 'text-amber-600' : 'text-slate-600'}`}>
                     {todaysReturns.length > 0 ? 'Retornos para Hoje' : 'Retornos Agendados'}
                   </p>
-                  <p className="text-xs text-slate-800 font-bold leading-tight mb-1">
-                    {todaysReturns.length > 0 
-                      ? `Você tem ${todaysReturns.length} retorno(s) para hoje.` 
-                      : `Você tem ${returnCount} retorno(s) pendente(s).`}
-                  </p>
-                  <p className="text-[9px] text-slate-500 font-medium italic">Clique para ver a lista no histórico.</p>
                 </div>
+                {[...todaysReturns, ...pendingReturns.filter((p: any) => !todaysReturns.some((t: any) => t.id === p.id))].map((visit: any) => {
+                  const isToday = todaysReturns.some((t: any) => t.id === visit.id);
+                  const d = typeof visit.returnDate === 'number' ? new Date(visit.returnDate) : new Date(String(visit.returnDate).split('T')[0] + 'T12:00:00');
+                  const dateLabel = isNaN(d.getTime()) ? '---' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                  return (
+                    <div key={visit.id} onClick={() => { setIsOpen(false); onGoToReturnHistory?.(visit); }} className="px-5 py-2.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-white/70 transition-all">
+                      <div className="min-w-0">
+                        <p className="text-xs text-slate-800 font-bold leading-tight truncate">{visit.staffName}</p>
+                        <p className="text-[9px] text-slate-500 font-medium truncate">{visit.sector || 'Sem setor'}</p>
+                      </div>
+                      <span className={`text-[9px] font-black px-2 py-1 rounded-lg flex-shrink-0 ${isToday ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{dateLabel}</span>
+                    </div>
+                  );
+                })}
+                <div className="pb-2"></div>
               </div>
             )}
 
