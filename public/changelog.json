@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-09-11a",
+    "date": "2026-09-11",
+    "changes": [
+      "Corrigido: o card 'Média de Alunos (Mensal)' estava calculando errado -- dividia o total de pessoas DIFERENTES do ano (cada uma contada 1 vez, mesmo que tenha voltado em vários meses) pelos meses decorridos, o que dava uma média artificialmente baixa (ex: 20). Agora soma quantos alunos foram atendidos EM CADA MÊS (quem repete conta de novo a cada mês em que apareceu) e divide pelos meses -- reflete o alcance mensal de verdade (ex: ~59 no mesmo período)."
+    ]
+  },
+  {
     "version": "2026-09-10c",
     "date": "2026-09-10",
     "changes": [

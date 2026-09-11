@@ -61,12 +61,16 @@ export const useReportLogic = (
   }, [studies, classes, groups, visits, filters]);
 
   // 2. CÁLCULO DE MÉDIA ANUAL (ano corrente inteiro, independente do período no calendário)
-  // A pedido do usuário: esse card não deve depender do filtro de data de Relatórios -- é
-  // sempre "total de alunos únicos do ano até agora" dividido pela quantidade de meses do ano
-  // já decorridos (ex: em agosto, divide por 8), não uma média dos totais mês a mês (que
-  // contaria o mesmo aluno de novo a cada mês em que ele aparecesse). Continua respeitando os
-  // filtros de Capelão e Unidade (faz sentido ver a média anual só de um capelão/unidade), só
-  // não o de período.
+  // A pedido do usuário: esse card não deve depender do filtro de data de Relatórios -- é a
+  // MÉDIA DOS TOTAIS MENSAIS (soma quantos alunos únicos foram atendidos em cada mês do ano até
+  // agora, dividida pelos meses já decorridos), não o total de alunos distintos do ano dividido
+  // pelos meses. A diferença importa: um aluno estudado em vários meses conta em CADA mês em
+  // que apareceu aqui (reflete o alcance mensal de verdade), mas só 1 vez no total-do-ano —
+  // dividir o total-do-ano pelos meses dava uma média artificialmente baixa (ex: 177 pessoas
+  // distintas no ano / 9 meses = 20, quando o alcance real foi de ~59 alunos/mês, porque muita
+  // gente repete de um mês pro outro no mesmo estudo/turma). Continua respeitando os filtros de
+  // Capelão e Unidade (faz sentido ver a média anual só de um capelão/unidade), só não o de
+  // período.
   const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
   const averageStats = useMemo(() => {
@@ -79,7 +83,6 @@ export const useReportLogic = (
     const isUnitMatch = (unit?: Unit) =>
       filters.selectedUnit === 'all' || (unit || Unit.HAB) === filters.selectedUnit;
 
-    const yearStudents = new Set<string>();
     const monthlyUnique = new Map<string, Set<string>>();
 
     const addYearName = (dateStr: string, rawName: string, explicitId?: string | number | null) => {
@@ -90,7 +93,6 @@ export const useReportLogic = (
 
       const key = getStudentKey(rawName, explicitId);
       if (!key) return;
-      yearStudents.add(key);
 
       const monthKey = `${d.getFullYear()}-${d.getMonth() + 1}`;
       if (!monthlyUnique.has(monthKey)) monthlyUnique.set(monthKey, new Set());
@@ -114,9 +116,13 @@ export const useReportLogic = (
         if (Array.isArray(c.students)) c.students.forEach(n => addYearName(c.date!, n));
       });
 
-    // Total de alunos únicos no ano inteiro (não soma dos meses -- um aluno visto em 2 meses
-    // diferentes conta 1 vez aqui) dividido pelos meses do ano já decorridos até hoje.
-    const average = elapsedMonths > 0 ? yearStudents.size / elapsedMonths : 0;
+    // Soma de quantos alunos únicos cada mês teve (um aluno que voltou em 3 meses conta nos 3),
+    // dividida pelos meses do ano já decorridos até hoje -- NÃO o total de alunos distintos do
+    // ano (yearStudents.size), que dá uma média artificialmente baixa por não recontar quem
+    // repete de mês em mês.
+    let monthlySum = 0;
+    monthlyUnique.forEach(set => { monthlySum += set.size; });
+    const average = elapsedMonths > 0 ? monthlySum / elapsedMonths : 0;
 
     // Detalhe pro card clicável "Média de Alunos (Mensal)" -- não tem uma lista de nomes fixa
     // (é uma média entre vários meses), então mostra a composição mês a mês em vez de nomes.
