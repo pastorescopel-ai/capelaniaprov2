@@ -246,7 +246,9 @@ export const getUniqueStudentLabels = (studies: Array<{ name?: string; staffId?:
 // SÓ quando não há setor (Prestador/Paciente). Pra turma com setor, ver getClassGroupKey.
 export const getClassSignature = (cls: { students?: string[] | null } | null | undefined): string => {
   if (!cls || !Array.isArray(cls.students) || cls.students.length === 0) return '';
-  return cls.students.map(getStudentKey).filter(Boolean).sort().join('|');
+  // Lambda explícito: passar getStudentKey direto ao .map() entregava o ÍNDICE como explicitId
+  // (0,1,2...), fazendo qualquer turma sem setor do mesmo tamanho virar a mesma assinatura.
+  return cls.students.map(s => getStudentKey(s)).filter(Boolean).sort().join('|');
 };
 
 interface ClassGroupInput {

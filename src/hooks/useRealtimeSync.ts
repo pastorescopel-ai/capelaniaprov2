@@ -53,6 +53,13 @@ export const useRealtimeSync = (setters: Record<string, any>, refreshData: () =>
             newState[index] = { ...newState[index], ...camelRecord };
             return newState;
           }
+          // A linha crua do banco (bible_classes) não traz a lista de alunos -- ela vive em
+          // tabelas separadas (bible_class_attendees/adventists). Se este evento chegar antes do
+          // estado local com os alunos, a classe entraria sem `students` e qualquer tela que lê
+          // `.students.length` quebrava (tela "Algo deu errado" logo após salvar uma classe).
+          if (collection === 'bibleClasses') {
+            return [...prev, { students: [], adventistStudents: [], ...camelRecord }];
+          }
           return [...prev, camelRecord];
         });
       } else if (eventType === 'DELETE') {

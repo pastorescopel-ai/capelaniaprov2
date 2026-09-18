@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-09-18a",
+    "date": "2026-09-18",
+    "changes": [
+      "Corrigido: ao salvar uma Classe Bíblica o registro gravava certo, mas a tela caía em 'Algo deu errado'. A classe recém-salva chegava do banco sem a lista de alunos e o histórico quebrava ao contar os alunos -- agora isso é protegido nos dois lugares.",
+      "Corrigido: turmas SEM setor (Paciente/Prestador) com o mesmo número de alunos podiam ser tratadas como a mesma turma na contagem/seletor (um bug interno na assinatura da turma).",
+      "Melhor: a tela 'Algo deu errado' agora mostra o detalhe técnico do erro, pra facilitar achar a causa se acontecer de novo."
+    ]
+  },
+  {
     "version": "2026-09-11b",
     "date": "2026-09-11",
     "changes": [
