@@ -214,7 +214,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         
         return (
           <div key={tabId} className={`${getTabClass(tabId)} ${isVisible ? 'block' : 'hidden'} ${isVisible ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}>
-            <ErrorBoundary>
+            <ErrorBoundary resetKey={isVisible}>
               <Suspense fallback={<TabLoading />}>
                 {renderTab(tabId, isVisible)}
               </Suspense>

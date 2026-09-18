@@ -251,6 +251,23 @@ export const getClassSignature = (cls: { students?: string[] | null } | null | u
   return cls.students.map(s => getStudentKey(s)).filter(Boolean).sort().join('|');
 };
 
+// Garante que toda Classe Bíblica em memória tenha `students` e `adventistStudents` como array.
+// Esses campos NÃO existem na linha do banco (bible_classes) -- o app os monta juntando as tabelas
+// de presença --, então uma classe que chega "crua" (evento realtime, retorno de save antes da
+// junção) vinha sem eles e quebrava qualquer tela que lê `.students.length`. Devolve o MESMO array
+// (mesma referência) quando nada precisa mudar, pra não disparar re-render/efeito à toa.
+export const normalizeBibleClasses = <T extends { students?: string[] | null; adventistStudents?: string[] | null }>(list: T[]): T[] => {
+  if (!Array.isArray(list)) return [];
+  let changed = false;
+  const next = list.map(c => {
+    if (!c) return c;
+    if (Array.isArray(c.students) && Array.isArray(c.adventistStudents)) return c;
+    changed = true;
+    return { ...c, students: Array.isArray(c.students) ? c.students : [], adventistStudents: Array.isArray(c.adventistStudents) ? c.adventistStudents : [] };
+  });
+  return changed ? next : list;
+};
+
 interface ClassGroupInput {
   students?: string[] | null;
   sector?: string | null;

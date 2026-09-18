@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-09-18b",
+    "date": "2026-09-18",
+    "changes": [
+      "Melhor: as telas do app agora se recuperam sozinhas de um erro passageiro -- se algo quebrar por um instante (como um registro que chega do servidor ainda incompleto), a tela tenta de novo automaticamente em menos de 1 segundo, sem precisar recarregar. Se o erro persistir, aparece 'Tentar de novo' (sem perder o que está aberto) além de 'Recarregar página'; e voltar pra aba também tenta de novo.",
+      "Corrigido: toda Classe Bíblica que entra na memória do app (carga inicial, atualização, ao salvar ou vinda do servidor em tempo real) agora passa por um único ponto que garante a lista de alunos -- fecha de vez a causa da tela de erro depois de salvar uma classe."
+    ]
+  },
+  {
     "version": "2026-09-18a",
     "date": "2026-09-18",
     "changes": [

@@ -6,11 +6,18 @@ import { useRealtimeSync } from './useRealtimeSync';
 import { useDataActions } from './useDataActions';
 import { useMasterSync } from './useMasterSync';
 import { supabase } from '../services/supabaseClient';
+import { normalizeBibleClasses } from '../utils/formatters';
 
 export const useAppData = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [bibleStudies, setBibleStudies] = useState<BibleStudy[]>([]);
-  const [bibleClasses, setBibleClasses] = useState<BibleClass[]>([]);
+  const [bibleClasses, setBibleClassesRaw] = useState<BibleClass[]>([]);
+  // Único ponto de entrada de escrita em bibleClasses (carga inicial, refresh, retorno do save e
+  // realtime passam todos por aqui): normaliza `students`/`adventistStudents` pra sempre serem
+  // array, então nenhum caminho consegue mais colocar uma classe "pela metade" no estado.
+  const setBibleClasses = useCallback((next: BibleClass[] | ((prev: BibleClass[]) => BibleClass[])) => {
+    setBibleClassesRaw(prev => normalizeBibleClasses(typeof next === 'function' ? (next as (p: BibleClass[]) => BibleClass[])(prev) : next));
+  }, []);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
   const [staffVisits, setStaffVisits] = useState<StaffVisit[]>([]);
   const [visitRequests, setVisitRequests] = useState<VisitRequest[]>([]);
