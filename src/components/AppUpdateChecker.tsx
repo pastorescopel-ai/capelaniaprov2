@@ -11,9 +11,17 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
   const [hasUpdate, setHasUpdate] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  // Atualização automática na abertura/login: cobre a tela com um aviso curto enquanto recarrega,
+  // em vez do banner com botão "Atualizar Agora".
+  const [isAutoUpdating, setIsAutoUpdating] = useState(false);
   const [changelog, setChangelog] = useState<string[]>([]);
   const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastCheckTimeRef = useRef<number>(0);
+  // Espelham isChecking/hasUpdate sem entrar nas dependências do useCallback: antes, cada checagem
+  // trocava a identidade de checkForUpdates, o que reiniciava o efeito abaixo e agendava OUTRA
+  // checagem forçada -- o app ficava buscando /index.html em loop a cada ~5s.
+  const isCheckingRef = useRef(false);
+  const hasUpdateRef = useRef(false);
 
   // Busca o resumo do que mudou nesta atualização (public/changelog.json, servido estático,
   // independente do hash dos bundles JS/CSS). É atualizado a cada release com um resumo curto
@@ -50,13 +58,43 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
     return [...scripts, ...styles];
   }, []);
 
-  const checkForUpdates = useCallback(async (forced = false) => {
+  const handleUpdate = async () => {
+    setIsUpdating(true);
+    // NÃO desregistra o Service Worker -- ele já se atualiza sozinho (self.skipWaiting() +
+    // clients.claim() em sw.ts) assim que o navegador detecta um sw.js com conteúdo novo, o
+    // que só de recarregar a página (com cache-busting abaixo) já dispara. Desregistrar criava
+    // um registration novo do zero a cada atualização, e a inscrição de notificação push
+    // pertence ao registration antigo -- ela ficava "perdida" (mesmo continuando cadastrada no
+    // banco) e o app achava que notificação nunca tinha sido ativada, pedindo de novo toda vez.
+    window.location.assign(window.location.origin + window.location.pathname + '?update=' + Date.now());
+  };
+
+  // Trava anti-loop da atualização automática: se já recarregou automaticamente há pouco e o
+  // servidor AINDA aparece como diferente (ex: cache de borda servindo um index.html velho),
+  // não recarrega de novo -- cai no banner manual em vez de ficar recarregando sem parar.
+  const AUTO_UPDATE_KEY = 'capelania_auto_update_ts';
+  const AUTO_UPDATE_COOLDOWN_MS = 2 * 60 * 1000;
+  const canAutoUpdate = () => {
+    try {
+      const last = Number(sessionStorage.getItem(AUTO_UPDATE_KEY) || 0);
+      return !last || Date.now() - last > AUTO_UPDATE_COOLDOWN_MS;
+    } catch {
+      return false; // sem sessionStorage não dá pra garantir o anti-loop -- usa o banner
+    }
+  };
+
+  // Fechar/"Mais Tarde" também zera o espelho, senão as próximas checagens (que ignoram enquanto
+  // hasUpdateRef está true) nunca mais reabririam o banner.
+  const dismissBanner = () => { hasUpdateRef.current = false; setHasUpdate(false); };
+
+  const checkForUpdates = useCallback(async (forced = false, autoApply = false) => {
     // Evita verificações em massa repetitivas em menos de 10 segundos
     const now = Date.now();
     if (!forced && now - lastCheckTimeRef.current < 10000) return;
     lastCheckTimeRef.current = now;
 
-    if (isChecking || hasUpdate) return;
+    if (isCheckingRef.current || hasUpdateRef.current) return;
+    isCheckingRef.current = true;
     setIsChecking(true);
 
     try {
@@ -71,7 +109,6 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
       });
 
       if (!response.ok) {
-        setIsChecking(false);
         return;
       }
 
@@ -84,7 +121,6 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
 
       // Em ambiente de desenvolvimento, não haverá hashes '/assets/' (usa-se HMR ou fontes directas)
       if (serverAssets.length === 0) {
-        setIsChecking(false);
         return;
       }
 
@@ -96,33 +132,35 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
           servidor: serverAssets,
           local: localAssets
         });
+        // Na checagem de abertura/login ainda não há nada digitado -- aplica sozinho, sem esperar
+        // clique. Depois (durante o uso) segue o banner, pra nunca recarregar no meio de um
+        // formulário preenchido.
+        if (autoApply && canAutoUpdate()) {
+          try { sessionStorage.setItem(AUTO_UPDATE_KEY, String(Date.now())); } catch { /* ignora */ }
+          hasUpdateRef.current = true;
+          setIsAutoUpdating(true);
+          handleUpdate();
+          return;
+        }
+        hasUpdateRef.current = true;
         setHasUpdate(true);
         fetchChangelog();
       }
     } catch (error) {
       if (navigator.onLine) console.warn('[Capelania AutoUpdate] Falha de rede ao checar atualização (ignorando):', error);
     } finally {
+      isCheckingRef.current = false;
       setIsChecking(false);
     }
-  }, [getAssetFingerprints, isChecking, hasUpdate, fetchChangelog]);
-
-  const handleUpdate = async () => {
-    setIsUpdating(true);
-    // NÃO desregistra o Service Worker -- ele já se atualiza sozinho (self.skipWaiting() +
-    // clients.claim() em sw.ts) assim que o navegador detecta um sw.js com conteúdo novo, o
-    // que só de recarregar a página (com cache-busting abaixo) já dispara. Desregistrar criava
-    // um registration novo do zero a cada atualização, e a inscrição de notificação push
-    // pertence ao registration antigo -- ela ficava "perdida" (mesmo continuando cadastrada no
-    // banco) e o app achava que notificação nunca tinha sido ativada, pedindo de novo toda vez.
-    window.location.assign(window.location.origin + window.location.pathname + '?update=' + Date.now());
-  };
+  }, [getAssetFingerprints, fetchChangelog]);
 
   useEffect(() => {
-    // 1. Checa por atualizações ao montar o componente
-    // timeout para não concorrer com o carregamento inicial pesado
+    // 1. Checa por atualizações ao montar (= logo após o login / ao abrir o app já logado) e,
+    //    se houver versão nova, aplica sozinho -- curto o bastante pra ocorrer antes de a pessoa
+    //    começar a digitar algo.
     const initTimeout = setTimeout(() => {
-      checkForUpdates(true);
-    }, 5000);
+      checkForUpdates(true, true);
+    }, 1500);
 
     // 2. Intervalo periódico (a cada 3 minutos)
     const INTERVAL_MS = 3 * 60 * 1000;
@@ -166,6 +204,15 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
   const primaryCol = config?.primaryColor || '#005a9c';
 
   return (
+    <>
+    {isAutoUpdating && (
+      <div className="fixed inset-0 z-[100000] bg-white/90 backdrop-blur-sm flex items-center justify-center" role="status" aria-live="polite">
+        <div className="flex flex-col items-center gap-3 text-center px-6">
+          <div className="w-10 h-10 border-4 rounded-full animate-spin" style={{ borderColor: `${primaryCol}33`, borderTopColor: primaryCol }}></div>
+          <p className="text-xs font-black uppercase tracking-widest text-slate-700">Atualizando para a versão mais recente…</p>
+        </div>
+      </div>
+    )}
     <AnimatePresence>
       {hasUpdate && (
         <motion.div
@@ -204,7 +251,7 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
                 )}
               </div>
               <button 
-                onClick={() => setHasUpdate(false)}
+                onClick={dismissBanner}
                 className="text-slate-500 hover:text-slate-900 transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100"
                 title="Fechar (não recomendado, clique para atualizar)"
               >
@@ -223,7 +270,7 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
                 {isUpdating ? 'Atualizando...' : 'Atualizar Agora'}
               </button>
               <button
-                onClick={() => setHasUpdate(false)}
+                onClick={dismissBanner}
                 disabled={isUpdating}
                 className="py-2.5 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-all text-center border border-slate-300 disabled:opacity-50"
               >
@@ -234,5 +281,6 @@ export const AppUpdateChecker: React.FC<AppUpdateCheckerProps> = ({ config }) =>
         </motion.div>
       )}
     </AnimatePresence>
+    </>
   );
 };

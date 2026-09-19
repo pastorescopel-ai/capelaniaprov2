@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-09-19a",
+    "date": "2026-09-19",
+    "changes": [
+      "Novo: ao entrar no app (ou abri-lo já logado), se existir uma versão nova ela é aplicada sozinha em ~2 segundos, com um aviso 'Atualizando para a versão mais recente…' -- não precisa mais entrar, ver o aviso e clicar em 'Atualizar Agora'. Durante o uso o aviso com botão continua aparecendo (pra nunca recarregar no meio de um formulário preenchido).",
+      "Corrigido: o app checava se havia versão nova em loop a cada ~5 segundos (uma falha no verificador reiniciava a checagem toda vez). Agora checa na abertura, a cada 3 minutos e ao voltar pro app."
+    ]
+  },
+  {
     "version": "2026-09-18b",
     "date": "2026-09-18",
     "changes": [
