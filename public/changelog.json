@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-09-25c",
+    "date": "2026-09-25",
+    "changes": [
+      "Corrigido (dado): um paciente ('Socorro') tinha 6 cadastros diferentes no sistema -- toda visita virava um cadastro novo em vez de continuar o mesmo. Unificado em 1 só, com todo o histórico (9 estudos) preservado -- o card 'Alunos Pacientes' volta a contar certo.",
+      "Corrigido (causa raiz): o cadastro de Pacientes/Prestadores só carregava em segundo plano, minutos depois de abrir o app -- registrar um estudo rápido demais fazia o app não achar o cadastro anterior e criar um novo a cada visita (foi exatamente o que aconteceu com 'Socorro' acima). Agora esses dois cadastros carregam na primeira fase, junto com o resto do essencial, antes de qualquer formulário ficar disponível."
+    ]
+  },
+  {
     "version": "2026-09-25b",
     "date": "2026-09-25",
     "changes": [

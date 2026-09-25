@@ -77,6 +77,8 @@ export const useDataActions = (setters: Record<string, any>, setIsSyncing: (val:
         if (core.proGroups !== null) setters.proGroups(core.proGroups);
         if (core.proGroupLocations !== null) setters.proGroupLocations(core.proGroupLocations);
         if (core.smallGroups !== null) setters.smallGroups(core.smallGroups);
+        if (core.proPatients !== null) setters.proPatients(core.proPatients);
+        if (core.proProviders !== null) setters.proProviders(core.proProviders);
         if (core.config !== null) setters.config(core.config);
       }
 

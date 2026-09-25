@@ -207,6 +207,17 @@ export const DataRepository = {
         DataRepository.fetchFullTable('pro_groups', MAX_ROWS),
         DataRepository.fetchFullTable('pro_group_locations', MAX_ROWS),
         DataRepository.fetchFullTable('small_group_sessions', MAX_ROWS),
+        // pro_patients/pro_providers movidos de syncBackground pra cá (2026-09-25): são tabelas
+        // pequenas (dezenas de linhas, nada a ver com o tamanho de pro_staff) mas CRÍTICAS pro
+        // casamento de identidade de Paciente/Prestador em Estudo/Classe Bíblica
+        // (syncMasterContact, useMasterSync.ts). Estando só na fase "pesada" (que roda em
+        // segundo plano, sem bloquear a tela), um capelão que registrasse um estudo rápido
+        // demais depois de abrir o app encontrava a lista local ainda vazia -- o casamento por
+        // nome sempre "não encontrava" o cadastro anterior e criava um paciente novo a cada
+        // visita (foi exatamente o que aconteceu com "Socorro": 6 cadastros pra mesma pessoa
+        // em 2 meses, corrigido/unificado direto no banco nesta mesma correção).
+        DataRepository.fetchFullTable('pro_patients', MAX_ROWS),
+        DataRepository.fetchFullTable('pro_providers', MAX_ROWS),
         (async () => {
           try {
             return await supabase.from('app_config').select('*').limit(1);
@@ -216,7 +227,7 @@ export const DataRepository = {
         })()
       ]);
 
-      const [u, vr, ps, pg, pgl, sg, c] = results;
+      const [u, vr, ps, pg, pgl, sg, pp, pr, c] = results;
 
       if (c.data?.[0]?.id) {
         const configId = c.data[0].id;
@@ -239,6 +250,8 @@ export const DataRepository = {
         proGroups: pg.data ? toCamel(pg.data) : null,
         proGroupLocations: pgl.data ? toCamel(pgl.data) : null,
         smallGroups: sg.data ? toCamel(sg.data) : null,
+        proPatients: pp.data ? toCamel(pp.data) : null,
+        proProviders: pr.data ? toCamel(pr.data) : null,
         config: c.data && c.data.length > 0 ? toCamel(c.data[0]) : null,
       };
     } catch (error) {
@@ -274,13 +287,12 @@ export const DataRepository = {
         DataRepository.fetchFullTable('bible_class_adventists', MAX_ROWS, q => q.gte('date', limitDate)),
         DataRepository.fetchFullTable('bible_study_sessions', MAX_ROWS),
         DataRepository.fetchFullTable('bible_classes', MAX_ROWS),
-        DataRepository.fetchFullTable('pro_patients', MAX_ROWS),
-        DataRepository.fetchFullTable('pro_providers', MAX_ROWS),
+        // pro_patients/pro_providers saíram daqui e foram pra syncCore() -- ver o comentário lá.
         DataRepository.fetchFullTable('pro_group_provider_members', MAX_ROWS),
         DataRepository.fetchFullTable('ambassadors', MAX_ROWS)
       ]);
 
-      const [phr, pgm, pst, pms, sv, bca, bcad, bs, bc, pp, pr, pgpm, amb] = results;
+      const [phr, pgm, pst, pms, sv, bca, bcad, bs, bc, pgpm, amb] = results;
 
       const classes = bc.data ? toCamel(bc.data) : null;
       const attendees = bca.data ? toCamel(bca.data) : null;
@@ -311,8 +323,6 @@ export const DataRepository = {
         bibleClassAdventists: adventists,
         bibleStudies: bs.data ? toCamel(bs.data) : null,
         bibleClasses: classes,
-        proPatients: pp.data ? toCamel(pp.data) : null,
-        proProviders: pr.data ? toCamel(pr.data) : null,
         proGroupProviderMembers: pgpm.data ? toCamel(pgpm.data) : null,
         ambassadors: amb.data ? toCamel(amb.data) : null,
       };
