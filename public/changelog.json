@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026-09-25a",
+    "date": "2026-09-25",
+    "changes": [
+      "Novo: os cards clicáveis de Relatórios (Total de Alunos, Estudos Individuais, Pacientes, Prestadores, Adventistas) agora mostram o setor -- ou, pra Paciente/Prestador, o setor/leito informado no campo 'Local' -- junto com cada nome, além de dizer se veio de Estudo Individual ou Classe Bíblica.",
+      "Novo (Estudo Bíblico Individual): ao escolher/digitar o nome de um Paciente que já tem cadastro, o app pede confirmação -- 'é o mesmo paciente de antes' (mantém o histórico ligado, atualiza o setor/leito se mudou) ou 'é outra pessoa com o mesmo nome' (cria um cadastro novo, ex: paciente teve alta e outro ocupou o leito). Antes, dois pacientes reais com o mesmo nome eram silenciosamente fundidos num único cadastro na primeira coincidência de nome -- a causa raiz de pacientes 'sumindo' ou tendo o estudo contado com a pessoa errada. O campo 'Local' virou 'Setor/Leito' pra Paciente, guardado no cadastro (pro_patients.bed) pra ajudar a reconhecer da próxima vez."
+    ]
+  },
+  {
     "version": "2026-09-19a",
     "date": "2026-09-19",
     "changes": [

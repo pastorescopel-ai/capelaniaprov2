@@ -35,7 +35,8 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     isSubmitting,
     guideOptions, sectorOptions, studentOptions,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
-    handleContinueStudy
+    handleContinueStudy,
+    patientCandidates, patientChoice, patientChoiceValid, confirmSamePatient, confirmNewPatient, resetPatientChoice
   } = useBibleStudyForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
   // countUniqueStudents: "Estudos este mês" conta ALUNOS ÚNICOS, não sessões -- dar 3 estudos
@@ -106,9 +107,11 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data</label><input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
           
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Nome do {formData.participantType}</label><Autocomplete options={studentOptions} value={formData.name} onChange={handleChangeName} onSelectOption={handleSelectStudent} placeholder="Buscar..." isStrict={false} /></div>
-          
+
           <div className="space-y-1">
-              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>{isStaff ? 'Setor (Obrigatório)' : 'Local (Opcional)'}</label>
+              <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${isStaff ? 'text-slate-400' : 'text-slate-300'}`}>
+                {isStaff ? 'Setor (Obrigatório)' : formData.participantType === ParticipantType.PATIENT ? 'Setor/Leito (ajuda a identificar)' : 'Local (Opcional)'}
+              </label>
               {isStaff ? (
                 isSectorLocked ? (
                     <div className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-100 border border-slate-200 font-bold text-slate-500 cursor-not-allowed flex justify-between items-center group relative" title="Vínculo oficial do RH">
@@ -120,16 +123,68 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
                     <Autocomplete options={sectorOptions} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} placeholder="Setor..." isStrict={false} />
                 )
               ) : (
-                <input 
-                  type="text" 
-                  value={formData.location || ''} 
-                  onChange={e => setFormData({...formData, location: e.target.value})} 
-                  placeholder="Local do estudo..." 
-                  className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-blue-500/20 transition-all" 
+                <input
+                  type="text"
+                  value={formData.location || ''}
+                  onChange={e => setFormData({...formData, location: e.target.value})}
+                  placeholder={formData.participantType === ParticipantType.PATIENT ? 'Ex: UI 7 - Leito 12' : 'Local do estudo...'}
+                  className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-blue-500/20 transition-all"
                 />
               )}
           </div>
-          
+
+          {/* CHECK DE IDENTIDADE DO PACIENTE -- só aparece quando o nome digitado bate com 1+
+              cadastro já existente. Evita fundir dois pacientes reais com o mesmo nome no mesmo
+              histórico: o capelão confirma explicitamente "é o mesmo de antes" (reaproveita o
+              cadastro, atualiza o leito se mudou) ou "é outra pessoa" (cria um cadastro novo). */}
+          {formData.participantType === ParticipantType.PATIENT && patientCandidates.length > 0 && (
+            <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-2 duration-300">
+              {patientChoiceValid ? (
+                <div className={`flex items-center justify-between gap-3 p-3.5 rounded-2xl border ${patientChoice!.decision === 'same' ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'}`}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <i className={`fas ${patientChoice!.decision === 'same' ? 'fa-check-circle text-emerald-500' : 'fa-user-plus text-amber-500'}`}></i>
+                    <span className={`text-[10px] font-black uppercase tracking-wide truncate ${patientChoice!.decision === 'same' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                      {patientChoice!.decision === 'same' ? 'Confirmado: é o mesmo paciente já cadastrado' : 'Confirmado: é outra pessoa (novo cadastro será criado)'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={resetPatientChoice}
+                    className="text-[9px] font-black uppercase text-slate-400 hover:text-slate-600 flex-shrink-0"
+                  >
+                    Alterar
+                  </button>
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-3">
+                  <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest flex items-center gap-1.5">
+                    <i className="fas fa-triangle-exclamation"></i> Já existe cadastro com este nome -- é o mesmo paciente?
+                  </p>
+                  <div className="space-y-1.5">
+                    {patientCandidates.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => confirmSamePatient(p.id)}
+                        className="w-full flex items-center justify-between gap-2 p-3 rounded-xl bg-white border border-amber-100 hover:border-emerald-300 hover:bg-emerald-50 transition-all text-left"
+                      >
+                        <span className="text-[11px] font-bold text-slate-700">Sim, é {p.name}{p.bed ? ` — ${p.bed}` : ' (sem leito registrado)'}</span>
+                        <i className="fas fa-check text-emerald-500 text-xs"></i>
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={confirmNewPatient}
+                    className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-white border-2 border-dashed border-amber-200 hover:border-amber-400 text-amber-600 transition-all text-[10px] font-black uppercase tracking-wide"
+                  >
+                    <i className="fas fa-user-plus"></i> Não, é outra pessoa (mudou de leito / teve alta)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-1">
               <label className={`text-[10px] font-black ml-2 uppercase tracking-widest ${!isStaff ? 'text-blue-600' : 'text-slate-400'}`}>WhatsApp {!isStaff ? '(Obrigatório)' : '(Opcional)'}</label>
               <input 

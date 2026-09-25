@@ -3,12 +3,14 @@ import { motion } from 'motion/react';
 import CountUp from '../Shared/CountUp';
 import ReportDetailsModal, { ReportDetailsRow } from './ReportDetailsModal';
 
+interface StudentNameDetail { name: string; detail?: string; source: string }
+
 interface ReportDetails {
-  allStudentNames: string[];
-  individualStudentNames: string[];
-  patientStudentNames: string[];
-  providerStudentNames: string[];
-  adventistStudentNames: string[];
+  allStudentNames: StudentNameDetail[];
+  individualStudentNames: StudentNameDetail[];
+  patientStudentNames: StudentNameDetail[];
+  providerStudentNames: StudentNameDetail[];
+  adventistStudentNames: StudentNameDetail[];
   monthlyBreakdown: { label: string; count: number }[];
   classSessions: { label: string; sector: string; date: string; studentsCount: number }[];
   visitRecords: { label: string; sector: string; date: string }[];
@@ -44,7 +46,13 @@ const formatDate = (iso: string) => {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-const namesToRows = (names: string[]): ReportDetailsRow[] => names.map(n => ({ primary: n }));
+// `detail` já é o setor (Colaborador/Classe) ou o setor/leito (Paciente/Prestador) -- mostrado
+// como segunda linha do card, junto com a origem (Estudo Individual/Classe Bíblica), pra dar
+// pra reconhecer quem é quem sem abrir o cadastro (ajuda quando dois alunos têm nomes iguais).
+const namesToRows = (entries: StudentNameDetail[]): ReportDetailsRow[] => entries.map(e => ({
+  primary: e.name,
+  secondary: [e.detail, e.source].filter(Boolean).join(' • ') || undefined
+}));
 
 // Cada card sabe transformar o `details` cru em linhas prontas pro modal -- centralizado aqui
 // pra não espalhar essa lógica pelos 9 `onClick`.

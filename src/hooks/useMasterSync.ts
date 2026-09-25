@@ -17,7 +17,17 @@ export const useMasterSync = (
   // chama nunca fique com participantId/providerId vazio quando o registro é novo — antes, o
   // id era lido do estado local ANTES desta função criar o registro novo, então a criação
   // acontecia mas o formulário já tinha enviado o registro pai com o id em branco.
-  const syncMasterContact = useCallback(async (name: string, phone: string, unit: Unit, type: ParticipantType, extra?: string): Promise<string | undefined> => {
+  const syncMasterContact = useCallback(async (
+    name: string,
+    phone: string,
+    unit: Unit,
+    type: ParticipantType,
+    extra?: string,
+    // Só usado por PATIENT, pra resolver o "check de identidade" feito no formulário --
+    // ver useBibleStudyForm.ts. `extra` continua carregando o leito/setor atual (`bed`) pra
+    // este tipo, no mesmo slot que já era usado como setor pra PROVIDER.
+    patientIdentity?: { explicitId?: string; forceCreate?: boolean }
+  ): Promise<string | undefined> => {
     const cleanPhone = String(phone || '').replace(/\D/g, '');
     if (!name) return undefined;
 
@@ -42,14 +52,45 @@ export const useMasterSync = (
         }
         return staff?.id;
     } else if (type === ParticipantType.PATIENT) {
+        // `extra` carrega o leito/setor atual digitado agora (ex: "UI 7 - Leito 12") --
+        // guardado em pro_patients.bed só como hint mutável, nunca como identidade rígida.
+        const bed = (extra || '').trim();
+
+        // CASO 1: o capelão já confirmou no formulário "é o mesmo paciente de antes" (ver o
+        // check de identidade em useBibleStudyForm.ts) -- usa o id direto, SEM pesquisar por
+        // nome de novo. Só atualiza o leito se mudou (ex: paciente foi transferido de setor).
+        if (patientIdentity?.explicitId) {
+            const existing = proPatients.find(p => String(p.id) === String(patientIdentity.explicitId));
+            if (existing && bed && bed !== (existing.bed || '')) {
+                await saveRecord('proPatients', { ...existing, bed, updatedAt: Date.now() } as ProPatient);
+            }
+            return String(patientIdentity.explicitId);
+        }
+
+        // CASO 2: o capelão confirmou "NÃO é o mesmo -- é outra pessoa com o mesmo nome" (ex:
+        // paciente teve alta e outro com nome igual ocupou o leito). Cria um cadastro novo
+        // mesmo já existindo alguém com esse nome, em vez de reaproveitar o antigo por engano.
+        if (patientIdentity?.forceCreate) {
+            const payload = { name, unit, whatsapp: isValidWhatsApp(cleanPhone) ? cleanPhone : '', bed, updatedAt: Date.now() } as any;
+            const result = await DataRepository.upsertRecord('proPatients', payload);
+            return result.success && result.data?.[0] ? result.data[0].id : undefined;
+        }
+
+        // CASO 3 (padrão, sem check -- chamadores que ainda não passam pela UI de confirmação):
+        // mesmo comportamento de sempre, casando só por nome+unidade. Só é seguro quando NÃO
+        // existe ambiguidade (nenhum outro paciente com esse nome); o formulário com o check
+        // (Estudo Bíblico Individual) nunca deixa cair aqui quando há mais de um candidato.
         const patient = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
         if (!patient) {
             // pro_patients.id é BIGINT (auto-incremento) — nunca um id gerado no cliente.
             // Insere direto via DataRepository (em vez de saveRecord) para conseguir ler de
             // volta o id real que o Postgres atribuiu, e devolvê-lo a quem chamou.
-            const payload = { name, unit, whatsapp: isValidWhatsApp(cleanPhone) ? cleanPhone : '', updatedAt: Date.now() } as any;
+            const payload = { name, unit, whatsapp: isValidWhatsApp(cleanPhone) ? cleanPhone : '', bed, updatedAt: Date.now() } as any;
             const result = await DataRepository.upsertRecord('proPatients', payload);
             return result.success && result.data?.[0] ? result.data[0].id : undefined;
+        }
+        if (bed && bed !== (patient.bed || '')) {
+            await saveRecord('proPatients', { ...patient, bed, updatedAt: Date.now() } as ProPatient);
         }
         return patient.id;
     } else if (type === ParticipantType.PROVIDER) {

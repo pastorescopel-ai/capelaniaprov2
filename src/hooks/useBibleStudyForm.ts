@@ -34,6 +34,39 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
   const [isSectorLocked, setIsSectorLocked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // CHECK DE IDENTIDADE DO PACIENTE — dois pacientes reais podem ter o mesmo nome; sem isso,
+  // syncMasterContact (useMasterSync.ts) fundia os dois no mesmo cadastro (pro_patients) na
+  // primeira vez que o segundo era citado. Guardado por nome normalizado (não por efeito) pra
+  // nunca "vazar" a confirmação de uma pessoa pra outro nome digitado em seguida — comparar por
+  // nome resolve isso sem precisar resetar manualmente em handleClear/troca de unidade/etc.
+  const [patientChoice, setPatientChoice] = useState<{ normName: string; decision: 'same' | 'new'; patientId?: string } | null>(null);
+
+  // Cadastros de Paciente já existentes com o MESMO nome (mesma unidade) -- se houver 1+, o
+  // capelão precisa confirmar "é o mesmo de antes?" ou "é outra pessoa?" antes de salvar.
+  const patientCandidates = useMemo(() => {
+    if (formData.participantType !== ParticipantType.PATIENT || !formData.name) return [];
+    const normName = normalizeString(formData.name);
+    return proPatients.filter(p => p.unit === unit && normalizeString(p.name) === normName);
+  }, [formData.participantType, formData.name, proPatients, unit]);
+
+  const patientChoiceValid = !!patientChoice && patientChoice.normName === normalizeString(formData.name || '');
+
+  const confirmSamePatient = useCallback((patientId: string) => {
+    const p = proPatients.find(pp => String(pp.id) === String(patientId));
+    setPatientChoice({ normName: normalizeString(formData.name || ''), decision: 'same', patientId: String(patientId) });
+    // Traz o leito já salvo desse cadastro pro campo "Local" -- o capelão só precisa corrigir
+    // se realmente mudou, em vez de redigitar do zero toda vez.
+    if (p?.bed) setFormData(prev => ({ ...prev, location: p.bed || prev.location }));
+  }, [proPatients, formData.name]);
+
+  const confirmNewPatient = useCallback(() => {
+    setPatientChoice({ normName: normalizeString(formData.name || ''), decision: 'new' });
+  }, [formData.name]);
+
+  // Reabre o check (botão "Alterar") -- volta a pedir a confirmação em vez de manter a escolha
+  // anterior, sem precisar apagar/redigitar o nome.
+  const resetPatientChoice = useCallback(() => setPatientChoice(null), []);
+
   useEffect(() => {
     if (!editingItem) {
       setFormData(prev => ({ ...defaultState, userId: currentUser.id, date: prev.date || getToday() }));
@@ -115,10 +148,14 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
             officialSet.add(norm);
             usedNames.add(norm);
             const isMyStudent = personalHistoryNames.has(norm);
-            options.push({ 
-              value: p.name, 
-              label: p.name, 
-              subLabel: "Paciente", 
+            // "(ID)" no rótulo -- igual já funciona pro Colaborador -- torna a escolha
+            // inequívoca quando dois pacientes têm o mesmo nome (a lista sozinha não dava pra
+            // diferenciar duas entradas "Maria Silva" idênticas). O leito aparece no subLabel
+            // pra já ajudar a reconhecer de relance, sem precisar abrir o cadastro.
+            options.push({
+              value: p.name,
+              label: `${p.name} (${p.id})`,
+              subLabel: p.bed ? `Paciente · ${p.bed}` : 'Paciente',
               category: isMyStudent ? "MyStudents" : "RH",
               highlight: isMyStudent
             });
@@ -233,7 +270,8 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     let targetWhatsApp = formData.whatsapp;
     let targetGuide = formData.guide;
     let targetLesson = formData.lesson;
-    let targetStatus = RecordStatus.INICIO; 
+    let targetStatus = RecordStatus.INICIO;
+    let targetLocation = formData.location;
     let lockSector = false;
     const normName = normalizeString(targetName);
 
@@ -272,11 +310,19 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
             lockSector = false;
         }
     } else if (formData.participantType === ParticipantType.PATIENT) {
-        const p = proPatients.find(p => normalizeString(p.name) === normName && p.unit === unit);
+        // Por ID primeiro (rótulo agora sempre traz "(id)") -- inequívoco mesmo quando dois
+        // pacientes têm nomes idênticos, diferente de casar só por nome.
+        let p: any = match ? proPatients.find(pp => String(pp.id) === match[1] && pp.unit === unit) : undefined;
+        if (!p) p = proPatients.find(pp => normalizeString(pp.name) === normName && pp.unit === unit);
         if (p) {
             targetWhatsApp = p.whatsapp ? formatWhatsApp(p.whatsapp) : targetWhatsApp;
             targetParticipantId = p.id;
             targetStaffId = ''; // Clear staffId for non-staff
+            targetLocation = p.bed || targetLocation;
+            // Escolher da lista é inequívoco (id exato) -- confirma "é o mesmo paciente"
+            // automaticamente, sem precisar do check manual (que só aparece quando o nome foi
+            // digitado à mão e bate com alguém já cadastrado).
+            setPatientChoice({ normName, decision: 'same', patientId: String(p.id) });
         }
         lockSector = false;
     } else {
@@ -311,17 +357,18 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         }
     }
 
-    setFormData(prev => ({ 
-        ...prev, 
-        name: targetName, 
-        sector: targetSector || '', 
-        sectorId: targetSectorId || '', 
-        staffId: targetStaffId || '', 
+    setFormData(prev => ({
+        ...prev,
+        name: targetName,
+        sector: targetSector || '',
+        sectorId: targetSectorId || '',
+        staffId: targetStaffId || '',
         participantId: targetParticipantId || '',
-        whatsapp: targetWhatsApp || '', 
-        guide: targetGuide || '', 
-        lesson: targetLesson || '', 
-        status: targetStatus || RecordStatus.INICIO
+        whatsapp: targetWhatsApp || '',
+        guide: targetGuide || '',
+        lesson: targetLesson || '',
+        status: targetStatus || RecordStatus.INICIO,
+        location: targetLocation || ''
     }));
     setIsSectorLocked(lockSector);
     if (lockSector) showToast("Setor vinculado ao cadastro oficial.", "info");
@@ -395,9 +442,29 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         dataToSubmit.sectorId = '';
     }
 
+    // CHECK DE IDENTIDADE DO PACIENTE — se o nome digitado bate com 1+ cadastro já existente,
+    // exige a confirmação explícita (mesmo paciente / outra pessoa) antes de salvar. Sem isso,
+    // syncMasterContact ficaria sem saber se deve reaproveitar o cadastro antigo ou criar um novo.
+    const isPatientWithCandidates = formData.participantType === ParticipantType.PATIENT && patientCandidates.length > 0;
+    if (isPatientWithCandidates && !patientChoiceValid) {
+        showToast("Confirme se é o mesmo paciente já cadastrado ou se é outra pessoa com o mesmo nome (abaixo do nome).", "warning");
+        return;
+    }
+    if (isPatientWithCandidates && patientChoice!.decision === 'new' && !formData.location) {
+        showToast("Informe o setor/leito atual pra diferenciar do cadastro existente.", "warning");
+        return;
+    }
+
     setIsSubmitting(true);
     try {
-      const syncedId = await syncMasterContact(dataToSubmit.name, dataToSubmit.whatsapp, unit, dataToSubmit.participantType!, dataToSubmit.sector);
+      const isPatient = formData.participantType === ParticipantType.PATIENT;
+      // Pra Paciente, o "extra" que vai pro cadastro mestre é o leito/setor (campo "Local"),
+      // não o setor de colaborador -- Paciente não usa formData.sector (fica sempre vazio).
+      const extraForSync = isPatient ? dataToSubmit.location : dataToSubmit.sector;
+      const patientIdentity = isPatient && patientChoiceValid
+        ? (patientChoice!.decision === 'same' ? { explicitId: patientChoice!.patientId } : { forceCreate: true })
+        : undefined;
+      const syncedId = await syncMasterContact(dataToSubmit.name, dataToSubmit.whatsapp, unit, dataToSubmit.participantType!, extraForSync, patientIdentity);
       if (!isStaff && syncedId) dataToSubmit.participantId = syncedId;
       const result = await onSubmit({ ...dataToSubmit, unit, participantType: dataToSubmit.participantType });
       
@@ -427,6 +494,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     isSubmitting,
     guideOptions, sectorOptions, studentOptions,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
+    patientCandidates, patientChoice, patientChoiceValid, confirmSamePatient, confirmNewPatient, resetPatientChoice,
     handleContinueStudy: (item: BibleStudy) => {
         const normName = normalizeString(item.name);
         const lastRecord = [...allHistory]

@@ -154,38 +154,47 @@ export const useReportLogic = (
   }, [filteredData, users]);
 
   const totalStats = useMemo(() => {
-    // Mapas (não Sets) pra guardar tanto a chave de dedupe quanto um nome de exibição --
+    // Mapas (não Sets) pra guardar a chave de dedupe + o que mostrar por trás dela --
     // alimenta os cards clicáveis de Relatórios que abrem a lista de nomes por trás do número.
+    // `detail` é o setor (Colaborador/Classe) ou o setor/leito (Paciente/Prestador, campo
+    // "Local" do formulário) -- ajuda a reconhecer QUEM é quem quando dois alunos têm o mesmo
+    // nome de exibição, sem precisar abrir o cadastro.
     const displayName = (raw: string) => raw.split(' (')[0].trim();
 
-    const allStudents = new Map<string, string>();
-    const individualStudents = new Map<string, string>();
-    const patientStudents = new Map<string, string>();
-    const providerStudents = new Map<string, string>();
-    const adventistStudents = new Map<string, string>();
+    interface StudentEntry { name: string; detail?: string; source: string }
+    const allStudents = new Map<string, StudentEntry>();
+    const individualStudents = new Map<string, StudentEntry>();
+    const patientStudents = new Map<string, StudentEntry>();
+    const providerStudents = new Map<string, StudentEntry>();
+    const adventistStudents = new Map<string, StudentEntry>();
 
-    const addName = (map: Map<string, string>, rawName: string, explicitId?: string | number | null) => {
+    const addName = (map: Map<string, StudentEntry>, rawName: string, detail: string | undefined, source: string, explicitId?: string | number | null) => {
       const key = getStudentKey(rawName, explicitId);
-      if (key) map.set(key, displayName(rawName));
+      if (key) map.set(key, { name: displayName(rawName), detail: detail || undefined, source });
       return key;
     };
 
     filteredData.studies.forEach(s => {
       if (!s.name) return;
       const explicitId = (s as any).staffId || (s as any).participantId;
-      const key = addName(allStudents, s.name, explicitId);
+      // Colaborador tem setor oficial; Paciente/Prestador usam o campo "Local" do formulário
+      // (que agora também guarda leito/setor do paciente, ver useBibleStudyForm.ts).
+      const detail = s.participantType === ParticipantType.STAFF || !s.participantType ? s.sector : (s as any).location;
+      const key = addName(allStudents, s.name, detail, 'Estudo Individual', explicitId);
       if (!key) return;
-      addName(individualStudents, s.name, explicitId);
-      if (s.participantType === ParticipantType.PATIENT) addName(patientStudents, s.name, explicitId);
-      else if (s.participantType === ParticipantType.PROVIDER) addName(providerStudents, s.name, explicitId);
+      addName(individualStudents, s.name, detail, 'Estudo Individual', explicitId);
+      if (s.participantType === ParticipantType.PATIENT) addName(patientStudents, s.name, detail, 'Estudo Individual', explicitId);
+      else if (s.participantType === ParticipantType.PROVIDER) addName(providerStudents, s.name, detail, 'Estudo Individual', explicitId);
     });
     filteredData.classes.forEach(c => {
       if (!Array.isArray(c.students)) return;
+      // Classe Bíblica não tem local por aluno -- usa o setor/guia da turma como referência.
+      const detail = c.sector || c.guide || undefined;
       c.students.forEach(n => {
-        const key = addName(allStudents, n);
+        const key = addName(allStudents, n, detail, 'Classe Bíblica');
         if (!key) return;
-        if (c.participantType === ParticipantType.PATIENT) addName(patientStudents, n);
-        else if (c.participantType === ParticipantType.PROVIDER) addName(providerStudents, n);
+        if (c.participantType === ParticipantType.PATIENT) addName(patientStudents, n, detail, 'Classe Bíblica');
+        else if (c.participantType === ParticipantType.PROVIDER) addName(providerStudents, n, detail, 'Classe Bíblica');
       });
     });
 
@@ -195,11 +204,14 @@ export const useReportLogic = (
     filteredData.classes.forEach(c => {
       (c.adventistStudents || []).forEach(n => {
         adventistAttendances++;
-        addName(adventistStudents, n);
+        addName(adventistStudents, n, c.sector || c.guide || undefined, 'Classe Bíblica');
       });
     });
 
-    const sortedNames = (map: Map<string, string>) => Array.from(map.values()).sort((a, b) => a.localeCompare(b));
+    const sortedNames = (map: Map<string, StudentEntry>) =>
+      Array.from(map.values())
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(e => ({ name: e.name, detail: e.detail, source: e.source }));
 
     return {
       studies: filteredData.studies.length,

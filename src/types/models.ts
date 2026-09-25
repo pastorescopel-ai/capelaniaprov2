@@ -29,6 +29,9 @@ export interface ProPatient {
   name: string;
   unit: Unit;
   whatsapp?: string;
+  // Leito/setor atual (texto livre, ex: "UI 7 - Leito 12") -- hint mutável de identidade, pra
+  // ajudar a diferenciar dois pacientes reais com o mesmo nome. Não é chave rígida.
+  bed?: string;
   lastLesson?: string;
   joinedAt?: number;
   leftAt?: number;

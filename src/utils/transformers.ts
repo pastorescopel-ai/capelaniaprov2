@@ -33,7 +33,7 @@ export const TABLE_SCHEMAS: Record<string, string[]> = {
   app_config: ['id', 'mural_text', 'monthly_team_visit_goal', 'header_line1', 'header_line2', 'header_line3', 'font_size1', 'font_size2', 'font_size3', 'report_logo_width', 'report_logo_x', 'report_logo_y', 'header_line1_x', 'header_line1_y', 'header_line2_x', 'header_line2_y', 'header_line3_x', 'header_line3_y', 'header_padding_top', 'header_text_align', 'primary_color', 'app_logo_url', 'report_logo_url', 'last_modified_by', 'last_modified_at', 'header_profiles', 'created_at', 'updated_at'],
   pro_sectors: ['id', 'name', 'unit', 'active', 'cycle_month', 'created_at', 'updated_at'],
   pro_staff: ['id', 'name', 'sector_id', 'unit', 'whatsapp', 'active', 'left_at', 'cycle_month', 'created_at', 'updated_at'],
-  pro_patients: ['id', 'name', 'unit', 'whatsapp', 'last_lesson', 'created_at', 'updated_at'],
+  pro_patients: ['id', 'name', 'unit', 'whatsapp', 'bed', 'last_lesson', 'created_at', 'updated_at'],
   pro_providers: ['id', 'name', 'unit', 'whatsapp', 'sector', 'created_at', 'updated_at'],
   pro_groups: ['id', 'name', 'current_leader', 'leader_staff_id', 'leader_phone', 'sector_id', 'unit', 'active', 'cycle_month', 'created_at', 'updated_at'],
   pro_group_locations: ['id', 'group_id', 'sector_id', 'unit', 'created_at', 'updated_at'],
