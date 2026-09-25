@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-09-25b",
+    "date": "2026-09-25",
+    "changes": [
+      "Corrigido: editar um Estudo Bíblico já existente de um Paciente ou Prestador e salvar de novo podia perder o vínculo com o cadastro original (participantId), arriscando criar um cadastro duplicado em vez de atualizar o mesmo paciente/prestador."
+    ]
+  },
+  {
     "version": "2026-09-25a",
     "date": "2026-09-25",
     "changes": [
