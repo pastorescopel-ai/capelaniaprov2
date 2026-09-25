@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-09-25d",
+    "date": "2026-09-25",
+    "changes": [
+      "Melhor: o check de identidade do Paciente (Estudo Bíblico Individual) agora compara o WhatsApp digitado com o dos cadastros existentes -- mostra 'Telefone confere' (verde) ou 'Telefone diferente do cadastrado' (alerta) em cada opção. É só uma dica pra decidir mais rápido: o capelão sempre confirma clicando, o telefone nunca decide sozinho."
+    ]
+  },
+  {
     "version": "2026-09-25c",
     "date": "2026-09-25",
     "changes": [

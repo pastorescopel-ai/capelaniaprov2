@@ -166,10 +166,20 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
                         key={p.id}
                         type="button"
                         onClick={() => confirmSamePatient(p.id)}
-                        className="w-full flex items-center justify-between gap-2 p-3 rounded-xl bg-white border border-amber-100 hover:border-emerald-300 hover:bg-emerald-50 transition-all text-left"
+                        className={`w-full flex items-center justify-between gap-2 p-3 rounded-xl bg-white border transition-all text-left ${p.phoneStatus === 'match' ? 'border-emerald-300 ring-1 ring-emerald-200' : 'border-amber-100 hover:border-emerald-300 hover:bg-emerald-50'}`}
                       >
-                        <span className="text-[11px] font-bold text-slate-700">Sim, é {p.name}{p.bed ? ` — ${p.bed}` : ' (sem leito registrado)'}</span>
-                        <i className="fas fa-check text-emerald-500 text-xs"></i>
+                        <span className="text-[11px] font-bold text-slate-700 flex-1 min-w-0">
+                          Sim, é {p.name}{p.bed ? ` — ${p.bed}` : ' (sem leito registrado)'}
+                          {/* Telefone é só uma DICA visual -- nunca decide sozinho, o capelão
+                              sempre precisa clicar pra confirmar, mesmo quando bate. */}
+                          {p.phoneStatus === 'match' && (
+                            <span className="block text-[9px] font-black uppercase text-emerald-600 mt-0.5"><i className="fas fa-check-circle mr-1"></i>Telefone confere</span>
+                          )}
+                          {p.phoneStatus === 'mismatch' && (
+                            <span className="block text-[9px] font-black uppercase text-rose-500 mt-0.5"><i className="fas fa-triangle-exclamation mr-1"></i>Telefone diferente do cadastrado</span>
+                          )}
+                        </span>
+                        <i className="fas fa-check text-emerald-500 text-xs flex-shrink-0"></i>
                       </button>
                     ))}
                   </div>

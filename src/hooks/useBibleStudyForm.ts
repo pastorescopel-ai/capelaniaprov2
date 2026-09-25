@@ -42,12 +42,26 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
   const [patientChoice, setPatientChoice] = useState<{ normName: string; decision: 'same' | 'new'; patientId?: string } | null>(null);
 
   // Cadastros de Paciente já existentes com o MESMO nome (mesma unidade) -- se houver 1+, o
-  // capelão precisa confirmar "é o mesmo de antes?" ou "é outra pessoa?" antes de salvar.
+  // capelão precisa confirmar "é o mesmo de antes?" ou "é outra pessoa?" antes de salvar. Cada
+  // candidato carrega `phoneStatus` (comparando com o WhatsApp já digitado no formulário) só
+  // como DICA visual pro capelão decidir mais rápido -- nunca decide sozinho: mesmo com o
+  // telefone batendo, ainda é preciso confirmar clicando. Nomes iguais com telefones diferentes
+  // acontecem (ex: número digitado errado, como já vimos no caso real de "Socorro"), e números
+  // iguais podem ser de pacientes diferentes (ex: mesmo contato familiar pra 2 internados), então
+  // telefone entra como reforço de confiança, nunca como casamento automático.
   const patientCandidates = useMemo(() => {
     if (formData.participantType !== ParticipantType.PATIENT || !formData.name) return [];
     const normName = normalizeString(formData.name);
-    return proPatients.filter(p => p.unit === unit && normalizeString(p.name) === normName);
-  }, [formData.participantType, formData.name, proPatients, unit]);
+    const typedPhone = String(formData.whatsapp || '').replace(/\D/g, '');
+    return proPatients
+      .filter(p => p.unit === unit && normalizeString(p.name) === normName)
+      .map(p => {
+        const savedPhone = String(p.whatsapp || '').replace(/\D/g, '');
+        const phoneStatus: 'match' | 'mismatch' | 'unknown' =
+          !typedPhone || !savedPhone ? 'unknown' : typedPhone === savedPhone ? 'match' : 'mismatch';
+        return { ...p, phoneStatus };
+      });
+  }, [formData.participantType, formData.name, formData.whatsapp, proPatients, unit]);
 
   const patientChoiceValid = !!patientChoice && patientChoice.normName === normalizeString(formData.name || '');
 
