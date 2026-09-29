@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-09-29b",
+    "date": "2026-09-29",
+    "changes": [
+      "Corrigido (urgente, parte 2): quem ficou PRESO na tela de login com uma versão antiga em cache (de antes do fix do CAPTCHA) nunca conseguia se autoatualizar, porque o verificador de atualização só rodava DEPOIS de logar -- um paradoxo (precisava logar pra resolver o que impedia logar). Agora o verificador roda também na tela de login, aplicando a atualização sozinho em segundos, antes mesmo de tentar entrar."
+    ]
+  },
+  {
     "version": "2026-09-29a",
     "date": "2026-09-29",
     "changes": [

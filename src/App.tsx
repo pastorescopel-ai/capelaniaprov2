@@ -162,7 +162,12 @@ const App: React.FC = () => {
   }
 
   if (!isAuthenticated || !currentUser) {
-    // A splash cobre a tela de login (já montada por trás) até terminar o gif ou ser tocada --
+    // AppUpdateChecker também precisa rodar AQUI, antes do login -- antes só existia depois de
+    // autenticar, então alguém preso na tela de login (com JS antigo em memória, de uma aba
+    // aberta antes de um deploy) nunca tinha chance de se autoatualizar: precisava conseguir
+    // logar pra rodar o verificador que resolveria o problema que estava impedindo o login.
+    // A tela de login roda no MESMO domínio, então o mesmo checker funciona igual aqui.
+    // A. A splash cobre a tela de login (já montada por trás) até terminar o gif ou ser tocada --
     // aparece uma vez por carregamento do app, nunca depois do login em si.
     if (showIntroSplash) {
       return (
@@ -171,10 +176,16 @@ const App: React.FC = () => {
           <AnimatePresence>
             <WelcomeSplash onDone={() => setShowIntroSplash(false)} />
           </AnimatePresence>
+          <AppUpdateChecker config={config} />
         </>
       );
     }
-    return <Login onLogin={login} isSyncing={isSyncing} errorMsg={loginError} isConnected={isConnected} config={config} />;
+    return (
+      <>
+        <Login onLogin={login} isSyncing={isSyncing} errorMsg={loginError} isConnected={isConnected} config={config} />
+        <AppUpdateChecker config={config} />
+      </>
+    );
   }
 
   return (
