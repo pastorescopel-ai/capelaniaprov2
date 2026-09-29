@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-09-29c",
+    "date": "2026-09-29",
+    "changes": [
+      "Melhor: ao escolher uma turma já reconhecida na Classe Bíblica (Paciente/Prestador), o WhatsApp do representante já vem preenchido sozinho com o último cadastrado -- não precisa mais redigitar toda vez que a mesma turma continua."
+    ]
+  },
+  {
     "version": "2026-09-29b",
     "date": "2026-09-29",
     "changes": [

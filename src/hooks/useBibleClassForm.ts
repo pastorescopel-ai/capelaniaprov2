@@ -240,6 +240,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         lesson: agg.latest.record.lesson,
         lastDate: agg.latest.record.date,
         label: agg.latest.record.sector || getClassFallbackLabel(agg.students),
+        // WhatsApp do representante (Paciente/Prestador) não tem coluna própria -- vive dentro
+        // de `observations`, prefixado como "[Rep. WhatsApp: ...]" (mesmo formato que
+        // handleContinueClass já lê). Guardado aqui pra selectTurma poder preencher sozinho.
+        representativePhone: agg.latest.record.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || '',
       }));
   }, [allHistory, unit, formData.userId, formData.participantType, rosterByClassId]);
 
@@ -254,6 +258,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       guide: turma.guide || prev.guide,
       lesson: !isNaN(lastNum) ? (lastNum + 1).toString() : (turma.lesson || prev.lesson),
       status: RecordStatus.CONTINUACAO,
+      // Puxa o WhatsApp do representante já cadastrado (Paciente/Prestador) -- não faz sentido
+      // redigitar toda vez que a mesma turma continua. Só sobrescreve se a turma realmente tiver
+      // um telefone salvo; senão mantém o que já estava no campo.
+      representativePhone: (turma as any).representativePhone || prev.representativePhone,
     }));
     showToast(`Turma carregada: ${turma.label} -- ${turma.students.length} aluno(s) já presentes.`, 'success');
   }, [proSectors, unit, showToast]);
