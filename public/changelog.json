@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-09-29a",
+    "date": "2026-09-29",
+    "changes": [
+      "Corrigido (urgente): login parou de funcionar em produção -- 'Failed to load resource...400' -- mesmo resolvendo a verificação de segurança certinho. O Supabase tem proteção de CAPTCHA própria habilitada, que exige o token do Turnstile na própria chamada de login; o app validava o token só no nosso servidor e nunca repassava pro Supabase, que rejeitava com 'nenhum token de captcha encontrado'. Corrigido em Login/Recuperação de Senha: o token vai direto pro Supabase agora."
+    ]
+  },
+  {
     "version": "2026-09-25d",
     "date": "2026-09-25",
     "changes": [

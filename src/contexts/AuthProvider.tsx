@@ -118,9 +118,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [refreshData]);
 
-  const login = async (email: string, pass: string): Promise<boolean> => {
+  const login = async (email: string, pass: string, captchaToken?: string | null): Promise<boolean> => {
     setLoginError(null);
-    
+
     if (!email || !pass) {
       setLoginError('Preencha todos os campos.');
       return false;
@@ -134,9 +134,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
 
+    // O projeto Supabase tem proteção de CAPTCHA própria habilitada (config do painel, fora
+    // deste repo) -- ela exige `options.captchaToken` em TODA chamada de login por senha,
+    // senão rejeita com 400 "captcha protection: request disallowed (no captcha_token found)".
+    // Antes o Turnstile só era validado no nosso próprio endpoint (/api/verify-turnstile) e o
+    // token nunca chegava até aqui -- por isso o login parava de funcionar em produção mesmo
+    // com o widget resolvido certinho. Repassa o mesmo token do widget pro Supabase verificar.
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
-      password: cleanPass
+      password: cleanPass,
+      options: captchaToken ? { captchaToken } : undefined
     });
 
     if (authData?.user) {
@@ -165,9 +172,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isHashMatch = (inputHash !== "" && inputHash === storedPass);
 
     if (isHashMatch) {
+      // Mesmo CAPTCHA do painel Supabase vale pra signUp e pro signIn de migração abaixo --
+      // sem o token, os dois caem no mesmo 400 "no captcha_token found".
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
-        password: cleanPass
+        password: cleanPass,
+        options: captchaToken ? { captchaToken } : undefined
       });
 
       const finalAuthId = signUpData?.user?.id;
@@ -179,7 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (finalAuthId && !signUpError) {
-         await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPass });
+         await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPass, options: captchaToken ? { captchaToken } : undefined });
       }
 
       setCurrentUser(dbUser);

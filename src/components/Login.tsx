@@ -7,7 +7,7 @@ import { TURNSTILE_SITE_KEY } from '../constants';
 import { supabase } from '../services/supabaseClient';
 
 interface LoginProps {
-  onLogin: (email: string, pass: string) => Promise<boolean>;
+  onLogin: (email: string, pass: string, captchaToken?: string | null) => Promise<boolean>;
   isSyncing: boolean;
   errorMsg: string | null;
   isConnected: boolean;
@@ -114,24 +114,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
     setIsLoading(true);
 
     try {
-      if (TURNSTILE_SITE_KEY && turnstileToken) {
-        const verifyRes = await fetch('/api/verify-turnstile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: turnstileToken }),
-        });
-        const verifyData = await verifyRes.json();
-        if (!verifyData.success) {
-          showToast("Verificação de segurança falhou. Tente novamente.", "error");
-          if (window.turnstile && turnstileWidgetId.current) {
-            window.turnstile.reset(turnstileWidgetId.current);
-          }
-          setTurnstileToken(null);
-          return;
-        }
-      }
-
-      const success = await onLogin(email, password);
+      // O token do Turnstile vai direto pro Supabase Auth (que tem CAPTCHA própria habilitada
+      // no painel do projeto) via AuthProvider.tsx -- NÃO passa mais primeiro pelo nosso
+      // /api/verify-turnstile. Um token do Cloudflare Turnstile só pode ser verificado UMA vez;
+      // gastá-lo aqui fazia o Supabase rejeitar o login logo em seguida com "no captcha_token
+      // found" mesmo com o widget resolvido certinho -- essa era a causa do login parar de
+      // funcionar em produção.
+      const success = await onLogin(email, password, turnstileToken);
       if (success) {
         showToast("Login realizado com sucesso! Bem-vindo.", "success");
       } else if (window.turnstile && turnstileWidgetId.current) {
@@ -159,26 +148,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
 
     setIsLoading(true);
     try {
-      if (TURNSTILE_SITE_KEY && turnstileToken) {
-        const verifyRes = await fetch('/api/verify-turnstile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: turnstileToken }),
-        });
-        const verifyData = await verifyRes.json();
-        if (!verifyData.success) {
-          showToast("Verificação de segurança falhou. Tente novamente.", "error");
-          if (window.turnstile && turnstileWidgetId.current) {
-            window.turnstile.reset(turnstileWidgetId.current);
-          }
-          setTurnstileToken(null);
-          return;
-        }
-      }
-
+      // Mesmo motivo do login (ver handleSubmit): o token vai direto pro Supabase, sem passar
+      // antes pelo nosso /api/verify-turnstile (token do Turnstile é de uso único).
       const { error } = await supabase.auth.resetPasswordForEmail(
         recoveryEmail.toLowerCase().trim(),
-        { redirectTo: window.location.origin + '/set-password' }
+        {
+          redirectTo: window.location.origin + '/set-password',
+          ...(turnstileToken ? { captchaToken: turnstileToken } : {})
+        }
       );
 
       if (error) {

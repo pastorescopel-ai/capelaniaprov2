@@ -4,7 +4,9 @@ import { User } from '../types';
 export interface AuthContextType {
   currentUser: User | null;
   isAuthenticated: boolean;
-  login: (email: string, pass: string) => Promise<boolean>;
+  // captchaToken: repassado direto pro Supabase Auth (options.captchaToken), que tem proteção
+  // de CAPTCHA própria habilitada no projeto -- ver AuthProvider.tsx.
+  login: (email: string, pass: string, captchaToken?: string | null) => Promise<boolean>;
   logout: () => void;
   updateCurrentUser: (user: User) => void;
   loginError: string | null;
