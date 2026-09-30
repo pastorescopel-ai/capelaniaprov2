@@ -138,14 +138,50 @@ export const useAppData = () => {
     }
   }, [saveRecord]);
 
+  // pro_groups/pro_group_members/pro_providers (2026-09-30) passaram a aceitar só LEITURA de
+  // quem não está logado -- nunca mais escrita. A leitura continua liberada de propósito, mas
+  // ainda assim é melhor não gastar essa chamada ANTES de existir uma sessão de verdade: esse
+  // efeito roda fora do AuthProvider (AppProvider engloba o AuthProvider na árvore, então não
+  // tem acesso direto a isAuthenticated -- mesmo motivo do comentário no polling de foco/
+  // visibilidade abaixo), então espera a sessão do Supabase Auth aparecer (restaurada do
+  // armazenamento ao abrir o app já logado, ou de um login que acabou de acontecer) antes de
+  // disparar a carga inicial. A tela de login não depende disso (isAuthLoading, em
+  // AuthProvider.tsx, é independente e resolve rápido sozinho) -- só as telas pós-login, que já
+  // esperam isInitialized mesmo.
   useEffect(() => {
-    if (!isInitialized) {
-      const init = async () => {
-        await loadFromCloud(true);
-        setIsInitialized(true);
-      };
-      init();
+    if (isInitialized) return;
+    let cancelled = false;
+    let unsubscribe: (() => void) | null = null;
+
+    const start = async () => {
+      await loadFromCloud(true);
+      if (!cancelled) setIsInitialized(true);
+    };
+
+    if (!supabase) {
+      // Sem Supabase configurado (modo local/dev sem credenciais) -- não há sessão pra esperar.
+      start();
+      return;
     }
+
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session) { start(); return; }
+
+      const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+        if (newSession) {
+          sub.subscription.unsubscribe();
+          start();
+        }
+      });
+      unsubscribe = () => sub.subscription.unsubscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      if (unsubscribe) unsubscribe();
+    };
   }, [loadFromCloud, isInitialized]);
 
   // Recuperação automática de "Offline" -- se a PRIMEIRA tentativa de carregar falhar (ex: o

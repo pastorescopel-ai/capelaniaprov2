@@ -172,6 +172,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isHashMatch = (inputHash !== "" && inputHash === storedPass);
 
     if (isHashMatch) {
+      // 2026-09-30: este branch só existia pra "logar" quem tem senha antiga (hash local) mas
+      // cujo signInWithPassword de cima (linha ~143) falhou -- e antes disso ele podia acabar
+      // marcando isAuthenticated=true SEM nenhuma sessão real do Supabase ter sido criada (ex:
+      // quando a conta "já existe" no Supabase Auth, o código desistia de tentar logar e só
+      // fingia sucesso). Isso deixava a pessoa vendo a tela normal do app, mas toda chamada ao
+      // banco saía como `anon` -- foi exatamente o que causou o erro "sem permissão... política
+      // de segurança do banco" que apareceu numa Visita Pastoral. Agora `sessionEstablished` só
+      // vira true quando existe MESMO uma sessão -- sem isso, false e loginError, nunca mais
+      // "logado" de mentirinha.
+      let sessionEstablished = false;
+
       // Mesmo CAPTCHA do painel Supabase vale pra signUp e pro signIn de migração abaixo --
       // sem o token, os dois caem no mesmo 400 "no captcha_token found".
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -183,13 +194,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const finalAuthId = signUpData?.user?.id;
 
       if (signUpError && signUpError.message.includes('already registered')) {
-         console.warn("Usuário já existe no Supabase Auth, mas a senha falhou no signIn inicial. Tentando recuperar ID.");
+         // A conta já existe no Supabase Auth (ex: uma migração anterior já criou) -- antes o
+         // código desistia aqui; agora tenta logar de verdade com a senha que a pessoa digitou.
+         const { data: retryData } = await supabase.auth.signInWithPassword({
+           email: cleanEmail,
+           password: cleanPass,
+           options: captchaToken ? { captchaToken } : undefined
+         });
+         if (retryData?.user) {
+           sessionEstablished = true;
+           if (dbUser.authId !== retryData.user.id) {
+             await saveRecord('users', { ...dbUser, authId: retryData.user.id, password: inputHash });
+           }
+         }
       } else if (finalAuthId) {
          await saveRecord('users', { ...dbUser, authId: finalAuthId, password: inputHash });
+         if (!signUpError) {
+           const { data: signInData } = await supabase.auth.signInWithPassword({
+             email: cleanEmail,
+             password: cleanPass,
+             options: captchaToken ? { captchaToken } : undefined
+           });
+           sessionEstablished = !!signInData?.user;
+         }
       }
 
-      if (finalAuthId && !signUpError) {
-         await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPass, options: captchaToken ? { captchaToken } : undefined });
+      if (!sessionEstablished) {
+        setLoginError('Não foi possível confirmar sua sessão. Tente novamente.');
+        return false;
       }
 
       setCurrentUser(dbUser);

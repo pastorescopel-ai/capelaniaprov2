@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-09-30a",
+    "date": "2026-09-30",
+    "changes": [
+      "Segurança (banco compartilhado com Pequenos Grupos/Embaixadores): fechado o acesso sem login em 6 tabelas que aceitavam leitura E escrita de qualquer pessoa na internet (sem nunca ter logado). Confirmado por varredura no código que o Capelania não perde nenhuma função com isso.",
+      "Corrigido: o carregamento inicial de dados de PG (setores/membros/prestadores) agora só começa depois que existe uma sessão de login de verdade -- antes começava antes mesmo da tela de login aparecer.",
+      "Corrigido (segurança): havia uma situação rara em que o app podia mostrar 'logado' na tela sem uma sessão de verdade por trás (toda ação subsequente falharia com erro de permissão) -- era a causa do erro 'sem permissão... política de segurança do banco' visto numa Visita Pastoral. Agora, se a sessão não puder ser confirmada de verdade, o login mostra erro em vez de fingir sucesso."
+    ]
+  },
+  {
     "version": "2026-09-29c",
     "date": "2026-09-29",
     "changes": [
