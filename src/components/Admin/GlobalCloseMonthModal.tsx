@@ -8,10 +8,13 @@ interface GlobalCloseMonthModalProps {
   selectedMonth: string;
   isProcessing: boolean;
   isAlreadyClosed: boolean;
+  // Fim do prazo (5º dia útil do mês seguinte) em que os capelães ainda podem lançar registros do
+  // mês que está sendo fechado. Só vem preenchido enquanto esse prazo AINDA não acabou.
+  gracePeriodEndsAt?: Date | null;
 }
 
 const GlobalCloseMonthModal: React.FC<GlobalCloseMonthModalProps> = ({ 
-  isOpen, onCancel, onConfirm, selectedMonth, isProcessing, isAlreadyClosed 
+  isOpen, onCancel, onConfirm, selectedMonth, isProcessing, isAlreadyClosed, gracePeriodEndsAt 
 }) => {
   if (!isOpen) return null;
 
@@ -35,6 +38,16 @@ const GlobalCloseMonthModal: React.FC<GlobalCloseMonthModalProps> = ({
               ? ' Os dados anteriores serão sobrescritos pelos atuais no histórico.' 
               : ' Isso gravará os indicadores e o histórico individual como definitivos.'}
           </p>
+
+          {gracePeriodEndsAt && (
+            <div className="bg-amber-50 border border-amber-200 rounded-[1.5rem] p-5 mb-6 flex gap-3 items-start">
+              <i className="fas fa-clock text-amber-500 mt-0.5"></i>
+              <p className="text-[11px] text-amber-800 font-bold leading-snug">
+                Ainda dentro do prazo dos capelães: eles podem lançar registros de {monthName} até {gracePeriodEndsAt.toLocaleDateString('pt-BR')}.
+                O ideal é fechar depois dessa data. Se fechar antes, os totais do fechamento continuam sendo atualizados sozinhos a cada novo lançamento do mês, mas o histórico individual de PG fica como está agora.
+              </p>
+            </div>
+          )}
 
           <div className="bg-slate-50 rounded-[2rem] p-6 mb-10 space-y-4 border border-slate-100">
             <div className="flex gap-4 items-start">

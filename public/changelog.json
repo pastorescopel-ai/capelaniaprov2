@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-10-06a",
+    "date": "2026-10-06",
+    "changes": [
+      "Corrigido: o relatório de setembro (mês já fechado, 'dado travado') não mostrava classes, estudos e visitas lançados DEPOIS do fechamento -- HABA aparecia com 0 classes, 0 estudos e 5 visitas em vez de 2, 2 e 15 (e HAB com 115 visitas em vez de 119). O fechamento tinha sido feito antes do prazo dos capelães terminar. Os números de setembro foram recalculados e agora batem com os registros.",
+      "Novo: quando um mês já está fechado e um registro dele é lançado, alterado ou apagado, os totais do fechamento (estudos, classes, visitas, PGs, alunos e números por capelão) se atualizam sozinhos -- o relatório não fica mais defasado.",
+      "Novo: ao fechar o mês antes do fim do prazo dos capelães (5º dia útil do mês seguinte), a tela de fechamento avisa até que dia eles ainda podem lançar."
+    ]
+  },
+  {
     "version": "2026-09-30a",
     "date": "2026-09-30",
     "changes": [

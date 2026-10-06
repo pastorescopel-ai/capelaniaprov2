@@ -6,7 +6,7 @@ import { useApp } from '../../hooks/useApp';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePro } from '../../contexts/ProContext';
 import { useBible } from '../../contexts/BibleContext';
-import { getTimestamp, cleanID, getStudentKey, countUniqueClasses, countUniqueStudents } from '../../utils/formatters';
+import { getTimestamp, cleanID, getStudentKey, countUniqueClasses, countUniqueStudents, getFifthBusinessDay } from '../../utils/formatters';
 import { getValidSectorId } from '../../utils/sectorValidation';
 import { toCamel } from '../../utils/transformers';
 import { DataRepository } from '../../services/dataRepository';
@@ -517,6 +517,14 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
 
   const isMonthClosed = proMonthlyStats?.some(s => s.month === selectedCloseMonth);
 
+  // Mesmo prazo de isRecordLocked (validators.ts): capelão pode lançar registros do mês anterior
+  // até o 5º dia útil do mês corrente. Fechar antes disso era o que deixava o relatório defasado.
+  const gracePeriodEndsAt = useMemo(() => {
+    const d = new Date(selectedCloseMonth + 'T12:00:00');
+    const deadline = getFifthBusinessDay(d.getFullYear(), d.getMonth() + 1);
+    return new Date() <= deadline ? deadline : null;
+  }, [selectedCloseMonth]);
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right duration-500">
       <SyncModal 
@@ -535,6 +543,7 @@ const PGClosing: React.FC<PGClosingProps> = ({ unit }) => {
         selectedMonth={selectedCloseMonth}
         isProcessing={isProcessing}
         isAlreadyClosed={isMonthClosed}
+        gracePeriodEndsAt={gracePeriodEndsAt}
       />
       
       <GlobalReopenMonthModal 
