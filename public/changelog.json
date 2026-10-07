@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-10-07a",
+    "date": "2026-10-07",
+    "changes": [
+      "Corrigido: a tela de login passou a mostrar 'OFFLINE' e o botão 'Entrar Offline' mesmo com o servidor no ar (efeito colateral da blindagem de 30/09, que fez os dados só carregarem depois do login). Agora, antes de entrar, o app só confere se o servidor responde -- volta a mostrar 'Servidor Online' e 'Acessar Sistema'. Nenhum dado é lido antes do login."
+    ]
+  },
+  {
     "version": "2026-10-06a",
     "date": "2026-10-06",
     "changes": [

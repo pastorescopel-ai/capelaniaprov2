@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { User, BibleStudy, BibleClass, SmallGroup, StaffVisit, Config, VisitRequest, ProStaff, ProSector, ProGroup, ProGroupLocation, ProGroupMember, ProGroupProviderMember, ProPatient, ProProvider, ProMonthlyStats, ProHistoryRecord } from '../types';
-import { INITIAL_CONFIG } from '../constants';
+import { INITIAL_CONFIG, SUPABASE_URL, SUPABASE_KEY } from '../constants';
 import { useRealtimeSync } from './useRealtimeSync';
 import { useDataActions } from './useDataActions';
 import { useMasterSync } from './useMasterSync';
@@ -169,13 +169,36 @@ export const useAppData = () => {
       if (cancelled) return;
       if (session) { start(); return; }
 
+      // Sem sessão ainda (tela de login): a carga de dados espera o login, então isConnected
+      // nunca ficava true aqui e a tela mostrava "OFFLINE" / "Entrar Offline" mesmo com o
+      // servidor no ar (regressão de 30/09). Em vez de ler dados, só pergunta ao Supabase se ele
+      // responde -- o /auth/v1/health é público e não toca em nenhuma tabela. Repete a cada 15s
+      // e quando o navegador volta a ficar online, até o login acontecer.
+      const checkReachable = async () => {
+        if (cancelled) return;
+        try {
+          const res = await fetch(`${SUPABASE_URL}/auth/v1/health`, { headers: { apikey: SUPABASE_KEY } });
+          if (!cancelled) setIsConnected(res.ok);
+        } catch {
+          if (!cancelled) setIsConnected(false);
+        }
+      };
+      checkReachable();
+      const healthInterval = setInterval(checkReachable, 15000);
+      window.addEventListener('online', checkReachable);
+      const stopHealth = () => {
+        clearInterval(healthInterval);
+        window.removeEventListener('online', checkReachable);
+      };
+
       const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
         if (newSession) {
           sub.subscription.unsubscribe();
+          stopHealth();
           start();
         }
       });
-      unsubscribe = () => sub.subscription.unsubscribe();
+      unsubscribe = () => { sub.subscription.unsubscribe(); stopHealth(); };
     })();
 
     return () => {
