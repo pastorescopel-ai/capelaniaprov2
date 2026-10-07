@@ -16,6 +16,7 @@ import { useAuth } from './contexts/AuthContext';
 import { useAppFlow } from './hooks/useAppFlow';
 import { useDataQualitySignal } from './hooks/useDataQualitySignal';
 import { AppUpdateChecker } from './components/AppUpdateChecker';
+import PushFeedback from './components/PushFeedback';
 
 import { ensureISODate } from './utils/formatters';
 
@@ -274,6 +275,9 @@ const App: React.FC = () => {
 
         {/* Verificador de Atualizações em Tempo Real */}
         <AppUpdateChecker config={config} />
+
+        {/* Som + aviso na tela quando um lembrete chega com o app aberto; zera o número do ícone */}
+        <PushFeedback />
 
       </div>
     </Layout>

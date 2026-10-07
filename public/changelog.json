@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026-10-07b",
+    "date": "2026-10-07",
+    "changes": [
+      "Novo: lembretes mais fortes. O aviso agora vibra num padrão marcante (Android), substitui o anterior em vez de empilhar, e o das 18h virou o 'lembrete final': se você ainda não registrou nenhuma atividade no dia, ele vem firme (vibração longa e fica na tela até você tocar). O aviso de visita de PG (30 min antes) também é firme.",
+      "Novo: número no ícone do app (Android e iPhone com o app instalado) mostrando visitas de PG pendentes e se faltam registros no dia; some quando você abre o app.",
+      "Novo: som dentro do app. Com o app aberto, quando um lembrete chega toca um sino e aparece o aviso na tela. Dá pra desligar ou testar o som em Perfil > Lembrete Diário. (Com o app fechado vale o som padrão do celular -- o navegador não deixa o site escolher o som da notificação.)"
+    ]
+  },
+  {
     "version": "2026-10-07a",
     "date": "2026-10-07",
     "changes": [

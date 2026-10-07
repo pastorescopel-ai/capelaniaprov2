@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useToast } from '../contexts/ToastContext';
+import { isNotificationSoundEnabled, setNotificationSoundEnabled, playNotificationChime, unlockNotificationAudio } from '../utils/notificationSound';
 
 // Card de ativação do lembrete diário (push, 12h e 18h). Mostrado na tela de Perfil. No
 // iPhone/iPad só aparece disponível se o app já foi instalado na tela de início -- é regra
@@ -14,6 +15,7 @@ const NotificationSettings: React.FC = () => {
   // navegador. Isso não é um bug do app; um toast que some em poucos segundos não dá tempo
   // de ler o passo a passo, então esse aviso fica fixo na tela até a pessoa fechar.
   const [showUnblockHelp, setShowUnblockHelp] = useState(false);
+  const [soundOn, setSoundOn] = useState(isNotificationSoundEnabled());
 
   const isIOSNotStandalone = typeof window !== 'undefined'
     && /iphone|ipad|ipod/i.test(navigator.userAgent)
@@ -41,7 +43,7 @@ const NotificationSettings: React.FC = () => {
         <i className="fas fa-bell text-blue-600"></i> Lembrete Diário
       </h3>
       <p className="text-[10px] font-bold text-slate-400 uppercase leading-relaxed">
-        Receba um aviso às 12h e às 18h lembrando de registrar suas atividades do dia (e avisando de visitas pendentes de confirmação).
+        Receba um aviso às 12h e às 18h lembrando de registrar suas atividades do dia (e avisando de visitas pendentes de confirmação). O aviso das 18h é o lembrete final: se você ainda não registrou nada no dia, ele vem mais firme (vibração longa e fica na tela até você tocar). Em dias úteis.
       </p>
 
       {!isSupported && !isIOSNotStandalone && (
@@ -79,6 +81,33 @@ const NotificationSettings: React.FC = () => {
           </p>
         </div>
       )}
+
+      {/* Som dentro do app: só toca com o app aberto (com o app fechado vale o som padrão do celular,
+          que o navegador não deixa o site escolher). */}
+      <div className="flex items-center justify-between gap-4 bg-slate-50 rounded-2xl p-4">
+        <div>
+          <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Som dentro do app</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase leading-relaxed mt-1">Toca um sino quando o lembrete chega com o app aberto.</p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={async () => { await unlockNotificationAudio(); const ok = await playNotificationChime(false); if (!ok) showToast('O navegador bloqueou o som. Toque na tela e tente de novo.', 'warning'); }}
+            className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-[9px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-100 active:scale-95"
+          >
+            <i className="fas fa-volume-up mr-1"></i> Testar
+          </button>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={soundOn}
+            onClick={() => { const next = !soundOn; setSoundOn(next); setNotificationSoundEnabled(next); }}
+            className={`w-12 h-7 rounded-full relative transition-colors ${soundOn ? 'bg-emerald-500' : 'bg-slate-300'}`}
+          >
+            <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-all ${soundOn ? 'left-6' : 'left-1'}`}></span>
+          </button>
+        </div>
+      </div>
 
       {isSupported && (
         <button

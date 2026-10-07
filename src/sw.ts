@@ -39,8 +39,26 @@ registerRoute(
 // Lembrete diário (12h/18h, disparado pela Edge Function send-daily-reminders via pg_cron) --
 // esse listener é o que efetivamente mostra a notificação do sistema quando o push chega,
 // mesmo com o app fechado.
+// Campos extras do payload (enviados pelas Edge Functions send-daily-reminders/send-visit-reminders):
+//   type      'daily' | 'visit'  -- tipo do aviso
+//   urgency   'normal' | 'firm'  -- 'firm' = vibração longa e a notificação fica na tela até tocar
+//   tag       substitui o aviso anterior de mesma tag em vez de empilhar (e toca/vibra de novo)
+//   badgeCount  número no ícone do app (0 limpa)
+interface PushPayload {
+  title?: string;
+  body?: string;
+  url?: string;
+  type?: string;
+  urgency?: 'normal' | 'firm';
+  tag?: string;
+  badgeCount?: number;
+}
+
+const VIBRATE_NORMAL = [200, 100, 200];
+const VIBRATE_FIRM = [500, 150, 500, 150, 500, 150, 700];
+
 self.addEventListener('push', (event: PushEvent) => {
-  let data: { title?: string; body?: string; url?: string } = {};
+  let data: PushPayload = {};
   try {
     data = event.data ? event.data.json() : {};
   } catch {
@@ -48,14 +66,54 @@ self.addEventListener('push', (event: PushEvent) => {
   }
 
   const title = data.title || 'Capelania Pro';
-  const options: NotificationOptions = {
-    body: data.body || 'Você tem novidades no Capelania Pro.',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    data: { url: data.url || '/' }
-  };
+  const body = data.body || 'Você tem novidades no Capelania Pro.';
+  const strong = data.urgency === 'firm' || data.type === 'visit';
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil((async () => {
+    // O app está aberto e visível? Então quem toca o som é a própria página (um sinozinho nosso,
+    // ver src/components/PushFeedback.tsx) e a notificação do sistema sai SILENCIOSA, pra não tocar
+    // dois sons ao mesmo tempo. Com o app fechado/em segundo plano, vale o som padrão do aparelho --
+    // navegador nenhum deixa um site escolher o som de uma notificação push.
+    const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const visibleClients = allClients.filter(c => (c as WindowClient).visibilityState === 'visible');
+
+    const options: any = {
+      body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: { url: data.url || '/' },
+      // `tag` obrigatória quando renotify=true: um aviso novo troca o anterior e ainda alerta de novo.
+      tag: data.tag || 'capelania-pro',
+      renotify: true,
+      // No computador, a notificação "firme" não some sozinha até a pessoa tocar/fechar.
+      requireInteraction: strong,
+      // Vibração só no Android (iPhone ignora). Firme = padrão longo e marcante.
+      vibrate: strong ? VIBRATE_FIRM : VIBRATE_NORMAL,
+      silent: visibleClients.length > 0
+    };
+
+    await self.registration.showNotification(title, options);
+
+    // Número no ícone do app instalado (Android Chrome e iPhone 16.4+ com o app na tela de início).
+    if (typeof data.badgeCount === 'number') {
+      try {
+        const nav: any = self.navigator;
+        if (data.badgeCount > 0) await nav.setAppBadge?.(data.badgeCount);
+        else await nav.clearAppBadge?.();
+      } catch {
+        // sem suporte: tudo bem, é só um reforço
+      }
+    }
+
+    // Avisa as abas visíveis pra tocarem o som e mostrarem o aviso dentro do app.
+    visibleClients.forEach(c => c.postMessage({
+      type: 'PUSH_RECEIVED',
+      title,
+      body,
+      kind: data.type || 'generic',
+      urgency: data.urgency || 'normal'
+    }));
+  })());
 });
 
 // Tocar na notificação foca uma aba já aberta do app, ou abre uma nova.
