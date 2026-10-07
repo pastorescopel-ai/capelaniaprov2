@@ -15,6 +15,7 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected, config }) => {
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -47,6 +48,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, isSyncing, errorMsg, isConnected
     if (!TURNSTILE_SITE_KEY || !turnstileContainerRef.current) return;
 
     let cancelled = false;
+
+    // Dev mode: bypass Turnstile in localhost (security: localhost-only)
+    if (isDev) {
+      console.log('🔧 Dev mode (Capelania Pro): Turnstile disabled for testing');
+      if (turnstileContainerRef.current) {
+        turnstileContainerRef.current.innerHTML =
+          '<div style="border: 2px dashed #ffc107; border-radius: 4px; padding: 12px; background: #fff3cd; font-size: 0.85em; color: #856404; font-weight: 500;">' +
+          '✓ Modo Desenvolvimento (Turnstile desabilitado)' +
+          '</div>';
+      }
+      setTurnstileToken('dev-token-capelania-pro-' + Date.now());
+      return;
+    }
+
     setTurnstileToken(null);
 
     const renderWidget = () => {

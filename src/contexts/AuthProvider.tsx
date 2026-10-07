@@ -134,6 +134,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
 
+    // Dev mode security: accept dev tokens in localhost only
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isDev && captchaToken?.startsWith('dev-token-')) {
+      console.log('🔧 Dev mode (AuthProvider): Captcha verification skipped for dev token');
+      // Pula a verificação do Supabase para dev tokens
+      captchaToken = undefined;
+    }
+
     // O projeto Supabase tem proteção de CAPTCHA própria habilitada (config do painel, fora
     // deste repo) -- ela exige `options.captchaToken` em TODA chamada de login por senha,
     // senão rejeita com 400 "captcha protection: request disallowed (no captcha_token found)".
