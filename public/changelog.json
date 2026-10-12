@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-10-11c",
+    "date": "2026-10-11",
+    "changes": [
+      "Classe Bíblica: voltaram em cinza as sugestões de colaboradores ativos do setor (pra matricular alguém novo ou achar o nome mais rápido). Ordem: presentes, depois os matriculados que faltaram, depois o restante do setor. O botão 'Adicionar todos' continua adicionando só os alunos já matriculados na turma. Desligados, férias e afastados continuam fora."
+    ]
+  },
+  {
     "version": "2026-10-11b",
     "date": "2026-10-11",
     "changes": [

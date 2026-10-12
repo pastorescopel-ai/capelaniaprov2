@@ -47,7 +47,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     formData, setFormData,
     newStudent, setNewStudent,
     isSubmitting, isLinkingClass,
-    callList,
+    callList, classRoster,
     recognizedTurmas, selectTurma,
     pasteText, setPasteText, showPasteList, setShowPasteList,
     pasteMatches, processPasteList, updatePasteMatch, commitPasteMatches, pastePendingCount, pasteDirectory,
@@ -288,14 +288,14 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
             {/* Atalho de continuidade: some quando não há mais ninguém da turma reconhecida
                 pra adicionar de uma vez (turma nova, ou já todo mundo presente). */}
-            {callList.length > formData.students.length && (
+            {classRoster.filter(n => !formData.students.includes(n)).length > 0 && (
               <button
                 type="button"
                 onClick={addAllFromLastClass}
                 className="mt-2 w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-indigo-50 text-indigo-700 font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 active:scale-[0.99] transition-all"
               >
                 <i className="fas fa-user-plus"></i>
-                Adicionar todos os {callList.length - formData.students.length} alunos da última turma
+                Adicionar todos os {classRoster.filter(n => !formData.students.includes(n)).length} alunos da última turma
               </button>
             )}
 

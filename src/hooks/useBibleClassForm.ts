@@ -144,23 +144,40 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     return Array.from(names);
   }, [formData.students, allHistory, unit, formData.participantType, formData.userId]);
 
+  // Colaboradores ATIVOS do setor escolhido: ficam em cinza na chamada só como sugestão pra
+  // matricular alguém novo (ou achar o nome mais rápido). Inativos (desligado/férias/afastado)
+  // nunca entram.
+  const sectorStaff = useMemo(() => {
+    if (!formData.sector || !unit || formData.participantType !== ParticipantType.STAFF) return [];
+    const sectorObj = proSectors.find(s => s.name === formData.sector && s.unit === unit);
+    if (!sectorObj) return [];
+    return proStaff
+      .filter(s => s.sectorId === sectorObj.id && s.active !== false)
+      .map(s => `${s.name} (${String(s.id).split('-')[1] || s.id})`);
+  }, [formData.sector, proSectors, proStaff, unit, formData.participantType]);
+
+  // Alunos já matriculados na turma (último encontro + colegas ligados), só ativos.
+  const classRoster = useMemo(
+    () => Array.from(new Set([...lastClassStudents, ...linkedClassmates])).filter(s => !isInactiveStaff(s)),
+    [lastClassStudents, linkedClassmates, isInactiveStaff]
+  );
+
+  // Ordem: presentes (verde) > matriculados que faltaram (cinza) > demais do setor (cinza, A-Z).
   const callList = useMemo(() => {
     const present = formData.students;
-    // Só quem já foi cadastrado na turma (último encontro + colegas ligados). Os colaboradores do
-    // setor NÃO entram aqui: setor com 80+ pessoas poluía a chamada. Aluno novo entra pela busca.
-    const potential = Array.from(new Set([...lastClassStudents, ...linkedClassmates])).filter(s => !isInactiveStaff(s));
-    const absent = potential.filter(s => !present.includes(s));
-    
-    absent.sort((a, b) => {
+    const rosterSet = new Set(classRoster);
+    const rosterAbsent = classRoster.filter(s => !present.includes(s)).sort((a, b) => {
       const aInLast = lastClassStudents.includes(a);
       const bInLast = lastClassStudents.includes(b);
       if (aInLast && !bInLast) return -1;
       if (!aInLast && bInLast) return 1;
       return a.localeCompare(b);
     });
-
-    return [...present, ...absent];
-  }, [formData.students, lastClassStudents, linkedClassmates, isInactiveStaff]);
+    const sectorOthers = sectorStaff
+      .filter(s => !present.includes(s) && !rosterSet.has(s))
+      .sort((a, b) => a.localeCompare(b));
+    return [...present, ...rosterAbsent, ...sectorOthers];
+  }, [formData.students, classRoster, lastClassStudents, sectorStaff]);
 
   // Seletor "Escolha a turma" -- em vez de precisar buscar UM aluno pra "adivinhar" a turma,
   // lista as turmas já reconhecidas (mesma regra de agrupamento de countUniqueClasses: com
@@ -777,7 +794,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
   // puxa guia/lição/status/telefone da classe mais recente ligada a esses alunos, igual o
   // addStudent faz pra 1 aluno, só que aplicado pra lista inteira numa passada só.
   const addAllFromLastClass = () => {
-    const toAdd = callList.filter(s => !formData.students.includes(s));
+    const toAdd = classRoster.filter(s => !formData.students.includes(s));
     if (toAdd.length === 0) {
       showToast('Não há mais alunos da turma anterior pra adicionar.', 'info');
       return;
@@ -993,7 +1010,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     formData, setFormData,
     newStudent, setNewStudent,
     isSubmitting, isLinkingClass,
-    lastClassStudents, callList,
+    lastClassStudents, callList, classRoster,
     recognizedTurmas, selectTurma,
     pasteText, setPasteText, showPasteList, setShowPasteList,
     pasteMatches, processPasteList, updatePasteMatch, commitPasteMatches, pastePendingCount,
