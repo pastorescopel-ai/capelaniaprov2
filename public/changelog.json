@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-10-11a",
+    "date": "2026-10-11",
+    "changes": [
+      "Corrigido: na Classe Bíblica, a chamada agora mostra só os alunos cadastrados na turma (os colaboradores do setor deixaram de aparecer). Ao escolher a turma, entra a lista do último encontro lançado: quem entrou aparece a partir do lançamento seguinte e quem saiu deixa de aparecer. Aluno novo é adicionado pela busca."
+    ]
+  },
+  {
     "version": "2026-10-07b",
     "date": "2026-10-07",
     "changes": [

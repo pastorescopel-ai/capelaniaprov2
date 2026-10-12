@@ -114,18 +114,9 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     return lastClass?.students || [];
   }, [formData.sector, allHistory, unit, formData.participantType]);
 
-  const sectorStaff = useMemo(() => {
-    if (!formData.sector || !unit || formData.participantType !== ParticipantType.STAFF) return [];
-    const sectorObj = proSectors.find(s => s.name === formData.sector && s.unit === unit);
-    if (!sectorObj) return [];
-    return proStaff
-      .filter(s => s.sectorId === sectorObj.id && s.active)
-      .map(s => `${s.name} (${String(s.id).split('-')[1] || s.id})`);
-  }, [formData.sector, proSectors, proStaff, unit, formData.participantType]);
-
   // A turma não é mais amarrada ao setor: assim que QUALQUER aluno já presente é reconhecido,
   // busca a última classe em que ele apareceu e traz os colegas dela pra lista de chamada — o
-  // setor continua existindo só como atalho de busca (sectorStaff acima), não como obrigação.
+  // setor continua existindo só como atalho de busca, não como obrigação.
   // Só considera turmas do CAPELÃO SELECIONADO acima (formData.userId) -- um admin trocando de
   // capelão não deve ver nem herdar alunos de turmas de outro capelão.
   const linkedClassmates = useMemo(() => {
@@ -147,7 +138,9 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
 
   const callList = useMemo(() => {
     const present = formData.students;
-    const potential = Array.from(new Set([...lastClassStudents, ...sectorStaff, ...linkedClassmates]));
+    // Só quem já foi cadastrado na turma (último encontro + colegas ligados). Os colaboradores do
+    // setor NÃO entram aqui: setor com 80+ pessoas poluía a chamada. Aluno novo entra pela busca.
+    const potential = Array.from(new Set([...lastClassStudents, ...linkedClassmates]));
     const absent = potential.filter(s => !present.includes(s));
     
     absent.sort((a, b) => {
@@ -159,7 +152,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     });
 
     return [...present, ...absent];
-  }, [formData.students, lastClassStudents, sectorStaff, linkedClassmates]);
+  }, [formData.students, lastClassStudents, linkedClassmates]);
 
   // Seletor "Escolha a turma" -- em vez de precisar buscar UM aluno pra "adivinhar" a turma,
   // lista as turmas já reconhecidas (mesma regra de agrupamento de countUniqueClasses: com
@@ -191,17 +184,18 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       .filter(x => x.students.length > 0);
 
     // Agrupa por getClassGroupKey (mesma regra de countUniqueClasses): turma COM setor = o
-    // setor inteiro (todos os encontros são a mesma turma, a presença varia); SEM setor = o
-    // conjunto exato de alunos. O roster do card é a UNIÃO de todo mundo que já participou
-    // daquela turma -- o capelão marca quem veio hoje.
+    // setor inteiro (todos os encontros são a mesma turma); SEM setor = o conjunto exato de
+    // alunos. O roster do card é o do ÚLTIMO encontro lançado: quem entrou aparece a partir do
+    // próximo lançamento e quem saiu deixa de aparecer (o capelão ainda marca quem veio hoje).
     interface TurmaAgg {
       key: string;
       latest: (typeof withRoster)[number];
-      students: string[];
-      studentKeys: Set<string>;
-      adventistStudents: string[];
-      adventistKeys: Set<string>;
     }
+    const isNewer = (a: (typeof withRoster)[number], b: (typeof withRoster)[number]) => {
+      const dateDiff = new Date(a.record.date).getTime() - new Date(b.record.date).getTime();
+      if (dateDiff !== 0) return dateDiff > 0;
+      return (a.record.createdAt || 0) > (b.record.createdAt || 0);
+    };
     const byKey = new Map<string, TurmaAgg>();
     withRoster.forEach(x => {
       const key = getClassGroupKey({
@@ -212,20 +206,9 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         participantType: x.record.participantType || ParticipantType.STAFF,
       });
       if (!key) return;
-      let agg = byKey.get(key);
-      if (!agg) {
-        agg = { key, latest: x, students: [], studentKeys: new Set(), adventistStudents: [], adventistKeys: new Set() };
-        byKey.set(key, agg);
-      }
-      if (new Date(x.record.date).getTime() > new Date(agg.latest.record.date).getTime()) agg.latest = x;
-      x.students.forEach(s => {
-        const k = getStudentKey(s);
-        if (k && !agg!.studentKeys.has(k)) { agg!.studentKeys.add(k); agg!.students.push(s); }
-      });
-      x.adventistStudents.forEach(s => {
-        const k = getStudentKey(s);
-        if (k && !agg!.adventistKeys.has(k)) { agg!.adventistKeys.add(k); agg!.adventistStudents.push(s); }
-      });
+      const agg = byKey.get(key);
+      if (!agg) byKey.set(key, { key, latest: x });
+      else if (isNewer(x, agg.latest)) agg.latest = x;
     });
 
     return Array.from(byKey.values())
@@ -234,12 +217,12 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         signature: agg.key,
         sector: agg.latest.record.sector || '',
         sectorId: (agg.latest.record as any).sectorId || '',
-        students: agg.students,
-        adventistStudents: agg.adventistStudents.filter(a => agg.students.includes(a)),
+        students: agg.latest.students,
+        adventistStudents: agg.latest.adventistStudents.filter(a => agg.latest.students.includes(a)),
         guide: agg.latest.record.guide,
         lesson: agg.latest.record.lesson,
         lastDate: agg.latest.record.date,
-        label: agg.latest.record.sector || getClassFallbackLabel(agg.students),
+        label: agg.latest.record.sector || getClassFallbackLabel(agg.latest.students),
         // WhatsApp do representante (Paciente/Prestador) não tem coluna própria -- vive dentro
         // de `observations`, prefixado como "[Rep. WhatsApp: ...]" (mesmo formato que
         // handleContinueClass já lê). Guardado aqui pra selectTurma poder preencher sozinho.
