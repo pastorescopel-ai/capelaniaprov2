@@ -1,5 +1,15 @@
 [
   {
+    "version": "2026-10-11h",
+    "date": "2026-10-11",
+    "changes": [
+      "Novo: aviso de lançamento repetido. Se você já lançou hoje a mesma turma, o mesmo aluno, a mesma visita ou o mesmo PG, o formulário avisa e oferece 'Editar o de hoje' ou 'Lançar outro mesmo assim' (vale para Estudo Bíblico, Classe Bíblica, Visita e Pequeno Grupo).",
+      "Novo: rascunho automático nos quatro formulários. O que você estava preenchendo fica guardado no aparelho; se a internet cair ou você sair da tela, ao voltar aparece 'Continuar de onde parou' ou 'Descartar'. Some sozinho ao salvar ou limpar.",
+      "Novo: confirmação de leito no Estudo Bíblico de paciente. Ao confirmar que é o mesmo paciente, o app pergunta se continua no leito cadastrado ou se mudou de leito (e pede o novo leito), mantendo o mesmo cadastro.",
+      "Novo: resumo da chamada na Classe Bíblica (presentes, faltaram, adventistas, e botão 'Todos presentes'). Dá pra esconder no X e mostrar de novo em 'Mostrar resumo da chamada'."
+    ]
+  },
+  {
     "version": "2026-10-11g",
     "date": "2026-10-11",
     "changes": [

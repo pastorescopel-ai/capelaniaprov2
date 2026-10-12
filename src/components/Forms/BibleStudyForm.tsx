@@ -8,10 +8,14 @@ import HistorySection from '../Shared/HistorySection';
 import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
 import MonthComparisonBars from '../Shared/MonthComparisonBars';
-import { formatWhatsApp, countUniqueStudents, getUniqueStudentLabels } from '../../utils/formatters';
+import { formatWhatsApp, countUniqueStudents, getUniqueStudentLabels, normalizeString } from '../../utils/formatters';
 import { isRecordLocked } from '../../utils/validators';
 import { useBibleStudyForm } from '../../hooks/useBibleStudyForm';
 import { useMonthComparison } from '../../hooks/useMonthComparison';
+import FormDraftBanner from '../Shared/FormDraftBanner';
+import DuplicateNotice from '../Shared/DuplicateNotice';
+import { useFormDraft } from '../../hooks/useFormDraft';
+import { useSameDayDuplicate, sameDay, mergeById } from '../../hooks/useSameDayDuplicate';
 
 interface FormProps {
   unit: Unit;
@@ -35,9 +39,23 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     isSubmitting,
     guideOptions, sectorOptions, studentOptions,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
-    handleContinueStudy,
-    patientCandidates, patientChoice, patientChoiceValid, confirmSamePatient, confirmNewPatient, resetPatientChoice
+    handleContinueStudy, defaultState,
+    patientCandidates, patientChoice, patientChoiceValid, confirmSamePatient, confirmNewPatient, resetPatientChoice,
+    savedBed, bedDecision, confirmBedSame, confirmBedMoved
   } = useBibleStudyForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
+
+  const { draft, restoreDraft, discardDraft } = useFormDraft({
+    storageKey: `capelania_draft_v1_study_${currentUser.id}_${unit}`,
+    formData, defaultState, setFormData: setFormData as any, enabled: !editingItem, isActive: isActive ?? true,
+  });
+  const { duplicate, dismiss: dismissDuplicate } = useSameDayDuplicate<BibleStudy>(
+    mergeById(allHistory, history),
+    r => r.userId === formData.userId && r.unit === unit && sameDay(r.date, formData.date) &&
+      (r.participantType || ParticipantType.STAFF) === formData.participantType &&
+      normalizeString(r.name) === normalizeString(formData.name),
+    !editingItem && !!formData.name.trim(),
+    [formData.userId, formData.date, formData.name, formData.participantType, unit]
+  );
 
   // countUniqueStudents: "Estudos este mês" conta ALUNOS ÚNICOS, não sessões -- dar 3 estudos
   // pro mesmo aluno no mês conta como 1, a pedido do usuário (mesma regra em todo o app agora).
@@ -91,6 +109,7 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
         compareWidget={<MonthComparisonBars label="Alunos" color="#3b82f6" {...monthComparison} curNames={curStudyNames} prevNames={prevStudyNames} itemLabel="alunos" />}
       >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
+        {draft && <FormDraftBanner savedAt={draft.savedAt} onRestore={restoreDraft} onDiscard={discardDraft} />}
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
           {isAdmin && (
             <div className="space-y-1 md:col-span-2">
@@ -170,8 +189,6 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
                       >
                         <span className="text-[11px] font-bold text-slate-700 flex-1 min-w-0">
                           Sim, é {p.name}{p.bed ? ` — ${p.bed}` : ' (sem leito registrado)'}
-                          {/* Telefone é só uma DICA visual -- nunca decide sozinho, o capelão
-                              sempre precisa clicar pra confirmar, mesmo quando bate. */}
                           {p.phoneStatus === 'match' && (
                             <span className="block text-[9px] font-black uppercase text-emerald-600 mt-0.5"><i className="fas fa-check-circle mr-1"></i>Telefone confere</span>
                           )}
@@ -188,9 +205,41 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
                     onClick={confirmNewPatient}
                     className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-white border-2 border-dashed border-amber-200 hover:border-amber-400 text-amber-600 transition-all text-[10px] font-black uppercase tracking-wide"
                   >
-                    <i className="fas fa-user-plus"></i> Não, é outra pessoa (mudou de leito / teve alta)
+                    <i className="fas fa-user-plus"></i> Não, é outra pessoa com o mesmo nome (o anterior teve alta)
                   </button>
                 </div>
+              )}
+
+              {/* CONFIRMAÇÃO DE LEITO -- mesmo paciente: continua no leito cadastrado ou mudou? */}
+              {patientChoiceValid && patientChoice!.decision === 'same' && savedBed && (
+                bedDecision && bedDecision.decision === 'same' ? (
+                  <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-100">
+                    <span className="text-[10px] font-black uppercase tracking-wide text-emerald-700 truncate"><i className="fas fa-bed mr-1.5"></i>Continua no leito {savedBed}</span>
+                    <button type="button" onClick={confirmBedMoved} className="text-[9px] font-black uppercase text-slate-400 hover:text-slate-600 flex-shrink-0">Mudou de leito</button>
+                  </div>
+                ) : bedDecision && bedDecision.decision === 'moved' ? (
+                  <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[10px] font-black uppercase tracking-wide text-sky-800"><i className="fas fa-bed mr-1.5"></i>Mudou de leito (antes: {savedBed})</span>
+                      <button type="button" onClick={confirmBedSame} className="text-[9px] font-black uppercase text-slate-400 hover:text-slate-600 flex-shrink-0">Continua no mesmo</button>
+                    </div>
+                    <input
+                      type="text"
+                      value={formData.location || ''}
+                      onChange={e => setFormData({ ...formData, location: e.target.value })}
+                      placeholder="Novo leito / setor"
+                      className="w-full p-3 rounded-xl bg-white border border-sky-200 font-bold text-sm focus:ring-2 focus:ring-sky-300/40 outline-none"
+                    />
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-sky-50 border border-sky-200 space-y-3">
+                    <p className="text-[10px] font-black text-sky-800 uppercase tracking-widest flex items-center gap-1.5"><i className="fas fa-bed"></i> Leito cadastrado: {savedBed} — o paciente continua nele?</p>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={confirmBedSame} className="flex-1 p-3 rounded-xl bg-white border border-sky-200 hover:bg-sky-100 text-sky-800 text-[10px] font-black uppercase tracking-wide transition-all">Sim, mesmo leito</button>
+                      <button type="button" onClick={confirmBedMoved} className="flex-1 p-3 rounded-xl bg-white border border-sky-200 hover:bg-sky-100 text-sky-800 text-[10px] font-black uppercase tracking-wide transition-all">Mudou de leito</button>
+                    </div>
+                  </div>
+                )
               )}
             </div>
           )}
@@ -221,6 +270,15 @@ const BibleStudyForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           }} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-black text-sm focus:ring-2 focus:ring-blue-500/20 transition-all" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-3 md:py-3.5 rounded-2xl font-black text-[10px] uppercase border-2 transition-all active:scale-95 ${formData.status === opt ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm' : 'border-slate-100 text-slate-400 bg-slate-50 hover:bg-slate-100'}`}>{opt}</button>))}</div></div>
         </div>
+        {duplicate && (
+          <DuplicateNotice
+            title="Você já lançou estudo com este aluno hoje"
+            detail={`${duplicate.name} · lição ${duplicate.lesson || '-'} · ${duplicate.status}`}
+            onEdit={onEdit ? () => onEdit(duplicate as any) : undefined}
+            onDismiss={dismissDuplicate}
+          />
+        )}
+
         <Button 
           type="submit" 
           isLoading={isSubmitting}

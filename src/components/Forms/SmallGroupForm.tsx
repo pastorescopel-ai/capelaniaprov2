@@ -8,9 +8,13 @@ import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
 import MonthComparisonBars from '../Shared/MonthComparisonBars';
 import { isRecordLocked } from '../../utils/validators';
-import { formatWhatsApp, formatNameCounts } from '../../utils/formatters';
+import { formatWhatsApp, formatNameCounts, normalizeString } from '../../utils/formatters';
 import { useSmallGroupForm } from '../../hooks/useSmallGroupForm';
 import { useMonthComparison } from '../../hooks/useMonthComparison';
+import FormDraftBanner from '../Shared/FormDraftBanner';
+import DuplicateNotice from '../Shared/DuplicateNotice';
+import { useFormDraft } from '../../hooks/useFormDraft';
+import { useSameDayDuplicate, sameDay, mergeById } from '../../hooks/useSameDayDuplicate';
 
 interface FormProps {
   unit: Unit;
@@ -37,8 +41,20 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
     isSectorLocked, setIsSectorLocked,
     isSubmitting,
     sectorOptions, pgOptions, staffOptions,
-    handleSelectPG, handleSelectLeader, handleLeaderChange, handleClear, handleFormSubmit
+    handleSelectPG, handleSelectLeader, handleLeaderChange, handleClear, handleFormSubmit, defaultState
   } = useSmallGroupForm({ unit, history, editingItem, currentUser, onSubmit, isActive });
+
+  const { draft, restoreDraft, discardDraft } = useFormDraft({
+    storageKey: `capelania_draft_v1_pg_${currentUser.id}_${unit}`,
+    formData, defaultState, setFormData: setFormData as any, enabled: !editingItem, isActive: isActive ?? true,
+  });
+  const { duplicate, dismiss: dismissDuplicate } = useSameDayDuplicate<SmallGroup>(
+    mergeById(allHistory, history),
+    r => r.userId === formData.userId && r.unit === unit && sameDay(r.date, formData.date) &&
+      normalizeString(r.groupName) === normalizeString(formData.groupName),
+    !editingItem && !!(formData.groupName || '').trim(),
+    [formData.userId, formData.date, formData.groupName, unit]
+  );
 
   const isAdmin = currentUser.role === UserRole.ADMIN;
 
@@ -89,6 +105,7 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
       compareWidget={<MonthComparisonBars label="PGs" color="#10b981" {...monthComparison} curNames={curPGNames} prevNames={prevPGNames} />}
     >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
+        {draft && <FormDraftBanner savedAt={draft.savedAt} onRestore={restoreDraft} onDiscard={discardDraft} />}
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
           {isAdmin && (
             <div className="space-y-1 md:col-span-2">
@@ -131,6 +148,15 @@ const SmallGroupForm: React.FC<FormProps> = ({ unit, groupsList = [], users, cur
           <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Turno *</label><select value={formData.shift || 'Manhã'} onChange={e => setFormData({...formData, shift: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all"><option>Manhã</option><option>Tarde</option><option>Noite</option></select></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Relato / Observações</label><textarea value={formData.observations || ''} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium focus:ring-2 focus:ring-emerald-500/20 transition-all" /></div>
         </div>
+        {duplicate && (
+          <DuplicateNotice
+            title="Este PG já foi lançado hoje"
+            detail={`${duplicate.groupName} · ${duplicate.participantsCount} participante(s) · líder ${duplicate.leader || '-'}`}
+            onEdit={onEdit ? () => onEdit(duplicate as any) : undefined}
+            onDismiss={dismissDuplicate}
+          />
+        )}
+
         <Button 
           type="submit" 
           variant="success"

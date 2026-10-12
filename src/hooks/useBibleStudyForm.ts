@@ -66,9 +66,20 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
   const patientChoiceValid = !!patientChoice && patientChoice.normName === normalizeString(formData.name || '');
 
+  // CONFIRMAÇÃO DE LEITO -- depois de confirmar "é o mesmo paciente", se o cadastro tem leito, o
+  // capelão diz se ele continua no mesmo leito ou se mudou (mesmo paciente, leito novo). Sem essa
+  // resposta o registro não salva, pra o leito do cadastro nunca ficar desatualizado em silêncio.
+  const [bedDecision, setBedDecision] = useState<{ patientId: string; decision: 'same' | 'moved' } | null>(null);
+  const selectedPatient = patientChoiceValid && patientChoice!.decision === 'same'
+    ? proPatients.find(pp => String(pp.id) === String(patientChoice!.patientId))
+    : undefined;
+  const savedBed = selectedPatient?.bed || '';
+  const bedDecisionValid = !savedBed || (!!bedDecision && !!selectedPatient && bedDecision.patientId === String(selectedPatient.id));
+
   const confirmSamePatient = useCallback((patientId: string) => {
     const p = proPatients.find(pp => String(pp.id) === String(patientId));
     setPatientChoice({ normName: normalizeString(formData.name || ''), decision: 'same', patientId: String(patientId) });
+    setBedDecision(null);
     // Traz o leito já salvo desse cadastro pro campo "Local" -- o capelão só precisa corrigir
     // se realmente mudou, em vez de redigitar do zero toda vez.
     if (p?.bed) setFormData(prev => ({ ...prev, location: p.bed || prev.location }));
@@ -80,7 +91,19 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
 
   // Reabre o check (botão "Alterar") -- volta a pedir a confirmação em vez de manter a escolha
   // anterior, sem precisar apagar/redigitar o nome.
-  const resetPatientChoice = useCallback(() => setPatientChoice(null), []);
+  const resetPatientChoice = useCallback(() => { setPatientChoice(null); setBedDecision(null); }, []);
+
+  const confirmBedSame = useCallback(() => {
+    if (!selectedPatient) return;
+    setBedDecision({ patientId: String(selectedPatient.id), decision: 'same' });
+    setFormData(prev => ({ ...prev, location: selectedPatient.bed || prev.location }));
+  }, [selectedPatient]);
+
+  const confirmBedMoved = useCallback(() => {
+    if (!selectedPatient) return;
+    setBedDecision({ patientId: String(selectedPatient.id), decision: 'moved' });
+    setFormData(prev => ({ ...prev, location: '' }));
+  }, [selectedPatient]);
 
   useEffect(() => {
     if (!editingItem) {
@@ -395,6 +418,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
   };
 
   const handleClear = () => {
+    setBedDecision(null);
     setFormData({ ...defaultState, date: formData.date });
     setIsSectorLocked(false);
     showToast("Campos limpos!", "info");
@@ -470,6 +494,17 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
         showToast("Confirme se é o mesmo paciente já cadastrado ou se é outra pessoa com o mesmo nome (abaixo do nome).", "warning");
         return;
     }
+    if (isPatientWithCandidates && patientChoice!.decision === 'same' && savedBed) {
+        if (!bedDecisionValid) {
+            showToast("Confirme se o paciente continua no mesmo leito ou se mudou de leito.", "warning");
+            return;
+        }
+        if (bedDecision!.decision === 'moved' && (!formData.location || normalizeString(formData.location) === normalizeString(savedBed))) {
+            showToast("Informe o novo leito do paciente (diferente do cadastrado).", "warning");
+            return;
+        }
+        if (bedDecision!.decision === 'same') dataToSubmit.location = savedBed;
+    }
     if (isPatientWithCandidates && patientChoice!.decision === 'new' && !formData.location) {
         showToast("Informe o setor/leito atual pra diferenciar do cadastro existente.", "warning");
         return;
@@ -495,6 +530,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
           return;
       }
 
+      setBedDecision(null);
       setFormData({ ...defaultState, date: getToday() });
       setIsSectorLocked(false);
       showToast("Registro salvo com sucesso!", "success");
@@ -515,6 +551,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     guideOptions, sectorOptions, studentOptions,
     handleSelectStudent, handleClear, handleChangeName, handleFormSubmit,
     patientCandidates, patientChoice, patientChoiceValid, confirmSamePatient, confirmNewPatient, resetPatientChoice,
+    savedBed, bedDecision, confirmBedSame, confirmBedMoved,
     handleContinueStudy: (item: BibleStudy) => {
         const normName = normalizeString(item.name);
         const lastRecord = [...allHistory]

@@ -12,6 +12,10 @@ import { isRecordLocked } from '../../utils/validators';
 import { formatWhatsApp, countUniqueClasses, getUniqueClassLabels } from '../../utils/formatters';
 import { useBibleClassForm } from '../../hooks/useBibleClassForm';
 import { useMonthComparison } from '../../hooks/useMonthComparison';
+import FormDraftBanner from '../Shared/FormDraftBanner';
+import DuplicateNotice from '../Shared/DuplicateNotice';
+import { useFormDraft } from '../../hooks/useFormDraft';
+import { useSameDayDuplicate, sameDay, mergeById } from '../../hooks/useSameDayDuplicate';
 
 // Paleta pros cards do seletor "Escolha a turma" -- cada turma num tom diferente pra
 // diferenciar de relance. Classes completas (não concatenadas) pro Tailwind não purgar.
@@ -57,6 +61,31 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
     handleContinueClass, defaultState
   } = useBibleClassForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
 
+  // Resumo da chamada (barra com presentes / faltaram / adventistas). Dá pra esconder e mostrar de
+  // novo; a escolha fica guardada neste aparelho.
+  const [showSummary, setShowSummary] = React.useState(() => {
+    try { return localStorage.getItem('capelania_class_summary') !== 'off'; } catch { return true; }
+  });
+  const toggleSummary = (on: boolean) => {
+    setShowSummary(on);
+    try { localStorage.setItem('capelania_class_summary', on ? 'on' : 'off'); } catch { /* sem storage: vale só nesta sessão */ }
+  };
+  const absentRoster = classRoster.filter(n => !formData.students.includes(n)).length;
+  const adventistPresent = formData.adventistStudents.filter(a => formData.students.includes(a)).length;
+
+  const { draft, restoreDraft, discardDraft } = useFormDraft({
+    storageKey: `capelania_draft_v1_class_${currentUser.id}_${unit}`,
+    formData, defaultState, setFormData: setFormData as any, enabled: !editingItem, isActive: isActive ?? true,
+  });
+  const { duplicate, dismiss: dismissDuplicate } = useSameDayDuplicate<BibleClass>(
+    mergeById(allHistory, history),
+    r => r.userId === formData.userId && r.unit === unit && sameDay(r.date, formData.date) &&
+      (r.participantType || ParticipantType.STAFF) === formData.participantType &&
+      ((!!formData.sector && r.sector === formData.sector) || formData.students.some(n => (r.students || []).includes(n))),
+    !editingItem && (!!formData.sector || formData.students.length > 0),
+    [formData.userId, formData.date, formData.sector, formData.students, formData.participantType, unit]
+  );
+
   // Classe Bíblica é gravada uma linha por aluno presente -- o "vs. mês anterior" precisa
   // contar sessões de classe únicas (mesma lógica de countUniqueClasses usada em Relatórios),
   // não linhas cruas, senão uma classe de 10 alunos contaria como 10 aulas.
@@ -94,6 +123,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
         compareWidget={<MonthComparisonBars label="Classes" color="#6366f1" {...monthComparison} curNames={curClassNames} prevNames={prevClassNames} itemLabel="turmas" />}
       >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
+        {draft && <FormDraftBanner savedAt={draft.savedAt} onRestore={restoreDraft} onDiscard={discardDraft} />}
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
           {isAdmin && (
             <div className="space-y-1 md:col-span-2">
@@ -303,7 +333,25 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                 presença/ausência (verde/cinza), a ESTRELA no canto marca Adventista sem mexer
                 na presença. Todo mundo carregado por uma turma reconhecida já entra presente
                 (verde) -- só marca quem faltou, em vez de marcar um a um quem veio. */}
-            <div className="mt-4 md:mt-5 border border-slate-200 rounded-[1.5rem] overflow-hidden bg-white shadow-sm">
+            {showSummary ? (
+              <div className="mt-4 md:mt-5 flex items-center justify-between gap-2 flex-wrap px-4 py-2.5 rounded-2xl bg-indigo-50/70 border border-indigo-100">
+                <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-[10px] font-black uppercase tracking-wide">
+                  <span className="text-emerald-700"><i className="fas fa-user-check mr-1.5"></i>{formData.students.length} presente(s)</span>
+                  <span className="text-slate-500"><i className="fas fa-user-clock mr-1.5"></i>{absentRoster} faltaram</span>
+                  <span className="text-purple-700"><i className="fas fa-star mr-1.5"></i>{adventistPresent} adventista(s)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {absentRoster > 0 && (
+                    <button type="button" onClick={addAllFromLastClass} className="px-3 py-1.5 rounded-xl bg-white border border-indigo-200 text-indigo-700 text-[9px] font-black uppercase tracking-widest hover:bg-indigo-100 active:scale-95 transition-all">Todos presentes</button>
+                  )}
+                  <button type="button" onClick={() => toggleSummary(false)} title="Esconder o resumo da chamada" aria-label="Esconder o resumo da chamada" className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-white flex items-center justify-center transition-all"><i className="fas fa-xmark text-xs"></i></button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => toggleSummary(true)} className="mt-3 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors ml-2"><i className="fas fa-eye mr-1.5"></i>Mostrar resumo da chamada</button>
+            )}
+
+            <div className="mt-3 md:mt-3 border border-slate-200 rounded-[1.5rem] overflow-hidden bg-white shadow-sm">
               <div className="bg-slate-50 p-3 md:p-3.5 border-b border-slate-100 flex justify-between items-center flex-wrap gap-1">
                 <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-2 flex items-center gap-2"><i className="fas fa-clipboard-list text-indigo-400"></i> Lista de Alunos ({formData.students.length})</span>
                 {formData.adventistStudents.length > 0 && (
@@ -367,6 +415,15 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
           }} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none font-black text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all" /></div>
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Status</label><div className="flex gap-2">{STATUS_OPTIONS.map(opt => (<button key={opt} type="button" onClick={() => setFormData({...formData, status: opt as RecordStatus})} className={`flex-1 py-3 md:py-3.5 rounded-2xl font-black text-[10px] uppercase border-2 transition-all active:scale-95 ${formData.status === opt ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-100 text-slate-400 bg-slate-50 hover:bg-slate-100'}`}>{opt}</button>))}</div></div>
         </div>
+        {duplicate && (
+          <DuplicateNotice
+            title="Esta turma já foi lançada hoje"
+            detail={`${duplicate.sector || 'Turma'} · lição ${duplicate.lesson || '-'} · ${(duplicate.students || []).length} aluno(s)`}
+            onEdit={onEdit ? () => onEdit(duplicate as any) : undefined}
+            onDismiss={dismissDuplicate}
+          />
+        )}
+
         <Button 
           type="submit" 
           variant="dark"

@@ -8,9 +8,13 @@ import FormScaffold from '../Shared/FormScaffold';
 import Button from '../Shared/Button';
 import MonthComparisonBars from '../Shared/MonthComparisonBars';
 import { isRecordLocked } from '../../utils/validators';
-import { formatWhatsApp, formatNameCounts } from '../../utils/formatters';
+import { formatWhatsApp, formatNameCounts, normalizeString } from '../../utils/formatters';
 import { useStaffVisitForm } from '../../hooks/useStaffVisitForm';
 import { useMonthComparison } from '../../hooks/useMonthComparison';
+import FormDraftBanner from '../Shared/FormDraftBanner';
+import DuplicateNotice from '../Shared/DuplicateNotice';
+import { useFormDraft } from '../../hooks/useFormDraft';
+import { useSameDayDuplicate, sameDay, mergeById } from '../../hooks/useSameDayDuplicate';
 
 interface FormProps {
   unit: Unit;
@@ -35,6 +39,19 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
     handleSelectName, handleSelectSuggestion, handleClear, handleChangeName, handleFormSubmit, handlePerformReturn,
     sortedHistory, defaultState
   } = useStaffVisitForm({ unit, history, allHistory, editingItem, currentUser, onSubmit, isActive });
+
+  const { draft, restoreDraft, discardDraft } = useFormDraft({
+    storageKey: `capelania_draft_v1_visit_${currentUser.id}_${unit}`,
+    formData, defaultState, setFormData: setFormData as any, enabled: !editingItem, isActive: isActive ?? true,
+  });
+  const { duplicate, dismiss: dismissDuplicate } = useSameDayDuplicate<StaffVisit>(
+    mergeById(allHistory, history),
+    r => r.userId === formData.userId && r.unit === unit && sameDay(r.date, formData.date) &&
+      ((r as any).participantType || ParticipantType.STAFF) === formData.participantType &&
+      normalizeString((r.staffName || '').split(' (')[0]) === normalizeString((formData.staffName || '').split(' (')[0]),
+    !editingItem && !!(formData.staffName || '').trim(),
+    [formData.userId, formData.date, formData.staffName, formData.participantType, unit]
+  );
 
   const monthComparison = useMonthComparison(allHistory, currentUser.id, unit);
   // formatNameCounts junta o mesmo colaborador visitado 2x no mês numa linha só ("Nome (2x)")
@@ -227,6 +244,7 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
       compareWidget={<MonthComparisonBars label="Visitas" color="#f43f5e" {...monthComparison} curNames={curVisitNames} prevNames={prevVisitNames} />}
     >
       <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-5">
+        {draft && <FormDraftBanner savedAt={draft.savedAt} onRestore={restoreDraft} onDiscard={discardDraft} />}
         <div className="grid md:grid-cols-2 gap-4 md:gap-5">
           {isAdmin && (
             <div className="space-y-1 md:col-span-2">
@@ -309,6 +327,15 @@ const StaffVisitForm: React.FC<FormProps> = ({ unit, users, currentUser, history
           {formData.requiresReturn && (<div className="space-y-1 md:col-span-2 animate-in slide-in-from-left duration-300"><label className="text-[10px] font-black text-rose-500 ml-2 uppercase tracking-widest">Agendar Retorno para *</label><input type="date" value={formData.returnDate} onChange={e => setFormData({...formData, returnDate: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl border-2 border-rose-100 text-rose-700 font-black text-sm focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>)}
           <div className="space-y-1 md:col-span-2"><label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Observações da Visita</label><textarea value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} className="w-full p-3 md:p-3.5 rounded-2xl bg-slate-50 border-none h-24 outline-none resize-none font-medium focus:ring-2 focus:ring-rose-500/20 transition-all" /></div>
         </div>
+        {duplicate && (
+          <DuplicateNotice
+            title="Você já registrou visita a esta pessoa hoje"
+            detail={`${duplicate.staffName} · ${duplicate.sector || 'sem setor'} · ${duplicate.reason || ''}`}
+            onEdit={onEdit ? () => onEdit(duplicate as any) : undefined}
+            onDismiss={dismissDuplicate}
+          />
+        )}
+
         <Button 
           type="submit" 
           variant="danger"
