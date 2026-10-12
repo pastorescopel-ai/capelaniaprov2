@@ -21,6 +21,8 @@ interface AutocompleteProps {
   isStrict?: boolean;
   required?: boolean; // Nova prop para controle de validação
   className?: string;
+  // Mínimo de caracteres digitados pra abrir a lista. 0 (padrão) = abre ao focar, listando tudo.
+  minChars?: number;
 }
 
 const Autocomplete: React.FC<AutocompleteProps> = ({ 
@@ -31,7 +33,8 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   placeholder, 
   isStrict, 
   required = true, // Padrão continua sendo obrigatório
-  className 
+  className,
+  minChars = 0
 }) => {
   const [open, setOpen] = useState(false);
   const [prevValue, setPrevValue] = useState(value);
@@ -58,6 +61,8 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   const filtered = useMemo(() => {
     const normSearch = normalizeString(debouncedValue);
     if (!normSearch && !open) return [];
+    // Só mostra sugestões depois de digitar (campo vazio/curto = lista fechada).
+    if (minChars > 0 && (normSearch.length < minChars || normalizeString(inputValue).length < minChars)) return [];
 
     // BUSCA INTELIGENTE: Quebra a busca em termos (palavras)
     const searchTerms = normSearch.split(' ').filter(t => t.trim() !== '');
@@ -84,7 +89,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
       if (a.category === 'Migration' && b.category === 'History') return 1;
       return a.label.localeCompare(b.label);
     });
-  }, [options, debouncedValue, open]);
+  }, [options, debouncedValue, open, minChars, inputValue]);
 
   const validateInput = (currentValue: string) => {
     // Apenas valida se estiver no modo estrito e houver algum valor digitado

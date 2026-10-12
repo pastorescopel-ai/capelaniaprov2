@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-10-11d",
+    "date": "2026-10-11",
+    "changes": [
+      "Classe Bíblica: a busca de aluno (\"Adicionar aluno de fora da turma\") não abre mais a lista de nomes ao tocar no campo. As sugestões só aparecem conforme você digita, com os nomes do setor ou de outros setores."
+    ]
+  },
+  {
     "version": "2026-10-11c",
     "date": "2026-10-11",
     "changes": [

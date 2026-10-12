@@ -275,7 +275,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
 
             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Adicionar aluno de fora da turma</label>
             <div className="flex gap-2">
-              <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent || ''} onChange={setNewStudent} onSelectOption={addStudent} required={false} placeholder={`Digite o nome de um aluno da turma...`} isStrict={false} /></div>
+              <div className="flex-1"><Autocomplete options={studentSearchOptions} value={newStudent || ''} onChange={setNewStudent} onSelectOption={addStudent} required={false} minChars={1} placeholder={`Digite o nome para buscar (setor ou outros setores)...`} isStrict={false} /></div>
               <button type="button" onClick={() => addStudent()} disabled={isLinkingClass} className="w-12 h-12 md:w-14 md:h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all disabled:opacity-60 disabled:hover:translate-y-0">
                 <i className={`fas ${isLinkingClass ? 'fa-spinner fa-spin' : 'fa-plus'}`}></i>
               </button>
