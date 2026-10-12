@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-10-11e",
+    "date": "2026-10-11",
+    "changes": [
+      "Classe Bíblica: na busca de aluno, quem já está na chamada aparece com o aviso \"Já matriculado\" (e não dá pra selecionar de novo), evitando marcar duas vezes."
+    ]
+  },
+  {
     "version": "2026-10-11d",
     "date": "2026-10-11",
     "changes": [

@@ -404,7 +404,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     return options;
   }, [allHistory, formData.userId, proSectors, unit, formData.participantType]);
 
-  const studentSearchOptions = useMemo(() => {
+  const baseStudentSearchOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
     const officialSet = new Set<string>();
     const currentSector = formData.sector;
@@ -528,6 +528,19 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       return a.label.localeCompare(b.label);
     });
   }, [proStaff, proPatients, proProviders, proSectors, unit, allHistory, formData.userId, formData.participantType, formData.sector, historicalClassAttendance, isInactiveStaff]);
+
+  // Quem já está na chamada aparece na busca desabilitado e com o aviso "Já matriculado" -- evita
+  // marcar duas vezes. Compara "Nome (ID)" inteiro; nomes digitados à mão (sem ID) pelo nome.
+  const studentSearchOptions = useMemo(() => {
+    const nameOnly = (raw: string) => normalizeString(raw.split(' (')[0].trim());
+    const presentFull = new Set(formData.students.map(n => normalizeString(n)));
+    const presentNames = new Set(formData.students.map(nameOnly));
+    return baseStudentSearchOptions.map(o => {
+      const already = /\(\w+\)\s*$/.test(o.label) ? presentFull.has(normalizeString(o.label)) : presentNames.has(nameOnly(o.label));
+      if (!already) return o;
+      return { ...o, disabled: true, highlight: false, subLabel: `✓ Já matriculado${o.subLabel ? ' · ' + o.subLabel : ''}` };
+    });
+  }, [baseStudentSearchOptions, formData.students]);
 
   const handleSelectSector = useCallback((sectorName: string) => {
     if (!sectorName) return;
