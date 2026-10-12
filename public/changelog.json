@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-10-11f",
+    "date": "2026-10-11",
+    "changes": [
+      "Classe Bíblica: ao marcar a estrela de Adventista, o card inteiro do aluno fica roxo (e roxo claro quando ainda não marcado como presente), pra identificar de relance."
+    ]
+  },
+  {
     "version": "2026-10-11e",
     "date": "2026-10-11",
     "changes": [

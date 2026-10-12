@@ -316,7 +316,9 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                     const isAdventist = formData.adventistStudents.includes(s);
 
                     return (
-                      <span key={`${s}-${i}`} className={`inline-flex items-stretch rounded-full border overflow-hidden ${isPresent ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-emerald-300'} ${isAdventist ? 'ring-2 ring-purple-300' : ''}`}>
+                      <span key={`${s}-${i}`} className={`inline-flex items-stretch rounded-full border overflow-hidden ${isAdventist
+                        ? (isPresent ? 'bg-purple-600 border-purple-600 text-white' : 'bg-purple-50 border-purple-200 text-purple-400 hover:border-purple-400')
+                        : (isPresent ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-emerald-300')}`}>
                         <button
                           type="button"
                           onClick={() => {
@@ -334,7 +336,7 @@ const BibleClassForm: React.FC<FormProps> = ({ unit, sectors, users, currentUser
                           type="button"
                           onClick={() => toggleAdventist(s)}
                           title={isAdventist ? 'Remover marcação de Adventista' : 'Marcar como Adventista (não conta no total de alunos)'}
-                          className={`px-2.5 flex items-center justify-center border-l ${isPresent ? 'border-white/30' : 'border-slate-200'} ${isAdventist ? 'text-purple-600 bg-white' : isPresent ? 'text-white/70 hover:text-white' : 'text-slate-300 hover:text-purple-500'}`}
+                          className={`px-2.5 flex items-center justify-center border-l ${isAdventist ? (isPresent ? 'border-white/30 text-yellow-300 bg-purple-700' : 'border-purple-200 text-purple-500 bg-purple-100') : isPresent ? 'border-white/30 text-white/70 hover:text-white' : 'border-slate-200 text-slate-300 hover:text-purple-500'}`}
                         >
                           <i className="fas fa-star text-[10px]"></i>
                         </button>
