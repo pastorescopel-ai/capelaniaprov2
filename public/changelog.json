@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-10-11b",
+    "date": "2026-10-11",
+    "changes": [
+      "Corrigido: colaboradores desligados, de férias ou afastados (fora da última lista importada) não aparecem mais nos formulários novos — nem como matriculados nem como não matriculados na Classe Bíblica, nem na busca do Estudo Bíblico, da Classe e da Visita a Colaborador. O histórico dos lançamentos antigos continua intacto."
+    ]
+  },
+  {
     "version": "2026-10-11a",
     "date": "2026-10-11",
     "changes": [

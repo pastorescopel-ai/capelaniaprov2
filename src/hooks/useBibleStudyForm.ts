@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { buildInactiveStaffDetector } from '../utils/staffEligibility';
 import { Unit, RecordStatus, BibleStudy, User, ParticipantType } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
@@ -131,6 +132,10 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
   const studentOptions = useMemo(() => {
     const options: AutocompleteOption[] = [];
     const usedNames = new Set<string>();
+    // Colaborador desligado/férias/afastado não volta pela porta do histórico (o histórico dos
+    // lançamentos passados em si segue intacto).
+    const isInactiveStaff = buildInactiveStaffDetector(proStaff, unit);
+    const hideInactive = (name: string) => formData.participantType === ParticipantType.STAFF && isInactiveStaff(name);
     const officialSet = new Set<string>();
 
     // 0. Preparar sets de nomes para priorização (Filtro por Unidade e Categoria)
@@ -194,7 +199,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     personalHistoryNames.forEach(normName => {
         if (!officialSet.has(normName)) {
             const hist = filteredHistory.find(h => normalizeString(h.name) === normName && h.userId === formData.userId);
-            if (hist && !usedNames.has(normName)) {
+            if (hist && !usedNames.has(normName) && !hideInactive(hist.name)) {
                 usedNames.add(normName);
                 options.push({ 
                   value: hist.name, 
@@ -210,7 +215,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     // 3. Histórico Geral (Outros capelães, mesma categoria)
     filteredHistory.forEach(s => {
       const norm = normalizeString(s.name);
-      if (s.name && !usedNames.has(norm) && !officialSet.has(norm)) {
+      if (s.name && !usedNames.has(norm) && !officialSet.has(norm) && !hideInactive(s.name)) {
         usedNames.add(norm);
         options.push({ value: s.name, label: s.name, subLabel: s.sector, category: 'History' });
       }
@@ -220,7 +225,7 @@ export const useBibleStudyForm = ({ unit, history, allHistory = [], editingItem,
     const otherHistory = allHistory.filter(s => (s.participantType || ParticipantType.STAFF) !== formData.participantType && s.unit === unit);
     otherHistory.forEach(s => {
       const norm = normalizeString(s.name);
-      if (s.name && !usedNames.has(norm) && !officialSet.has(norm)) {
+      if (s.name && !usedNames.has(norm) && !officialSet.has(norm) && !isInactiveStaff(s.name)) {
         usedNames.add(norm);
         options.push({ value: s.name, label: s.name, subLabel: `${s.sector || 'Sem setor'} (Migrar)`, category: 'Migration' });
       }

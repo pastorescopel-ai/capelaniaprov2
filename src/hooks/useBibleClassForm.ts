@@ -8,6 +8,7 @@ import { getValidSectorId } from '../utils/sectorValidation';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
 import { useIdentityGuard } from './useIdentityGuard';
 import { supabase } from '../services/supabaseClient';
+import { buildInactiveStaffDetector } from '../utils/staffEligibility';
 
 interface PasteMatch {
   raw: string;
@@ -99,6 +100,13 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     return m;
   }, [historicalClassAttendance]);
 
+  // Colaborador desligado/em férias/afastado (fora da última lista importada) não aparece na
+  // chamada nem na busca de turmas NOVAS; o que já foi lançado no passado continua intacto.
+  const isInactiveStaff = useMemo(() => {
+    if (formData.participantType !== ParticipantType.STAFF) return () => false;
+    return buildInactiveStaffDetector(proStaff, unit);
+  }, [proStaff, unit, formData.participantType]);
+
   const lastClassStudents = useMemo(() => {
     if (!formData.sector || !unit) return [];
     
@@ -140,7 +148,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     const present = formData.students;
     // Só quem já foi cadastrado na turma (último encontro + colegas ligados). Os colaboradores do
     // setor NÃO entram aqui: setor com 80+ pessoas poluía a chamada. Aluno novo entra pela busca.
-    const potential = Array.from(new Set([...lastClassStudents, ...linkedClassmates]));
+    const potential = Array.from(new Set([...lastClassStudents, ...linkedClassmates])).filter(s => !isInactiveStaff(s));
     const absent = potential.filter(s => !present.includes(s));
     
     absent.sort((a, b) => {
@@ -152,7 +160,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     });
 
     return [...present, ...absent];
-  }, [formData.students, lastClassStudents, linkedClassmates]);
+  }, [formData.students, lastClassStudents, linkedClassmates, isInactiveStaff]);
 
   // Seletor "Escolha a turma" -- em vez de precisar buscar UM aluno pra "adivinhar" a turma,
   // lista as turmas já reconhecidas (mesma regra de agrupamento de countUniqueClasses: com
@@ -175,10 +183,10 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         const recon = rosterByClassId.get(c.id);
         return {
           record: c,
-          students: inMem ? c.students : (recon?.students || []),
-          adventistStudents: (c.adventistStudents && c.adventistStudents.length > 0)
+          students: (inMem ? c.students : (recon?.students || [])).filter(n => !isInactiveStaff(n)),
+          adventistStudents: ((c.adventistStudents && c.adventistStudents.length > 0)
             ? c.adventistStudents
-            : (recon?.adventists || []),
+            : (recon?.adventists || [])).filter(n => !isInactiveStaff(n)),
         };
       })
       .filter(x => x.students.length > 0);
@@ -228,7 +236,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
         // handleContinueClass já lê). Guardado aqui pra selectTurma poder preencher sozinho.
         representativePhone: agg.latest.record.observations?.match(/\[Rep\. WhatsApp: (.*?)\]/)?.[1] || '',
       }));
-  }, [allHistory, unit, formData.userId, formData.participantType, rosterByClassId]);
+  }, [allHistory, unit, formData.userId, formData.participantType, rosterByClassId, isInactiveStaff]);
 
   const selectTurma = useCallback((turma: (typeof recognizedTurmas)[number]) => {
     const lastNum = parseInt(turma.lesson);
@@ -458,7 +466,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
        if (Array.isArray(c.students)) {
          c.students.forEach(s => {
            const norm = normalizeString(s);
-           if (!uniqueHistoryNames.has(norm)) {
+           if (!uniqueHistoryNames.has(norm) && !isInactiveStaff(s)) {
              uniqueHistoryNames.add(norm);
              const isFromCurrentSector = c.sector === currentSector;
              options.push({ 
@@ -480,7 +488,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
        if (Array.isArray(c.students)) {
          c.students.forEach(s => {
            const norm = normalizeString(s);
-           if (!uniqueHistoryNames.has(norm) && !officialSet.has(norm)) {
+           if (!uniqueHistoryNames.has(norm) && !officialSet.has(norm) && !isInactiveStaff(s)) {
              uniqueHistoryNames.add(norm);
              const isFromCurrentSector = c.sector === currentSector;
              options.push({ 
@@ -502,7 +510,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       if (a.category !== 'Meus Alunos' && b.category === 'Meus Alunos') return 1;
       return a.label.localeCompare(b.label);
     });
-  }, [proStaff, proPatients, proProviders, proSectors, unit, allHistory, formData.userId, formData.participantType, formData.sector, historicalClassAttendance]);
+  }, [proStaff, proPatients, proProviders, proSectors, unit, allHistory, formData.userId, formData.participantType, formData.sector, historicalClassAttendance, isInactiveStaff]);
 
   const handleSelectSector = useCallback((sectorName: string) => {
     if (!sectorName) return;
@@ -721,7 +729,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
       let updatedAdventists = [...formData.adventistStudents];
 
       if (lastClassWithStudent) {
-          const peersFound = lastClassWithStudent.students.filter(s => s !== finalString && !formData.students.includes(s));
+          const peersFound = lastClassWithStudent.students.filter(s => s !== finalString && !formData.students.includes(s) && !isInactiveStaff(s));
           nextGuide = lastClassWithStudent.guide;
           const lastNum = parseInt(lastClassWithStudent.lesson);
           nextLesson = !isNaN(lastNum) ? (lastNum + 1).toString() : lastClassWithStudent.lesson;
@@ -1011,8 +1019,8 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
             sector: baseItem.sector || '',
             sectorId: (baseItem as any).sectorId || (proSectors.find(s => s.name === baseItem.sector && s.unit === unit)?.id || ''),
             participantType: baseItem.participantType || ParticipantType.STAFF,
-            students: baseItem.students || [],
-            adventistStudents: baseItem.adventistStudents || [],
+            students: (baseItem.students || []).filter(n => !isInactiveStaff(n)),
+            adventistStudents: (baseItem.adventistStudents || []).filter(n => !isInactiveStaff(n)),
             guide: baseItem.guide || '',
             lesson: !isNaN(parseInt(baseItem.lesson)) ? (parseInt(baseItem.lesson) + 1).toString() : (baseItem.lesson || ''),
             status: RecordStatus.CONTINUACAO,

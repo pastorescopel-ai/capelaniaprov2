@@ -3,6 +3,7 @@ import { Unit, StaffVisit, User, VisitReason, ParticipantType } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { useApp } from '../hooks/useApp';
 import { normalizeString, formatWhatsApp, ensureISODate } from '../utils/formatters';
+import { buildInactiveStaffDetector } from '../utils/staffEligibility';
 import { isRecordLocked, isValidWhatsApp } from '../utils/validators';
 import { getValidSectorId } from '../utils/sectorValidation';
 import { AutocompleteOption } from '../components/Shared/Autocomplete';
@@ -86,12 +87,13 @@ export const useStaffVisitForm = ({ unit, history, allHistory = [], editingItem,
         });
     }
 
+    const isInactiveStaff = buildInactiveStaffDetector(proStaff, unit);
     const uniqueNames = new Set<string>();
     history.forEach(v => {
       const historyType = (v as any).participantType || ParticipantType.STAFF;
       if (historyType === formData.participantType && v.staffName) {
          const norm = normalizeString(v.staffName);
-         if (!uniqueNames.has(norm) && !officialSet.has(norm)) {
+         if (!uniqueNames.has(norm) && !officialSet.has(norm) && !(formData.participantType === ParticipantType.STAFF && isInactiveStaff(v.staffName))) {
              uniqueNames.add(norm);
              options.push({ value: v.staffName, label: v.staffName, subLabel: v.sector, category: 'History' });
          }
