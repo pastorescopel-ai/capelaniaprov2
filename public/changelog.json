@@ -1,5 +1,12 @@
 [
   {
+    "version": "2026-10-11g",
+    "date": "2026-10-11",
+    "changes": [
+      "Classe Bíblica: na busca, o aluno que já está matriculado agora aparece em verde, com o aviso \"Já matriculado\"."
+    ]
+  },
+  {
     "version": "2026-10-11f",
     "date": "2026-10-11",
     "changes": [

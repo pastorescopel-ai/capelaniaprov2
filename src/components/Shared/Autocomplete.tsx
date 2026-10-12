@@ -10,6 +10,7 @@ export interface AutocompleteOption {
   category?: 'RH' | 'History' | 'MyStudents' | 'MyClasses' | 'Migration';
   highlight?: boolean; // Nova flag para destacar em amarelo
   disabled?: boolean;  // Nova prop para desabilitar seleção
+  enrolled?: boolean;  // Já está na lista/chamada: aparece em verde e não dá pra selecionar de novo
 }
 
 interface AutocompleteProps {
@@ -170,7 +171,9 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
                     type="button" 
                     disabled={o.disabled}
                     className={`w-full text-left p-3 transition-all rounded-xl flex items-center justify-between group mb-1 border-2 border-transparent
-                      ${o.disabled
+                      ${o.enrolled
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 cursor-not-allowed'
+                        : o.disabled
                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-50'
                         : o.highlight
                         ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'

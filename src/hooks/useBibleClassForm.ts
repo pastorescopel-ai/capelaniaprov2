@@ -538,7 +538,7 @@ export const useBibleClassForm = ({ unit, history, allHistory = [], editingItem,
     return baseStudentSearchOptions.map(o => {
       const already = /\(\w+\)\s*$/.test(o.label) ? presentFull.has(normalizeString(o.label)) : presentNames.has(nameOnly(o.label));
       if (!already) return o;
-      return { ...o, disabled: true, highlight: false, subLabel: `✓ Já matriculado${o.subLabel ? ' · ' + o.subLabel : ''}` };
+      return { ...o, disabled: true, enrolled: true, highlight: false, subLabel: `✓ Já matriculado${o.subLabel ? ' · ' + o.subLabel : ''}` };
     });
   }, [baseStudentSearchOptions, formData.students]);
 
